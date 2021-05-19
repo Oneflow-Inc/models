@@ -9,7 +9,7 @@ import torch
 import models.pytorch_resnet50 as pytorch_resnet50
 from models.resnet50 import resnet50
 from utils.imagenet1000_clsidx_to_labels import clsidx_2_labels
-from utils.numpy_data_utils import load_image, NumpyDataLoader
+from utils.ofrecord_data_utils import OFRecordDataLoader
 
 def _parse_args():
     parser = argparse.ArgumentParser("flags for save style transform model")
@@ -21,55 +21,25 @@ def _parse_args():
     )
     return parser.parse_args()
 
-def rmse(l, r):
-    return np.sqrt(np.mean(np.square(l - r)))
-
 def main(args):
-    flow.env.init()
     flow.enable_eager_execution()
     flow.InitEagerGlobalSession()
 
     #############################################
     train_batch_size = 16
     val_batch_size = 16
-    channel_last = False
-    output_layout = "NHWC" if channel_last else "NCHW"
-    train_record_reader = flow.nn.OfrecordReader(os.path.join(args.dataset_path, "train"),
-                            batch_size=train_batch_size,
-                            data_part_num=1,
-                            part_name_suffix_length=5,
-                            random_shuffle=True,
-                            shuffle_after_epoch=True)
-    record_label_decoder = flow.nn.OfrecordRawDecoder("class/label", shape=(), dtype=flow.int32)
-    color_space = 'RGB'
-    height = 224
-    width = 224
-    channels = 3
-    record_image_decoder = flow.nn.OFRecordImageDecoderRandomCrop("encoded", color_space=color_space)
-    resize = flow.nn.image.Resize(target_size=[height, width])
 
-    flip = flow.nn.CoinFlip(batch_size=train_batch_size)
-    rgb_mean = [123.68, 116.779, 103.939]
-    rgb_std = [58.393, 57.12, 57.375]
-    crop_mirror_norm = flow.nn.CropMirrorNormalize(color_space=color_space, output_layout=output_layout,
-                                                mean=rgb_mean, std=rgb_std, output_dtype=flow.float)
+    train_data_loader = OFRecordDataLoader(
+                            ofrecord_root = "./ofrecord",
+                            mode = "train",
+                            dataset_size = 9469,
+                            batch_size = train_batch_size)
 
-    val_record_reader = flow.nn.OfrecordReader(os.path.join(args.dataset_path, "val"),
-                                            batch_size=val_batch_size,
-                                            data_part_num=1,
-                                            part_name_suffix_length=5,
-                                            shuffle_after_epoch=False)
-    val_record_image_decoder = flow.nn.OFRecordImageDecoder("encoded", color_space=color_space)
-    val_resize = flow.nn.image.Resize(resize_side="shorter", keep_aspect_ratio=True, target_size=256)
-    val_crop_mirror_normal = flow.nn.CropMirrorNormalize(color_space=color_space, output_layout=output_layout,
-                                                        crop_h=height, crop_w=width, crop_pos_y=0.5, crop_pos_x=0.5,
-                                                        mean=rgb_mean, std=rgb_std, output_dtype=flow.float)
-
-    train_set_size = 9469
-    val_set_size = 3925
-    train_loop = train_set_size // train_batch_size
-    val_loop = val_set_size // val_batch_size
-    ###################################################
+    val_data_loader = OFRecordDataLoader(
+                            ofrecord_root = "./ofrecord",
+                            mode = "val",
+                            dataset_size = 3925,
+                            batch_size = val_batch_size)
 
     epochs = 1000
     learning_rate = 0.001
@@ -110,8 +80,8 @@ def main(args):
 
     of_corss_entropy = flow.nn.CrossEntropyLoss()
 
-    res50_module.to(flow.device('cuda'))
-    of_corss_entropy.to(flow.device('cuda'))
+    res50_module.to('cuda')
+    of_corss_entropy.to('cuda')
 
     of_sgd = flow.optim.SGD(res50_module.parameters(), lr=learning_rate, momentum=mom)
 
@@ -120,26 +90,21 @@ def main(args):
     of_losses = []
     torch_losses = []
 
-    all_samples = val_loop * val_batch_size
+    all_samples = len(val_data_loader) * val_batch_size
 
     for epoch in range(epochs):
         res50_module.train()
         torch_res50_module.train()
 
-        # for b in range(train_loop):
-        for b in range(10):
+        for b in range(len(train_data_loader)):
+        # for b in range(100):
             print("epoch %d train iter %d" % (epoch, b))
-            train_record = train_record_reader()
-            label = record_label_decoder(train_record)
-            image_raw_buffer = record_image_decoder(train_record)
-            image = resize(image_raw_buffer)
-            rng = flip()
-            image = crop_mirror_norm(image, rng)
+            image, label = train_data_loader.get_batch()
         
             # oneflow train 
             start_t = time.time()
-            image = image.to(flow.device('cuda'))
-            label = label.to(flow.device('cuda'))
+            image = image.to('cuda')
+            label = label.to('cuda')
             logits = res50_module(image)
             loss = of_corss_entropy(logits, label)
             loss.backward()
@@ -152,7 +117,7 @@ def main(args):
 
             # pytroch train
             start_t = time.time()
-            image = torch.from_numpy(image.numpy()).to('cuda')
+            image = torch.tensor(image.numpy()).to('cuda')
             label = torch.tensor(label.numpy(), dtype=torch.long, requires_grad=False).to('cuda')
             logits = torch_res50_module(image)
             loss = corss_entropy(logits, label)
@@ -170,17 +135,13 @@ def main(args):
         torch_res50_module.eval()
         correct_of = 0.0
         correct_torch = 0.0
-        # for b in range(val_loop):
-        for b in range(10):
+        for b in range(len(val_data_loader)):
+        # for b in range(100):
             print("epoch %d val iter %d" % (epoch, b))
-            val_record = val_record_reader()
-            label = record_label_decoder(val_record)
-            image_raw_buffer = val_record_image_decoder(val_record)
-            image = val_resize(image_raw_buffer)
-            image = val_crop_mirror_normal(image)
+            image, label = val_data_loader.get_batch()
 
             start_t = time.time()
-            image = image.to(flow.device('cuda'))
+            image = image.to('cuda')
             with flow.no_grad():
                 logits = res50_module(image)
                 predictions = logits.softmax()
@@ -209,7 +170,8 @@ def main(args):
             print("torch predict time: %f, %d" % (end_t - start_t, correct_torch))
 
         print("epoch %d, oneflow top1 val acc: %f, torch top1 val acc: %f" % (epoch, correct_of / all_samples, correct_torch / all_samples))
-        flow.save(res50_module.state_dict(), os.path.join(args.save_checkpoint_path, "epoch_%d_val_acc_%f" % (epoch, correct_of / all_samples)))
+        
+        # flow.save(res50_module.state_dict(), os.path.join(args.save_checkpoint_path, "epoch_%d_val_acc_%f" % (epoch, correct_of / all_samples)))
 
     writer = open("of_losses.txt", "w")
     for o in of_losses:
