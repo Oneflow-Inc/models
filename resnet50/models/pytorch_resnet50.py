@@ -1,26 +1,7 @@
 import torch
-from torch import Tensor
 import torch.nn as nn
+from torch import Tensor
 from typing import Type, Any, Callable, Union, List, Optional
-
-import time
-
-__all__ = ['ResNet', 'resnet18', 'resnet34', 'resnet50', 'resnet101',
-           'resnet152', 'resnext50_32x4d', 'resnext101_32x8d',
-           'wide_resnet50_2', 'wide_resnet101_2']
-
-
-model_urls = {
-    'resnet18': 'https://download.pytorch.org/models/resnet18-f37072fd.pth',
-    'resnet34': 'https://download.pytorch.org/models/resnet34-b627a593.pth',
-    'resnet50': 'https://download.pytorch.org/models/resnet50-0676ba61.pth',
-    'resnet101': 'https://download.pytorch.org/models/resnet101-63fe2227.pth',
-    'resnet152': 'https://download.pytorch.org/models/resnet152-394f9c45.pth',
-    'resnext50_32x4d': 'https://download.pytorch.org/models/resnext50_32x4d-7cdf4587.pth',
-    'resnext101_32x8d': 'https://download.pytorch.org/models/resnext101_32x8d-8ba56ff5.pth',
-    'wide_resnet50_2': 'https://download.pytorch.org/models/wide_resnet50_2-95faca4d.pth',
-    'wide_resnet101_2': 'https://download.pytorch.org/models/wide_resnet101_2-32ee1156.pth',
-}
 
 
 def conv3x3(in_planes: int, out_planes: int, stride: int = 1, groups: int = 1, dilation: int = 1) -> nn.Conv2d:
@@ -253,19 +234,12 @@ def _resnet(
     arch: str,
     block: Type[Union[BasicBlock, Bottleneck]],
     layers: List[int],
-    pretrained: bool,
-    progress: bool,
     **kwargs: Any
 ) -> ResNet:
     model = ResNet(block, layers, **kwargs)
-    # if pretrained:
-        # state_dict = load_state_dict_from_url(model_urls[arch],
-        #                                       progress=progress)
-
-        # model.load_state_dict(state_dict)
     return model
 
-def resnet50(pretrained: bool = False, progress: bool = True, **kwargs: Any) -> ResNet:
+def resnet50(**kwargs: Any) -> ResNet:
     r"""ResNet-50 model from
     `"Deep Residual Learning for Image Recognition" <https://arxiv.org/pdf/1512.03385.pdf>`_.
 
@@ -273,23 +247,4 @@ def resnet50(pretrained: bool = False, progress: bool = True, **kwargs: Any) -> 
         pretrained (bool): If True, returns a model pre-trained on ImageNet
         progress (bool): If True, displays a progress bar of the download to stderr
     """
-    return _resnet('resnet50', Bottleneck, [3, 4, 6, 3], pretrained, progress,
-                   **kwargs)
-
-# res50_module = resnet50()
-# start_t = time.time()
-# torch_params = torch.load("resnet50-19c8e357.pth")
-# res50_module.load_state_dict(torch_params)
-# end_t = time.time()
-# print('load params time : {}'.format(end_t - start_t))
-
-# res50_module.to('cuda')
-
-# start_t = time.time()
-# image = torch.rand(1, 3, 224, 224)
-# image = image.to('cuda')
-# predictions = torch.softmax(res50_module(image), -1)
-# predictions_numpy = predictions.cpu().detach().numpy()
-# end_t = time.time()
-# print('infer time : {}'.format(end_t - start_t))
-
+    return _resnet('resnet50', Bottleneck, [3, 4, 6, 3], **kwargs)

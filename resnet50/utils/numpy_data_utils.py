@@ -8,7 +8,7 @@ def load_image(image_path='data/fish.jpg'):
     rgb_std = [58.393, 57.12, 57.375]
     im = Image.open(image_path)
     im = im.resize((224, 224))
-    im = im.convert('RGB')  # 有的图像是单通道的，不加转换会报错
+    im = im.convert('RGB')
     im = np.array(im).astype('float32')
     im = (im - rgb_mean) / rgb_std
     im = np.transpose(im, (2, 0, 1))
@@ -56,6 +56,4 @@ class NumpyDataLoader(object):
     
     def __len__(self):
         return len(self.image_2_class_label_list) // self.batch_size
-
-
 

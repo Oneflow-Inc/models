@@ -9,7 +9,7 @@ import torch
 import models.pytorch_resnet50 as pytorch_resnet50
 from models.resnet50 import resnet50
 from utils.imagenet1000_clsidx_to_labels import clsidx_2_labels
-from utils.numpy_data_utils import load_image, NumpyDataLoader
+from utils.numpy_data_utils import NumpyDataLoader
 
 def _parse_args():
     parser = argparse.ArgumentParser("flags for save style transform model")
@@ -24,11 +24,7 @@ def _parse_args():
     )
     return parser.parse_args()
 
-def rmse(l, r):
-    return np.sqrt(np.mean(np.square(l - r)))
-
 def main(args):
-    flow.env.init()
     flow.enable_eager_execution()
 
     epochs = 1000
@@ -78,8 +74,8 @@ def main(args):
 
     of_corss_entropy = flow.nn.CrossEntropyLoss()
 
-    res50_module.to(flow.device('cuda'))
-    of_corss_entropy.to(flow.device('cuda'))
+    res50_module.to('cuda')
+    of_corss_entropy.to('cuda')
 
     of_sgd = flow.optim.SGD(res50_module.parameters(), lr=learning_rate, momentum=mom)
 
@@ -100,10 +96,8 @@ def main(args):
         
             # oneflow train 
             start_t = time.time()
-            image = flow.Tensor(image_nd)
-            label = flow.Tensor(label_nd, dtype=flow.int32, requires_grad=False)
-            image = image.to(flow.device('cuda'))
-            label = label.to(flow.device('cuda'))
+            image = flow.tensor(image_nd).to('cuda')
+            label = flow.Tensor(label_nd, dtype=flow.long, requires_grad=False).to('cuda')
             logits = res50_module(image)
             loss = of_corss_entropy(logits, label)
             loss.backward()
@@ -116,7 +110,7 @@ def main(args):
 
             # pytroch train
             start_t = time.time()
-            image = torch.from_numpy(image_nd).to('cuda')
+            image = torch.tensor(image_nd).to('cuda')
             label = torch.tensor(label_nd, dtype=torch.long, requires_grad=False).to('cuda')
             logits = torch_res50_module(image)
             loss = corss_entropy(logits, label)
@@ -141,7 +135,7 @@ def main(args):
             print("validation iter: %d" % b, image_nd.shape, label_nd.shape)
 
             start_t = time.time()
-            image = flow.Tensor(image_nd).to(flow.device('cuda'))
+            image = flow.tensor(image_nd).to('cuda')
             with flow.no_grad():
                 logits = res50_module(image)
                 predictions = logits.softmax()
@@ -156,7 +150,7 @@ def main(args):
 
             # pytroch val
             start_t = time.time()
-            image = torch.from_numpy(image_nd).to('cuda')
+            image = torch.tensor(image_nd).to('cuda')
             with torch.no_grad():
                 logits = torch_res50_module(image)
                 predictions = logits.softmax(-1)

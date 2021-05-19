@@ -34,7 +34,6 @@ def main(args):
     for k in dic.keys():
         torch_params[k] = torch.from_numpy(dic[k].numpy()) 
 
-    # res50_module.load_state_dict(dic)
     end_t = time.time()
     print('load params time : {}'.format(end_t - start_t))
 
@@ -42,14 +41,14 @@ def main(args):
     res50_module.eval()
     start_t = time.time()
 
-    image = flow.Tensor(image_nd, dtype=flow.float32, requires_grad=True)
-    label = flow.Tensor(label_nd, dtype=flow.int32)
+    image = flow.tensor(image_nd, requires_grad=True)
+    label = flow.tensor(label_nd, dtype=flow.long, requires_grad=False).to('cuda')
     corss_entropy = flow.nn.CrossEntropyLoss(reduction="mean")
 
-    image_gpu = image.to(flow.device('cuda'))
-    label = label.to(flow.device('cuda'))
-    res50_module.to(flow.device('cuda'))
-    corss_entropy.to(flow.device('cuda'))
+    image_gpu = image.to('cuda')
+    label = label.to('cuda')
+    res50_module.to('cuda')
+    corss_entropy.to('cuda')
 
     learning_rate = 0.01
     mom = 0.9
@@ -101,9 +100,8 @@ def main(args):
     torch_sgd = torch.optim.SGD(torch_res50_module.parameters(), lr=learning_rate, momentum=mom)
 
     start_t = time.time()
-    image = torch.tensor(image_nd)
-    image = image.to('cuda')
-    image.requires_grad = True
+    image = torch.tensor(image_nd, requires_grad=True)
+    image_gpu = image.to('cuda')
     corss_entropy = torch.nn.CrossEntropyLoss()
     corss_entropy.to('cuda')
     label = torch.tensor(label_nd, dtype=torch.long, requires_grad=False).to('cuda')
@@ -115,7 +113,7 @@ def main(args):
 
     for i in range(bp_iters):
         s_t = time.time()
-        logits = torch_res50_module(image)
+        logits = torch_res50_module(image_gpu)
         loss = corss_entropy(logits, label)
         for_time += time.time() - s_t
 
