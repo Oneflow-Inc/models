@@ -8,6 +8,7 @@ from models.rnn_model import RNN
 import time
 import math
 import numpy as np
+import torch
 
 flow.env.init()
 flow.enable_eager_execution()
@@ -20,25 +21,21 @@ def train(category_tensor, line_tensor, rnn, criterion, learning_rate):
 
     for i in range(line_tensor.size()[0]):
         output, hidden = rnn(line_tensor[i], hidden)
-    
     loss = criterion(output, category_tensor)
-
     loss.backward()
-
     for p in rnn.parameters():
     #     p.data.add_(p.grad.data, alpha=-learning_rate)
         p[:] = p - learning_rate * p.grad
-
-        for p in rnn.parameters():
-            p.grad.fill_(0)
+    for p in rnn.parameters():
+        p.grad.fill_(0)
 
     # NOTE(Liang Depeng): oneflow Tensor does not have `item` method yet
     # return output, loss.item()
-    return output.softmax(), loss.numpy()[0]
+    return output, loss.numpy()[0]
 
 n_iters = 100000
-print_every = 50
-plot_every = 10
+print_every = 500
+plot_every = 1000
 learning_rate = 0.005 # If you set this too high, it might explode. If too low, it might not learn
 
 dataset_path = "./data/names"
@@ -46,6 +43,17 @@ n_categories = processDataset(dataset_path)
 
 n_hidden = 128
 rnn = RNN(n_letters, n_hidden, n_categories)
+dic = rnn.state_dict()
+
+#load from initialized parameters
+torch_params = torch.load("models/rnn")
+torch_keys = torch_params.keys()
+
+for k in dic.keys():
+    if k in torch_keys:
+        dic[k] = torch_params[k].detach().numpy()
+rnn.load_state_dict(dic)
+
 criterion = nn.CrossEntropyLoss()
 
 rnn.to("cuda")
@@ -93,7 +101,8 @@ def categoryFromOutput(output):
     category_i = top_i[0][0]
     return all_categories[category_i], category_i
 
-
+#make sure the random sampling process is the same as pytorch version
+random.seed(10)
 samples = 0.0
 correct_guess = 0.0
 
@@ -116,4 +125,9 @@ for iter in range(1, n_iters + 1):
     if iter % plot_every == 0:
         all_losses.append(current_loss / plot_every)
         current_loss = 0
+    
+    writer = open("all_losses.txt", "w")
+    for o in all_losses:
+        writer.write("%f\n" % o)
+    writer.close()
 

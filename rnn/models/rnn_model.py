@@ -27,7 +27,7 @@ class RNN(nn.Module):
         combined = self.cat(input, hidden)[0]
         hidden = self.i2h(combined)
         output = self.i2o(combined)
-        # output = self.softmax(output)
+        #output = self.softmax(output)
         return output, hidden
 
     def initHidden(self):
