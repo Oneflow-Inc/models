@@ -1,9 +1,10 @@
-import oneflow.experimental as flow
-import oneflow.experimental.nn as nn
-
-class RNN(nn.Module):
+import torch.nn as nn
+import torch
+import random
+import math
+class RNN_PYTORCH(nn.Module):
     def __init__(self, input_size, hidden_size, output_size):
-        super().__init__()
+        super(RNN_PYTORCH, self).__init__()
 
         self.hidden_size = hidden_size
 
@@ -12,13 +13,11 @@ class RNN(nn.Module):
         self.softmax = nn.LogSoftmax(dim=1)
 
     def forward(self, input, hidden):
-        combined = flow.cat([input, hidden], dim=1)
+        combined = torch.cat((input, hidden), 1).to("cuda")
         hidden = self.i2h(combined)
         output = self.i2o(combined)
         output = self.softmax(output)
         return output, hidden
 
     def initHidden(self):
-        hidden = flow.Tensor(1, self.hidden_size)
-        flow.nn.init.zeros_(hidden)
-        return hidden.to("cuda")
+        return torch.zeros(1, self.hidden_size).to("cuda")

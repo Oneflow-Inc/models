@@ -41,4 +41,4 @@ def randomTrainingExample():
     # category_tensor = torch.tensor([all_categories.index(category)], dtype=torch.long)
     category_tensor = flow.Tensor([all_categories.index(category)], dtype=flow.int64)
     line_tensor = lineToTensor(line)
-    return category, line, category_tensor, line_tensor
+    return category, line, category_tensor.to("cuda"), line_tensor.to("cuda")

@@ -13,6 +13,10 @@ python3 predict.py
 
 ## run rnn train demo
 ```bash
-python3 train.py
+python3 train_rnn_oneflow.py
 ```
 
+## run speed test against pytorch
+```bash
+python3 compare_oneflow_and_pytoch_rnn_speed.py
+```
