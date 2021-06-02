@@ -19,7 +19,7 @@ def train(category_tensor, line_tensor, rnn, criterion, learning_rate):
         output, hidden = rnn(line_tensor[i], hidden)
     loss = criterion(output, category_tensor)
     loss.backward()
-    # NOTE(Xu Zhiqiu) Probably run in segfault here, if segfault, replace these two lines with following
+    # NOTE(Xu Zhiqiu) Probably run in segfault here, if segfault, replace 23-24 with 25-28
     of_sgd.step()
     of_sgd.zero_grad()
     # for p in rnn.parameters():
@@ -41,16 +41,6 @@ n_categories = processDataset(dataset_path)
 
 n_hidden = 128
 rnn = RNN(n_letters, n_hidden, n_categories)
-
-# #load from initialized parameters
-# dic = rnn.state_dict()
-# torch_params = torch.load("models/rnn")
-# torch_keys = torch_params.keys()
-# for k in dic.keys():
-#     if k in torch_keys:
-#         dic[k] = torch_params[k].detach().numpy()
-# rnn.load_state_dict(dic)
-
 criterion = nn.NLLLoss()
 
 rnn.to("cuda")
