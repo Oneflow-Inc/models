@@ -85,8 +85,6 @@ def categoryFromOutput(output):
     category_i = top_i[0][0]
     return all_categories[category_i], category_i
 
-#make sure the random sampling process is the same as pytorch version
-random.seed(10)
 samples = 0.0
 correct_guess = 0.0
 
