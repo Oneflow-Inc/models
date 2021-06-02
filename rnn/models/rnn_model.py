@@ -11,28 +11,14 @@ class RNN(nn.Module):
         self.i2o = nn.Linear(input_size + hidden_size, output_size)
         self.softmax = nn.LogSoftmax(dim=1)
 
-        # TODO(Liang Depeng): oneflow does not support `flow.cat` yet
-        self.cat = (
-            flow.builtin_op("concat")
-                .Input("in", 2)
-                .Attr("axis", 1)
-                .Attr("max_dim_size", input_size + hidden_size)
-                .Output("out")
-                .Build()
-        )
-
     def forward(self, input, hidden):
-        # NOTE(Liang Depeng): original torch implementation 
-        # combined = torch.cat((input, hidden), 1)
-        combined = self.cat(input, hidden)[0]
+        combined = flow.cat([input, hidden], dim=1)
         hidden = self.i2h(combined)
         output = self.i2o(combined)
-        #output = self.softmax(output)
+        output = self.softmax(output)
         return output, hidden
 
     def initHidden(self):
-        # NOTE(Liang Depeng): original torch implementation 
-        # return torch.zeros(1, self.hidden_size)
         hidden = flow.Tensor(1, self.hidden_size)
         flow.nn.init.zeros_(hidden)
         return hidden.to("cuda")

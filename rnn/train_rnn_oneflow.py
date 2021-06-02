@@ -1,4 +1,5 @@
 import oneflow.experimental as flow
+from oneflow.experimental import optim
 import oneflow.experimental.nn as nn
 
 from utils.dataset import *
@@ -8,26 +9,23 @@ from models.rnn_model import RNN
 import time
 import math
 import numpy as np
-import torch
 
 flow.env.init()
 flow.enable_eager_execution()
 
 def train(category_tensor, line_tensor, rnn, criterion, learning_rate):
     hidden = rnn.initHidden()
-
-    # TODO(Liang Depeng): oneflow Module does not have `zero_grad` method
-    # rnn.zero_grad()
-
     for i in range(line_tensor.size()[0]):
         output, hidden = rnn(line_tensor[i], hidden)
     loss = criterion(output, category_tensor)
     loss.backward()
-    for p in rnn.parameters():
-    #     p.data.add_(p.grad.data, alpha=-learning_rate)
-        p[:] = p - learning_rate * p.grad
-    for p in rnn.parameters():
-        p.grad.fill_(0)
+    # NOTE(Xu Zhiqiu) Probably run in segfault here, if segfault, replace these two lines with following
+    of_sgd.step()
+    of_sgd.zero_grad()
+    # for p in rnn.parameters():
+    #     p[:] = p - learning_rate * p.grad
+    # for p in rnn.parameters():
+    #     p.grad.fill_(0)
 
     # NOTE(Liang Depeng): oneflow Tensor does not have `item` method yet
     # return output, loss.item()
@@ -43,22 +41,21 @@ n_categories = processDataset(dataset_path)
 
 n_hidden = 128
 rnn = RNN(n_letters, n_hidden, n_categories)
-dic = rnn.state_dict()
 
-#load from initialized parameters
-torch_params = torch.load("models/rnn")
-torch_keys = torch_params.keys()
+# #load from initialized parameters
+# dic = rnn.state_dict()
+# torch_params = torch.load("models/rnn")
+# torch_keys = torch_params.keys()
+# for k in dic.keys():
+#     if k in torch_keys:
+#         dic[k] = torch_params[k].detach().numpy()
+# rnn.load_state_dict(dic)
 
-for k in dic.keys():
-    if k in torch_keys:
-        dic[k] = torch_params[k].detach().numpy()
-rnn.load_state_dict(dic)
-
-criterion = nn.CrossEntropyLoss()
+criterion = nn.NLLLoss()
 
 rnn.to("cuda")
 criterion.to("cuda")
-
+of_sgd = optim.SGD(rnn.parameters(), lr=learning_rate)
 # Keep track of losses for plotting
 current_loss = 0
 all_losses = []
@@ -94,9 +91,6 @@ def categoryFromOutput(output):
     # TODO(Liang Depeng): oneflow does not provide the same `topk`
     #                     operation as pytorch, which also return the index.
     #                     Using a numpy implementation instead.
-
-    # top_n, top_i = output.topk(1)
-    # category_i = top_i[0].item()
     top_n, top_i = topk_(output.numpy(), 1)
     category_i = top_i[0][0]
     return all_categories[category_i], category_i

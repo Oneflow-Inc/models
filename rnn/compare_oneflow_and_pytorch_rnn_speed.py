@@ -42,6 +42,7 @@ def main(args):
     rnn_module = RNN(n_letters, n_hidden, n_categories)
     # set for eval mode
     # res50_module.eval()
+    # Fake data, only for speed test purpose
     category_tensor = flow.Tensor([1], dtype=flow.int64)
     line_tensor = lineToTensor('Depeng')
     cross_entropy = flow.nn.CrossEntropyLoss()
@@ -57,6 +58,7 @@ def main(args):
     bp_time = 0.0
     update_time = 0.0
 
+    of_sgd = flow.optim.SGD(rnn_module.parameters(), lr=learning_rate)
     print("start oneflow training loop....")
     start_t = time.time()
     for i in range(bp_iters):
@@ -72,10 +74,8 @@ def main(args):
         bp_time += time.time() - s_t
         
         s_t = time.time()
-        for p in rnn_module.parameters():
-            p[:] = p - learning_rate * p.grad
-        for p in rnn_module.parameters():
-            p.grad.fill_(0)
+        of_sgd.step()
+        of_sgd.zero_grad()
         update_time += time.time() - s_t
 
     of_loss = loss.numpy()
