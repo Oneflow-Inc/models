@@ -19,7 +19,7 @@ def train(category_tensor, line_tensor, rnn, criterion, learning_rate):
         output, hidden = rnn(line_tensor[i], hidden)
     loss = criterion(output, category_tensor)
     loss.backward()
-    # NOTE(Xu Zhiqiu) Probably run in segfault here, if segfault, replace 23-24 with 25-28
+    # NOTE(Xu Zhiqiu) Probably run into segfault here, if segfault, replace 23-24 with 25-28
     of_sgd.step()
     of_sgd.zero_grad()
     # for p in rnn.parameters():
@@ -85,6 +85,8 @@ def categoryFromOutput(output):
     category_i = top_i[0][0]
     return all_categories[category_i], category_i
 
+#make sure the random sampling process is the same as pytorch version
+random.seed(10)
 samples = 0.0
 correct_guess = 0.0
 

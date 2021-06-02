@@ -14,6 +14,7 @@ n_hidden = 128
 all_letters = string.ascii_letters + " .,;'"
 n_letters = len(all_letters)
 n_categories = 256
+learning_rate = 0.0005
 
 def _parse_args():
     parser = argparse.ArgumentParser("flags for compare oneflow and pytorch speed")
@@ -22,43 +23,30 @@ def _parse_args():
 def letterToIndex(letter):
     return all_letters.find(letter)
 
-def lineToTensor(line):
-    tensor = flow.Tensor(len(line), n_letters)
-    flow.nn.init.zeros_(tensor)
-    for li, letter in enumerate(line):
-        # NOTE(Liang Depeng): oneflow Tensor does not support tensor[li][letterToIndex(letter)] = 1
-        tensor[li, letterToIndex(letter)] = 1
-    return tensor.to("cuda")
-
-def lineToTensor_torch(line):
-    tensor = torch.zeros(len(line), 1, n_letters)
-    for li, letter in enumerate(line):
-        tensor[li][0][letterToIndex(letter)] = 1
-    return tensor
-
 def main(args):
     flow.env.init()
     flow.enable_eager_execution()
     rnn_module = RNN(n_letters, n_hidden, n_categories)
-    # set for eval mode
-    # res50_module.eval()
     # Fake data, only for speed test purpose
+    test_word = 'Depeng'
     category_tensor = flow.Tensor([1], dtype=flow.int64)
-    line_tensor = lineToTensor('Depeng')
-    cross_entropy = flow.nn.CrossEntropyLoss()
+    line_tensor = flow.Tensor(len(test_word), n_letters)
+    flow.nn.init.zeros_(line_tensor)
+    for li, letter in enumerate(test_word):
+        line_tensor[li, letterToIndex(letter)] = 1
+    criterion = flow.nn.NLLLoss()
 
     category_tensor_gpu = category_tensor.to('cuda')
     line_tensor_gpu = line_tensor.to('cuda')
     rnn_module.to('cuda')
-    cross_entropy.to('cuda')
+    criterion.to('cuda')
+    of_sgd = flow.optim.SGD(rnn_module.parameters(), lr=learning_rate)
 
-    learning_rate = 0.0005
     bp_iters = 50
     for_time = 0.0
     bp_time = 0.0
     update_time = 0.0
 
-    of_sgd = flow.optim.SGD(rnn_module.parameters(), lr=learning_rate)
     print("start oneflow training loop....")
     start_t = time.time()
     for i in range(bp_iters):
@@ -66,7 +54,7 @@ def main(args):
         hidden = rnn_module.initHidden()
         for j in range(line_tensor_gpu.size()[0]):
             output, hidden = rnn_module(line_tensor_gpu[j], hidden)
-        loss = cross_entropy(output, category_tensor_gpu)
+        loss = criterion(output, category_tensor_gpu)
         for_time += time.time() - s_t
 
         s_t = time.time()
@@ -95,13 +83,15 @@ def main(args):
     torch_rnn_module.to('cuda')
 
     category_tensor = torch.tensor([1], dtype=torch.long)
-    line_tensor = lineToTensor_torch('Depeng')
-    cross_entropy = torch.nn.CrossEntropyLoss()
+    line_tensor = torch.zeros(len(test_word), 1, n_letters)
+    for li, letter in enumerate(test_word):
+        line_tensor[li][0][letterToIndex(letter)] = 1
+    criterion = torch.nn.NLLLoss()
     
     category_tensor_gpu = category_tensor.to('cuda')
     line_tensor_gpu = line_tensor.to('cuda')
     torch_rnn_module.to('cuda')
-    cross_entropy.to('cuda')
+    criterion.to('cuda')
 
     for_time = 0.0
     bp_time = 0.0
@@ -114,7 +104,7 @@ def main(args):
         hidden = torch_rnn_module.initHidden()
         for i in range(line_tensor.size()[0]):
             output, hidden = torch_rnn_module(line_tensor_gpu[i], hidden)
-        loss = cross_entropy(output, category_tensor_gpu)
+        loss = criterion(output, category_tensor_gpu)
         for_time += time.time() - s_t
 
         s_t = time.time()
