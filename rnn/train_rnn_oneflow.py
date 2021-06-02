@@ -1,5 +1,6 @@
-import oneflow as flow
-from oneflow.python.framework.function_util import global_function_or_identity
+import oneflow.experimental as flow
+from oneflow.experimental import optim
+import oneflow.experimental.nn as nn
 
 from utils.dataset import *
 from utils.tensor_utils import *
@@ -14,39 +15,25 @@ flow.enable_eager_execution()
 
 def train(category_tensor, line_tensor, rnn, criterion, learning_rate):
     hidden = rnn.initHidden()
-
-    # TODO(Liang Depeng): oneflow Module does not have `zero_grad` method
-    # rnn.zero_grad()
-
     for i in range(line_tensor.size()[0]):
         output, hidden = rnn(line_tensor[i], hidden)
-    
     loss = criterion(output, category_tensor)
-
-    @global_function_or_identity()
-    def job():
-        loss.backward()
-    job()
-
-    # Add parameters' gradients to their values, multiplied by learning rate
-    # TODO(Liang Depeng): oneflow Tensor does not support inplace `add_` yet
-    @global_function_or_identity()
-    def job2():
-        for p in rnn.parameters():
-        #     p.data.add_(p.grad.data, alpha=-learning_rate)
-            p[:] = p - learning_rate * p.grad
-
-        for p in rnn.parameters():
-            p.grad.fill_(0)
-    job2()
+    loss.backward()
+    # NOTE(Xu Zhiqiu) Probably run into segfault here, if segfault, replace 23-24 with 25-28
+    of_sgd.step()
+    of_sgd.zero_grad()
+    # for p in rnn.parameters():
+    #     p[:] = p - learning_rate * p.grad
+    # for p in rnn.parameters():
+    #     p.grad.fill_(0)
 
     # NOTE(Liang Depeng): oneflow Tensor does not have `item` method yet
     # return output, loss.item()
-    return output.softmax(), loss.numpy()[0]
+    return output, loss.numpy()[0]
 
 n_iters = 100000
-print_every = 50
-plot_every = 10
+print_every = 500
+plot_every = 1000
 learning_rate = 0.005 # If you set this too high, it might explode. If too low, it might not learn
 
 dataset_path = "./data/names"
@@ -54,8 +41,11 @@ n_categories = processDataset(dataset_path)
 
 n_hidden = 128
 rnn = RNN(n_letters, n_hidden, n_categories)
-criterion = CrossEntropyLoss(n_categories)
+criterion = nn.NLLLoss()
 
+rnn.to("cuda")
+criterion.to("cuda")
+of_sgd = optim.SGD(rnn.parameters(), lr=learning_rate)
 # Keep track of losses for plotting
 current_loss = 0
 all_losses = []
@@ -91,14 +81,12 @@ def categoryFromOutput(output):
     # TODO(Liang Depeng): oneflow does not provide the same `topk`
     #                     operation as pytorch, which also return the index.
     #                     Using a numpy implementation instead.
-
-    # top_n, top_i = output.topk(1)
-    # category_i = top_i[0].item()
     top_n, top_i = topk_(output.numpy(), 1)
     category_i = top_i[0][0]
     return all_categories[category_i], category_i
 
-
+#make sure the random sampling process is the same as pytorch version
+random.seed(10)
 samples = 0.0
 correct_guess = 0.0
 
@@ -121,4 +109,9 @@ for iter in range(1, n_iters + 1):
     if iter % plot_every == 0:
         all_losses.append(current_loss / plot_every)
         current_loss = 0
+    
+    writer = open("all_losses.txt", "w")
+    for o in all_losses:
+        writer.write("%f\n" % o)
+    writer.close()
 
