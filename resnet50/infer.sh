@@ -1,3 +1,5 @@
+set -aux
+
 PRETRAIN_MODEL_PATH="resnet50_imagenet_pretrain_model"
 IMAGE_PATH="data/fish.jpg"
 # IMAGE_PATH="data/tiger.jpg"
