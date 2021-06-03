@@ -23,21 +23,9 @@ wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/datasets/imagenette_ofre
 tar zxf imagenette_ofrecord.tar.gz
 ```
 
-#### Download Raw Dataset
-
-```
-wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/datasets/imagenette2.tgz
-tar zxf imagenette2.tgz
-```
-
 ### Run Oneflow Training script
 
 ```bash
-python3 train_resnet50_oneflow.py
+bash train_oneflow.sh
 ```
 
-### Run Pytorch Training script
-
-```bash
-python3 train_resnet50_pytorch.py
-```
