@@ -14,7 +14,7 @@ def _parse_args():
         "--save_checkpoint_path", type=str, default="./checkpoints", help="save checkpoint root dir"
     )
     parser.add_argument(
-        "--load_checkpoint", type=str, default="./mobilenetv2_oneflow_model", help="load checkpoint"
+        "--load_checkpoint", type=str, default="", help="load checkpoint"
     )
     parser.add_argument(
         "--ofrecord_path", type=str, default="./ofrecord", help="dataset path"
@@ -27,7 +27,7 @@ def _parse_args():
         "--mom", type=float, default=0.9, help="momentum"
     )
     parser.add_argument(
-        "--epochs", type=int, default=1000, help="training epochs"
+        "--epochs", type=int, default=100, help="training epochs"
     )
     parser.add_argument(
         "--train_batch_size", type=int, default=32, help="train batch size"
@@ -58,6 +58,7 @@ def main(args):
     start_t = time.time()
     mobilenet_v2_module = mobilenet_v2()
     if args.load_checkpoint != "":
+        print("load_checkpoint >>>>>>>>> ", args.load_checkpoint)
         mobilenet_v2_module.load_state_dict(flow.load(args.load_checkpoint))
 
     end_t = time.time()
