@@ -86,8 +86,7 @@ def main(args):
 
     print("start pytorch training loop....")
     start_t = time.time()
-    for i in range(10000000000000000000000000000):
-        print(i)
+    for i in range(bp_iters):
         s_t = time.time()
         logits = torch_res50_module(image_gpu)
         loss = corss_entropy(logits, label)
