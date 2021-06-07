@@ -73,11 +73,9 @@ def main(args):
     print('update parameters avg time : {}'.format(update_time / bp_iters))
 
     #####################################################################################################
-    # # pytorch resnet50
+    # # pytorch LSTM
     torch_rnn_module = LSTM_PYTORCH(n_letters, n_hidden, n_categories)
 
-    # set for eval mode
-    # torch_res50_module.eval()
     torch_rnn_module.to('cuda')
 
     category_tensor = torch.tensor([1], dtype=torch.long)

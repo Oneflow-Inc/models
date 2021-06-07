@@ -1,14 +1,6 @@
 import torch.nn as nn
 import torch
-import random
 import math
-import math
-from torch.nn import init
-import torch.jit as jit
-from torch.nn import Parameter
-# from torch.jit import Tensor  # there is an error
-from torch import Tensor
-from typing import List, Tuple
 class LSTM_PYTORCH(nn.Module):
     def __init__(self, input_dim, hidden_dim, output_dim, batch_size=1,
                     num_layers=1):
@@ -19,15 +11,10 @@ class LSTM_PYTORCH(nn.Module):
         self.num_layers = num_layers
  
         # Define the LSTM layer
-        self.lstm = nn.LSTM(self.input_dim, self.hidden_dim)
+        self.lstm = CustomLSTM(self.input_dim, self.hidden_dim)
  
         # Define the output layer
         self.linear = nn.Linear(self.hidden_dim, output_dim)
- 
-    # def initHidden(self):
-    #     # This is what we'll initialise our hidden state as
-    #     return (torch.zeros(self.num_layers, self.batch_size, self.hidden_dim),
-    #             torch.zeros(self.num_layers, self.batch_size, self.hidden_dim))
  
     def forward(self, input):
         # Forward pass through LSTM layer

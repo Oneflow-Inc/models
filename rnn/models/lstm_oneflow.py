@@ -1,9 +1,8 @@
 import oneflow.experimental as flow
 import oneflow.experimental.nn as nn
-import random
 import math
-# from torch.jit import Tensor  # there is an error
-from typing import List, Tuple
+
+#Reference: https://github.com/piEsposito/pytorch-lstm-by-hand
 class LSTM(nn.Module):
     def __init__(self, input_dim, hidden_dim, output_dim, batch_size=1,
                     num_layers=1):
@@ -18,12 +17,7 @@ class LSTM(nn.Module):
  
         # Define the output layer
         self.linear = nn.Linear(self.hidden_dim, output_dim)
- 
-    # def initHidden(self):
-    #     # This is what we'll initialise our hidden state as
-    #     return (torch.zeros(self.num_layers, self.batch_size, self.hidden_dim),
-    #             torch.zeros(self.num_layers, self.batch_size, self.hidden_dim))
- 
+
     def forward(self, input):
         # Forward pass through LSTM layer
         # shape of lstm_out: [input_size, batch_size, hidden_dim]

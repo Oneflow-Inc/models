@@ -21,7 +21,6 @@ def _parse_args():
 
 def train(category_tensor, line_tensor, rnn, criterion, of_sgd):
     output = rnn(line_tensor)
-    #print(output, category_tensor)
     loss = criterion(output, category_tensor)
     loss.backward()
     of_sgd.step()
@@ -62,7 +61,8 @@ n_iters = 100000
 print_every = 500
 plot_every = 1000
 learning_rate = 0.2 # If you set this too high, it might explode. If too low, it might not learn
-# decrease learning rate if loss goes to NaN, increase learnig rate if it learns too slow
+# Decrease learning rate if loss goes to NaN, increase learnig rate if it learns too slow
+# Note that lstm is far less likely to explode.
 
 def main(args):
     random.seed(args.seed)
