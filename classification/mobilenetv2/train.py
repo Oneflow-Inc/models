@@ -1,5 +1,5 @@
 import oneflow.experimental as flow
-
+import torch 
 import argparse
 import numpy as np
 import os
@@ -14,7 +14,7 @@ def _parse_args():
         "--save_checkpoint_path", type=str, default="./checkpoints", help="save checkpoint root dir"
     )
     parser.add_argument(
-        "--load_checkpoint", type=str, default="", help="load checkpoint"
+        "--load_checkpoint", type=str, default="./mobilenetv2_oneflow_model", help="load checkpoint"
     )
     parser.add_argument(
         "--ofrecord_path", type=str, default="./ofrecord", help="dataset path"
@@ -57,16 +57,9 @@ def main(args):
     # oneflow init
     start_t = time.time()
     mobilenet_v2_module = mobilenet_v2()
-    # if args.load_checkpoint != "":
-    #     try:
-    #         from torch.hub import load_state_dict_from_url
-    #     except ImportError:
-    #         from torch.utils.model_zoo import load_url as load_state_dict_from_url
-    #     state_dict = load_state_dict_from_url(
-    #         'https://www.dropbox.com/s/47tyzpofuuyyv1b/mobilenetv2_1.0-f2a8633.pth.tar?dl=1', progress=True)
-    #     model.load_state_dict(state_dict)
+    if args.load_checkpoint != "":
+        mobilenet_v2_module.load_state_dict(flow.load(args.load_checkpoint))
 
-    #     mobilenet_v2_module.load_state_dict(flow.load(args.load_checkpoint))
     end_t = time.time()
     print('init time : {}'.format(end_t - start_t))
 
@@ -135,9 +128,6 @@ def main(args):
 if __name__ == "__main__":
     args = _parse_args()
     main(args)
-
-
-
 
 
 

@@ -11,7 +11,7 @@ from utils.numpy_data_utils import load_image
 def _parse_args():
     parser = argparse.ArgumentParser("flags for test mobilenetv2")
     parser.add_argument(
-        "--model_path", type=str, default="./mobilenetv2_imagenet_pretrain_model", help="model path"
+        "--model_path", type=str, default="./mobilenetv2_oneflow_model", help="model path"
     )
     parser.add_argument(
         "--image_path", type=str, default="", help="input image path"
@@ -28,7 +28,7 @@ def main(args):
     print('init time : {}'.format(end_t - start_t))
 
     start_t = time.time()
-    pretrain_models = flow.load("mobilenetv2_imagenet_pretrain_model")
+    pretrain_models = flow.load(args.model_path)
     mobilenetv2_module.load_state_dict(pretrain_models)
     end_t = time.time()
     print('load params time : {}'.format(end_t - start_t))
