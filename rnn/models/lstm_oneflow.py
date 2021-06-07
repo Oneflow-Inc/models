@@ -2,7 +2,7 @@ import oneflow.experimental as flow
 import oneflow.experimental.nn as nn
 import math
 
-#Reference: https://github.com/piEsposito/pytorch-lstm-by-hand
+# Reference: https://github.com/piEsposito/pytorch-lstm-by-hand
 class LSTM(nn.Module):
     def __init__(self, input_dim, hidden_dim, output_dim, batch_size=1,
                     num_layers=1):
@@ -25,9 +25,9 @@ class LSTM(nn.Module):
         # have shape (num_layers, batch_size, hidden_dim).
         lstm_out, _ = self.lstm(input.reshape((input.shape[0], self.batch_size, -1)))
         
-        # Only take the output from the final timetep
+        # Only take the output from the final timestep
         # Can pass on the entirety of lstm_out to the next layer if it is a seq2seq prediction
-        #NOTE(Xu Zhiqiu) Negative indexing not supported
+        # NOTE(Xu Zhiqiu) Negative indexing and view not supported
         output = lstm_out[lstm_out.shape[0] - 1].reshape((self.batch_size, -1))
         y_pred = self.linear(output)
         return y_pred
@@ -65,10 +65,10 @@ class CustomLSTM(nn.Module):
             # NOTE(Xu Zhiqiu): flow does not support view now, use reshape instead
             gates = flow.matmul(x_t, self.W) + flow.matmul(h_t, self.U) + self.bias
             i_t, f_t, g_t, o_t = (
-                flow.sigmoid(gates[:, :HS]), # input
-                flow.sigmoid(gates[:, HS:HS*2]), # forget
+                flow.sigmoid(gates[:, :HS]),
+                flow.sigmoid(gates[:, HS:HS*2]),
                 flow.tanh(gates[:, HS*2:HS*3]),
-                flow.sigmoid(gates[:, HS*3:]), # output
+                flow.sigmoid(gates[:, HS*3:]),
             )
             c_t = f_t * c_t + i_t * g_t
             h_t = o_t * flow.tanh(c_t)

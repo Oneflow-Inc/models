@@ -23,7 +23,7 @@ class LSTM_PYTORCH(nn.Module):
         # have shape (num_layers, batch_size, hidden_dim).
         lstm_out, _ = self.lstm(input.view(len(input), self.batch_size, -1))
         
-        # Only take the output from the final timetep
+        # Only take the output from the final timestep
         # Can pass on the entirety of lstm_out to the next layer if it is a seq2seq prediction
         y_pred = self.linear(lstm_out[-1].view(self.batch_size, -1))
         return y_pred

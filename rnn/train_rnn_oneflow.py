@@ -23,7 +23,6 @@ def train(category_tensor, line_tensor, rnn, criterion, of_sgd):
     hidden = rnn.initHidden()
     for i in range(line_tensor.size()[0]):
         output, hidden = rnn(line_tensor[i], hidden)
-    #print(output, category_tensor)
     loss = criterion(output, category_tensor)
     loss.backward()
     of_sgd.step()
@@ -63,7 +62,7 @@ def timeSince(since):
 n_iters = 100000
 print_every = 500
 plot_every = 1000
-learning_rate = 0.005 # If you set this too high, it might explode. If too low, it might not learn
+learning_rate = .005 # If you set this too high, it might explode. If too low, it might not learn
 # decrease learning rate if loss goes to NaN, increase learnig rate if it learns too slow
 
 def main(args):
