@@ -48,3 +48,6 @@ class MobileNet(nn.Module):
         x = x.reshape([-1, 1024])
         x = self.fc(x)
         return x
+
+def mobilenet():
+    return MobileNet()
