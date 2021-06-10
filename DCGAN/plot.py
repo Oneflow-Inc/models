@@ -40,7 +40,7 @@ def plot(root_dir, epoch):
     plt.savefig(os.path.join(root_dir, 'loss_{}.png'.format(epoch)))
 
 if __name__ == "__main__":
-    root_dir = "/home/zjhuangzhenhua/zjcdy/DCGAN/of_model"
+    root_dir = "./"
     epoch = 100
     plot(root_dir, epoch)
 
