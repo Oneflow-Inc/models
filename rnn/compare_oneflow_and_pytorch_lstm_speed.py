@@ -6,8 +6,8 @@ import argparse
 import torch
 import string
 
-from models.rnn_model_pytorch import RNN_PYTORCH
-from models.rnn_model import RNN
+from models.lstm_oneflow import LSTM
+from models.lstm_pytorch import LSTM_PYTORCH
 
 #shared hyperparameters
 n_hidden = 128
@@ -26,7 +26,7 @@ def letterToIndex(letter):
 def main(args):
     flow.env.init()
     flow.enable_eager_execution()
-    rnn_module = RNN(n_letters, n_hidden, n_categories)
+    rnn_module = LSTM(n_letters, n_hidden, n_categories)
     # Fake data, only for speed test purpose
     test_word = 'Depeng'
     category_tensor = flow.Tensor([1], dtype=flow.int64)
@@ -34,7 +34,7 @@ def main(args):
     flow.nn.init.zeros_(line_tensor)
     for li, letter in enumerate(test_word):
         line_tensor[li, letterToIndex(letter)] = 1
-    criterion = flow.nn.NLLLoss()
+    criterion = flow.nn.CrossEntropyLoss()
 
     category_tensor_gpu = category_tensor.to('cuda')
     line_tensor_gpu = line_tensor.to('cuda')
@@ -51,9 +51,7 @@ def main(args):
     start_t = time.time()
     for i in range(bp_iters):
         s_t = time.time()
-        hidden = rnn_module.initHidden()
-        for j in range(line_tensor_gpu.size()[0]):
-            output, hidden = rnn_module(line_tensor_gpu[j], hidden)
+        output = rnn_module(line_tensor_gpu)
         loss = criterion(output, category_tensor_gpu)
         for_time += time.time() - s_t
 
@@ -75,8 +73,8 @@ def main(args):
     print('update parameters avg time : {}'.format(update_time / bp_iters))
 
     #####################################################################################################
-    # # pytorch RNN
-    torch_rnn_module = RNN_PYTORCH(n_letters, n_hidden, n_categories)
+    # # pytorch LSTM
+    torch_rnn_module = LSTM_PYTORCH(n_letters, n_hidden, n_categories)
 
     torch_rnn_module.to('cuda')
 
@@ -84,7 +82,7 @@ def main(args):
     line_tensor = torch.zeros(len(test_word), 1, n_letters)
     for li, letter in enumerate(test_word):
         line_tensor[li][0][letterToIndex(letter)] = 1
-    criterion = torch.nn.NLLLoss()
+    criterion = torch.nn.CrossEntropyLoss()
     
     category_tensor_gpu = category_tensor.to('cuda')
     line_tensor_gpu = line_tensor.to('cuda')
@@ -99,9 +97,7 @@ def main(args):
     start_t = time.time()
     for i in range(bp_iters):
         s_t = time.time()
-        hidden = torch_rnn_module.initHidden()
-        for i in range(line_tensor.size()[0]):
-            output, hidden = torch_rnn_module(line_tensor_gpu[i], hidden)
+        output = torch_rnn_module(line_tensor_gpu)
         loss = criterion(output, category_tensor_gpu)
         for_time += time.time() - s_t
 
