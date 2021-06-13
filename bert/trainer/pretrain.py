@@ -154,7 +154,6 @@ class BERTTrainer:
         :return: final_output_path
         """
         output_path = file_path + ".ep%d" % epoch
-        flow.save(self.bert.cpu(), output_path)
-        self.bert.to(self.device)
+        flow.save(self.bert.state_dict(), output_path)
         print("EP:%d Model Saved on:" % epoch, output_path)
         return output_path

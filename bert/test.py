@@ -65,10 +65,9 @@ def test():
                           lr=args.lr, betas=(args.adam_beta1, args.adam_beta2), weight_decay=args.adam_weight_decay,
                           with_cuda=args.with_cuda, cuda_devices=args.cuda_devices, log_freq=10)
 
-    print("Trainer build finished!!!\n")
-    print("Testing Start......")
+    print("Trainer build finished!")
     if test_data_loader is not None:
-        print("Running testing...")
+        print("Testing Start......")
         trainer.test(1)
 
 

@@ -69,8 +69,8 @@ def main():
     print("Training Start......")
     for epoch in range(args.epochs):
         trainer.train(epoch)
-        # print("Saving model...")
-        # trainer.save(epoch, args.output_path)
+        print("Saving model...")
+        trainer.save(epoch, args.output_path)
         if test_data_loader is not None:
             print("Running testing...")
             trainer.test(epoch)
