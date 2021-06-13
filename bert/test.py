@@ -1,8 +1,8 @@
 import argparse
 
-from torch.utils.data import DataLoader
-# from oneflow.utils.data import DataLoader
-import oneflow as flow
+import oneflow.experimental as flow
+from oneflow.python.utils.data import DataLoader
+
 from model import BERT
 from trainer import BERTTrainer
 from dataset import BERTDataset, WordVocab
@@ -25,8 +25,8 @@ def test():
     parser.add_argument("-s", "--seq_len", type=int, default=20, help="maximum sequence len")
 
     parser.add_argument("-b", "--batch_size", type=int, default=16, help="number of batch_size")
-    parser.add_argument("-e", "--epochs", type=int, default=10, help="number of epochs")
-    parser.add_argument("-w", "--num_workers", type=int, default=5, help="dataloader worker size")
+    parser.add_argument("-e", "--epochs", type=int, default=1, help="number of epochs")
+    parser.add_argument("-w", "--num_workers", type=int, default=0, help="dataloader worker size")
 
     parser.add_argument("--with_cuda", type=bool, default=True, help="training with CUDA: true, or false")
     parser.add_argument("--corpus_lines", type=int, default=None, help="total number of lines in corpus")
@@ -67,7 +67,9 @@ def test():
 
     print("Trainer build finished!!!\n")
     print("Testing Start......")
-    trainer.test(1)
+    if test_data_loader is not None:
+        print("Running testing...")
+        trainer.test(1)
 
 
 test()
