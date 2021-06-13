@@ -165,5 +165,3 @@ if __name__ == "__main__":
     
     m.load_state_dict(parameters)
     flow.save(m.state_dict(), "oneflow_shufflenetv2_x0.5")
-
-    
