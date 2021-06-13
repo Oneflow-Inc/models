@@ -161,7 +161,6 @@ class WordVocab(Vocab):
 
         return " ".join(words) if join else words
 
-    # @staticmethod
     def load_vocab(vocab_path: str) -> 'WordVocab':
         with open(vocab_path, "rb") as f:
             print("vocab_path >>>>>>>>>>>>>>>>>>>>>> ", vocab_path)
@@ -184,3 +183,6 @@ def build():
 
     print("VOCAB SIZE:", len(vocab))
     vocab.save_vocab(args.output_path)
+
+
+# build()

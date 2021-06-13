@@ -1,9 +1,8 @@
-# from oneflow.utils.data import Dataset
 import tqdm
-import oneflow as flow
-import torch
-import oneflow.nn as nn
 import random
+
+import oneflow.experimental as flow
+import oneflow.experimental.nn as nn
 
 
 class BERTDataset(nn.Module):
@@ -60,7 +59,7 @@ class BERTDataset(nn.Module):
                   "segment_label": segment_label,
                   "is_next": is_next_label}
 
-        return {key: torch.tensor(value) for key, value in output.items()}
+        return {key: flow.tensor(value) for key, value in output.items()}
 
     def random_word(self, sentence):
         tokens = sentence.split()
@@ -109,7 +108,7 @@ class BERTDataset(nn.Module):
                 self.file.close()
                 self.file = open(self.corpus_path, "r", encoding=self.encoding)
                 line = self.file.__next__()
-
+            
             t1, t2 = line[:-1].split("\t")
             return t1, t2
 

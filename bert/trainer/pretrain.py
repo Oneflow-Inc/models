@@ -1,12 +1,10 @@
+import tqdm
 
 import oneflow.experimental as flow
 import oneflow.experimental.nn as nn
-# from flow.utils.data import DataLoader
 
 from model import BERTLM, BERT
 from .optim_schedule import ScheduledOptim
-
-import tqdm
 
 
 class BERTTrainer:
@@ -96,13 +94,15 @@ class BERTTrainer:
         total_correct = 0
         total_element = 0
 
-
         for i, data in data_iter:
             for key, value in data.items():
+                # NOTE:use oneflow dataloader, the shape of is data["is_next"] is (16,1), need to squeeze extra dimension by tensor.squeeze(1)
+                if key == "is_next":
+                    value = value.squeeze(1)
                 if key == "bert_input":
-                    data[str(key)] = flow.Tensor(value.numpy(), dtype=flow.float, device=self.device)
+                    data[str(key)] = flow.tensor(value.numpy(), device=self.device)
                 else:
-                    data[str(key)] = flow.Tensor(value.numpy(), dtype=flow.int, device=self.device)
+                    data[str(key)] = flow.tensor(value.numpy(), dtype=flow.int, device=self.device)
             #     # 0. batch_data will be sent into the device(GPU or cpu)
             data = {key: value.to(device=self.device) for key, value in data.items()}
 
@@ -125,7 +125,6 @@ class BERTTrainer:
                 self.optim_schedule.step_and_update_lr()
 
             # next sentence prediction accuracy
-            # correct = next_sent_output.argmax(dim=-1).eq(data["is_next"]).sum().item()
             correct = next_sent_output.argmax(dim=-1).eq(data["is_next"]).sum().numpy().item()
             avg_loss += loss.numpy().item()
             total_correct += correct
@@ -141,9 +140,7 @@ class BERTTrainer:
 
             if i % self.log_freq == 0:
                 data_iter.write(str(post_fix))
-        
-        print("total_correct >>>>>>>>>>>>>> ", total_correct)
-        print("total_element >>>>>>>>>>>>>> ", total_element)
+
         print("EP%d_%s, avg_loss=" % (epoch, str_code), avg_loss / len(data_iter), "total_acc=",
             total_correct * 100.0 / total_element)
 
