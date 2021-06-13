@@ -154,14 +154,23 @@ if __name__ == "__main__":
     import torch
     flow.enable_eager_execution()
 
-    m  = _shufflenetv2('shufflenetv2_x0.5', [4, 8, 4], [24, 48, 96, 192, 1024])
-    print("yaochi:", m)
+    pretrained_config = {
+        'shufflenetv2_x0.5': {'url:':'https://download.pytorch.org/models/shufflenetv2_x0.5-f707e7126e.pth',
+                              'shape': [[4, 8, 4], [24, 48, 96, 192, 1024]],
+                              'file':'shufflenetv2_x0.5-f707e7126e.pth'},
+        'shufflenetv2_x1.0': {'url:':'https://download.pytorch.org/models/shufflenetv2_x1-5666bf0f80.pth',
+                              'shape': [[4, 8, 4], [24, 116, 232, 464, 1024]],
+                              'file':'shufflenetv2_x1-5666bf0f80.pth'},
+    }
 
-    parameters = torch.load("/home/yaochi/models/shufflenetv2/models/shufflenetv2_x0.5-f707e7126e.pth")
-    for key,value in parameters.items():
-        val = value.detach().cpu().numpy()
-        parameters[key] = val
-        print("key:", key, "value.shape", val.shape)
-    
-    m.load_state_dict(parameters)
-    flow.save(m.state_dict(), "oneflow_shufflenetv2_x0.5")
+    for k, v in pretrained_config.items():
+        m  = _shufflenetv2(k, *v['shape'])
+
+        parameters = torch.load(v['file'])
+        for key,value in parameters.items():
+            val = value.detach().cpu().numpy()
+            parameters[key] = val
+            print("key:", key, "value.shape", val.shape)
+        
+        m.load_state_dict(parameters)
+        flow.save(m.state_dict(), "oneflow_"+k)
