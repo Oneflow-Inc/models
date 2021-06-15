@@ -58,14 +58,14 @@ class SqueezeExcitation(nn.Module):
         self.relu = nn.ReLU(inplace=True)
         self.fc2 = nn.Conv2d(squeeze_channels, input_channels, 1)
         self.adaptive_avg_pool2d = nn.AdaptiveAvgPool2d(1)
+        self.hardsigmoid = nn.Hardsigmoid(inplace=True)
 
     def _scale(self, input: Tensor, inplace: bool) -> Tensor:
         scale = self.adaptive_avg_pool2d(input)
         scale = self.fc1(scale)
         scale = self.relu(scale)
         scale = self.fc2(scale)
-        hardsigmoid = nn.Hardsigmoid(inplace=inplace)
-        return hardsigmoid(scale)
+        return self.hardsigmoid(scale)
 
     def forward(self, input: Tensor) -> Tensor:
         scale = self._scale(input, True)
