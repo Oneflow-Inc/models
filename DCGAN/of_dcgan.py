@@ -17,7 +17,7 @@ def _parse_args():
                         type=float, default=1e-4, required=False)
     parser.add_argument("--load", type=str, default="", required=False,
                         help="the path to continue training the model")
-    parser.add_argument("--batch_size", type=int, default=1024, required=False)
+    parser.add_argument("--batch_size", type=int, default=256, required=False)
     parser.add_argument("--label_smooth", type=float,
                         default=0, required=False)
     parser.add_argument("--save", type=bool,
@@ -188,7 +188,7 @@ class Discriminator(flow.nn.Module):
     def forward(self, x):
         b = x.shape[0]
         x1 = self.model(x).reshape((b, -1))
-        y = self.fc(x1)
+        y = flow.sigmoid(self.fc(x1))
 
         return y
 
@@ -198,7 +198,7 @@ class DCGAN(flow.nn.Module):
         super().__init__()
         self.lr = args.learning_rate
         self.z_dim = 100
-        self.eval_interval = 50
+        self.eval_interval = 1
         self.eval_size = 16
         # evaluate generator based pn fixed noise during training
         self.fixed_z = to_tensor(
@@ -253,12 +253,12 @@ class DCGAN(flow.nn.Module):
                 ].astype(np.float32)).to('cuda')
                 # one-side label smooth
                 if self.label_smooth != 0:
-                    d_loss, d_loss_fake, d_loss_real = self.train_discriminator(
+                    d_loss, d_loss_fake, d_loss_real, D_x, D_gz1 = self.train_discriminator(
                         images, label1_smooth, label0)
                 else:
-                    d_loss, d_loss_fake, d_loss_real = self.train_discriminator(
+                    d_loss, d_loss_fake, d_loss_real, D_x, D_gz1 = self.train_discriminator(
                         images, label1, label0)
-                g_loss, g_out = self.train_generator(label1)
+                g_loss, g_out, D_gz2 = self.train_generator(label1)
 
                 if (batch_idx + 1) % 10 == 0:
                     self.G_loss.append(g_loss)
@@ -266,15 +266,18 @@ class DCGAN(flow.nn.Module):
 
                 if (batch_idx + 1) % self.eval_interval == 0:
                     print(
-                        "{}th epoch, {}th batch, d_fakeloss:{:>12.10f}, d_realloss:{:>12.10f}, d_loss:{:>12.10f}, g_loss:{:>12.10f}".format(
+                        "{}th epoch, {}th batch, d_fakeloss:{:>8.10f}, d_realloss:{:>8.10f}, d_loss:{:>8.10f}, g_loss:{:>8.10f}, D_x:{:>8.10f}, D_Gz:{:>8.10f} / {:>8.10f}".format(
                             epoch_idx + 1, batch_idx +
-                            1, d_loss_fake[0], d_loss_real[0], d_loss[0], g_loss[0]
+                            1, d_loss_fake[0], d_loss_real[0], d_loss[0], g_loss[0], D_x[0], D_gz1[0], D_gz2[0]
                         )
                     )
 
             # save images based on .train()
             save_images(g_out, self.eval_size, os.path.join(
-                self.train_images_path, "image_{:02d}.png".format(epoch_idx)))
+                self.train_images_path, "fakeimage_{:02d}.png".format(epoch_idx)))
+            save_images(to_numpy(images, False), self.eval_size, os.path.join(
+                self.train_images_path, "realimage_{:02d}.png".format(epoch_idx)))
+            
             # save images based on .eval()
             self._eval_generator_and_save_images(epoch_idx + 1)
 
@@ -294,35 +297,39 @@ class DCGAN(flow.nn.Module):
                 self.path, 'd_loss_{}.npy'.format(epochs)), self.D_loss)
 
     def train_discriminator(self, images, label1, label0):
-        self.optimizerD.zero_grad()
+        # self.optimizerD.zero_grad()
+
         # train D with all-real batch
         d_logits = self.discriminator(images)
-        d_loss_real = self.of_cross_entropy(flow.sigmoid(d_logits), label1)
-        d_loss_real.backward()
+        d_loss_real = self.of_cross_entropy(d_logits, label1)
+        d_loss_real.backward(retain_graph=True)
 
         # train D with all-fake batch
         z = self.generate_noise()
         g_out = self.generator(z)
         g_logits = self.discriminator(g_out.detach())
-        d_loss_fake = self.of_cross_entropy(flow.sigmoid(g_logits), label0)
+        d_loss_fake = self.of_cross_entropy(g_logits, label0)
         d_loss_fake.backward()
 
         d_loss = d_loss_fake + d_loss_real
+        d_loss.backward()
         self.optimizerD.step()
-        # d_loss.step()
-
-        return (to_numpy(d_loss), to_numpy(d_loss_fake), to_numpy(d_loss_real))
+        self.optimizerD.zero_grad()
+        
+        return (to_numpy(d_loss), to_numpy(d_loss_fake), to_numpy(d_loss_real), to_numpy(d_logits), to_numpy(g_logits))
 
     def train_generator(self, label1):
-        self.optimizerG.zero_grad()
+        # self.optimizerG.zero_grad()
+
         z = self.generate_noise()
         g_out = self.generator(z)
         g_logits = self.discriminator(g_out)
-        g_loss = self.of_cross_entropy(flow.sigmoid(g_logits), label1)
+        g_loss = self.of_cross_entropy(g_logits, label1)
         g_loss.backward()
         self.optimizerG.step()
+        self.optimizerG.zero_grad()
 
-        return (to_numpy(g_loss), to_numpy(g_out, False))
+        return (to_numpy(g_loss), to_numpy(g_out, False), to_numpy(g_logits))
 
     def generate_noise(self):
         return to_tensor(np.random.normal(0, 1, size=(self.batch_size, self.z_dim)), False).to('cuda')
