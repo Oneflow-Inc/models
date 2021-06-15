@@ -27,6 +27,7 @@ def main(args):
     end_t = time.time()
     print('init time : {}'.format(end_t - start_t))
 
+
     start_t = time.time()
     pretrain_models = flow.load(args.model_path)
     mobilenetv3_module.load_state_dict(pretrain_models)
