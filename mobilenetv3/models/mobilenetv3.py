@@ -1,8 +1,17 @@
 import oneflow.experimental as flow
 
 from functools import partial
-from flow import nn, Tensor
+from oneflow.experimental import nn, Tensor
 from typing import Any, Callable, Dict, List, Optional, Sequence
+
+__all__ = ["MobileNetV3", "mobilenet_v3_large", "mobilenet_v3_small"]
+
+
+model_urls = {
+    "mobilenet_v3_large": "https://download.pytorch.org/models/mobilenet_v3_large-8738ca79.pth",
+    "mobilenet_v3_small": "https://download.pytorch.org/models/mobilenet_v3_small-047dcff4.pth",
+}
+
 
 def _make_divisible(v: float, divisor: int, min_value: Optional[int] = None) -> int:
     """
@@ -56,7 +65,9 @@ class SqueezeExcitation(nn.Module):
         self.fc2 = nn.Conv2d(squeeze_channels, input_channels, 1)
 
     def _scale(self, input: Tensor, inplace: bool) -> Tensor:
-        scale = F.adaptive_avg_pool2d(input, 1)
+        # scale = F.adaptive_avg_pool2d(input, 1)
+        adaptive_avg_pool2d = nn.AdaptiveAvgPool2d(1)
+        scale = adaptive_avg_pool2d(input)
         scale = self.fc1(scale)
         scale = self.relu(scale)
         scale = self.fc2(scale)
@@ -189,11 +200,12 @@ class MobileNetV3(nn.Module):
         )
 
         for m in self.modules():
+            print(m)
             if isinstance(m, nn.Conv2d):
                 nn.init.kaiming_normal_(m.weight, mode='fan_out')
                 if m.bias is not None:
                     nn.init.zeros_(m.bias)
-            elif isinstance(m, (nn.BatchNorm2d, nn.GroupNorm)):
+            elif isinstance(m, nn.BatchNorm2d):
                 nn.init.ones_(m.weight)
                 nn.init.zeros_(m.bias)
             elif isinstance(m, nn.Linear):

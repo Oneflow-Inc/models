@@ -5,7 +5,7 @@ import numpy as np
 import os
 import time
 
-from models.mobilenetv3 import mobilenetv3
+from models.mobilenetv3 import mobilenet_v3_small
 from utils.ofrecord_data_utils import OFRecordDataLoader
 
 def _parse_args():
@@ -56,7 +56,7 @@ def main(args):
 
     # oneflow init
     start_t = time.time()
-    mobilenetv3_module = mobilenetv3()
+    mobilenetv3_module = mobilenet_v3_small()
     if args.load_checkpoint != "":
         print("load_checkpoint >>>>>>>>> ", args.load_checkpoint)
         mobilenetv3_module.load_state_dict(flow.load(args.load_checkpoint))

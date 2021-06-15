@@ -4,7 +4,7 @@ import argparse
 import numpy as np
 import time
 
-from models.mobilenetv3 import mobilenetv3
+from models.mobilenetv3 import mobilenet_v3_small
 from utils.imagenet1000_clsidx_to_labels import clsidx_2_labels
 from utils.numpy_data_utils import load_image
 
@@ -23,7 +23,7 @@ def main(args):
     flow.enable_eager_execution()
 
     start_t = time.time()
-    mobilenetv3_module = mobilenetv3()
+    mobilenetv3_module = mobilenet_v3_small()
     end_t = time.time()
     print('init time : {}'.format(end_t - start_t))
 
