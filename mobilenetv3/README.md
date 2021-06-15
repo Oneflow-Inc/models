@@ -2,13 +2,19 @@
 
 ## Train on [imagenette](https://github.com/fastai/imagenette) Dataset
 
-### Prepare Traning Data
+### Prepare Traning Data And Pretrain Models
 
 #### Download Ofrecord
 
 ```bash
 wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/datasets/imagenette_ofrecord.tar.gz
 tar zxf imagenette_ofrecord.tar.gz
+```
+
+### Download Pretrain Models
+
+```bash
+wget https://download.pytorch.org/models/mobilenet_v3_small-047dcff4.pth
 ```
 
 ### Run Oneflow Training script
@@ -25,9 +31,10 @@ bash infer.sh
 ```
 
 #### Util
-pytorch pretrained module to oneflow
+
+convert pytorch pretrained model to oneflow
+
 ```python
-wget https://download.pytorch.org/models/mobilenet_v3_small-047dcff4.pth
 import torch
 parameters = torch.load("mobilenet_v3_small-047dcff4.pth")
 new_parameters = dict()

@@ -1,0 +1,4 @@
+shape {
+  dim: 96
+}
+data_type: kFloat

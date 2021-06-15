@@ -7,12 +7,6 @@ from typing import Any, Callable, Dict, List, Optional, Sequence
 __all__ = ["MobileNetV3", "mobilenet_v3_large", "mobilenet_v3_small"]
 
 
-model_urls = {
-    "mobilenet_v3_large": "https://download.pytorch.org/models/mobilenet_v3_large-8738ca79.pth",
-    "mobilenet_v3_small": "https://download.pytorch.org/models/mobilenet_v3_small-047dcff4.pth",
-}
-
-
 def _make_divisible(v: float, divisor: int, min_value: Optional[int] = None) -> int:
     """
     This function is taken from the original tf repo.
@@ -63,15 +57,13 @@ class SqueezeExcitation(nn.Module):
         self.fc1 = nn.Conv2d(input_channels, squeeze_channels, 1)
         self.relu = nn.ReLU(inplace=True)
         self.fc2 = nn.Conv2d(squeeze_channels, input_channels, 1)
+        self.adaptive_avg_pool2d = nn.AdaptiveAvgPool2d(1)
 
     def _scale(self, input: Tensor, inplace: bool) -> Tensor:
-        # scale = F.adaptive_avg_pool2d(input, 1)
-        adaptive_avg_pool2d = nn.AdaptiveAvgPool2d(1)
-        scale = adaptive_avg_pool2d(input)
+        scale = self.adaptive_avg_pool2d(input)
         scale = self.fc1(scale)
         scale = self.relu(scale)
         scale = self.fc2(scale)
-        #return F.hardsigmoid(scale, inplace=inplace)
         hardsigmoid = nn.Hardsigmoid(inplace=inplace)
         return hardsigmoid(scale)
 
@@ -282,11 +274,6 @@ def _mobilenet_v3_model(
     **kwargs: Any
 ):
     model = MobileNetV3(inverted_residual_setting, last_channel, **kwargs)
-    # if pretrained:
-    #     if model_urls.get(arch, None) is None:
-    #         raise ValueError("No checkpoint is available for model type {}".format(arch))
-    #     state_dict = load_state_dict_from_url(model_urls[arch], progress=progress)
-    #     model.load_state_dict(state_dict)
     return model
 
 
