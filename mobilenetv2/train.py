@@ -56,27 +56,27 @@ def main(args):
 
     # oneflow init
     start_t = time.time()
-    mobilenet_v2_module = mobilenet_v2()
+    mobilenetv2_module = mobilenet_v2()
     if args.load_checkpoint != "":
         print("load_checkpoint >>>>>>>>> ", args.load_checkpoint)
-        mobilenet_v2_module.load_state_dict(flow.load(args.load_checkpoint))
+        mobilenetv2_module.load_state_dict(flow.load(args.load_checkpoint))
 
     end_t = time.time()
     print('init time : {}'.format(end_t - start_t))
 
     of_corss_entropy = flow.nn.CrossEntropyLoss()
 
-    mobilenet_v2_module.to('cuda')
+    mobilenetv2_module.to('cuda')
     of_corss_entropy.to('cuda')
 
-    of_sgd = flow.optim.SGD(mobilenet_v2_module.parameters(), lr=args.learning_rate, momentum=args.mom)
+    of_sgd = flow.optim.SGD(mobilenetv2_module.parameters(), lr=args.learning_rate, momentum=args.mom)
 
     of_losses = []
     all_samples = len(val_data_loader) * args.val_batch_size
     print_interval = 100
 
     for epoch in range(args.epochs):
-        mobilenet_v2_module.train()
+        mobilenetv2_module.train()
 
         for b in range(len(train_data_loader)):
             image, label = train_data_loader.get_batch()
@@ -85,7 +85,7 @@ def main(args):
             start_t = time.time()
             image = image.to('cuda')
             label = label.to('cuda')
-            logits = mobilenet_v2_module(image)
+            logits = mobilenetv2_module(image)
             loss = of_corss_entropy(logits, label)
             loss.backward()
             of_sgd.step()
@@ -98,7 +98,7 @@ def main(args):
 
         print("epoch %d train done, start validation" % epoch)
 
-        mobilenet_v2_module.eval()
+        mobilenetv2_module.eval()
         correct_of = 0.0
         for b in range(len(val_data_loader)):
             image, label = val_data_loader.get_batch()
@@ -106,7 +106,7 @@ def main(args):
             start_t = time.time()
             image = image.to('cuda')
             with flow.no_grad():
-                logits = mobilenet_v2_module(image)
+                logits = mobilenetv2_module(image)
                 predictions = logits.softmax()
             of_predictions = predictions.numpy()
             clsidxs = np.argmax(of_predictions, axis=1)
@@ -119,7 +119,7 @@ def main(args):
 
         print("epoch %d, oneflow top1 val acc: %f" % (epoch, correct_of / all_samples))
         
-        flow.save(mobilenet_v2_module.state_dict(), os.path.join(args.save_checkpoint_path, "epoch_%d_val_acc_%f" % (epoch, correct_of / all_samples)))
+        flow.save(mobilenetv2_module.state_dict(), os.path.join(args.save_checkpoint_path, "epoch_%d_val_acc_%f" % (epoch, correct_of / all_samples)))
 
     writer = open("of_losses.txt", "w")
     for o in of_losses:
