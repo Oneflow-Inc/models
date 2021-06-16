@@ -4,7 +4,7 @@ import oneflow.experimental.nn as nn
 
 from utils.dataset import *
 from utils.tensor_utils import *
-from models.rnn_model import RNN
+from models.lstm_oneflow import LSTM
 import argparse
 
 import time
@@ -20,9 +20,7 @@ def _parse_args():
     return parser.parse_args()
 
 def train(category_tensor, line_tensor, rnn, criterion, of_sgd):
-    hidden = rnn.initHidden()
-    for i in range(line_tensor.size()[0]):
-        output, hidden = rnn(line_tensor[i], hidden)
+    output = rnn(line_tensor)
     loss = criterion(output, category_tensor)
     loss.backward()
     of_sgd.step()
@@ -62,8 +60,9 @@ def timeSince(since):
 n_iters = 100000
 print_every = 500
 plot_every = 1000
-learning_rate = .005 # If you set this too high, it might explode. If too low, it might not learn
-# decrease learning rate if loss goes to NaN, increase learnig rate if it learns too slow
+learning_rate = 0.2 # If you set this too high, it might explode. If too low, it might not learn
+# Decrease learning rate if loss goes to NaN, increase learnig rate if it learns too slow
+# Note that lstm is far less likely to explode.
 
 def main(args):
     random.seed(args.seed)
@@ -71,8 +70,8 @@ def main(args):
     n_categories = processDataset(dataset_path)
 
     n_hidden = 128
-    rnn = RNN(n_letters, n_hidden, n_categories)
-    criterion = nn.NLLLoss()
+    rnn = LSTM(n_letters, n_hidden, n_categories)
+    criterion = nn.CrossEntropyLoss()
 
     rnn.to("cuda")
     criterion.to("cuda")
