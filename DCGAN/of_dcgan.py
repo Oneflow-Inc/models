@@ -7,7 +7,6 @@ import imageio
 import matplotlib.pyplot as plt
 import oneflow.experimental as flow
 
-
 def _parse_args():
     parser = argparse.ArgumentParser(description="oneflow DCGAN")
     parser.add_argument("--path", type=str, default='./dcgan', required=False)
@@ -19,9 +18,12 @@ def _parse_args():
                         help="the path to continue training the model")
     parser.add_argument("--batch_size", type=int, default=256, required=False)
     parser.add_argument("--label_smooth", type=float,
-                        default=0, required=False)
+                        default=0.15, required=False)
     parser.add_argument("--save", type=bool,
-                        default=True, required=False, help="whether to save train_images, train_checkpoint and train_loss")
+                        default=True, required=False,
+                        help="whether to save train_images, train_checkpoint and train_loss")
+    parser.add_argument('--no_cuda', action='store_true', default=False,
+                        help='disables CUDA training')
     return parser.parse_args()
 
 
@@ -140,13 +142,50 @@ def save_images(x, size, path):
         plt.axis("off")
     plt.savefig(path)
 
+class BCELoss(flow.nn.Module):
+    def __init__(self, reduction: str = "mean", reduce=True) -> None:
+        super().__init__()
+        if reduce is not None and not reduce:
+            raise ValueError("Argument reduce is not supported yet")
+        assert reduction in [
+            "none",
+            "mean",
+            "sum",
+            None,
+        ], "only 'sum', 'mean' and 'none' supported by now"
+
+        self.reduction = reduction
+
+    def forward(self, input, target, weight=None):
+        assert (
+            input.shape == target.shape
+        ), "The Input shape must be the same as Target shape"
+
+        _cross_entropy_loss = flow.negative(
+            target * flow.log(input) + (1 - target) * flow.log(1 - input)
+            )
+
+        if weight is not None:
+            assert (
+                weight.shape == input.shape
+            ), "The weight shape must be the same as Input shape"
+            _weighted_loss = weight * _cross_entropy_loss
+        else:
+            _weighted_loss = _cross_entropy_loss
+
+        if self.reduction == "mean":
+            return flow.mean(_weighted_loss)
+        elif self.reduction == "sum":
+            return flow.sum(_weighted_loss)
+        else:
+            return _weighted_loss
 
 class Generator(flow.nn.Module):
     def __init__(self, z_dim) -> None:
         super().__init__()
         self.input_fc = flow.nn.Sequential(
-            flow.nn.Linear(z_dim, 7*7*256),
-            flow.nn.BatchNorm1d(7*7*256),
+            flow.nn.Linear(z_dim, 7 * 7 * 256),
+            flow.nn.BatchNorm1d(7 * 7 * 256),
             flow.nn.LeakyReLU(0.3)
         )
         self.model = flow.nn.Sequential(
@@ -183,14 +222,13 @@ class Discriminator(flow.nn.Module):
             flow.nn.Dropout(0.3)
         )
 
-        self.fc = flow.nn.Linear(128*7*7, 1)
+        self.fc = flow.nn.Linear(128 * 7 * 7, 1)
 
     def forward(self, x):
         b = x.shape[0]
         x1 = self.model(x).reshape((b, -1))
         y = flow.sigmoid(self.fc(x1))
-
-        return y
+        return y.flatten()
 
 
 class DCGAN(flow.nn.Module):
@@ -200,10 +238,14 @@ class DCGAN(flow.nn.Module):
         self.z_dim = 100
         self.eval_interval = 1
         self.eval_size = 16
+
+        use_cuda = not args.no_cuda
+        self.device = 'cuda' if use_cuda else 'cpu'
+
         # evaluate generator based pn fixed noise during training
         self.fixed_z = to_tensor(
             np.random.normal(0, 1, size=(
-            self.eval_size, self.z_dim)), False).to('cuda')
+                self.eval_size, self.z_dim)), False).to(self.device)
 
         self.label_smooth = args.label_smooth
         self.G_loss = []
@@ -222,15 +264,15 @@ class DCGAN(flow.nn.Module):
         x, _ = load_mnist()
         batch_num = len(x) // self.batch_size
         label1 = to_tensor(
-            np.ones(self.batch_size), False, dtype=flow.int).to('cuda')
+            np.ones(self.batch_size), False, dtype=flow.float32).to(self.device)
         label0 = flow.Tensor(
-            (np.zeros(self.batch_size)), dtype=flow.int).to('cuda')
+            (np.zeros(self.batch_size)), dtype=flow.float32).to(self.device)
         if self.label_smooth != 0:
-            label1_smooth = (label1 - self.label_smooth).to('cuda')
+            label1_smooth = (label1 - self.label_smooth).to(self.device)
 
         # init training include optimizer, model, loss
-        self.generator = Generator(self.z_dim).to('cuda')
-        self.discriminator = Discriminator().to('cuda')
+        self.generator = Generator(self.z_dim).to(self.device)
+        self.discriminator = Discriminator().to(self.device)
 
         if args.load != "":
             self.generator.load_state_dict(flow.load(args.load))
@@ -241,7 +283,7 @@ class DCGAN(flow.nn.Module):
         self.optimizerD = flow.optim.Adam(
             self.discriminator.parameters(), lr=self.lr)
 
-        self.of_cross_entropy = flow.nn.CrossEntropyLoss().to('cuda')
+        self.of_cross_entropy = BCELoss().to(self.device)
 
         for epoch_idx in range(epochs):
             self.generator.train()
@@ -249,8 +291,8 @@ class DCGAN(flow.nn.Module):
             start = time.time()
             for batch_idx in range(batch_num):
                 images = to_tensor(x[
-                    batch_idx * self.batch_size: (batch_idx + 1) * self.batch_size
-                ].astype(np.float32)).to('cuda')
+                                   batch_idx * self.batch_size: (batch_idx + 1) * self.batch_size
+                                   ].astype(np.float32)).to(self.device)
                 # one-side label smooth
                 if self.label_smooth != 0:
                     d_loss, d_loss_fake, d_loss_real, D_x, D_gz1 = self.train_discriminator(
@@ -268,7 +310,8 @@ class DCGAN(flow.nn.Module):
                     print(
                         "{}th epoch, {}th batch, d_fakeloss:{:>8.10f}, d_realloss:{:>8.10f}, d_loss:{:>8.10f}, g_loss:{:>8.10f}, D_x:{:>8.10f}, D_Gz:{:>8.10f} / {:>8.10f}".format(
                             epoch_idx + 1, batch_idx +
-                            1, d_loss_fake[0], d_loss_real[0], d_loss[0], g_loss[0], D_x[0], D_gz1[0], D_gz2[0]
+                            1, d_loss_fake[0], d_loss_real[0], d_loss[0], g_loss[0], D_x[0],
+                            D_gz1[0], D_gz2[0]
                         )
                     )
 
@@ -277,7 +320,7 @@ class DCGAN(flow.nn.Module):
                 self.train_images_path, "fakeimage_{:02d}.png".format(epoch_idx)))
             save_images(to_numpy(images, False), self.eval_size, os.path.join(
                 self.train_images_path, "realimage_{:02d}.png".format(epoch_idx)))
-            
+
             # save images based on .eval()
             self._eval_generator_and_save_images(epoch_idx + 1)
 
@@ -315,8 +358,12 @@ class DCGAN(flow.nn.Module):
         d_loss.backward()
         self.optimizerD.step()
         self.optimizerD.zero_grad()
-        
-        return (to_numpy(d_loss), to_numpy(d_loss_fake), to_numpy(d_loss_real), to_numpy(d_logits), to_numpy(g_logits))
+
+        return (to_numpy(d_loss),
+                to_numpy(d_loss_fake),
+                to_numpy(d_loss_real),
+                to_numpy(d_logits),
+                to_numpy(g_logits))
 
     def train_generator(self, label1):
         # self.optimizerG.zero_grad()
@@ -332,7 +379,8 @@ class DCGAN(flow.nn.Module):
         return (to_numpy(g_loss), to_numpy(g_out, False), to_numpy(g_logits))
 
     def generate_noise(self):
-        return to_tensor(np.random.normal(0, 1, size=(self.batch_size, self.z_dim)), False).to('cuda')
+        return to_tensor(
+            np.random.normal(0, 1, size=(self.batch_size, self.z_dim)), False).to(self.device)
 
     def _eval_generator_and_save_images(self, epoch_idx):
         results = to_numpy(self._eval_generator(), False)
