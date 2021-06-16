@@ -25,7 +25,7 @@ bash infer.sh
 ```
 
 #### Model
-We provide a converted pretrained model(from pytroch), you can get (here)[https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/cv/classification/mobilenetv2/mobilenetv2_oneflow_model.zip]
+We provide a converted pretrained model(from pytroch), you can get [here](https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/cv/classification/mobilenetv2/mobilenetv2_oneflow_model.zip)
 Also, you can use following steps to convert it on your own:
 
 ```python
