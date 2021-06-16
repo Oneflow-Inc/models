@@ -14,7 +14,7 @@ tar zxf imagenette_ofrecord.tar.gz
 ### Download Pretrain Models
 
 ```bash
-wget https://download.pytorch.org/models/mobilenet_v3_small-047dcff4.pth
+wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/cv/classification/mobilenetv3/mobilenetv3_oneflow_model.tar.gz
 ```
 
 ### Run Oneflow Training script
