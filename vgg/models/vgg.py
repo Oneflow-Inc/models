@@ -76,43 +76,38 @@ cfgs: Dict[str, List[Union[str, int]]] = {
 }
 
 
-def _vgg(arch: str, cfg: str, batch_norm: bool, pretrained: bool, **kwargs: Any) -> VGG:
-    if pretrained:
-        kwargs['init_weights'] = False
-    model = VGG(make_layers(cfgs[cfg], batch_norm=batch_norm), **kwargs)
-    if pretrained:
-        state_dict = flow.load("vgg_imagenet_pretrain_model/"+ arch + "_oneflow_model")
-        model.load_state_dict(state_dict)
-    return model
+def _vgg(arch: str, cfg: str, batch_norm: bool) -> VGG:
+    return VGG(make_layers(cfgs[cfg], batch_norm=batch_norm))
 
-def vgg16(pretrained: bool = False, **kwargs: Any) -> VGG:
+
+def vgg16() -> VGG:
     r"""VGG 16-layer model (configuration "D")
     `"Very Deep Convolutional Networks For Large-Scale Image Recognition" <https://arxiv.org/pdf/1409.1556.pdf>`_.
     The required minimum input size of the model is 32x32.
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
     """
-    return _vgg('vgg16', 'D', False, pretrained, **kwargs)
+    return _vgg('vgg16', 'D', False)
 
 
-def vgg16_bn(pretrained: bool = False, **kwargs: Any) -> VGG:
+def vgg16_bn() -> VGG:
     r"""VGG 16-layer model (configuration "D") with batch normalization
     `"Very Deep Convolutional Networks For Large-Scale Image Recognition" <https://arxiv.org/pdf/1409.1556.pdf>`_.
     The required minimum input size of the model is 32x32.
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
     """
-    return _vgg('vgg16_bn', 'D', True, pretrained, **kwargs)
+    return _vgg('vgg16_bn', 'D', True)
 
 
-def vgg19(pretrained: bool = False, **kwargs: Any) -> VGG:
+def vgg19() -> VGG:
     r"""VGG 19-layer model (configuration "E")
     `"Very Deep Convolutional Networks For Large-Scale Image Recognition" <https://arxiv.org/pdf/1409.1556.pdf>`_.
     The required minimum input size of the model is 32x32.
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
     """
-    return _vgg('vgg19', 'E', False, pretrained, **kwargs)
+    return _vgg('vgg19', 'E', False)
 
 
 def vgg19_bn(pretrained: bool = False, **kwargs: Any) -> VGG:
@@ -122,4 +117,4 @@ def vgg19_bn(pretrained: bool = False, **kwargs: Any) -> VGG:
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
     """
-    return _vgg('vgg19_bn', 'E', True, pretrained, **kwargs)
+    return _vgg('vgg19_bn', 'E', True)
