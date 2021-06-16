@@ -32,7 +32,11 @@ bash infer.sh
 
 #### Util
 
-convert pytorch pretrained model to oneflow
+convert pytorch pretrained model to oneflow pretrained model
+
+```sh
+wget https://download.pytorch.org/models/mobilenet_v3_small-047dcff4.pth
+```
 
 ```python
 import torch
