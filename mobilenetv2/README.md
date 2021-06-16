@@ -28,8 +28,11 @@ bash infer.sh
 We provide a converted pretrained model(from pytroch), you can get [here](https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/cv/classification/mobilenetv2/mobilenetv2_oneflow_model.zip)
 Also, you can use following steps to convert it on your own:
 
-```python
+```sh
 wget https://download.pytorch.org/models/mobilenet_v2-b0353104.pth
+```
+
+```python
 parameters = torch.load("./mobilenet_v2-b0353104.pth")
 
 new_parameters = dict()

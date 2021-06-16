@@ -6,11 +6,6 @@ from oneflow.experimental import nn, Tensor
 
 __all__ = ['MobileNetV2', 'mobilenet_v2']
 
-# reference: https://github.com/pytorch/vision/blob/master/torchvision/models/mobilenetv2.py
-
-# model_urls = {
-#     'mobilenet_v2': 'https://download.pytorch.org/models/mobilenet_v2-b0353104.pth',
-# }
 
 def _make_divisible(v: float, divisor: int, min_value: Optional[int] = None) -> int:
     """
