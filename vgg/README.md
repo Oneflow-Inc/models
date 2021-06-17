@@ -21,4 +21,3 @@ tar zxf imagenette_ofrecord.tar.gz
 bash train_oneflow.sh
 ```
 
-
