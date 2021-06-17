@@ -30,4 +30,4 @@ class RoIAlign(nn.Module):
         )
 
     def forward(self, input, rois):
-        return self._roi_align_op(input, rois)
+        return self._roi_align_op(input, rois)[0]
