@@ -56,7 +56,7 @@ REGISTER_USER_OP("roi_align")
       return Maybe<void>::Ok();
     });
 
-/*REGISTER_USER_OP("roi_align_grad")
+REGISTER_USER_OP("roi_align_grad")
     .Input("dy")
     .Input("x_like")
     .Input("rois")
@@ -99,7 +99,7 @@ REGISTER_USER_OP("roi_align")
       *ctx->Dtype4ArgNameAndIndex("dx", 0) = *x_like_dtype;
     });
 
-REGISTER_USER_OP_GRAD("roi_align")
+/*REGISTER_USER_OP_GRAD("roi_align")
     .SetGenBackwardOpConfFn([](const user_op::UserOpWrapper &op, user_op::AddOpFn AddOp) {
       if (op.NeedGenGradTensor4OpInput("x", 0)) {
         user_op::UserOpConfWrapperBuilder builder(op.op_name() + "_grad");
