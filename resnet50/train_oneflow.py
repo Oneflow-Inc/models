@@ -62,10 +62,10 @@ def main(args):
     end_t = time.time()
     print('init time : {}'.format(end_t - start_t))
 
-    of_corss_entropy = flow.nn.CrossEntropyLoss()
+    of_cross_entropy = flow.nn.CrossEntropyLoss()
 
     res50_module.to('cuda')
-    of_corss_entropy.to('cuda')
+    of_cross_entropy.to('cuda')
 
     of_sgd = flow.optim.SGD(res50_module.parameters(), lr=args.learning_rate, momentum=args.mom)
 
@@ -84,7 +84,7 @@ def main(args):
             image = image.to('cuda')
             label = label.to('cuda')
             logits = res50_module(image)
-            loss = of_corss_entropy(logits, label)
+            loss = of_cross_entropy(logits, label)
             loss.backward()
             of_sgd.step()
             of_sgd.zero_grad()

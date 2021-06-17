@@ -5,7 +5,6 @@ import numpy as np
 import os
 import time
 
-#from models.vgg_pytorch import vgg19_bn
 from models.vgg import vgg16, vgg19, vgg16_bn, vgg19_bn
 from utils.ofrecord_data_utils import OFRecordDataLoader
 
@@ -68,10 +67,10 @@ def main(args):
     end_t = time.time()
     print('init time : {}'.format(end_t - start_t))
 
-    of_corss_entropy = flow.nn.CrossEntropyLoss()
+    of_cross_entropy = flow.nn.CrossEntropyLoss()
 
     vgg_module.to('cuda')
-    of_corss_entropy.to('cuda')
+    of_cross_entropy.to('cuda')
 
     of_sgd = flow.optim.SGD(vgg_module.parameters(), lr=args.learning_rate, momentum=args.mom)
 
@@ -90,7 +89,7 @@ def main(args):
             image = image.to('cuda')
             label = label.to('cuda')
             logits = vgg_module(image)
-            loss = of_corss_entropy(logits, label)
+            loss = of_cross_entropy(logits, label)
             loss.backward()
             of_sgd.step()
             of_sgd.zero_grad()
