@@ -5,8 +5,10 @@ import numpy as np
 import os
 import time
 
-from models.resnet50 import resnet50
+from models.vgg import vgg16, vgg19, vgg16_bn, vgg19_bn
 from utils.ofrecord_data_utils import OFRecordDataLoader
+
+model_dict = {"vgg16" : vgg16, "vgg19" : vgg19, "vgg16_bn" : vgg16_bn, "vgg19_bn" : vgg19_bn}
 
 def _parse_args():
     parser = argparse.ArgumentParser("flags for train resnet50")
@@ -35,6 +37,9 @@ def _parse_args():
     parser.add_argument(
         "--val_batch_size", type=int, default=32, help="val batch size"
     )
+    parser.add_argument(
+        "--model", type=str, default="vgg16", help="choose a model from vgg16, vgg16_bn, vgg19, vgg19_bn"
+    )
 
     return parser.parse_args()
 
@@ -56,25 +61,25 @@ def main(args):
 
     # oneflow init
     start_t = time.time()
-    res50_module = resnet50()
+    vgg_module = model_dict[args.model]()
     if args.load_checkpoint != "":
-        res50_module.load_state_dict(flow.load(args.load_checkpoint))
+        vgg_module.load_state_dict(flow.load(args.load_checkpoint))
     end_t = time.time()
     print('init time : {}'.format(end_t - start_t))
 
     of_cross_entropy = flow.nn.CrossEntropyLoss()
 
-    res50_module.to('cuda')
+    vgg_module.to('cuda')
     of_cross_entropy.to('cuda')
 
-    of_sgd = flow.optim.SGD(res50_module.parameters(), lr=args.learning_rate, momentum=args.mom)
+    of_sgd = flow.optim.SGD(vgg_module.parameters(), lr=args.learning_rate, momentum=args.mom)
 
     of_losses = []
     all_samples = len(val_data_loader) * args.val_batch_size
-    print_interval = 100
+    print_interval = 50
 
     for epoch in range(args.epochs):
-        res50_module.train()
+        vgg_module.train()
 
         for b in range(len(train_data_loader)):
             image, label = train_data_loader.get_batch()
@@ -83,7 +88,7 @@ def main(args):
             start_t = time.time()
             image = image.to('cuda')
             label = label.to('cuda')
-            logits = res50_module(image)
+            logits = vgg_module(image)
             loss = of_cross_entropy(logits, label)
             loss.backward()
             of_sgd.step()
@@ -96,7 +101,7 @@ def main(args):
 
         print("epoch %d train done, start validation" % epoch)
 
-        res50_module.eval()
+        vgg_module.eval()
         correct_of = 0.0
         for b in range(len(val_data_loader)):
             image, label = val_data_loader.get_batch()
@@ -104,7 +109,7 @@ def main(args):
             start_t = time.time()
             image = image.to('cuda')
             with flow.no_grad():
-                logits = res50_module(image)
+                logits = vgg_module(image)
                 predictions = logits.softmax()
             of_predictions = predictions.numpy()
             clsidxs = np.argmax(of_predictions, axis=1)
@@ -117,7 +122,7 @@ def main(args):
 
         print("epoch %d, oneflow top1 val acc: %f" % (epoch, correct_of / all_samples))
         
-        flow.save(res50_module.state_dict(), os.path.join(args.save_checkpoint_path, "epoch_%d_val_acc_%f" % (epoch, correct_of / all_samples)))
+        flow.save(vgg_module.state_dict(), os.path.join(args.save_checkpoint_path, "epoch_%d_val_acc_%f" % (epoch, correct_of / all_samples)))
 
     writer = open("of_losses.txt", "w")
     for o in of_losses:
@@ -127,11 +132,3 @@ def main(args):
 if __name__ == "__main__":
     args = _parse_args()
     main(args)
-
-
-
-
-
-
-
-
