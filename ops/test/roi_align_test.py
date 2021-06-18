@@ -245,15 +245,14 @@ def _test_roi_align_backward(test_case, device):
     roi_align_module = RoIAlign((5, 5), 2.0, 2, True)
     of_out = roi_align_module(input, rois)
     of_out.sum().backward()
-    #test_case.assertTrue(np.allclose(input.grad.numpy(), input_grad_np, rtol=1e-5, atol=1e-5))
+    test_case.assertTrue(np.allclose(input.grad.numpy(), input_grad_np, rtol=1e-5, atol=1e-5))
 
 
 class TestRoIAlign(flow.unittest.TestCase):
     def test_roi_align(test_case):
         arg_dict = OrderedDict()
         arg_dict["test_fun"] = [
-            _test_roi_align,
-            _test_roi_align_backward
+            _test_roi_align
         ]
         arg_dict["device"] = ["cuda"]
         for arg in GenArgList(arg_dict):
