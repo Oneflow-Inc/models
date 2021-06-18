@@ -3,16 +3,13 @@ from oneflow.experimental import Tensor
 import oneflow.experimental.nn as nn
 from typing import Callable, Any, List
 
+
 def channel_shuffle(x: Tensor, groups: int) -> Tensor:
     batchsize, num_channels, height, width = x.size()
     channels_per_group = num_channels // groups
 
     # reshape
-    x = flow.reshape(x, [batchsize, 
-                        groups,
-                        channels_per_group, 
-                        height, 
-                        width])
+    x = flow.reshape(x, [batchsize, groups, channels_per_group, height, width])
 
     x = flow.transpose(x, 1, 2)
 
@@ -21,17 +18,13 @@ def channel_shuffle(x: Tensor, groups: int) -> Tensor:
 
     return x
 
+
 class InvertedResidual(nn.Module):
-    def __init__(
-        self,
-        inp: int,
-        oup: int,
-        stride: int
-    ) -> None:
+    def __init__(self, inp: int, oup: int, stride: int) -> None:
         super().__init__()
 
         if not (1 <= stride <= 3):
-            raise ValueError('illegal stride value')
+            raise ValueError("illegal stride value")
         self.stride = stride
 
         branch_features = oup // 2
@@ -39,9 +32,13 @@ class InvertedResidual(nn.Module):
 
         if self.stride > 1:
             self.branch1 = nn.Sequential(
-                self.depthwise_conv(inp, inp, kernel_size=3, stride=self.stride, padding=1),
+                self.depthwise_conv(
+                    inp, inp, kernel_size=3, stride=self.stride, padding=1
+                ),
                 nn.BatchNorm2d(inp),
-                nn.Conv2d(inp, branch_features, kernel_size=1, stride=1, padding=0, bias=False),
+                nn.Conv2d(
+                    inp, branch_features, kernel_size=1, stride=1, padding=0, bias=False
+                ),
                 nn.BatchNorm2d(branch_features),
                 nn.ReLU(inplace=True),
             )
@@ -49,13 +46,32 @@ class InvertedResidual(nn.Module):
             self.branch1 = nn.Sequential()
 
         self.branch2 = nn.Sequential(
-            nn.Conv2d(inp if (self.stride > 1) else branch_features,
-                      branch_features, kernel_size=1, stride=1, padding=0, bias=False),
+            nn.Conv2d(
+                inp if (self.stride > 1) else branch_features,
+                branch_features,
+                kernel_size=1,
+                stride=1,
+                padding=0,
+                bias=False,
+            ),
             nn.BatchNorm2d(branch_features),
             nn.ReLU(inplace=True),
-            self.depthwise_conv(branch_features, branch_features, kernel_size=3, stride=self.stride, padding=1),
+            self.depthwise_conv(
+                branch_features,
+                branch_features,
+                kernel_size=3,
+                stride=self.stride,
+                padding=1,
+            ),
             nn.BatchNorm2d(branch_features),
-            nn.Conv2d(branch_features, branch_features, kernel_size=1, stride=1, padding=0, bias=False),
+            nn.Conv2d(
+                branch_features,
+                branch_features,
+                kernel_size=1,
+                stride=1,
+                padding=0,
+                bias=False,
+            ),
             nn.BatchNorm2d(branch_features),
             nn.ReLU(inplace=True),
         )
@@ -67,7 +83,7 @@ class InvertedResidual(nn.Module):
         kernel_size: int,
         stride: int = 1,
         padding: int = 0,
-        bias: bool = False
+        bias: bool = False,
     ) -> nn.Conv2d:
         return nn.Conv2d(i, o, kernel_size, stride, padding, bias=bias, groups=i)
 
@@ -82,20 +98,21 @@ class InvertedResidual(nn.Module):
 
         return out
 
+
 class ShuffleNetV2(nn.Module):
     def __init__(
         self,
         stages_repeats: List[int],
         stages_out_channels: List[int],
         num_classes: int = 1000,
-        inverted_residual: Callable[..., nn.Module] = InvertedResidual
+        inverted_residual: Callable[..., nn.Module] = InvertedResidual,
     ) -> None:
         super().__init__()
 
         if len(stages_repeats) != 3:
-            raise ValueError('expected stages_repeats as list of 3 positive ints')
+            raise ValueError("expected stages_repeats as list of 3 positive ints")
         if len(stages_out_channels) != 5:
-            raise ValueError('expected stages_out_channels as list of 5 positive ints')
+            raise ValueError("expected stages_out_channels as list of 5 positive ints")
         self._stage_out_channels = stages_out_channels
 
         input_channels = 3
@@ -113,9 +130,10 @@ class ShuffleNetV2(nn.Module):
         self.stage2: nn.Sequential
         self.stage3: nn.Sequential
         self.stage4: nn.Sequential
-        stage_names = ['stage{}'.format(i) for i in [2, 3, 4]]
+        stage_names = ["stage{}".format(i) for i in [2, 3, 4]]
         for name, repeats, output_channels in zip(
-                stage_names, stages_repeats, self._stage_out_channels[1:]):
+            stage_names, stages_repeats, self._stage_out_channels[1:]
+        ):
             seq = [inverted_residual(input_channels, output_channels, 2)]
             for i in range(repeats - 1):
                 seq.append(inverted_residual(output_channels, output_channels, 1))
@@ -145,32 +163,39 @@ class ShuffleNetV2(nn.Module):
     def forward(self, x: Tensor) -> Tensor:
         return self._forward_impl(x)
 
+
 def _shufflenetv2(arch: str, *args: Any, **kwargs: Any):
     model = ShuffleNetV2(*args, **kwargs)
     return model
 
+
 if __name__ == "__main__":
     import numpy as np
     import torch
+
     flow.enable_eager_execution()
 
     pretrained_config = {
-        'shufflenetv2_x0.5': {'url:':'https://download.pytorch.org/models/shufflenetv2_x0.5-f707e7126e.pth',
-                              'shape': [[4, 8, 4], [24, 48, 96, 192, 1024]],
-                              'file':'shufflenetv2_x0.5-f707e7126e.pth'},
-        'shufflenetv2_x1.0': {'url:':'https://download.pytorch.org/models/shufflenetv2_x1-5666bf0f80.pth',
-                              'shape': [[4, 8, 4], [24, 116, 232, 464, 1024]],
-                              'file':'shufflenetv2_x1-5666bf0f80.pth'},
+        "shufflenetv2_x0.5": {
+            "url:": "https://download.pytorch.org/models/shufflenetv2_x0.5-f707e7126e.pth",
+            "shape": [[4, 8, 4], [24, 48, 96, 192, 1024]],
+            "file": "shufflenetv2_x0.5-f707e7126e.pth",
+        },
+        "shufflenetv2_x1.0": {
+            "url:": "https://download.pytorch.org/models/shufflenetv2_x1-5666bf0f80.pth",
+            "shape": [[4, 8, 4], [24, 116, 232, 464, 1024]],
+            "file": "shufflenetv2_x1-5666bf0f80.pth",
+        },
     }
 
     for k, v in pretrained_config.items():
-        m  = _shufflenetv2(k, *v['shape'])
+        m = _shufflenetv2(k, *v["shape"])
 
-        parameters = torch.load(v['file'])
-        for key,value in parameters.items():
+        parameters = torch.load(v["file"])
+        for key, value in parameters.items():
             val = value.detach().cpu().numpy()
             parameters[key] = val
             print("key:", key, "value.shape", val.shape)
-        
+
         m.load_state_dict(parameters)
-        flow.save(m.state_dict(), "oneflow_"+k)
+        flow.save(m.state_dict(), "oneflow_" + k)
