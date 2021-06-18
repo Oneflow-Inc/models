@@ -6,9 +6,9 @@ import math
 
 import oneflow.experimental as flow
 from oneflow.python.test.modules.test_util import GenArgList
-from ops import RoIAlign
+from ops import RoIAlign, lib_path
 
-flow.config.load_library_now("/home/wangshijie/project/models/libmodels_ops.so")
+flow.config.load_library_now(lib_path())
 
 input_np = np.array(
     [
