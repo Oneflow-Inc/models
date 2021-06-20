@@ -89,7 +89,9 @@ class InvertedResidual(nn.Module):
 
     def forward(self, x: Tensor) -> Tensor:
         if self.stride == 1:
-            x1, x2 = x.chunk(2, dim=1)
+            cnt_at_dim1 = int(x.shape[1] / 2)
+            x1 = x[:, 0:cnt_at_dim1, ::]
+            x2 = x[:, cnt_at_dim1:, ::]
             out = flow.cat((x1, self.branch2(x2)), dim=1)
         else:
             out = flow.cat((self.branch1(x), self.branch2(x)), dim=1)
@@ -167,6 +169,14 @@ class ShuffleNetV2(nn.Module):
 def _shufflenetv2(arch: str, *args: Any, **kwargs: Any):
     model = ShuffleNetV2(*args, **kwargs)
     return model
+
+
+def shufflenetv2_x0dot5():
+    return ShuffleNetV2([4, 8, 4], [24, 48, 96, 192, 1024])
+
+
+def shufflenetv2_x1():
+    return ShuffleNetV2([4, 8, 4], [24, 116, 232, 464, 1024])
 
 
 if __name__ == "__main__":
