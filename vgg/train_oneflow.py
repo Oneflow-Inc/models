@@ -11,7 +11,7 @@ from utils.ofrecord_data_utils import OFRecordDataLoader
 model_dict = {"vgg16" : vgg16, "vgg19" : vgg19, "vgg16_bn" : vgg16_bn, "vgg19_bn" : vgg19_bn}
 
 def _parse_args():
-    parser = argparse.ArgumentParser("flags for train resnet50")
+    parser = argparse.ArgumentParser("flags for train vgg")
     parser.add_argument(
         "--save_checkpoint_path", type=str, default="./checkpoints", help="save checkpoint root dir"
     )
