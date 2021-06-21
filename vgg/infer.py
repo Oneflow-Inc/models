@@ -11,7 +11,7 @@ from utils.numpy_data_utils import load_image
 model_dict = {"vgg16" : vgg16, "vgg19" : vgg19, "vgg16_bn" : vgg16_bn, "vgg19_bn" : vgg19_bn}
 
 def _parse_args():
-    parser = argparse.ArgumentParser("flags for test resnet50")
+    parser = argparse.ArgumentParser("flags for test vgg")
     parser.add_argument(
         "--model_path", type=str, default="vgg_imagenet_pretrain_model/", help="model path"
     )
