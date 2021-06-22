@@ -321,8 +321,6 @@ class DCGAN(flow.nn.Module):
             # save images based on .train()
             save_images(g_out, self.eval_size, os.path.join(
                 self.train_images_path, "fakeimage_{:02d}.png".format(epoch_idx)))
-            # save_images(to_numpy(images, False), self.eval_size, os.path.join(
-            #     self.train_images_path, "realimage_{:02d}.png".format(epoch_idx)))
 
             # save images based on .eval()
             self._eval_generator_and_save_images(epoch_idx + 1)
@@ -344,8 +342,6 @@ class DCGAN(flow.nn.Module):
                 self.path, 'd_loss_{}.npy'.format(epochs)), self.D_loss)
 
     def train_discriminator(self, images, label1, label0):
-        # self.optimizerD.zero_grad()
-
         # train D with all-real batch
         d_logits = self.discriminator(images)
         d_loss_real = self.of_cross_entropy(d_logits, label1)
@@ -369,8 +365,6 @@ class DCGAN(flow.nn.Module):
                 to_numpy(g_logits))
 
     def train_generator(self, label1):
-        # self.optimizerG.zero_grad()
-
         z = self.generate_noise()
         g_out = self.generator(z)
         g_logits = self.discriminator(g_out)
