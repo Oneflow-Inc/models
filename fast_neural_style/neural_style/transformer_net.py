@@ -38,6 +38,7 @@ class TransformerNet(flow.nn.Module):
         y = self.relu(self.in4(self.deconv1(y)))
         y = self.relu(self.in5(self.deconv2(y)))
         y = self.deconv3(y)
+        y = flow.clamp(y, 0, 255)
         return y
 
 

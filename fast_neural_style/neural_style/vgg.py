@@ -8,20 +8,24 @@ __all__ = [
     'vgg19_bn', 'vgg19',
 ]
 
-class VGG16_WITH_FEATURES(flow.nn.Module):
+# 31 is the raw depth of vgg16, while 37 is the raw depth of vgg19
+slice_pos = {31 : [4, 9, 16, 23], 37 : [4, 9, 18, 27]}
+
+class VGG_WITH_FEATURES(flow.nn.Module):
     def __init__(self, vgg_pretrained_features, requires_grad):
-        super(VGG16, self).__init__()
+        super(VGG_WITH_FEATURES, self).__init__()
         self.slice1 = flow.nn.Sequential()
         self.slice2 = flow.nn.Sequential()
         self.slice3 = flow.nn.Sequential()
         self.slice4 = flow.nn.Sequential()
-        for x in range(4):
+        pos = slice_pos[len(vgg_pretrained_features)]
+        for x in range(pos[0]):
             self.slice1.add_module(str(x), vgg_pretrained_features[x])
-        for x in range(4, 9):
+        for x in range(pos[0], pos[1]):
             self.slice2.add_module(str(x), vgg_pretrained_features[x])
-        for x in range(9, 16):
+        for x in range(pos[1], pos[2]):
             self.slice3.add_module(str(x), vgg_pretrained_features[x])
-        for x in range(16, 23):
+        for x in range(pos[2], pos[3]):
             self.slice4.add_module(str(x), vgg_pretrained_features[x])
         if not requires_grad:
             for param in self.parameters():
@@ -116,7 +120,7 @@ def _vgg(arch: str, cfg: str, batch_norm: bool, pretrained, model_path) -> VGG:
     return model
 
 
-def vgg16(pretrained=True, model_path="vgg16_oneflow_model/") -> VGG:
+def vgg16(pretrained=False, model_path="vgg16_oneflow_model/") -> VGG:
     r"""VGG 16-layer model (configuration "D")
     `"Very Deep Convolutional Networks For Large-Scale Image Recognition" <https://arxiv.org/pdf/1409.1556.pdf>`_.
     The required minimum input size of the model is 32x32.
@@ -136,14 +140,14 @@ def vgg16_bn() -> VGG:
     return _vgg('vgg16_bn', 'D', True)
 
 
-def vgg19() -> VGG:
+def vgg19(pretrained=False, model_path="vgg19_oneflow_model/") -> VGG:
     r"""VGG 19-layer model (configuration "E")
     `"Very Deep Convolutional Networks For Large-Scale Image Recognition" <https://arxiv.org/pdf/1409.1556.pdf>`_.
     The required minimum input size of the model is 32x32.
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
     """
-    return _vgg('vgg19', 'E', False)
+    return _vgg('vgg19', 'E', False, pretrained, model_path)
 
 
 def vgg19_bn(pretrained: bool = False, **kwargs: Any) -> VGG:

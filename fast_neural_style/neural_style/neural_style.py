@@ -13,7 +13,7 @@ from oneflow.experimental.optim import Adam
 
 from utils import load_image, recover_image, normalize_batch, load_image_eval
 from transformer_net import TransformerNet
-from vgg import vgg16, VGG16_WITH_FEATURES
+from vgg import vgg16, VGG_WITH_FEATURES, vgg19
 
 def check_paths(args):
     try:
@@ -36,19 +36,20 @@ def train(args):
     print("dataset size: %d" % images_num)
     # Initialize transforemer net, optimizer, and loss function
     transformer = TransformerNet().to("cuda")
+    
     optimizer = Adam(transformer.parameters(), args.lr)
     mse_loss = flow.nn.MSELoss()
 
     # Uncomment this for finetuning
-    # state_dict = flow.load("mosaic_oneflow/")
+    # state_dict = flow.load("checkpoints/finetune_ckpt_epoch_0_i_15000/")
     # for k in list(state_dict.keys()):
     #         if re.search(r'in\d+\.running_(mean|var)$', k):
     #             del state_dict[k]
     # transformer.load_state_dict(state_dict)
 
     # load pretrained vgg16
-    vgg = vgg16(pretrained=True)
-    vgg = VGG16_WITH_FEATURES(vgg.features, requires_grad=False)
+    vgg = vgg19(pretrained=True)
+    vgg = VGG_WITH_FEATURES(vgg.features, requires_grad=False)
     vgg.to("cuda")
 
     style_image = utils.load_image(args.style_image)
@@ -99,14 +100,14 @@ def train(args):
 
             if args.checkpoint_model_dir is not None and (i + 1) % args.checkpoint_interval == 0:
                 transformer.eval()
-                ckpt_model_filename = "ckpt_epoch_" + str(e) + "_i_" + str(i + 1)
+                ckpt_model_filename = "lcw_ckpt_sketch_epoch" + str(e) + "_" + str(i + 1)
                 ckpt_model_path = os.path.join(args.checkpoint_model_dir, ckpt_model_filename)
                 flow.save(transformer.state_dict(), ckpt_model_path)
                 transformer.train()
 
     # save model
     transformer.eval()
-    save_model_filename = "epoch_" + str(args.epochs) + "_" + str(time.ctime()).replace(' ', '_') + "_" + str(
+    save_model_filename = "lcw_sketch_epoch_" + str(args.epochs) + "_" + str(time.ctime()).replace(' ', '_') + "_" + str(
         args.content_weight) + "_" + str(args.style_weight)
     save_model_path = os.path.join(args.save_model_dir, save_model_filename)
     flow.save(transformer.state_dict(), save_model_path)
