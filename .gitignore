@@ -108,4 +108,16 @@ venv.bak/
 # mypy
 .mypy_cache/
 
+
+# data
+data/
+images/
+*.tar*
+
+
+# DCGAN
+*dcgan
+mnist
+
 .so
+
