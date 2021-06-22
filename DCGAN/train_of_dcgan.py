@@ -16,6 +16,8 @@ def _parse_args():
                         type=float, default=1e-4, required=False)
     parser.add_argument("--load", type=str, default="", required=False,
                         help="the path to continue training the model")
+    parser.add_argument("--data_dir", type=str, default="./data/mnist", required=False,
+                        help="the path to dataset")
     parser.add_argument("--batch_size", type=int, default=256, required=False)
     parser.add_argument("--label_smooth", type=float,
                         default=0.15, required=False)
@@ -34,14 +36,11 @@ def make_dirs(*pathes):
             os.makedirs(path)
 
 
-def load_mnist(root_dir="./data", dataset_name="mnist", transpose=True):
-    data_dir = os.path.join(root_dir, dataset_name)
+def load_mnist(data_dir, transpose=True):
     if os.path.exists(data_dir):
         print("Found MNIST - skip download")
     else:
         print("not Found MNIST - start download")
-        if not os.path.exists(root_dir):
-            os.mkdir(root_dir)
         download_mnist(data_dir)
 
     fd = open(os.path.join(data_dir, "train-images-idx3-ubyte"))
@@ -141,6 +140,8 @@ def save_images(x, size, path):
         plt.imshow(x[i, 0, :, :] * 127.5 + 127.5, cmap="gray")
         plt.axis("off")
     plt.savefig(path)
+    print("Save image to {} done.".format(path))
+
 
 class BCELoss(flow.nn.Module):
     def __init__(self, reduction: str = "mean", reduce=True) -> None:
@@ -181,30 +182,31 @@ class BCELoss(flow.nn.Module):
             return _weighted_loss
 
 class Generator(flow.nn.Module):
-    def __init__(self, z_dim) -> None:
+    def __init__(self, z_dim=100, dim=256) -> None:
         super().__init__()
+        self.dim = dim
         self.input_fc = flow.nn.Sequential(
-            flow.nn.Linear(z_dim, 7 * 7 * 256),
-            flow.nn.BatchNorm1d(7 * 7 * 256),
+            flow.nn.Linear(z_dim, 7 * 7 * dim),
+            flow.nn.BatchNorm1d(7 * 7 * dim),
             flow.nn.LeakyReLU(0.3)
         )
         self.model = flow.nn.Sequential(
             # (n, 128, 7, 7)
-            flow.nn.ConvTranspose2d(256, 128, kernel_size=5, stride=1, padding=2),
-            flow.nn.BatchNorm2d(128),
+            flow.nn.ConvTranspose2d(dim, dim//2, kernel_size=5, stride=1, padding=2),
+            flow.nn.BatchNorm2d(dim//2),
             flow.nn.LeakyReLU(0.3),
             # (n, 64, 14, 14)
-            flow.nn.ConvTranspose2d(128, 64, kernel_size=5, stride=2, padding=2, output_padding=1),
-            flow.nn.BatchNorm2d(64),
+            flow.nn.ConvTranspose2d(dim//2, dim//4, kernel_size=5, stride=2, padding=2, output_padding=1),
+            flow.nn.BatchNorm2d(dim//4),
             flow.nn.LeakyReLU(0.3),
             # (n, 1, 28, 28)
-            flow.nn.ConvTranspose2d(64, 1, kernel_size=5, stride=2, padding=2, output_padding=1),
+            flow.nn.ConvTranspose2d(dim//4, 1, kernel_size=5, stride=2, padding=2, output_padding=1),
             flow.nn.Tanh()
         )
 
     def forward(self, x):
         # (n, 256, 7, 7)
-        x1 = self.input_fc(x).reshape((-1, 256, 7, 7))
+        x1 = self.input_fc(x).reshape((-1, self.dim, 7, 7))
         y = self.model(x1)
 
         return y
@@ -236,11 +238,10 @@ class DCGAN(flow.nn.Module):
         super().__init__()
         self.lr = args.learning_rate
         self.z_dim = 100
-        self.eval_interval = 1
+        self.eval_interval = 100
         self.eval_size = 16
-
-        use_cuda = not args.no_cuda
-        self.device = 'cuda' if use_cuda else 'cpu'
+        self.data_dir = args.data_dir
+        self.device = 'cpu' if args.no_cuda else 'cuda'
 
         # evaluate generator based pn fixed noise during training
         self.fixed_z = to_tensor(
@@ -261,7 +262,7 @@ class DCGAN(flow.nn.Module):
 
     def train(self, epochs=1, save=True):
         # init dataset
-        x, _ = load_mnist()
+        x, _ = load_mnist(self.data_dir)
         batch_num = len(x) // self.batch_size
         label1 = to_tensor(
             np.ones(self.batch_size), False, dtype=flow.float32).to(self.device)
@@ -334,6 +335,7 @@ class DCGAN(flow.nn.Module):
                 self.checkpoint_path, "d_{}".format(epoch_idx)))
 
             save_to_gif(self.train_images_path)
+            save_to_gif(self.val_images_path)
             np.save(os.path.join(
                 self.path, 'g_loss_{}.npy'.format(epochs)), self.G_loss)
             np.save(os.path.join(
@@ -396,7 +398,6 @@ class DCGAN(flow.nn.Module):
 
 def main(args):
     flow.enable_eager_execution()
-    flow.InitEagerGlobalSession()
 
     dcgan = DCGAN(args)
     dcgan.train(args.epoch_num, args.save)
@@ -405,12 +406,3 @@ def main(args):
 if __name__ == "__main__":
     args = _parse_args()
     main(args)
-
-    # if not args.test:
-    #     # train
-    #     dcgan.train(args.epoch_num)
-    # else:
-    #     # test
-    #     save_path = "eval_images.png"
-    #     model_path = "./models/dcgan"
-    #     dcgan.test(16, save_path, model_path)

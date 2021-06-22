@@ -1,16 +1,25 @@
   
 set -aux
 
-BASE_PATH='./'
-LEARNING_RATE=le-4
+DATA_PATH="mnist"
+if [ ! -d "$DATA_PATH" ]; then
+    wget https://oneflow-static.oss-cn-beijing.aliyuncs.com/Dataset/mnist.zip
+    unzip mnist.zip
+fi
+
+
+BASE_PATH='./dcgan'
+LEARNING_RATE=0.0001
 EPOCH=100
-TRAIN_BATCH_SIZE=200
+BATCH_SIZE=256
+SAVE=True
 # LOAD_CHECKPOINT=
 
-python3 of_dcgan.py \
+python3 train_of_dcgan.py \
     -lr $LEARNING_RATE \
     -e $EPOCH \
-    --batch_size $TRAIN_BATCH_SIZE \
-    --val_batch_size $VAL_BATCH_SIZE \
+    --batch_size $BATCH_SIZE \
     --path $BASE_PATH \
+    --save $SAVE \
+    --data_dir $DATA_PATH \
     # --load $LOAD_CHECKPOINT
