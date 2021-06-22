@@ -108,6 +108,7 @@ venv.bak/
 # mypy
 .mypy_cache/
 
+
 # data
 data/
 images/
@@ -117,3 +118,6 @@ images/
 # DCGAN
 *dcgan
 mnist
+
+.so
+
