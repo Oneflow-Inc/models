@@ -112,3 +112,8 @@ venv.bak/
 data/
 images/
 *.tar*
+
+
+# DCGAN
+*dcgan
+mnist
