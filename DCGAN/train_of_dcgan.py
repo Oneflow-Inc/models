@@ -4,6 +4,8 @@ import argparse
 import numpy as np
 import glob
 import imageio
+import matplotlib
+matplotlib.use('agg') 
 import matplotlib.pyplot as plt
 import oneflow.experimental as flow
 
@@ -319,8 +321,8 @@ class DCGAN(flow.nn.Module):
             # save images based on .train()
             save_images(g_out, self.eval_size, os.path.join(
                 self.train_images_path, "fakeimage_{:02d}.png".format(epoch_idx)))
-            save_images(to_numpy(images, False), self.eval_size, os.path.join(
-                self.train_images_path, "realimage_{:02d}.png".format(epoch_idx)))
+            # save_images(to_numpy(images, False), self.eval_size, os.path.join(
+            #     self.train_images_path, "realimage_{:02d}.png".format(epoch_idx)))
 
             # save images based on .eval()
             self._eval_generator_and_save_images(epoch_idx + 1)
@@ -357,7 +359,6 @@ class DCGAN(flow.nn.Module):
         d_loss_fake.backward()
 
         d_loss = d_loss_fake + d_loss_real
-        d_loss.backward()
         self.optimizerD.step()
         self.optimizerD.zero_grad()
 

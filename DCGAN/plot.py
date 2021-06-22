@@ -14,8 +14,6 @@ limitations under the License.
 import os
 import numpy as np
 import matplotlib.pyplot as plt
-import imageio
-import glob
 
 def is_outlier(points, thresh=3):
     return points >= thresh
@@ -40,7 +38,6 @@ def plot(root_dir, epoch):
     plt.savefig(os.path.join(root_dir, 'loss_{}.png'.format(epoch)))
 
 if __name__ == "__main__":
-    root_dir = "./"
+    root_dir = "./dcgan"
     epoch = 100
     plot(root_dir, epoch)
-
