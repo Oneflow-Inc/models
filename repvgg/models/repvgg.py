@@ -1,10 +1,14 @@
 import oneflow.experimental as flow
-import numpy as np 
 from oneflow.experimental import nn, Tensor
-from functools import partial
-from typing import Any, Callable, Dict, List, Optional, Sequence
+import numpy as np 
 
-# __all__ = ["MobileNetV3", "mobilenet_v3_large", "mobilenet_v3_small"]
+__all__ = ["create_RepVGG_A0", "create_RepVGG_A1", 
+           "create_RepVGG_A2", "create_RepVGG_B0", 
+           "create_RepVGG_B1", "create_RepVGG_B1g2", 
+           "create_RepVGG_B1g4", "create_RepVGG_B2", 
+           "create_RepVGG_B2g2", "create_RepVGG_B2g4", 
+           "create_RepVGG_B3", "create_RepVGG_B3g2", 
+           "create_RepVGG_B3g4", "create_RepVGG_D2se"]
 
 def conv_bn(in_channels, out_channels, kernel_size, stride, padding, groups=1):
     result = nn.Sequential()
@@ -79,72 +83,7 @@ class RepVGGBlock(nn.Module):
 
         return self.non_linearity(self.se(self.rbr_dense(inputs) + self.rbr_1x1(inputs) + id_out))
 
-    def get_equivalent_kernel_bias(self):
-        kernel3x3, bias3x3 = self._fuse_bn_tensor(self.rbr_dense)
-        kernel1x1, bias1x1 = self._fuse_bn_tensor(self.rbr_1x1)
-        kernelid, biasid = self._fuse_bn_tensor(self.rbr_identity)
-        return kernel3x3 + self._pad_1x1_to_3x3_tensor(kernel1x1) + kernelid, bias3x3 + bias1x1 + biasid
-
-    def _pad_1x1_to_3x3_tensor(self, kernel1x1):
-        if kernel1x1 is None:
-            return 0
-        else:
-            return nn.ConstantPad2d([1, 1, 1, 1])(kernel1x1)
     
-    def _fuse_bn_tensor(self, branch):
-        if branch is None:
-            return 0, 0
-        if isinstance(branch, nn.Sequential):
-            kernel = branch.conv.weight
-            running_mean = branch.bn.running_mean
-            running_var = branch.bn.running_var
-            gamma = branch.bn.weight
-            beta = branch.bn.bias
-            eps = branch.bn.eps
-        else:
-            assert isinstance(branch, nn.BatchNorm2d)
-            if not hasattr(self, 'id_tensor'):
-                input_dim = self.in_channels // self.groups
-                kernel_value = np.zeros((self.in_channels, input_dim, 3, 3), dtype=np.float32)
-                for i in range(self.in_channels):
-                    kernel_value[i, i % input_dim, 1, 1] = 1
-                
-                self.id_tensor = flow.Tensor(kernel_value)
-            
-            kernel = self.id_tensor
-            running_mean = branch.running_mean
-            running_var = branch.running_var
-            gamma = branch.weight
-            beta = branch.bias
-            eps = branch.eps
-        std = (running_var + eps).sqrt()
-        t = (gamma / std).reshape((-1, 1, 1, 1))
-        return kernel * t, beta - running_mean * gamma / std
-
-    def switch_to_deploy(self):
-        if hasattr(self, 'rbr_reparam'):
-            return
-        kernel, bias = self.get_equivalent_kernel_bias()
-        self.rbr_reparam = nn.Conv2d(in_channels=self.rbr_dense.conv.in_channels, out_channels=self.rbr_dense.conv.out_channels,
-                                     kernel_size=self.rbr_dense.conv.kernel_size, stride=self.rbr_dense.conv.stride,
-                                     padding=self.rbr_dense.conv.padding, dilation=self.rbr_dense.conv.dilation, groups=self.rbr_dense.conv.groups, bias=True)
-        
-        # Need data attr
-        self.rbr_reparam.weight._data = kernel
-        self.rbr_reparam.bias._data = bias
-
-        print(self.parameters())
-        for para in self.parameters():
-            print(type(para))
-            # para.determine()
-            para.detach()
-        print("success")
-
-        self.__delattr__('rbr_dense')
-        self.__delattr__('rbr_1x1')
-        if hasattr(self, 'rbr_identity'):
-            self.__delattr__('rbr_identity')
-
 class RepVGG(nn.Module): 
     def __init__(self, num_blocks, num_classes=1000, width_multiplier=None, override_groups_map=None, deploy=False, use_se=False):
         super(RepVGG, self).__init__()
@@ -190,6 +129,7 @@ class RepVGG(nn.Module):
         out = self.linear(out)
         return out
 
+
 optional_groupwise_layers = [2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26]
 g2_map = {l: 2 for l in optional_groupwise_layers}
 g4_map = {l: 4 for l in optional_groupwise_layers}
@@ -222,7 +162,6 @@ def create_RepVGG_B1g4(deploy=False):
     return RepVGG(num_blocks=[4, 6, 16, 1], num_classes=1000,
                   width_multiplier=[2, 2, 2, 4], override_groups_map=g4_map, deploy=deploy)
 
-
 def create_RepVGG_B2(deploy=False):
     return RepVGG(num_blocks=[4, 6, 16, 1], num_classes=1000,
                   width_multiplier=[2.5, 2.5, 2.5, 5], override_groups_map=None, deploy=deploy)
@@ -234,7 +173,6 @@ def create_RepVGG_B2g2(deploy=False):
 def create_RepVGG_B2g4(deploy=False):
     return RepVGG(num_blocks=[4, 6, 16, 1], num_classes=1000,
                   width_multiplier=[2.5, 2.5, 2.5, 5], override_groups_map=g4_map, deploy=deploy)
-
 
 def create_RepVGG_B3(deploy=False):
     return RepVGG(num_blocks=[4, 6, 16, 1], num_classes=1000,
@@ -251,63 +189,3 @@ def create_RepVGG_B3g4(deploy=False):
 def create_RepVGG_D2se(deploy=False):
     return RepVGG(num_blocks=[8, 14, 24, 1], num_classes=1000,
                   width_multiplier=[2.5, 2.5, 2.5, 5], override_groups_map=None, deploy=deploy, use_se=True)
-
-
-if __name__ == "__main__": 
-    flow.enable_eager_execution()
-    # flow.InitEagerGlobalSession()
-
-    # x = flow.Tensor(np.ones((1, 16, 4, 4)))
-    # print(x.shape)
-    # se = SEBlock(16, 32)
-    # out = se(x)
-
-    # rep = RepVGGBlock(16, 16, 3, padding=1)
-    # out = rep(x)
-    # print(out.shape)
-    # x = flow.F.padding(x, [1, 1, 1, 1])
-    
-    # x = flow.Tensor(np.ones((1, 3, 224, 224)))
-    # rep = create_RepVGG_A0()
-    # out = rep(x)
-
-    # x = flow.Tensor(np.ones((1, 3, 224, 224)))
-    # out = x.reshape((-1, 1, 1, 1))
-    # print(out.shape)
-
-    # rep = RepVGGBlock(1, 1, 3, padding=1)
-    # conv = nn.Conv2d(1, 1, kernel_size=3, padding=1)
-    # print(conv.weight)
-    # merge = rep._pad_1x1_to_3x3_tensor(conv.weight)
-    # print(merge)
-
-    # rep = RepVGGBlock(10, 10, 3, padding=1)
-    # merge = rep.get_equivalent_kernel_bias()
-    # print("Merge is: ", merge)
-
-    # x = flow.tensor(np.ones(shape=(1, 15)))
-    # x = x.sqrt()
-    # print(x)    
-
-
-    # arr = np.array([1.0, 2.0, 3.0])
-    # input = flow.Tensor(arr)
-    # output = flow.sqrt(input).numpy()
-    # print(output)
-
-    # x = flow.Tensor(np.ones((10, 10, 1, 1)))
-    # pad = nn.ConstantPad2d((1, 1, 1, 1))
-    # out = pad(x)
-    # print(out)
-
-    # cb = conv_bn(1, 2, 3, stride=1, padding=1)
-    # x = flow.Tensor(np.ones((1, 1, 5, 5)))
-    # out = cb(x)
-    # print("Out ", out.shape)
-    # print(type(cb.conv.in_channels))
-
-    x = flow.Tensor(np.ones((1, 16, 4, 4)))
-    rep = RepVGGBlock(16, 16, 3, padding=1)
-    out = rep(x)
-
-    merge = rep.switch_to_deploy()
