@@ -1,6 +1,5 @@
 import oneflow.experimental as flow
 from oneflow.experimental import nn, Tensor
-import numpy as np 
 
 __all__ = ["create_RepVGG_A0", "create_RepVGG_A1", 
            "create_RepVGG_A2", "create_RepVGG_B0", 
@@ -34,7 +33,7 @@ class SEBlock(nn.Module):
         self.relu = nn.ReLU()
         self.adaptive_avg_pool2d = nn.AdaptiveAvgPool2d(output_size=1)
 
-    def forward(self, inputs: Tensor) -> Tensor:
+    def forward(self, inputs: Tensor):
         x = self.adaptive_avg_pool2d(inputs)
         x = self.down(x)
         x = self.relu(x)
@@ -57,7 +56,7 @@ class RepVGGBlock(nn.Module):
 
         padding_11 = padding - kernel_size // 2 
         
-        self.non_linearity = nn.ReLU()
+        self.nonlinearity = nn.ReLU()
         
         if use_se: 
             self.se = SEBlock(out_channels, internal_neurons=out_channels // 16)
@@ -72,7 +71,7 @@ class RepVGGBlock(nn.Module):
             self.rbr_dense = conv_bn(in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size, stride=stride, padding=padding, groups=groups)
             self.rbr_1x1 = conv_bn(in_channels=in_channels, out_channels=out_channels, kernel_size=1, stride=stride, padding=padding_11, groups=groups)
     
-    def forward(self, inputs) -> Tensor:
+    def forward(self, inputs):
         if hasattr(self, "rbr_reparam"): 
             return self.non_linearity(self.se(self.rbr_reparam(inputs)))
 
@@ -81,7 +80,7 @@ class RepVGGBlock(nn.Module):
         else: 
             id_out = self.rbr_identity(inputs)
 
-        return self.non_linearity(self.se(self.rbr_dense(inputs) + self.rbr_1x1(inputs) + id_out))
+        return self.nonlinearity(self.se(self.rbr_dense(inputs) + self.rbr_1x1(inputs) + id_out))
 
     
 class RepVGG(nn.Module): 
