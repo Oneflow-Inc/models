@@ -40,12 +40,20 @@ wget https://download.pytorch.org/models/alexnet-owt-7be5be79.pth
 
 ```python
 import torch
+import oneflow as flow 
+from models.alexnet import alexnet
+
 parameters = torch.load("alexnet-owt-7be5be79.pth")
 new_parameters = dict()
 for key,value in parameters.items():
      if "num_batches_tracked" not in key:
           val = value.detach().cpu().numpy()
           new_parameters[key] = val
+
+flow.env.init()
+flow.enable_eager_execution()
+
+alexnet_module = alexnet()
 alexnet_module.load_state_dict(new_parameters)
 flow.save(alexnet_module.state_dict(), "alexnet_oneflow_model")
 ```
