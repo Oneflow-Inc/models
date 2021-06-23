@@ -110,7 +110,6 @@ venv.bak/
 
 
 # data
-data/
 images/
 *.tar*
 
@@ -121,3 +120,4 @@ mnist
 
 .so
 
+*.pth
