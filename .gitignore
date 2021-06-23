@@ -110,7 +110,6 @@ venv.bak/
 
 
 # data
-data/
 images/
 *.tar*
 
