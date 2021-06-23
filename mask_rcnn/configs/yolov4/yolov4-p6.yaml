@@ -1,0 +1,22 @@
+_BASE_: "./yolov4_base.yaml"
+DETECTOR:
+  WEIGHT: "/model_zoo/detection/of_yolo_ckpt/yolov4-p6_ckpt"
+  BACKBONE:
+    DEPTH: 122
+    OUT_FEATURES: ["dark4", "dark5", "dark6", "dark7"]
+  FPN:
+    IN_FEATURES: ["dark4", "dark5", "dark6", "dark7"]
+    OUT_FEATURES: ["p4", "p5", "p6", "p7"]
+    BOTTLENECK_CHANNELS: [512, 256, 128, 256, 512, 512]
+    OUT_CHANNELS: [512, 256, 128, 256, 512, 512]
+    LATERAL_NUM_BLOCKS: [3, 3, 3, 3, 3, 3]
+  DENSE_HEAD:
+    IN_FEATURES: ["p4", "p5", "p6", "p7"]
+    ANCHOR_GENERATOR:
+      TYPE: "YoloAnchorGenerator"
+      SIZES: [[13, 17, 31, 25, 24, 51, 61, 45], [61, 45, 48, 102, 119, 96, 97, 189], [97, 189, 217, 184, 171, 384, 324, 451], [324, 451, 545, 357, 616, 618, 1024, 1024]]
+      STRIDES: [8, 16, 32, 64]
+INPUT:
+  MIN_SIZE_TEST: 1280
+  MAX_SIZE_TEST: 1280
+  SIZE_DIVISIBILITY: 64

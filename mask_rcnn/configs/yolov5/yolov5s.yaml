@@ -1,0 +1,12 @@
+_BASE_: "./yolov5_base.yaml"
+DETECTOR:
+  WEIGHT: "/model_zoo/detection/of_yolo_ckpt/yolov5s_ckpt"
+  BACKBONE:
+    DEPTH: 33
+    WIDTH_PER_GROUP: 32
+    STEM_OUT_CHANNELS: 32
+    DARK2_OUT_CHANNELS: 64
+  FPN:
+    BOTTLENECK_CHANNELS: [256, 128, 128, 256]
+    OUT_CHANNELS: [256, 128, 256, 512]
+    LATERAL_NUM_BLOCKS: [1, 1, 1, 1]

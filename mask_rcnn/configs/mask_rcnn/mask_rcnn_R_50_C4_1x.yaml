@@ -1,0 +1,3 @@
+_BASE_: "../_base_/mask_rcnn_R_50_C4.yaml"
+DETECTOR:
+  WEIGHT: "/model_zoo/detection0/of_d2_ckpt/mask_rcnn_R_50_C4_1x_d2_ckpt"

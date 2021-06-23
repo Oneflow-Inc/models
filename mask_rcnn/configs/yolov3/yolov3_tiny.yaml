@@ -1,0 +1,3 @@
+_BASE_: "./yolov3_base.yaml"
+DETECTOR:
+  WEIGHT: "/model_zoo/detection/of_yolo_ckpt/yolov3_tiny_ckpt"

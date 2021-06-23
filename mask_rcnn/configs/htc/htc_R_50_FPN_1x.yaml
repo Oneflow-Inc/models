@@ -1,0 +1,3 @@
+_BASE_: "./htc_R_50_FPN.yaml"
+DETECTOR:
+  WEIGHT: "/model_zoo/detection/of_mmdet_ckpt/htc_R_50_FPN_1x_mmdet_ckpt"

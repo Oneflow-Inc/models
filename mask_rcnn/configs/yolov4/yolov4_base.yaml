@@ -1,0 +1,50 @@
+ENV:
+  NUM_GPUS: 1
+DTYPE: "float32"
+DETECTOR:
+  TYPE: "YOLOv4"
+  BACKBONE:
+    TYPE: "CSPDarkNet"
+    DEPTH: 104
+    FREEZE_STAGE: 2
+    OUT_FEATURES: ["dark4", "dark5", "dark6"]
+    NUM_GROUPS: 1
+    WIDTH_PER_GROUP: 32
+    STEM_OUT_CHANNELS: 32
+    DARK2_OUT_CHANNELS: 64
+    WEIGHT_DECAY: 0.0005
+  FPN:
+    TYPE: "YOLOv4FPN"
+    IN_FEATURES: ["dark4", "dark5", "dark6"]
+    OUT_FEATURES: ["p4", "p5", "p6"]
+    START_IN_CHANNELS: 512
+    BOTTLENECK_CHANNELS: [256, 128, 256, 512]
+    OUT_CHANNELS: [256, 128, 256, 512]
+    LATERAL_NUM_BLOCKS: [3, 3, 3, 3]
+    WEIGHT_DECAY: 0.0005
+  DENSE_HEAD:
+    TYPE: "YOLOv3Head"
+    IN_FEATURES: ["p4", "p5", "p6"]
+    NUM_CLASSES: 80
+    PRE_NMS_TOPK: 30000
+    SCORE_THRESH: 0.001
+    NMS_THRESH: 0.65
+    DETECTIONS_PER_IMG: 300
+    WEIGHT_DECAY: 0.0005
+    ANCHOR_GENERATOR:
+      TYPE: "YoloAnchorGenerator"
+      SIZES: [[13, 17, 31, 25, 24, 51, 61, 45], [48, 102, 119, 96, 97, 189, 217, 184], [171, 384, 324, 451, 616, 618, 800, 800]]
+      STRIDES: [8, 16, 32]
+DATASETS:
+  TEST: "/dataset/mscoco_2017"
+  IMAGE_DIR_TEST: "val2017"
+  ANNOTATION_TEST: "annotations/instances_val2017.json"
+INPUT:
+  MIN_SIZE_TEST: 896
+  MAX_SIZE_TEST: 896
+  PIXEL_MEAN: [0.0, 0.0, 0.0]
+  PIXEL_STD: [255.0, 255.0, 255.0]
+  COLOR_SPACE: "RGB"
+TEST:
+  IMS_PER_BATCH: 2
+OUTPUT_DIR: "./output"

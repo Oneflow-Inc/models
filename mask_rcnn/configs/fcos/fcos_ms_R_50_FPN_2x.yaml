@@ -1,0 +1,3 @@
+_BASE_: "./fcos_R_50_FPN.yaml"
+DETECTOR:
+  WEIGHT: "/model_zoo/detection/of_d2_ckpt/fcos_ms_R_50_FPN_2x_d2_ckpt"

@@ -1,0 +1,10 @@
+_BASE_: "./fcos_R_50_FPN.yaml"
+DETECTOR:
+  WEIGHT: "/model_zoo/detection/of_d2_ckpt/fcos_ms_X_101_32x8d_FPN_2x_d2_ckpt"
+  BACKBONE:
+    STRIDE_IN_1X1: False
+    DEPTH: 101
+    NUM_GROUPS: 32
+    WIDTH_PER_GROUP: 8
+INPUT:
+  PIXEL_STD: [57.375, 57.120, 58.395]

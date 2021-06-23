@@ -1,0 +1,55 @@
+ENV:
+  NUM_GPUS: 1
+DTYPE: "float32"
+DETECTOR:
+  TYPE: "RetinaNet"
+  BACKBONE:
+    TYPE: "ResNet"
+    DEPTH: 50
+    FREEZE_STAGE: 2
+    OUT_FEATURES: ["res3", "res4", "res5"]
+    NUM_GROUPS: 1
+    WIDTH_PER_GROUP: 64
+    STEM_OUT_CHANNELS: 64
+    RES2_OUT_CHANNELS: 256
+    STRIDE_IN_1X1: True
+    WEIGHT_DECAY: 0.0005
+  FPN:
+    TYPE: "FPN"
+    IN_FEATURES: ["res3", "res4", "res5"]
+    OUT_FEATURES: ["p3", "p4", "p5", "p6", "p7"]
+    START_IN_CHANNELS: 512
+    OUT_CHANNELS: [256, 256, 256]
+    WEIGHT_DECAY: 0.0005
+    TOP_BLOCK:
+      TYPE: "LastLevelP6P7"
+      IN_FEATURES: "res5"
+      OUT_CHANNELS: 256
+  DENSE_HEAD:
+    TYPE: "RetinaHead"
+    IN_FEATURES: ["p3", "p4", "p5", "p6", "p7"]
+    NUM_CLASSES: 80
+    PRE_NMS_TOPK: 1000
+    SCORE_THRESH: 0.05
+    NMS_THRESH: 0.5
+    NUM_CONV: 4
+    CONV_DIM: 256
+    DETECTIONS_PER_IMG: 100
+    WEIGHT_DECAY: 0.0005
+    ANCHOR_GENERATOR:
+      TYPE: "AnchorGenerator"
+      SIZES: !!python/object/apply:eval ["[[x, x * 2**(1.0/3), x * 2**(2.0/3) ] for x in [32, 64, 128, 256, 512 ]]"]
+      ASPECT_RATIOS: [0.5, 1.0, 2.0]
+      STRIDES: [8, 16, 32, 64, 128]
+DATASETS:
+  TEST: "/dataset/mscoco_2017"
+  IMAGE_DIR_TEST: "val2017"
+  ANNOTATION_TEST: "annotations/instances_val2017.json"
+INPUT:
+  MIN_SIZE_TEST: 800
+  MAX_SIZE_TEST: 1333
+  PIXEL_MEAN: [102.9801, 115.9465, 122.7717]
+  PIXEL_STD: [1.0, 1.0, 1.0]
+TEST:
+  IMS_PER_BATCH: 2
+OUTPUT_DIR: "./output"
