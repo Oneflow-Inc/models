@@ -44,6 +44,6 @@ def plot_loss(root_dir, epoch):
             plt.savefig(os.path.join(root_dir, '{}_loss_{}.png'.format(na, epoch)))
 
 if __name__ == "__main__":
-    root_dir = "../"
+    root_dir = "../of_pix2pix"
     epoch = 200
     plot_loss(root_dir, epoch)

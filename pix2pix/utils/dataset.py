@@ -22,6 +22,7 @@ def load_facades(mode="train"):
 
     input_imgs, real_imgs = [], []
     if mode == "train":
+        # train: 400, test: 106, val:100
         modes = ["train", "val"]
     else:
         modes = ["test"]
@@ -48,8 +49,8 @@ def load_facades(mode="train"):
             real_imgs.append(np.asarray(real_img))
             input_imgs.append(np.asarray(input_img))
 
-    input_imgs = np.array(input_imgs).transpose(0, 3, 1, 2)
-    real_imgs = np.array(real_imgs).transpose(0, 3, 1, 2)
+    input_imgs = np.array(input_imgs).transpose(0, 3, 1, 2).astype(np.float32)
+    real_imgs = np.array(real_imgs).transpose(0, 3, 1, 2).astype(np.float32)
     # normalizing the images to [-1, 1]
     input_imgs = input_imgs / 127.5 - 1
     real_imgs = real_imgs / 127.5 - 1
