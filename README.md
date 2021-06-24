@@ -1,7 +1,11 @@
 # models
-Models and examples built with OneFlow
+Models and examples implement with OneFlow(version >= 0.4.0).
 
-# Build ops from source
+## Install Oneflow
+
+https://github.com/Oneflow-Inc/oneflow#install-with-pip-package
+
+## Build custom ops from source
 In the root directory, run:
 ```bash
 mkdir build
