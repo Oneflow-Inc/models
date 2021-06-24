@@ -1,4 +1,5 @@
 from .roi_align import RoIAlign
+from .nms import nms
 
 
 def lib_path():
