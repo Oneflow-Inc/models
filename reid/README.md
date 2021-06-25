@@ -16,7 +16,7 @@ pip3 install -r requirements.txt
 ### Data preparation
 
 We use [Market1501](https://www.cv-foundation.org/openaccess/content_iccv_2015/papers/Zheng_Scalable_Person_Re-Identification_ICCV_2015_paper.pdf) to train and evaluate our Re-ID models.
-Please download it [here](https://oneflow-static.oss-cn-beijing.aliyuncs.com/Dataset/market1501.zip) and unzip in `./dataset` first.
+Please download it [here](https://oneflow-static.oss-cn-beijing.aliyuncs.com/Dataset/market1501.zip) and unzip in current path first.
 
 
 
