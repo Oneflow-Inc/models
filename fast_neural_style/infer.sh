@@ -10,15 +10,15 @@ if [ ! -d "${PRETRAIN_MODEL_PATH}${MODEL}_oneflow/" ]; then
   tar zxf ${MODEL}_oneflow.tar.gz --directory ${PRETRAIN_MODEL_PATH}
 fi
 
-MODEL="${PRETRAIN_MODEL_PATH}${MODEL}_oneflow"
-IMAGE="oneflow.png" # change this line
+MODEL_PATH="${PRETRAIN_MODEL_PATH}${MODEL}_oneflow"
+IMAGE="evening.jpg" # change this line
 IMAGE_NAME=${IMAGE%%.*}
 CONTENT="images/content-images/${IMAGE}"
 OUTPUT="images/output-images/${IMAGE_NAME}_${MODEL}.jpg"
 CUDA=1
 
 python3 neural_style/neural_style.py eval \
-    --model $MODEL \
+    --model $MODEL_PATH \
     --content-image $CONTENT \
     --output-image $OUTPUT \
     --cuda $CUDA
