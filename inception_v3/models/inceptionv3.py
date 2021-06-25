@@ -117,8 +117,6 @@ class Inception3(nn.Module):
                     import scipy.stats as stats
                     stddev = m.stddev if hasattr(m, 'stddev') else 0.1
                     X = stats.truncnorm(-2, 2, scale=stddev)
-                    # values = flow.as_tensor(X.rvs(m.weight.numel()), dtype=m.weight.dtype)
-                    # values = values.view(m.weight.size())
                     values = flow.Tensor(X.rvs(m.weight.numel()), dtype=m.weight.dtype)
                     values_shape = []
                     for i in range(len(m.weight.size())):
@@ -126,8 +124,6 @@ class Inception3(nn.Module):
                     values = values.reshape(shape=tuple(values_shape))
                     values = flow.Tensor(values)
                     with flow.no_grad():
-                        # m.weight.copy_(values)
-                        print(values.size())
                         m.weight = flow.nn.Parameter(values)
                 elif isinstance(m, nn.BatchNorm2d):
                     nn.init.constant_(m.weight, 1)
@@ -469,8 +465,9 @@ class BasicConv2d(nn.Module):
         super(BasicConv2d, self).__init__()
         self.conv = nn.Conv2d(in_channels, out_channels, bias=False, **kwargs)
         self.bn = nn.BatchNorm2d(out_channels, eps=0.001)
+        self.relu = nn.ReLU(inplace=True)
 
     def forward(self, x: Tensor) -> Tensor:
         x = self.conv(x)
         x = self.bn(x)
-        return flow.relu(x, inplace=True)
+        return self.relu(x)
