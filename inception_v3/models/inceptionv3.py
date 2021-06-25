@@ -116,8 +116,10 @@ class Inception3(nn.Module):
                     import scipy.stats as stats
                     stddev = m.stddev if hasattr(m, 'stddev') else 0.1
                     X = stats.truncnorm(-2, 2, scale=stddev)
-                    values = flow.as_tensor(X.rvs(m.weight.numel()), dtype=m.weight.dtype)
-                    values = values.view(m.weight.size())
+                    # values = flow.as_tensor(X.rvs(m.weight.numel()), dtype=m.weight.dtype)
+                    # values = values.view(m.weight.size())
+                    values = flow.Tensor(X.rvs(m.weight.numel()), dtype=m.weight.dtype)
+                    values = values.reshape(m.weight.size())
                     with flow.no_grad():
                         m.weight.copy_(values)
                 elif isinstance(m, nn.BatchNorm2d):
