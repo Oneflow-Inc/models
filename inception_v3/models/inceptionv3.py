@@ -5,23 +5,8 @@ from oneflow.experimental import nn, Tensor
 from typing import Callable, Any, Optional, Tuple, List
 
 
-__all__ = ['Inception3', 'inception_v3', 'InceptionOutputs', '_InceptionOutputs']
 
-
-model_urls = {
-    # Inception v3 ported from TensorFlow
-    'inception_v3_google': 'https://download.pytorch.org/models/inception_v3_google-0cc3c7bd.pth',
-}
-
-InceptionOutputs = namedtuple('InceptionOutputs', ['logits', 'aux_logits'])
-InceptionOutputs.__annotations__ = {'logits': Tensor, 'aux_logits': Optional[Tensor]}
-
-# Script annotations failed with _GoogleNetOutputs = namedtuple ...
-# _InceptionOutputs set here for backwards compat
-_InceptionOutputs = InceptionOutputs
-
-
-def inception_v3(pretrained: bool = False, progress: bool = True, **kwargs: Any) -> "Inception3":
+def inception_v3(pretrained: bool = False, progress: bool = True, **kwargs: Any):
     r"""Inception v3 model architecture from
     `"Rethinking the Inception Architecture for Computer Vision" <http://arxiv.org/abs/1512.00567>`_.
     The required minimum input size of the model is 75x75.
@@ -137,7 +122,7 @@ class Inception3(nn.Module):
             x = flow.cat((x_ch0, x_ch1, x_ch2), 1)
         return x
 
-    def _forward(self, x: Tensor) -> Tuple[Tensor, Optional[Tensor]]:
+    def forward(self, x: Tensor):
         # N x 3 x 299 x 299
         x = self.Conv2d_1a_3x3(x)
         # N x 32 x 149 x 149
@@ -190,13 +175,6 @@ class Inception3(nn.Module):
         x = self.fc(x)
         # N x 1000 (num_classes)
         return x, aux
-
-
-    def forward(self, x: Tensor) -> InceptionOutputs:
-        x = self._transform_input(x)
-        x, aux = self._forward(x)
-        return InceptionOutputs(x, aux)
-
 
 class InceptionA(nn.Module):
 
