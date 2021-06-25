@@ -31,6 +31,7 @@ def train(args):
     np.random.seed(args.seed)
     # load path of train images
     train_images = os.listdir(args.dataset)
+    train_images = [image for image in train_images if not image.endswith("txt")]
     random.shuffle(train_images)
     images_num = len(train_images)
     print("dataset size: %d" % images_num)
@@ -41,14 +42,17 @@ def train(args):
     mse_loss = flow.nn.MSELoss()
 
     # Uncomment this for finetuning
-    # state_dict = flow.load("checkpoints/finetune_ckpt_epoch_0_i_15000/")
+    # state_dict = flow.load("checkpoints/CW_10000_lr_0.001ckpt_sketch_epoch0_70000/")
     # for k in list(state_dict.keys()):
     #         if re.search(r'in\d+\.running_(mean|var)$', k):
     #             del state_dict[k]
     # transformer.load_state_dict(state_dict)
 
     # load pretrained vgg16
-    vgg = vgg19(pretrained=True)
+    if args.vgg == "vgg19":
+        vgg = vgg19(pretrained=True)
+    else:
+        vgg = vgg16(pretrained=True)
     vgg = VGG_WITH_FEATURES(vgg.features, requires_grad=False)
     vgg.to("cuda")
 
@@ -63,16 +67,15 @@ def train(args):
         agg_style_loss = 0.
         count = 0
         for i in range(images_num):
-            #print(i, train_images[i])
             image = load_image("%s/%s" % (args.dataset, train_images[i]))
             n_batch = 1
             count += n_batch
 
             x_gpu = flow.Tensor(image, requires_grad=True).to("cuda")
-            y = transformer(x_gpu)
+            y_origin = transformer(x_gpu)
 
             x_gpu = utils.normalize_batch(x_gpu)
-            y = utils.normalize_batch(y)
+            y = utils.normalize_batch(y_origin)
 
             features_x = vgg(x_gpu)
             features_y = vgg(y)
@@ -90,6 +93,13 @@ def train(args):
             agg_content_loss += content_loss.numpy()
             agg_style_loss += style_loss.numpy()
             if (i + 1) % args.log_interval == 0:
+                if args.style_log_dir is not None:
+                    y_recover = recover_image(y_origin.numpy())
+                    image_recover = recover_image(image)
+                    result = np.concatenate((style_image_recover, image_recover), axis=1)
+                    result = np.concatenate((result, y_recover), axis=1)
+                    cv2.imwrite(args.style_log_dir + str(i + 1) + ".jpg", result)
+                    print(args.style_log_dir + str(i + 1) + ".jpg" + " saved")
                 mesg = "{}\tEpoch {}:\t[{}/{}]\tcontent: {:.6f}\tstyle: {:.6f}\ttotal: {:.6f}".format(
                     time.ctime(), e + 1, count, images_num,
                                   agg_content_loss[0] / (i + 1),
@@ -100,14 +110,14 @@ def train(args):
 
             if args.checkpoint_model_dir is not None and (i + 1) % args.checkpoint_interval == 0:
                 transformer.eval()
-                ckpt_model_filename = "lcw_ckpt_sketch_epoch" + str(e) + "_" + str(i + 1)
+                ckpt_model_filename = "SKETCHCROP-3_CW_" + str(int(args.content_weight)) + "_lr_" + str(args.lr) + "ckpt_sketch_epoch" + str(e) + "_" + str(i + 1)
                 ckpt_model_path = os.path.join(args.checkpoint_model_dir, ckpt_model_filename)
                 flow.save(transformer.state_dict(), ckpt_model_path)
                 transformer.train()
 
     # save model
     transformer.eval()
-    save_model_filename = "lcw_sketch_epoch_" + str(args.epochs) + "_" + str(time.ctime()).replace(' ', '_') + "_" + str(
+    save_model_filename = "CW_" + str(args.content_weight) + "_lr_" + str(args.lr) + "sketch_epoch_" + str(args.epochs) + "_" + str(time.ctime()).replace(' ', '_') + "_" + str(
         args.content_weight) + "_" + str(args.style_weight)
     save_model_path = os.path.join(args.save_model_dir, save_model_filename)
     flow.save(transformer.state_dict(), save_model_path)
@@ -127,6 +137,7 @@ def stylize(args):
         style_model.load_state_dict(state_dict)
         style_model.to("cuda")
         output = style_model(flow.Tensor(content_image).clamp(0, 255).to("cuda"))
+    print(args.output_image)
     cv2.imwrite(args.output_image, recover_image(output.numpy()))
 
 def main():
@@ -145,8 +156,6 @@ def main():
                                   help="path to style-image")
     train_arg_parser.add_argument("--save-model-dir", type=str, required=True,
                                   help="path to folder where trained model will be saved.")
-    train_arg_parser.add_argument("--vgg-model-path", type=str, default="vgg16_of_best_model_val_top1_721/",
-                                  help="path to folder where pretrained vgg model is saved.")
     train_arg_parser.add_argument("--checkpoint-model-dir", type=str, default=None,
                                   help="path to folder where checkpoints of trained models will be saved")
     train_arg_parser.add_argument("--image-size", type=int, default=256,
@@ -167,6 +176,10 @@ def main():
                                   help="number of images after which the training loss is logged, default is 500")
     train_arg_parser.add_argument("--checkpoint-interval", type=int, default=2000,
                                   help="number of batches after which a checkpoint of the trained model will be created")
+    train_arg_parser.add_argument("--vgg", type=str, default="vgg16",
+                                  help="choose between vgg16 and vgg19")
+    train_arg_parser.add_argument("--style-log-dir", type=str, default=None,
+                                  help="choose directory to save intermediate style transfer results")
 
     eval_arg_parser = subparsers.add_parser("eval", help="parser for evaluation/stylizing arguments")
     eval_arg_parser.add_argument("--content-image", type=str, required=True,

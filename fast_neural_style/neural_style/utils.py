@@ -14,11 +14,9 @@ def gram_matrix(y):
 
 def normalize_batch(batch):
     # normalize using imagenet mean and std
-    mean = flow.Tensor([0.485, 0.456, 0.406]).reshape((1, 3, 1, 1)).to("cuda")
-    std = flow.Tensor([0.229, 0.224, 0.225]).reshape((1, 3, 1, 1)).to("cuda")
-    batch = batch / 255.0
+    mean = flow.Tensor([119.90508914, 113.98250597, 103.85173186]).reshape((1, 3, 1, 1)).to("cuda")
+    std = flow.Tensor([58.393,57.12,57.375]).reshape((1, 3, 1, 1)).to("cuda")
     return ((batch - mean) / std)
-
 
 def load_image(image_path):
     im = cv2.imread(image_path)
