@@ -35,15 +35,15 @@ bash infer.sh
 convert pytorch pretrained model to oneflow pretrained model
 
 ```sh
-wget https://download.pytorch.org/models/inceptionv3-owt-7be5be79.pth
+wget https://download.pytorch.org/models/inception_v3_google-0cc3c7bd.pth
 ```
 
 ```python
 import torch
 import oneflow as flow 
-from models.inceptionv3 import inceptionv3
+from models.inceptionv3 import inception_v3
 
-parameters = torch.load("inceptionv3-owt-7be5be79.pth")
+parameters = torch.load("inception_v3_google-0cc3c7bd.pth")
 new_parameters = dict()
 for key,value in parameters.items():
      if "num_batches_tracked" not in key:
@@ -53,7 +53,7 @@ for key,value in parameters.items():
 flow.env.init()
 flow.enable_eager_execution()
 
-inceptionv3_module = inceptionv3()
+inceptionv3_module = inception_v3()
 inceptionv3_module.load_state_dict(new_parameters)
 flow.save(inceptionv3_module.state_dict(), "inceptionv3_oneflow_model")
 ```
