@@ -10,17 +10,30 @@ if [ ! -d "${PRETRAIN_MODEL_PATH}${MODEL}_oneflow_model" ]; then
   tar zxf ${MODEL}_oneflow_model.tar.gz --directory ${PRETRAIN_MODEL_PATH}
 fi
 
-GPU=3
-DATASET="/dataset/coco2014/train2014/"
-STYLE_IMAGE="images/style-images/sketch-bottle.jpeg"
-SAVE_DIR="saved_models/"
-EPOCHS=10
-CUDA=1
-LOG_INTERVAL=100
-CHECKPOINTS="checkpoints/"
-CHECKPOINT_INTERVAL=500
-LR=0.001
-CONTENT_WEIGHT=20000
+GPU=0 # specify GPU
+DATASET="/dataset/coco/train2014/" # dataset directory
+STYLE_IMAGE="images/style-images/sketch-bottle-cropped.jpeg" # style image for training
+SAVE_DIR="saved_models/" # directory to save the final model
+EPOCHS=10 # number of epochs
+CUDA=1 # use CUDA or not
+LOG_INTERVAL=100 # log interval
+CHECKPOINTS="checkpoints/" # checkpoints directory
+CHECKPOINT_INTERVAL=200 # checkpoint interval
+LR=0.001 # learning rate
+CONTENT_WEIGHT=30000 # tune this
+STYLE_DIR="style_log/"
+
+if [ ! -d "$SAVE_DIR" ]; then
+  mkdir ${SAVE_DIR}
+fi
+
+if [ ! -d "$CHECKPOINTS" ]; then
+  mkdir ${CHECKPOINTS}
+fi
+
+if [ ! -d "$STYLE_DIR" ]; then
+  mkdir ${STYLE_DIR}
+fi
 
 echo "training with learning rate $LR and content weight $CONTENT_WEIGHT in $MODEL"
 
@@ -35,7 +48,8 @@ CUDA_VISIBLE_DEVICES=${GPU} python3 neural_style/neural_style.py train \
     --checkpoint-interval $CHECKPOINT_INTERVAL\
     --lr $LR \
     --content-weight $CONTENT_WEIGHT \
-    --vgg $MODEL
+    --vgg $MODEL \
+    --style-log-dir $STYLE_DIR
 
 
 
