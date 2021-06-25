@@ -17,7 +17,8 @@ SAVE_DIR="saved_models/" # directory to save the final model
 EPOCHS=2 # number of epochs
 CUDA=1 # use CUDA or not
 LOG_INTERVAL=100 # log interval
-CHECKPOINTS="checkpoints/" # checkpoints directory
+CHECKPOINT_DIR="checkpoints/" # checkpoints directory
+# CHECKPOINT="checkpoints/SKETCHCROP-3_CW_30000_lr_0.001ckpt_sketch_epoch0_4000" # uncomment this line if you want to load from a checkpoint
 CHECKPOINT_INTERVAL=200 # checkpoint interval
 LR=0.001 # learning rate
 CONTENT_WEIGHT=30000 # tune this
@@ -27,8 +28,8 @@ if [ ! -d "$SAVE_DIR" ]; then
   mkdir ${SAVE_DIR}
 fi
 
-if [ ! -d "$CHECKPOINTS" ]; then
-  mkdir ${CHECKPOINTS}
+if [ ! -d "$CHECKPOINT_DIR" ]; then
+  mkdir ${CHECKPOINT_DIR}
 fi
 
 if [ ! -d "$STYLE_DIR" ]; then
@@ -44,12 +45,14 @@ CUDA_VISIBLE_DEVICES=${GPU} python3 neural_style/neural_style.py train \
     --epochs $EPOCHS \
     --cuda $CUDA \
     --log-interval $LOG_INTERVAL\
-    --checkpoint-model-dir $CHECKPOINTS\
+    --checkpoint-model-dir $CHECKPOINT_DIR\
     --checkpoint-interval $CHECKPOINT_INTERVAL\
     --lr $LR \
     --content-weight $CONTENT_WEIGHT \
     --vgg $MODEL \
-    --style-log-dir $STYLE_DIR
+    --style-log-dir $STYLE_DIR \
+    # --load-checkpoint-dir $CHECKPOINT 
+    # Uncomment the line above if you are fine-tuning or resuming training
 
 
 

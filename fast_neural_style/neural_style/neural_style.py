@@ -3,6 +3,7 @@ import os
 import sys
 import time
 import re
+from typing import DefaultDict
 import cv2
 import random
 
@@ -41,12 +42,10 @@ def train(args):
     optimizer = Adam(transformer.parameters(), args.lr)
     mse_loss = flow.nn.MSELoss()
 
-    # Uncomment this for finetuning
-    # state_dict = flow.load("checkpoints/CW_10000_lr_0.001ckpt_sketch_epoch0_70000/")
-    # for k in list(state_dict.keys()):
-    #         if re.search(r'in\d+\.running_(mean|var)$', k):
-    #             del state_dict[k]
-    # transformer.load_state_dict(state_dict)
+    if args.load_checkpoint_dir is not None:
+        state_dict = flow.load(args.load_checkpoint_dir)
+        transformer.load_state_dict(state_dict)
+        print("successfully load checkpoint from " + args.load_checkpoint_dir)
 
     # load pretrained vgg16
     if args.vgg == "vgg19":
@@ -130,10 +129,6 @@ def stylize(args):
     with flow.no_grad():
         style_model = TransformerNet()
         state_dict = flow.load(args.model)
-        # remove saved deprecated running_* keys in InstanceNorm from the checkpoint
-        for k in list(state_dict.keys()):
-            if re.search(r'in\d+\.running_(mean|var)$', k):
-                del state_dict[k]
         style_model.load_state_dict(state_dict)
         style_model.to("cuda")
         output = style_model(flow.Tensor(content_image).clamp(0, 255).to("cuda"))
@@ -180,6 +175,8 @@ def main():
                                   help="choose between vgg16 and vgg19")
     train_arg_parser.add_argument("--style-log-dir", type=str, default=None,
                                   help="choose directory to save intermediate style transfer results")
+    train_arg_parser.add_argument("--load-checkpoint-dir", type=str, default=None,
+                                  help="resume training from specified checkpoint directory")
 
     eval_arg_parser = subparsers.add_parser("eval", help="parser for evaluation/stylizing arguments")
     eval_arg_parser.add_argument("--content-image", type=str, required=True,
