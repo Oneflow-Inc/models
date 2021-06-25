@@ -21,8 +21,8 @@ class OFRecordDataLoader(object):
         self.record_label_decoder = flow.nn.OfrecordRawDecoder("class/label", shape=(), dtype=flow.int32)
 
         color_space = 'RGB'
-        height = 224
-        width = 224
+        height = 299
+        width = 299
 
         self.record_image_decoder = \
             flow.nn.OFRecordImageDecoderRandomCrop("encoded", color_space=color_space) \

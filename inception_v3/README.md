@@ -1,4 +1,4 @@
-# Mobilenetv3
+# InceptionV3
 
 ## Train on [imagenette](https://github.com/fastai/imagenette) Dataset
 
@@ -14,7 +14,7 @@ tar zxf imagenette_ofrecord.tar.gz
 ### Download Pretrain Models
 
 ```bash
-wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/cv/classification/mobilenetv3/mobilenetv3_oneflow_model.tar.gz
+wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/cv/classification/inceptionv3/inceptionv3_oneflow_model.tar.gz
 ```
 
 ### Run Oneflow Training script
@@ -35,17 +35,25 @@ bash infer.sh
 convert pytorch pretrained model to oneflow pretrained model
 
 ```sh
-wget https://download.pytorch.org/models/mobilenet_v3_small-047dcff4.pth
+wget https://download.pytorch.org/models/inceptionv3-owt-7be5be79.pth
 ```
 
 ```python
 import torch
-parameters = torch.load("mobilenet_v3_small-047dcff4.pth")
+import oneflow as flow 
+from models.inceptionv3 import inceptionv3
+
+parameters = torch.load("inceptionv3-owt-7be5be79.pth")
 new_parameters = dict()
 for key,value in parameters.items():
      if "num_batches_tracked" not in key:
           val = value.detach().cpu().numpy()
           new_parameters[key] = val
-mobilenetv3_module.load_state_dict(new_parameters)
-flow.save(mobilenetv3_module.state_dict(), "mobilenetv3_oneflow_model")
+
+flow.env.init()
+flow.enable_eager_execution()
+
+inceptionv3_module = inceptionv3()
+inceptionv3_module.load_state_dict(new_parameters)
+flow.save(inceptionv3_module.state_dict(), "inceptionv3_oneflow_model")
 ```
