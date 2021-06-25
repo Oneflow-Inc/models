@@ -12,7 +12,7 @@ fi
 
 MODEL="${PRETRAIN_MODEL_PATH}${MODEL}_oneflow"
 IMAGE="oneflow.png" # change this line
-IMAGE_NAME=y=${IMAGE%%.*}
+IMAGE_NAME=${IMAGE%%.*}
 CONTENT="images/content-images/${IMAGE}"
 OUTPUT="images/output-images/${IMAGE_NAME}.jpg"
 CUDA=1
