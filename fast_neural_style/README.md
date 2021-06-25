@@ -2,7 +2,7 @@
 This repository contains a oneflow implementation of an algorithm for artistic style transfer. The algorithm can be used to mix the content of an image with the style of another image. 
 ## Results
 
-Tne mosaic, candy, udnie, and rain princess style models are fine-tuned from the pytorch official models. The sketch style is trained in oneflow.
+The mosaic, candy, udnie, and rain princess style models are fine-tuned from pytorch official models. The sketch style model is trained in oneflow.
 
 <p align="center">
     <img src="images/style-images/sketch.jpeg" height="200px">
