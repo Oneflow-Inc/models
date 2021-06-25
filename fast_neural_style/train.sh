@@ -12,9 +12,9 @@ fi
 
 GPU=0 # specify GPU
 DATASET="/dataset/coco/train2014/" # dataset directory
-STYLE_IMAGE="images/style-images/sketch-bottle-cropped.jpeg" # style image for training
+STYLE_IMAGE="images/style-images/sketch.jpeg" # style image for training
 SAVE_DIR="saved_models/" # directory to save the final model
-EPOCHS=10 # number of epochs
+EPOCHS=2 # number of epochs
 CUDA=1 # use CUDA or not
 LOG_INTERVAL=100 # log interval
 CHECKPOINTS="checkpoints/" # checkpoints directory
@@ -36,7 +36,7 @@ if [ ! -d "$STYLE_DIR" ]; then
 fi
 
 echo "training with learning rate $LR and content weight $CONTENT_WEIGHT in $MODEL"
-
+# Delete CUDA_VISIBLE_DEVICES=${GPU} if you are using cpu
 CUDA_VISIBLE_DEVICES=${GPU} python3 neural_style/neural_style.py train \
     --dataset ${DATASET} \
     --style-image $STYLE_IMAGE \

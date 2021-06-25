@@ -110,7 +110,7 @@ def train(args):
 
             if args.checkpoint_model_dir is not None and (i + 1) % args.checkpoint_interval == 0:
                 transformer.eval()
-                ckpt_model_filename = "SKETCHCROP-3_CW_" + str(int(args.content_weight)) + "_lr_" + str(args.lr) + "ckpt_sketch_epoch" + str(e) + "_" + str(i + 1)
+                ckpt_model_filename = "CW_" + str(int(args.content_weight)) + "_lr_" + str(args.lr) + "ckpt_epoch" + str(e) + "_" + str(i + 1)
                 ckpt_model_path = os.path.join(args.checkpoint_model_dir, ckpt_model_filename)
                 flow.save(transformer.state_dict(), ckpt_model_path)
                 transformer.train()

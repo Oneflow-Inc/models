@@ -14,7 +14,7 @@ MODEL="${PRETRAIN_MODEL_PATH}${MODEL}_oneflow"
 IMAGE="oneflow.png" # change this line
 IMAGE_NAME=${IMAGE%%.*}
 CONTENT="images/content-images/${IMAGE}"
-OUTPUT="images/output-images/${IMAGE_NAME}.jpg"
+OUTPUT="images/output-images/${IMAGE_NAME}_${MODEL}.jpg"
 CUDA=1
 
 python3 neural_style/neural_style.py eval \
