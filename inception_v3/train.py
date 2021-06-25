@@ -105,7 +105,7 @@ def main(args):
             start_t = time.time()
             image = image.to('cuda')
             with flow.no_grad():
-                logits = inceptionv3_module(image)
+                logits, aux = inceptionv3_module(image)
                 predictions = logits.softmax()
             of_predictions = predictions.numpy()
             clsidxs = np.argmax(of_predictions, axis=1)
