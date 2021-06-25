@@ -27,7 +27,6 @@ class MultiHeadedAttention(nn.Module):
 
         query, key, value = [l(x).reshape(shape=[batch_size, -1, self.h, self.d_k]).permute(0, 2, 1, 3)
                              for l, x in zip(self.linear_layers, (query, key, value))]
-        # # query,key,value  shape >> flow.Size([16, 8, 20, 32])
 
    
         # 2) Apply attention on all the projected vectors in batch.

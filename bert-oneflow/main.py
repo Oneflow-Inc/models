@@ -17,10 +17,10 @@ def train():
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("-c", "--train_dataset", required=False, type=str, default='data/corpus.small', help="train dataset for train bert")
+    parser.add_argument("-c", "--train_dataset", required=True, type=str, default='data/corpus.small', help="train dataset for train bert")
     parser.add_argument("-t", "--test_dataset", type=str, default='data/corpus.small', help="test set for evaluate train set")
-    parser.add_argument("-v", "--vocab_path", required=False, default='data/vocab.small', type=str, help="built vocab model path with bert-vocab")
-    parser.add_argument("-o", "--output_path", required=False, default='output/bert.model', type=str, help="ex)output/bert.model")
+    parser.add_argument("-v", "--vocab_path", required=True, default='data/vocab.small', type=str, help="built vocab model path with bert-vocab")
+    parser.add_argument("-o", "--output_path", required=True, default='output/bert.model', type=str, help="ex)output/bert.model")
 
     parser.add_argument("-hs", "--hidden", type=int, default=256, help="hidden size of transformer model")
     parser.add_argument("-l", "--layers", type=int, default=8, help="number of layers")

@@ -51,9 +51,9 @@ class BERTEmbedding(nn.Module):
         :param dropout: dropout rate
         """
         super().__init__()
-        self.token = TokenEmbedding(vocab_size=vocab_size, embed_size=embed_size)  # shape >> flow.Size([16, 20, 256])
-        self.position = PositionalEmbedding(d_model=self.token.embedding_dim)      # shape >> flow.Size([1, 20, 256])
-        self.segment = SegmentEmbedding(embed_size=self.token.embedding_dim)       # shape >> flow.Size([16, 20, 256])
+        self.token = TokenEmbedding(vocab_size=vocab_size, embed_size=embed_size) 
+        self.position = PositionalEmbedding(d_model=self.token.embedding_dim)      
+        self.segment = SegmentEmbedding(embed_size=self.token.embedding_dim)   
 
 
         self.dropout = flow.nn.Dropout(p=dropout)
