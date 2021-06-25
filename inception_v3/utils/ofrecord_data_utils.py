@@ -29,7 +29,7 @@ class OFRecordDataLoader(object):
                 if mode == "train" else flow.nn.OFRecordImageDecoder("encoded", color_space=color_space)
 
         self.resize = flow.nn.image.Resize(target_size=[height, width]) \
-            if mode == "train" else flow.nn.image.Resize(resize_side="shorter", keep_aspect_ratio=True, target_size=256)
+            if mode == "train" else flow.nn.image.Resize(resize_side="shorter", keep_aspect_ratio=True, target_size=299)
 
         self.flip = flow.nn.CoinFlip(batch_size=batch_size) if mode == "train" else None
 
