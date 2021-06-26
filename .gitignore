@@ -108,16 +108,26 @@ venv.bak/
 # mypy
 .mypy_cache/
 
-.so
 
-.vscode
-.history
-# pix2pix
-of_pix2pix
+# data
+images/
+*.tar*
+
 
 # DCGAN
 *dcgan
 mnist
 
+.so
+
+.vscode
+.history
+
+# pix2pix
+of_pix2pix
+data
+
 # resnet50
 imagenet*
+*.pth
+

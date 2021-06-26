@@ -1,17 +1,14 @@
 import oneflow.experimental as flow
-
 import argparse
 import numpy as np
 import os
 import time
 
-from models.vgg import vgg16, vgg19, vgg16_bn, vgg19_bn
+from models.repvgg import create_RepVGG_A0
 from utils.ofrecord_data_utils import OFRecordDataLoader
 
-model_dict = {"vgg16" : vgg16, "vgg19" : vgg19, "vgg16_bn" : vgg16_bn, "vgg19_bn" : vgg19_bn}
-
 def _parse_args():
-    parser = argparse.ArgumentParser("flags for train vgg")
+    parser = argparse.ArgumentParser("flags for train repVGGA0")
     parser.add_argument(
         "--save_checkpoint_path", type=str, default="./checkpoints", help="save checkpoint root dir"
     )
@@ -29,16 +26,13 @@ def _parse_args():
         "--mom", type=float, default=0.9, help="momentum"
     )
     parser.add_argument(
-        "--epochs", type=int, default=1000, help="training epochs"
+        "--epochs", type=int, default=100, help="training epochs"
     )
     parser.add_argument(
         "--train_batch_size", type=int, default=32, help="train batch size"
     )
     parser.add_argument(
         "--val_batch_size", type=int, default=32, help="val batch size"
-    )
-    parser.add_argument(
-        "--model", type=str, default="vgg16", help="choose a model from vgg16, vgg16_bn, vgg19, vgg19_bn"
     )
 
     return parser.parse_args()
@@ -50,7 +44,7 @@ def main(args):
     train_data_loader = OFRecordDataLoader(
                             ofrecord_root = args.ofrecord_path,
                             mode = "train",
-                            dataset_size = 9469, # NOTE(Liang Depeng): needs to explictly set the dataset size
+                            dataset_size = 9469,
                             batch_size = args.train_batch_size)
 
     val_data_loader = OFRecordDataLoader(
@@ -61,25 +55,27 @@ def main(args):
 
     # oneflow init
     start_t = time.time()
-    vgg_module = model_dict[args.model]()
+    repVGGA0 = create_RepVGG_A0()
     if args.load_checkpoint != "":
-        vgg_module.load_state_dict(flow.load(args.load_checkpoint))
+        print("load_checkpoint >>>>>>>>> ", args.load_checkpoint)
+        repVGGA0.load_state_dict(flow.load(args.load_checkpoint))
+
     end_t = time.time()
     print('init time : {}'.format(end_t - start_t))
 
     of_cross_entropy = flow.nn.CrossEntropyLoss()
 
-    vgg_module.to('cuda')
+    repVGGA0.to('cuda')
     of_cross_entropy.to('cuda')
 
-    of_sgd = flow.optim.SGD(vgg_module.parameters(), lr=args.learning_rate, momentum=args.mom)
+    of_sgd = flow.optim.SGD(repVGGA0.parameters(), lr=args.learning_rate, momentum=args.mom)
 
     of_losses = []
     all_samples = len(val_data_loader) * args.val_batch_size
-    print_interval = 50
+    print_interval = 100
 
     for epoch in range(args.epochs):
-        vgg_module.train()
+        repVGGA0.train()
 
         for b in range(len(train_data_loader)):
             image, label = train_data_loader.get_batch()
@@ -88,7 +84,7 @@ def main(args):
             start_t = time.time()
             image = image.to('cuda')
             label = label.to('cuda')
-            logits = vgg_module(image)
+            logits = repVGGA0(image)
             loss = of_cross_entropy(logits, label)
             loss.backward()
             of_sgd.step()
@@ -101,7 +97,7 @@ def main(args):
 
         print("epoch %d train done, start validation" % epoch)
 
-        vgg_module.eval()
+        repVGGA0.eval()
         correct_of = 0.0
         for b in range(len(val_data_loader)):
             image, label = val_data_loader.get_batch()
@@ -109,7 +105,7 @@ def main(args):
             start_t = time.time()
             image = image.to('cuda')
             with flow.no_grad():
-                logits = vgg_module(image)
+                logits = repVGGA0(image)
                 predictions = logits.softmax()
             of_predictions = predictions.numpy()
             clsidxs = np.argmax(of_predictions, axis=1)
@@ -122,7 +118,7 @@ def main(args):
 
         print("epoch %d, oneflow top1 val acc: %f" % (epoch, correct_of / all_samples))
         
-        flow.save(vgg_module.state_dict(), os.path.join(args.save_checkpoint_path, "epoch_%d_val_acc_%f" % (epoch, correct_of / all_samples)))
+        flow.save(repVGGA0.state_dict(), os.path.join(args.save_checkpoint_path, "epoch_%d_val_acc_%f" % (epoch, correct_of / all_samples)))
 
     writer = open("of_losses.txt", "w")
     for o in of_losses:
