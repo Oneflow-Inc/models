@@ -3,12 +3,9 @@ import numpy as np
 import time
 import argparse
 import oneflow.experimental as flow
-from models.networks import Generator, Discriminator, get_scheduler
-from utils.dataset import load_facades
-# from models.pix2pix import Pix2PixModel
+from models.networks import Generator, Discriminator
+from utils.data_utils import load_facades
 from utils.utils import init_logger, to_tensor, to_numpy, save_images, mkdirs
-
-os.environ["CUDA_VISIBLE_DEVICES"]= '2'
 
 class Pix2Pix:
     def __init__(self, args) -> None:
@@ -28,16 +25,12 @@ class Pix2Pix:
         self.optimizerG = flow.optim.Adam(self.netG.parameters(), lr=self.lr, betas=(0.5,0.999))
         self.optimizerD = flow.optim.Adam(self.netD.parameters(), lr=self.lr, betas=(0.5,0.999))
         self.criterionGAN = flow.nn.BCEWithLogitsLoss()
-        # self.criterionGAN = flow.nn.BCELoss(reduction="mean")
         self.criterionL1 = flow.nn.L1Loss()
-        self.schedulerG = get_scheduler(self.optimizerG, self.n_epochs)
-        self.schedulerD = get_scheduler(self.optimizerD, self.n_epochs)
 
         self.checkpoint_path = os.path.join(self.path, "checkpoint")
-        # self.train_images_path = os.path.join(self.path, "train_images")
         self.test_images_path = os.path.join(self.path, "test_images")
 
-        mkdirs(self.checkpoint_path, self.test_images_path, self.train_images_path)
+        mkdirs(self.checkpoint_path, self.test_images_path)
         self.logger = init_logger(os.path.join(self.path, 'log.txt'))
 
     
@@ -67,13 +60,9 @@ class Pix2Pix:
                     batch_idx * self.batch_size: (batch_idx + 1) * self.batch_size
                 ].astype(np.float32))
 
-                # set_requires_grad(self.netD,True)
-                # set_requires_grad(self.netG,False)
                 # update D
                 d_fake_loss, d_real_loss, d_loss = self.train_discriminator(inp, target, label0, label1)
                 
-                # set_requires_grad(self.netD,False)
-                # set_requires_grad(self.netG,True)
                 # update G
                 g_gan_loss, g_image_loss, g_total_loss, g_out = self.train_generator(inp, target, label1)
 
@@ -93,7 +82,6 @@ class Pix2Pix:
 
             if (epoch_idx + 1) % 2 *self.eval_interval == 0:
                 # save .train() images
-                # save_images(g_out, to_numpy(inp, False), to_numpy(target, False), os.path.join(self.train_images_path, "trainimage_{:02d}.png".format(epoch_idx + 1)))
                 # save .eval() images
                 self._eval_generator_and_save_images(epoch_idx)
 
@@ -182,8 +170,6 @@ if __name__ == "__main__":
     parser.add_argument("-lr", "--learning_rate",
                         type=float, default=2e-4, required=False)
     parser.add_argument("--LAMBDA", type=float, default=200, required=False)
-    parser.add_argument("--load", type=str, default="", required=False,
-                        help="the path to continue training the model")
     parser.add_argument("--batch_size", type=int, default=32, required=False)
     parser.add_argument("--save", type=bool,
                         default=True, required=False, help="whether to save train_images, train_checkpoint and train_loss")

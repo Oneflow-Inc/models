@@ -1,27 +1,6 @@
 import oneflow.experimental as flow
 import oneflow.experimental.nn as nn
 
-def get_scheduler(optimizer, n_epochs):
-    def lambda_rule(epoch):
-        lr_l = 1.0 - max(0, epoch + 1 - n_epochs) / float(n_epochs + 1)
-        return lr_l
-    scheduler = flow.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=lambda_rule)
-
-    return scheduler
-
-
-def set_requires_grad(nets, requires_grad=False):
-    """Set requies_grad=Fasle for all the networks to avoid unnecessary computations
-    Parameters:
-        nets (network list)   -- a list of networks
-        requires_grad (bool)  -- whether the networks require gradients or not
-    """
-    if not isinstance(nets, list):
-        nets = [nets]
-    for net in nets:
-        if net is not None:
-            for param in net.parameters():
-                param.requires_grad = requires_grad
 
 class Generator(nn.Module):
     def __init__(self, out_channels=3):
@@ -42,7 +21,7 @@ class Generator(nn.Module):
         self.g_u2 = Upsample(512, 128)
         self.g_u1 = Upsample(256, 64)
         self.g_u0_deconv = nn.ConvTranspose2d(
-            128, out_channels, kernel_size=4, stride = 2, padding=1)
+            128, out_channels, kernel_size=4, stride=2, padding=1)
         self.tanh = nn.Tanh()
         nn.init.normal_(self.g_u0_deconv.weight, 0., 0.02)
 
