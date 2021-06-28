@@ -3,7 +3,7 @@ import numpy as np
 import os
 import time
 import re
-
+import oneflow.experimental as flow
 import torch
 from models.densenet_torch import densenet121
 from utils.ofrecord_data_utils import OFRecordDataLoader
@@ -39,7 +39,8 @@ def _parse_args():
     return parser.parse_args()
 
 def main(args):
-
+    flow.enable_eager_execution()
+    flow.InitEagerGlobalSession()
 
     train_data_loader = OFRecordDataLoader(
                             ofrecord_root = args.ofrecord_path,
