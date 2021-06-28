@@ -5,7 +5,10 @@ import os
 import unicodedata
 import string
 
-def findFiles(path): return glob.glob(path)
+
+def findFiles(path):
+    return glob.glob(path)
+
 
 # print(findFiles('data/names/*.txt'))
 
@@ -14,11 +17,12 @@ n_letters = len(all_letters)
 
 # Turn a Unicode string to plain ASCII, thanks to https://stackoverflow.com/a/518232/2809427
 def unicodeToAscii(s):
-    return ''.join(
-        c for c in unicodedata.normalize('NFD', s)
-        if unicodedata.category(c) != 'Mn'
-        and c in all_letters
+    return "".join(
+        c
+        for c in unicodedata.normalize("NFD", s)
+        if unicodedata.category(c) != "Mn" and c in all_letters
     )
+
 
 # print(unicodeToAscii('Ślusàrski'))
 
@@ -29,10 +33,11 @@ n_categories = 0
 
 # Read a file and split into lines
 def readLines(filename):
-    lines = open(filename, encoding='utf-8').read().strip().split('\n')
+    lines = open(filename, encoding="utf-8").read().strip().split("\n")
     return [unicodeToAscii(line) for line in lines]
 
-def processDataset(dataset_path: str = 'data/names') -> int:
+
+def processDataset(dataset_path: str = "data/names") -> int:
     global category_lines
     global all_categories
     for filename in findFiles("%s/*.txt" % dataset_path):

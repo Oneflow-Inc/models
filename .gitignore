@@ -131,3 +131,4 @@ data
 imagenet*
 *.pth
 
+.DS_Store
