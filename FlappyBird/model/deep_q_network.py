@@ -4,28 +4,24 @@
 """
 import oneflow.experimental as flow
 
-class DeepQNetwork(flow.nn.Module):
 
+class DeepQNetwork(flow.nn.Module):
     def __init__(self):
         super(DeepQNetwork, self).__init__()
 
         self.conv1 = flow.nn.Sequential(
-            flow.nn.Conv2d(4, 32, kernel_size=8, stride=4), 
-            flow.nn.ReLU(inplace=True)
-            )
+            flow.nn.Conv2d(4, 32, kernel_size=8, stride=4), flow.nn.ReLU(inplace=True)
+        )
         self.conv2 = flow.nn.Sequential(
-            flow.nn.Conv2d(32, 64, kernel_size=4, stride=2), 
-            flow.nn.ReLU(inplace=True)
-            )
+            flow.nn.Conv2d(32, 64, kernel_size=4, stride=2), flow.nn.ReLU(inplace=True)
+        )
         self.conv3 = flow.nn.Sequential(
-            flow.nn.Conv2d(64, 64, kernel_size=3, stride=1), 
-            flow.nn.ReLU(inplace=True)
-            )
+            flow.nn.Conv2d(64, 64, kernel_size=3, stride=1), flow.nn.ReLU(inplace=True)
+        )
 
         self.fc1 = flow.nn.Sequential(
-            flow.nn.Linear(7 * 7 * 64, 512), 
-            flow.nn.ReLU(inplace=True)
-            )
+            flow.nn.Linear(7 * 7 * 64, 512), flow.nn.ReLU(inplace=True)
+        )
 
         self.fc2 = flow.nn.Linear(512, 2)
         self._create_weights()
@@ -46,4 +42,3 @@ class DeepQNetwork(flow.nn.Module):
         output = self.fc2(output)
 
         return output
-        

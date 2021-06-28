@@ -11,10 +11,17 @@ from model.utils import pre_processing
 from random import random, randint, sample
 import numpy
 
+
 def get_args():
     parser = argparse.ArgumentParser(
-        """Implementation of Deep Q Network to play Flappy Bird""")
-    parser.add_argument("--image_size", type=int, default=84, help="The common width and height for all images")
+        """Implementation of Deep Q Network to play Flappy Bird"""
+    )
+    parser.add_argument(
+        "--image_size",
+        type=int,
+        default=84,
+        help="The common width and height for all images",
+    )
     parser.add_argument("--saved_path", type=str, default="checkpoints")
 
     args = parser.parse_args()
@@ -32,7 +39,11 @@ def test(opt):
     model.to("cuda")
     game_state = GameState()
     image, reward, terminal = game_state.frame_step(0)
-    image = pre_processing(image[:game_state.SCREENWIDTH, :int(game_state.BASEY)], opt.image_size, opt.image_size)
+    image = pre_processing(
+        image[: game_state.SCREENWIDTH, : int(game_state.BASEY)],
+        opt.image_size,
+        opt.image_size,
+    )
     image = flow.Tensor(image)
     image = image.to("cuda")
     state = flow.cat(tuple(image for _ in range(4))).unsqueeze(0)
@@ -42,8 +53,11 @@ def test(opt):
         action = flow.argmax(prediction).numpy()[0]
 
         next_image, reward, terminal = game_state.frame_step(action)
-        next_image = pre_processing(next_image[:game_state.SCREENWIDTH, :int(game_state.BASEY)], opt.image_size,
-                                    opt.image_size)
+        next_image = pre_processing(
+            next_image[: game_state.SCREENWIDTH, : int(game_state.BASEY)],
+            opt.image_size,
+            opt.image_size,
+        )
         next_image = flow.Tensor(next_image)
         next_image = next_image.to("cuda")
         next_state = flow.cat((state[0, 1:, :, :], next_image)).unsqueeze(0)
