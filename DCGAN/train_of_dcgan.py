@@ -5,29 +5,45 @@ import numpy as np
 import glob
 import imageio
 import matplotlib
-matplotlib.use('agg') 
+
+matplotlib.use("agg")
 import matplotlib.pyplot as plt
 import oneflow.experimental as flow
 
+
 def _parse_args():
     parser = argparse.ArgumentParser(description="oneflow DCGAN")
-    parser.add_argument("--path", type=str, default='./dcgan', required=False)
-    parser.add_argument("-e", "--epoch_num", type=int,
-                        default=100, required=False)
-    parser.add_argument("-lr", "--learning_rate",
-                        type=float, default=1e-4, required=False)
-    parser.add_argument("--load", type=str, default="", required=False,
-                        help="the path to continue training the model")
-    parser.add_argument("--data_dir", type=str, default="./data/mnist", required=False,
-                        help="the path to dataset")
+    parser.add_argument("--path", type=str, default="./dcgan", required=False)
+    parser.add_argument("-e", "--epoch_num", type=int, default=100, required=False)
+    parser.add_argument(
+        "-lr", "--learning_rate", type=float, default=1e-4, required=False
+    )
+    parser.add_argument(
+        "--load",
+        type=str,
+        default="",
+        required=False,
+        help="the path to continue training the model",
+    )
+    parser.add_argument(
+        "--data_dir",
+        type=str,
+        default="./data/mnist",
+        required=False,
+        help="the path to dataset",
+    )
     parser.add_argument("--batch_size", type=int, default=256, required=False)
-    parser.add_argument("--label_smooth", type=float,
-                        default=0.15, required=False)
-    parser.add_argument("--save", type=bool,
-                        default=True, required=False,
-                        help="whether to save train_images, train_checkpoint and train_loss")
-    parser.add_argument('--no_cuda', action='store_true', default=False,
-                        help='disables CUDA training')
+    parser.add_argument("--label_smooth", type=float, default=0.15, required=False)
+    parser.add_argument(
+        "--save",
+        type=bool,
+        default=True,
+        required=False,
+        help="whether to save train_images, train_checkpoint and train_loss",
+    )
+    parser.add_argument(
+        "--no_cuda", action="store_true", default=False, help="disables CUDA training"
+    )
     return parser.parse_args()
 
 
@@ -82,6 +98,7 @@ def load_mnist(data_dir, transpose=True):
 
 def download_mnist(data_dir):
     import subprocess
+
     os.mkdir(data_dir)
     url_base = "http://yann.lecun.com/exdb/mnist/"
     file_names = [
@@ -166,7 +183,7 @@ class BCELoss(flow.nn.Module):
 
         _cross_entropy_loss = flow.negative(
             target * flow.log(input) + (1 - target) * flow.log(1 - input)
-            )
+        )
 
         if weight is not None:
             assert (
@@ -183,6 +200,7 @@ class BCELoss(flow.nn.Module):
         else:
             return _weighted_loss
 
+
 class Generator(flow.nn.Module):
     def __init__(self, z_dim=100, dim=256) -> None:
         super().__init__()
@@ -190,20 +208,24 @@ class Generator(flow.nn.Module):
         self.input_fc = flow.nn.Sequential(
             flow.nn.Linear(z_dim, 7 * 7 * dim),
             flow.nn.BatchNorm1d(7 * 7 * dim),
-            flow.nn.LeakyReLU(0.3)
+            flow.nn.LeakyReLU(0.3),
         )
         self.model = flow.nn.Sequential(
             # (n, 128, 7, 7)
-            flow.nn.ConvTranspose2d(dim, dim//2, kernel_size=5, stride=1, padding=2),
-            flow.nn.BatchNorm2d(dim//2),
+            flow.nn.ConvTranspose2d(dim, dim // 2, kernel_size=5, stride=1, padding=2),
+            flow.nn.BatchNorm2d(dim // 2),
             flow.nn.LeakyReLU(0.3),
             # (n, 64, 14, 14)
-            flow.nn.ConvTranspose2d(dim//2, dim//4, kernel_size=5, stride=2, padding=2, output_padding=1),
-            flow.nn.BatchNorm2d(dim//4),
+            flow.nn.ConvTranspose2d(
+                dim // 2, dim // 4, kernel_size=5, stride=2, padding=2, output_padding=1
+            ),
+            flow.nn.BatchNorm2d(dim // 4),
             flow.nn.LeakyReLU(0.3),
             # (n, 1, 28, 28)
-            flow.nn.ConvTranspose2d(dim//4, 1, kernel_size=5, stride=2, padding=2, output_padding=1),
-            flow.nn.Tanh()
+            flow.nn.ConvTranspose2d(
+                dim // 4, 1, kernel_size=5, stride=2, padding=2, output_padding=1
+            ),
+            flow.nn.Tanh(),
         )
 
     def forward(self, x):
@@ -223,7 +245,7 @@ class Discriminator(flow.nn.Module):
             flow.nn.Dropout(0.3),
             flow.nn.Conv2d(64, 128, kernel_size=5, stride=2, padding=2),
             flow.nn.LeakyReLU(0.3),
-            flow.nn.Dropout(0.3)
+            flow.nn.Dropout(0.3),
         )
 
         self.fc = flow.nn.Linear(128 * 7 * 7, 1)
@@ -243,12 +265,12 @@ class DCGAN(flow.nn.Module):
         self.eval_interval = 100
         self.eval_size = 16
         self.data_dir = args.data_dir
-        self.device = 'cpu' if args.no_cuda else 'cuda'
+        self.device = "cpu" if args.no_cuda else "cuda"
 
         # evaluate generator based pn fixed noise during training
         self.fixed_z = to_tensor(
-            np.random.normal(0, 1, size=(
-                self.eval_size, self.z_dim)), False).to(self.device)
+            np.random.normal(0, 1, size=(self.eval_size, self.z_dim)), False
+        ).to(self.device)
 
         self.label_smooth = args.label_smooth
         self.G_loss = []
@@ -266,10 +288,12 @@ class DCGAN(flow.nn.Module):
         # init dataset
         x, _ = load_mnist(self.data_dir)
         batch_num = len(x) // self.batch_size
-        label1 = to_tensor(
-            np.ones(self.batch_size), False, dtype=flow.float32).to(self.device)
-        label0 = flow.Tensor(
-            (np.zeros(self.batch_size)), dtype=flow.float32).to(self.device)
+        label1 = to_tensor(np.ones(self.batch_size), False, dtype=flow.float32).to(
+            self.device
+        )
+        label0 = flow.Tensor((np.zeros(self.batch_size)), dtype=flow.float32).to(
+            self.device
+        )
         if self.label_smooth != 0:
             label1_smooth = (label1 - self.label_smooth).to(self.device)
 
@@ -281,10 +305,8 @@ class DCGAN(flow.nn.Module):
             self.generator.load_state_dict(flow.load(args.load))
             self.discriminator.load_state_dict(flow.load(args.load))
 
-        self.optimizerG = flow.optim.Adam(
-            self.generator.parameters(), lr=self.lr)
-        self.optimizerD = flow.optim.Adam(
-            self.discriminator.parameters(), lr=self.lr)
+        self.optimizerG = flow.optim.Adam(self.generator.parameters(), lr=self.lr)
+        self.optimizerD = flow.optim.Adam(self.discriminator.parameters(), lr=self.lr)
 
         self.of_cross_entropy = BCELoss().to(self.device)
 
@@ -293,16 +315,28 @@ class DCGAN(flow.nn.Module):
             self.discriminator.train()
             start = time.time()
             for batch_idx in range(batch_num):
-                images = to_tensor(x[
-                                   batch_idx * self.batch_size: (batch_idx + 1) * self.batch_size
-                                   ].astype(np.float32)).to(self.device)
+                images = to_tensor(
+                    x[
+                        batch_idx * self.batch_size : (batch_idx + 1) * self.batch_size
+                    ].astype(np.float32)
+                ).to(self.device)
                 # one-side label smooth
                 if self.label_smooth != 0:
-                    d_loss, d_loss_fake, d_loss_real, D_x, D_gz1 = self.train_discriminator(
-                        images, label1_smooth, label0)
+                    (
+                        d_loss,
+                        d_loss_fake,
+                        d_loss_real,
+                        D_x,
+                        D_gz1,
+                    ) = self.train_discriminator(images, label1_smooth, label0)
                 else:
-                    d_loss, d_loss_fake, d_loss_real, D_x, D_gz1 = self.train_discriminator(
-                        images, label1, label0)
+                    (
+                        d_loss,
+                        d_loss_fake,
+                        d_loss_real,
+                        D_x,
+                        D_gz1,
+                    ) = self.train_discriminator(images, label1, label0)
                 g_loss, g_out, D_gz2 = self.train_generator(label1)
 
                 if (batch_idx + 1) % 10 == 0:
@@ -312,34 +346,54 @@ class DCGAN(flow.nn.Module):
                 if (batch_idx + 1) % self.eval_interval == 0:
                     print(
                         "{}th epoch, {}th batch, d_fakeloss:{:>8.10f}, d_realloss:{:>8.10f}, d_loss:{:>8.10f}, g_loss:{:>8.10f}, D_x:{:>8.10f}, D_Gz:{:>8.10f} / {:>8.10f}".format(
-                            epoch_idx + 1, batch_idx +
-                            1, d_loss_fake[0], d_loss_real[0], d_loss[0], g_loss[0], D_x[0],
-                            D_gz1[0], D_gz2[0]
+                            epoch_idx + 1,
+                            batch_idx + 1,
+                            d_loss_fake[0],
+                            d_loss_real[0],
+                            d_loss[0],
+                            g_loss[0],
+                            D_x[0],
+                            D_gz1[0],
+                            D_gz2[0],
                         )
                     )
 
             # save images based on .train()
-            save_images(g_out, self.eval_size, os.path.join(
-                self.train_images_path, "fakeimage_{:02d}.png".format(epoch_idx)))
+            save_images(
+                g_out,
+                self.eval_size,
+                os.path.join(
+                    self.train_images_path, "fakeimage_{:02d}.png".format(epoch_idx)
+                ),
+            )
 
             # save images based on .eval()
             self._eval_generator_and_save_images(epoch_idx + 1)
 
-            print("Time for epoch {} is {} sec.".format(
-                epoch_idx + 1, time.time() - start))
+            print(
+                "Time for epoch {} is {} sec.".format(
+                    epoch_idx + 1, time.time() - start
+                )
+            )
 
         if save:
-            flow.save(self.generator.state_dict(), os.path.join(
-                self.checkpoint_path, "g_{}".format(epoch_idx)))
-            flow.save(self.discriminator.state_dict(), os.path.join(
-                self.checkpoint_path, "d_{}".format(epoch_idx)))
+            flow.save(
+                self.generator.state_dict(),
+                os.path.join(self.checkpoint_path, "g_{}".format(epoch_idx)),
+            )
+            flow.save(
+                self.discriminator.state_dict(),
+                os.path.join(self.checkpoint_path, "d_{}".format(epoch_idx)),
+            )
 
             save_to_gif(self.train_images_path)
             save_to_gif(self.val_images_path)
-            np.save(os.path.join(
-                self.path, 'g_loss_{}.npy'.format(epochs)), self.G_loss)
-            np.save(os.path.join(
-                self.path, 'd_loss_{}.npy'.format(epochs)), self.D_loss)
+            np.save(
+                os.path.join(self.path, "g_loss_{}.npy".format(epochs)), self.G_loss
+            )
+            np.save(
+                os.path.join(self.path, "d_loss_{}.npy".format(epochs)), self.D_loss
+            )
 
     def train_discriminator(self, images, label1, label0):
         # train D with all-real batch
@@ -358,11 +412,13 @@ class DCGAN(flow.nn.Module):
         self.optimizerD.step()
         self.optimizerD.zero_grad()
 
-        return (to_numpy(d_loss),
-                to_numpy(d_loss_fake),
-                to_numpy(d_loss_real),
-                to_numpy(d_logits),
-                to_numpy(g_logits))
+        return (
+            to_numpy(d_loss),
+            to_numpy(d_loss_fake),
+            to_numpy(d_loss_real),
+            to_numpy(d_logits),
+            to_numpy(g_logits),
+        )
 
     def train_generator(self, label1):
         z = self.generate_noise()
@@ -377,12 +433,16 @@ class DCGAN(flow.nn.Module):
 
     def generate_noise(self):
         return to_tensor(
-            np.random.normal(0, 1, size=(self.batch_size, self.z_dim)), False).to(self.device)
+            np.random.normal(0, 1, size=(self.batch_size, self.z_dim)), False
+        ).to(self.device)
 
     def _eval_generator_and_save_images(self, epoch_idx):
         results = to_numpy(self._eval_generator(), False)
-        save_images(results, self.eval_size, os.path.join(
-            self.val_images_path, "image_{:02d}.png".format(epoch_idx)))
+        save_images(
+            results,
+            self.eval_size,
+            os.path.join(self.val_images_path, "image_{:02d}.png".format(epoch_idx)),
+        )
 
     def _eval_generator(self):
         self.generator.eval()
