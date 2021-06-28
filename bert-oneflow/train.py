@@ -1,8 +1,8 @@
 import argparse
 
-from torch.utils.data import DataLoader
-#from oneflow.python.utils.data import DataLoader
-import oneflow as flow
+import oneflow.experimental as flow
+from oneflow.python.utils.data import DataLoader
+
 from model.bert import BERT
 from trainer.pretrain import BERTTrainer
 from dataset.dataset import BERTDataset
@@ -18,7 +18,7 @@ def main():
     parser.add_argument("-c", "--train_dataset", required=False, type=str, default='data/corpus.small', help="train dataset for train bert")
     parser.add_argument("-t", "--test_dataset", type=str, default='data/corpus.small', help="test set for evaluate train set")
     parser.add_argument("-v", "--vocab_path", required=False, default='data/vocab.small', type=str, help="built vocab model path with bert-vocab")
-    parser.add_argument("-o", "--output_path", required=False, default='output/', type=str, help="ex)output/bert.model")
+    parser.add_argument("-o", "--output_path", required=False, default='output/bert.model', type=str, help="ex)output/bert.model")
 
     parser.add_argument("-hs", "--hidden", type=int, default=256, help="hidden size of transformer model")
     parser.add_argument("-l", "--layers", type=int, default=8, help="number of layers")
@@ -27,7 +27,7 @@ def main():
 
     parser.add_argument("-b", "--batch_size", type=int, default=16, help="number of batch_size")
     parser.add_argument("-e", "--epochs", type=int, default=10, help="number of epochs")
-    parser.add_argument("-w", "--num_workers", type=int, default=5, help="dataloader worker size")
+    parser.add_argument("-w", "--num_workers", type=int, default=0, help="dataloader worker size")
 
     parser.add_argument("--with_cuda", type=bool, default=True, help="training with CUDA: true, or false")
     parser.add_argument("--corpus_lines", type=int, default=None, help="total number of lines in corpus")
@@ -70,7 +70,7 @@ def main():
     print("Training Start......")
     for epoch in range(args.epochs):
         trainer.train(epoch)
-        # print("Saving model...")
+        print("Saving model...")
         trainer.save(epoch, args.output_path)
         if test_data_loader is not None:
             print("Running testing...")

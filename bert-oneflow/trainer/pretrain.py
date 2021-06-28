@@ -1,18 +1,14 @@
 
+import tqdm
+
 import oneflow.experimental as flow
 import oneflow.experimental.nn as nn
-from oneflow.python.utils.data import DataLoader
-
-# from torch.utils.data import DataLoader
 
 from model.language_model import BERTLM
 from model.bert import BERT
 from trainer.optim_schedule import ScheduledOptim
-flow.enable_eager_execution()
 
 
-import tqdm
-import numpy as np
 
 
 class BERTTrainer:
@@ -106,6 +102,8 @@ class BERTTrainer:
 
         for i, data in data_iter:
             for key, value in data.items():
+                if key == "is_next":
+                    value = value.squeeze(1)
                 data[str(key)] = flow.Tensor(value.numpy(), dtype=flow.int64, device=self.device)
             #     # 0. batch_data will be sent into the device(GPU or cpu)
             data = {key: value.to(device=self.device) for key, value in data.items()}
