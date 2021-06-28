@@ -1,4 +1,4 @@
-# AlexNet
+# ResNet50_32x4d
 
 ## Train on [imagenette](https://github.com/fastai/imagenette) Dataset
 
@@ -14,7 +14,7 @@ tar zxf imagenette_ofrecord.tar.gz
 ### Download Pretrain Models
 
 ```bash
-wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/cv/classification/alexnet/alexnet_oneflow_model.tar.gz
+wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/cv/classification/resnext50_32x4d/resnext50_32x4d_oneflow_model.tar.gz
 ```
 
 ### Run Oneflow Training script
@@ -35,15 +35,15 @@ bash infer.sh
 convert pytorch pretrained model to oneflow pretrained model
 
 ```sh
-wget https://download.pytorch.org/models/alexnet-owt-7be5be79.pth
+wget https://download.pytorch.org/models/resnext50_32x4d-owt-7be5be79.pth
 ```
 
 ```python
 import torch
 import oneflow as flow 
-from models.alexnet import alexnet
+from models.resnext50_32x4d import resnext50_32x4d
 
-parameters = torch.load("alexnet-owt-7be5be79.pth")
+parameters = torch.load("resnext50_32x4d-owt-7be5be79.pth")
 new_parameters = dict()
 for key,value in parameters.items():
      if "num_batches_tracked" not in key:
@@ -53,7 +53,7 @@ for key,value in parameters.items():
 flow.env.init()
 flow.enable_eager_execution()
 
-alexnet_module = alexnet()
-alexnet_module.load_state_dict(new_parameters)
-flow.save(alexnet_module.state_dict(), "alexnet_oneflow_model")
+resnext50_32x4d_module = resnext50_32x4d()
+resnext50_32x4d_module.load_state_dict(new_parameters)
+flow.save(resnext50_32x4d_module.state_dict(), "resnext50_32x4d_oneflow_model")
 ```
