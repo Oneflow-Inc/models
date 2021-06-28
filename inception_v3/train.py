@@ -7,10 +7,14 @@ import time
 from models.inceptionv3 import inception_v3
 from utils.ofrecord_data_utils import OFRecordDataLoader
 
+
 def _parse_args():
     parser = argparse.ArgumentParser("flags for train inceptionv3")
     parser.add_argument(
-        "--save_checkpoint_path", type=str, default="./checkpoints", help="save checkpoint root dir"
+        "--save_checkpoint_path",
+        type=str,
+        default="./checkpoints",
+        help="save checkpoint root dir",
     )
     parser.add_argument(
         "--load_checkpoint", type=str, default="", help="load checkpoint"
@@ -22,36 +26,33 @@ def _parse_args():
     parser.add_argument(
         "--learning_rate", type=float, default=0.001, help="learning rate"
     )
-    parser.add_argument(
-        "--mom", type=float, default=0.9, help="momentum"
-    )
-    parser.add_argument(
-        "--epochs", type=int, default=100, help="training epochs"
-    )
+    parser.add_argument("--mom", type=float, default=0.9, help="momentum")
+    parser.add_argument("--epochs", type=int, default=100, help="training epochs")
     parser.add_argument(
         "--train_batch_size", type=int, default=32, help="train batch size"
     )
-    parser.add_argument(
-        "--val_batch_size", type=int, default=32, help="val batch size"
-    )
+    parser.add_argument("--val_batch_size", type=int, default=32, help="val batch size")
 
     return parser.parse_args()
+
 
 def main(args):
     flow.enable_eager_execution()
     flow.InitEagerGlobalSession()
 
     train_data_loader = OFRecordDataLoader(
-                            ofrecord_root = args.ofrecord_path,
-                            mode = "train",
-                            dataset_size = 9469,
-                            batch_size = args.train_batch_size)
+        ofrecord_root=args.ofrecord_path,
+        mode="train",
+        dataset_size=9469,
+        batch_size=args.train_batch_size,
+    )
 
     val_data_loader = OFRecordDataLoader(
-                            ofrecord_root = args.ofrecord_path,
-                            mode = "val",
-                            dataset_size = 3925,
-                            batch_size = args.val_batch_size)
+        ofrecord_root=args.ofrecord_path,
+        mode="val",
+        dataset_size=3925,
+        batch_size=args.val_batch_size,
+    )
 
     # oneflow init
     start_t = time.time()
@@ -61,14 +62,16 @@ def main(args):
         inceptionv3_module.load_state_dict(flow.load(args.load_checkpoint))
 
     end_t = time.time()
-    print('init time : {}'.format(end_t - start_t))
+    print("init time : {}".format(end_t - start_t))
 
     of_cross_entropy = flow.nn.CrossEntropyLoss()
 
-    inceptionv3_module.to('cuda')
-    of_cross_entropy.to('cuda')
+    inceptionv3_module.to("cuda")
+    of_cross_entropy.to("cuda")
 
-    of_sgd = flow.optim.SGD(inceptionv3_module.parameters(), lr=args.learning_rate, momentum=args.mom)
+    of_sgd = flow.optim.SGD(
+        inceptionv3_module.parameters(), lr=args.learning_rate, momentum=args.mom
+    )
 
     of_losses = []
     all_samples = len(val_data_loader) * args.val_batch_size
@@ -79,11 +82,11 @@ def main(args):
 
         for b in range(len(train_data_loader)):
             image, label = train_data_loader.get_batch()
-        
-            # oneflow train 
+
+            # oneflow train
             start_t = time.time()
-            image = image.to('cuda')
-            label = label.to('cuda')
+            image = image.to("cuda")
+            label = label.to("cuda")
             logits, aux = inceptionv3_module(image)
             loss = of_cross_entropy(logits, label) + of_cross_entropy(aux, label)
             loss.backward()
@@ -93,7 +96,11 @@ def main(args):
             if b % print_interval == 0:
                 l = loss.numpy()[0]
                 of_losses.append(l)
-                print('epoch {} train iter {} oneflow loss {}, train time : {}'.format(epoch, b, l, end_t - start_t))
+                print(
+                    "epoch {} train iter {} oneflow loss {}, train time : {}".format(
+                        epoch, b, l, end_t - start_t
+                    )
+                )
 
         print("epoch %d train done, start validation" % epoch)
 
@@ -103,7 +110,7 @@ def main(args):
             image, label = val_data_loader.get_batch()
 
             start_t = time.time()
-            image = image.to('cuda')
+            image = image.to("cuda")
             with flow.no_grad():
                 logits, aux = inceptionv3_module(image)
                 predictions = logits.softmax()
@@ -117,19 +124,21 @@ def main(args):
             end_t = time.time()
 
         print("epoch %d, oneflow top1 val acc: %f" % (epoch, correct_of / all_samples))
-        
-        flow.save(inceptionv3_module.state_dict(), os.path.join(args.save_checkpoint_path, "epoch_%d_val_acc_%f" % (epoch, correct_of / all_samples)))
+
+        flow.save(
+            inceptionv3_module.state_dict(),
+            os.path.join(
+                args.save_checkpoint_path,
+                "epoch_%d_val_acc_%f" % (epoch, correct_of / all_samples),
+            ),
+        )
 
     writer = open("of_losses.txt", "w")
     for o in of_losses:
         writer.write("%f\n" % o)
     writer.close()
 
+
 if __name__ == "__main__":
     args = _parse_args()
     main(args)
-
-
-
-
-

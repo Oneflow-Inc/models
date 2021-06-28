@@ -4,6 +4,7 @@ import cv2
 import oneflow.experimental as flow
 import oneflow.typing as tp
 
+
 def gram_matrix(y):
     (b, ch, h, w) = y.shape
     features = y.reshape((b, ch, w * h))
@@ -14,9 +15,14 @@ def gram_matrix(y):
 
 def normalize_batch(batch):
     # normalize using imagenet mean and std
-    mean = flow.Tensor([119.90508914, 113.98250597, 103.85173186]).reshape((1, 3, 1, 1)).to("cuda")
-    std = flow.Tensor([58.393,57.12,57.375]).reshape((1, 3, 1, 1)).to("cuda")
-    return ((batch - mean) / std)
+    mean = (
+        flow.Tensor([119.90508914, 113.98250597, 103.85173186])
+        .reshape((1, 3, 1, 1))
+        .to("cuda")
+    )
+    std = flow.Tensor([58.393, 57.12, 57.375]).reshape((1, 3, 1, 1)).to("cuda")
+    return (batch - mean) / std
+
 
 def load_image(image_path):
     im = cv2.imread(image_path)
@@ -24,7 +30,7 @@ def load_image(image_path):
     im = cv2.resize(im, (256, 256))
     im = np.transpose(im, (2, 0, 1))
     im = np.expand_dims(im, axis=0)
-    return np.ascontiguousarray(im, 'float32')
+    return np.ascontiguousarray(im, "float32")
 
 
 def load_image_eval(image_path):
@@ -32,7 +38,7 @@ def load_image_eval(image_path):
     im = cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
     im = np.transpose(im, (2, 0, 1))
     im = np.expand_dims(im, axis=0)
-    return np.ascontiguousarray(im, 'float32')
+    return np.ascontiguousarray(im, "float32")
 
 
 def recover_image(im):
