@@ -4,11 +4,10 @@ import oneflow.experimental.nn as nn
 from typing import Any
 
 
-__all__ = ['AlexNet', 'alexnet']
+__all__ = ["AlexNet", "alexnet"]
 
 
 class AlexNet(nn.Module):
-
     def __init__(self, num_classes: int = 1000) -> None:
         super(AlexNet, self).__init__()
         self.features = nn.Sequential(
