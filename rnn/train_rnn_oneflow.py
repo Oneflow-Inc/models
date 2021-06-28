@@ -14,10 +14,14 @@ import numpy as np
 flow.env.init()
 flow.enable_eager_execution()
 
+
 def _parse_args():
     parser = argparse.ArgumentParser("flags for compare oneflow and pytorch speed")
-    parser.add_argument('--seed', nargs='?', type=int, const=0, help='specify random seed')
+    parser.add_argument(
+        "--seed", nargs="?", type=int, const=0, help="specify random seed"
+    )
     return parser.parse_args()
+
 
 def train(category_tensor, line_tensor, rnn, criterion, of_sgd):
     hidden = rnn.initHidden()
@@ -29,41 +33,48 @@ def train(category_tensor, line_tensor, rnn, criterion, of_sgd):
     of_sgd.zero_grad()
     return output, loss.numpy()[0]
 
+
 # refer to: https://blog.csdn.net/Nin7a/article/details/107631078
 def topk_(matrix, K, axis=1):
     if axis == 0:
         row_index = np.arange(matrix.shape[1 - axis])
         topk_index = np.argpartition(-matrix, K, axis=axis)[0:K, :]
         topk_data = matrix[topk_index, row_index]
-        topk_index_sort = np.argsort(-topk_data,axis=axis)
-        topk_data_sort = topk_data[topk_index_sort,row_index]
-        topk_index_sort = topk_index[0:K,:][topk_index_sort,row_index]
+        topk_index_sort = np.argsort(-topk_data, axis=axis)
+        topk_data_sort = topk_data[topk_index_sort, row_index]
+        topk_index_sort = topk_index[0:K, :][topk_index_sort, row_index]
     else:
         column_index = np.arange(matrix.shape[1 - axis])[:, None]
         topk_index = np.argpartition(-matrix, K, axis=axis)[:, 0:K]
         topk_data = matrix[column_index, topk_index]
         topk_index_sort = np.argsort(-topk_data, axis=axis)
         topk_data_sort = topk_data[column_index, topk_index_sort]
-        topk_index_sort = topk_index[:,0:K][column_index,topk_index_sort]
+        topk_index_sort = topk_index[:, 0:K][column_index, topk_index_sort]
     return topk_data_sort, topk_index_sort
+
 
 def categoryFromOutput(output):
     top_n, top_i = topk_(output.numpy(), 1)
     category_i = top_i[0][0]
     return all_categories[category_i], category_i
 
+
 def timeSince(since):
     now = time.time()
     s = now - since
     m = math.floor(s / 60)
     s -= m * 60
-    return now, '%ds' % s
+    return now, "%ds" % s
+
 
 n_iters = 100000
 print_every = 500
 plot_every = 1000
-learning_rate = .005 # If you set this too high, it might explode. If too low, it might not learn
+learning_rate = (
+    0.005  # If you set this too high, it might explode. If too low, it might not learn
+)
 # decrease learning rate if loss goes to NaN, increase learnig rate if it learns too slow
+
 
 def main(args):
     random.seed(args.seed)
@@ -94,21 +105,35 @@ def main(args):
         if iter % print_every == 0:
             start, time_str = timeSince(start)
             guess, guess_i = categoryFromOutput(output)
-            correct = '✓' if guess == category else '✗ (%s)' % category
-            if correct == '✓':
+            correct = "✓" if guess == category else "✗ (%s)" % category
+            if correct == "✓":
                 correct_guess += 1
             samples += 1
-            print('iter: %d / %f%%, time_for_every_%d_iter: %s, loss: %.4f, predict: %s / %s, correct? %s, acc: %f' % (iter, float(iter) / n_iters * 100, print_every, time_str, loss, line, guess, correct, correct_guess / samples))
+            print(
+                "iter: %d / %f%%, time_for_every_%d_iter: %s, loss: %.4f, predict: %s / %s, correct? %s, acc: %f"
+                % (
+                    iter,
+                    float(iter) / n_iters * 100,
+                    print_every,
+                    time_str,
+                    loss,
+                    line,
+                    guess,
+                    correct,
+                    correct_guess / samples,
+                )
+            )
 
         # Add current loss avg to list of losses
         if iter % plot_every == 0:
             all_losses.append(current_loss / plot_every)
             current_loss = 0
-        
+
     writer = open("all_losses.txt", "w")
     for o in all_losses:
         writer.write("%f\n" % o)
     writer.close()
+
 
 if __name__ == "__main__":
     args = _parse_args()
