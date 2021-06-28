@@ -18,8 +18,8 @@ with open("torch_losses.txt", "r") as lines:
 indes = [i for i in range(len(of_losses))]
 
 
-plt.plot(indes, of_losses, label = "oneflow")
-plt.plot(indes, torch_losses, label = "pytorch")
+plt.plot(indes, of_losses, label="oneflow")
+plt.plot(indes, torch_losses, label="pytorch")
 
 plt.xlabel('iter - axis')
 # Set the y axis label of the current axis.

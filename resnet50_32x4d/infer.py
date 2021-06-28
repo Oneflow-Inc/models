@@ -8,6 +8,7 @@ from models.resnext50_32x4d import resnext50_32x4d
 from utils.imagenet1000_clsidx_to_labels import clsidx_2_labels
 from utils.numpy_data_utils import load_image
 
+
 def _parse_args():
     parser = argparse.ArgumentParser("flags for test resnext50_32x4d")
     parser.add_argument(
@@ -18,6 +19,7 @@ def _parse_args():
     )
     return parser.parse_args()
 
+
 def main(args):
     flow.env.init()
     flow.enable_eager_execution()
@@ -26,7 +28,6 @@ def main(args):
     resnext50_32x4d_module = resnext50_32x4d()
     end_t = time.time()
     print('init time : {}'.format(end_t - start_t))
-
 
     start_t = time.time()
     pretrain_models = flow.load(args.model_path)
@@ -45,7 +46,9 @@ def main(args):
     end_t = time.time()
     print('infer time : {}'.format(end_t - start_t))
     clsidx = np.argmax(predictions)
-    print("predict prob: %f, class name: %s" % (np.max(predictions), clsidx_2_labels[clsidx]))
+    print("predict prob: %f, class name: %s" %
+          (np.max(predictions), clsidx_2_labels[clsidx]))
+
 
 if __name__ == "__main__":
     args = _parse_args()

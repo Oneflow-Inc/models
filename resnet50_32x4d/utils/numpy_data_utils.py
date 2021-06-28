@@ -3,6 +3,7 @@ import numpy as np
 import os
 import random
 
+
 def load_image(image_path='data/fish.jpg'):
     rgb_mean = [123.68, 116.779, 103.939]
     rgb_std = [58.393, 57.12, 57.375]
@@ -14,6 +15,7 @@ def load_image(image_path='data/fish.jpg'):
     im = np.transpose(im, (2, 0, 1))
     im = np.expand_dims(im, axis=0)
     return np.ascontiguousarray(im, 'float32')
+
 
 class NumpyDataLoader(object):
     def __init__(self, dataset_root: str, batch_size: int = 1):
@@ -30,7 +32,8 @@ class NumpyDataLoader(object):
             sub_root = os.path.join(self.dataset_root, sf)
             image_names = os.listdir(sub_root)
             for name in image_names:
-                self.image_2_class_label_list.append((os.path.join(sub_root, name), label))
+                self.image_2_class_label_list.append(
+                    (os.path.join(sub_root, name), label))
 
         self.curr_idx = 0
         self.shuffle_data()
@@ -53,7 +56,5 @@ class NumpyDataLoader(object):
 
         return np.ascontiguousarray(np_datas, 'float32'), np_labels
 
-    
     def __len__(self):
         return len(self.image_2_class_label_list) // self.batch_size
-
