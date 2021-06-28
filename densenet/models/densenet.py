@@ -3,7 +3,6 @@ import oneflow.experimental as flow
 from oneflow.experimental import nn, Tensor
 import oneflow.F as F
 from collections import OrderedDict
-from torch import Tensor
 from typing import Any, List, Tuple
 
 
