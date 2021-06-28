@@ -7,7 +7,6 @@ import os
 import os.path as osp
 
 
-
 def mkdir_if_missing(dirname):
     """Creates dirname if it is missing."""
     if not osp.exists(dirname):
@@ -16,6 +15,8 @@ def mkdir_if_missing(dirname):
         except OSError as e:
             if e.errno != errno.EEXIST:
                 raise
+
+
 class Logger(object):
     """Writes console output to external text file.
 
@@ -23,7 +24,8 @@ class Logger(object):
 
     Args:
         fpath (str): directory to save logging file.
-    """  
+    """
+
     def __init__(self, fpath=None):
         self.console = sys.stdout
         self.file = None
@@ -55,5 +57,3 @@ class Logger(object):
         self.console.close()
         if self.file is not None:
             self.file.close()
-
-

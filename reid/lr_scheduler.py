@@ -1,19 +1,9 @@
-#-*- coding:utf-8 -*-
-""" 
- @author: scorpio.lu
- @datetime:2020-07-23 15:19
- @software: PyCharm
- @contact: luyi@zhejianglab.com
-
-            ----------
-             路有敬亭山
-            ----------
- 
-"""
+# -*- coding:utf-8 -*-
 import oneflow.experimental as flow
 from bisect import bisect_right
 from typing import List
 from oneflow.experimental.optim.lr_scheduler import LrScheduler
+
 
 class WarmupMultiStepLR(LrScheduler):
     def __init__(
@@ -42,16 +32,11 @@ class WarmupMultiStepLR(LrScheduler):
         warmup_factor = _get_warmup_factor_at_iter(
             self.warmup_method, self.last_step, self.warmup_iters, self.warmup_factor
         )
-        # print('last_step:',self.last_step,'lr:',3.5e-04 * warmup_factor * self.gamma ** bisect_right(self.milestones, self.last_step))
         return [
-            base_lr * warmup_factor * self.gamma ** bisect_right(self.milestones, self.last_step)
+            base_lr * warmup_factor *
+            self.gamma ** bisect_right(self.milestones, self.last_step)
             for base_lr in self.base_lrs
         ]
-
-    def _compute_values(self) -> List[float]:
-        # The new interface
-        return self.get_lr()
-
 
 
 def _get_warmup_factor_at_iter(

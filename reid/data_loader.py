@@ -1,17 +1,4 @@
-"""
-Copyright 2020 The OneFlow Authors. All rights reserved.
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-    http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-"""
-
-#-*- coding:utf-8 -*-
+# -*- coding:utf-8 -*-
 # Version: 0.0.1
 # Author: scorpio.lu(luyi@zhejianglab.com)
 # Data: 06/28/2020
@@ -27,10 +14,12 @@ from six.moves import urllib
 import tarfile
 import zipfile
 from collections import defaultdict
-import copy, random
+import copy
+import random
 import numpy as np
 from PIL import Image, ImageOps
 import math
+
 
 class Market1501(object):
     """
@@ -61,9 +50,12 @@ class Market1501(object):
         self.query = self._process(self.query_dir, relabel=False)
         self.gallery = self._process(self.gallery_dir, relabel=False)
         # dataset statistics
-        self.num_train_pids, self.num_train_imgs, self.num_train_camids = self.get_dataset_info(self.train)
-        self.num_query_pids, self.num_query_imgs, self.num_query_camids = self.get_dataset_info(self.query)
-        self.num_gallery_pids, self.num_gallery_imgs, self.num_gallery_camids = self.get_dataset_info(self.gallery)
+        self.num_train_pids, self.num_train_imgs, self.num_train_camids = self.get_dataset_info(
+            self.train)
+        self.num_query_pids, self.num_query_imgs, self.num_query_camids = self.get_dataset_info(
+            self.query)
+        self.num_gallery_pids, self.num_gallery_imgs, self.num_gallery_camids = self.get_dataset_info(
+            self.gallery)
 
         if show_summery:
             print("=> Market1501 has loaded")
@@ -89,22 +81,27 @@ class Market1501(object):
     def _check_before_run(self):
         """Check if all files are available"""
         if not os.path.exists(self.dataset_dir):
-            raise RuntimeError("'{}' is not available".format(self.dataset_dir))
+            raise RuntimeError(
+                "'{}' is not available".format(self.dataset_dir))
         if not os.path.exists(self.train_dir):
             raise RuntimeError("'{}' is not available".format(self.train_dir))
         if not os.path.exists(self.query_dir):
             raise RuntimeError("'{}' is not available".format(self.query_dir))
         if not os.path.exists(self.gallery_dir):
-            raise RuntimeError("'{}' is not available".format(self.gallery_dir))
+            raise RuntimeError(
+                "'{}' is not available".format(self.gallery_dir))
 
     def _print_dataset_info(self):
         print("Dataset information:")
         print("  ----------------------------------------")
         print("  subset   | # ids | # images | # cameras")
         print("  ----------------------------------------")
-        print("  train    | {:5d} | {:8d} | {:9d}".format(self.num_train_pids, self.num_train_imgs, self.num_train_camids))
-        print("  query    | {:5d} | {:8d} | {:9d}".format(self.num_query_pids, self.num_query_imgs, self.num_query_camids))
-        print("  gallery  | {:5d} | {:8d} | {:9d}".format(self.num_gallery_pids, self.num_gallery_imgs, self.num_gallery_camids))
+        print("  train    | {:5d} | {:8d} | {:9d}".format(
+            self.num_train_pids, self.num_train_imgs, self.num_train_camids))
+        print("  query    | {:5d} | {:8d} | {:9d}".format(
+            self.num_query_pids, self.num_query_imgs, self.num_query_camids))
+        print("  gallery  | {:5d} | {:8d} | {:9d}".format(
+            self.num_gallery_pids, self.num_gallery_imgs, self.num_gallery_camids))
         print("  ----------------------------------------")
 
     def _process(self, dir_path, relabel=False):
@@ -208,6 +205,7 @@ class Market1501(object):
         urllib.request.urlretrieve(url, dst, _reporthook)
         sys.stdout.write('\n')
 
+
 class RandomIdentitySampler():
     """Randomly samples N identities each with K instances.
 
@@ -216,6 +214,7 @@ class RandomIdentitySampler():
         batch_size (int): batch size.
         num_instances (int): number of instances per identity in a batch.
     """
+
     def __init__(self, data_source, batch_size, num_instances):
         if batch_size < num_instances:
             raise ValueError('batch_size={} must be no less '
@@ -246,7 +245,8 @@ class RandomIdentitySampler():
         for pid in self.pids:
             idxs = copy.deepcopy(self.index_dic[pid])
             if len(idxs) < self.num_instances:
-                idxs = np.random.choice(idxs, size=self.num_instances, replace=True)
+                idxs = np.random.choice(
+                    idxs, size=self.num_instances, replace=True)
             random.shuffle(idxs)
             batch_idxs = []
             for idx in idxs:
@@ -322,6 +322,7 @@ class RandomErasing(object):
 
         return img
 
+
 def resize(img, size, interpolation=Image.BILINEAR):
     r"""Resize the input PIL Image to the given size.
 
@@ -353,6 +354,7 @@ def resize(img, size, interpolation=Image.BILINEAR):
     else:
         return img.resize(size[::-1], interpolation)
 
+
 class ImageDataset():
     """A base class representing ImageDataset.
 
@@ -364,7 +366,7 @@ class ImageDataset():
     data in each batch has shape (batch_size, channel, height, width).
     """
 
-    def __init__(self, dataset,flag, process_size):
+    def __init__(self, dataset, flag, process_size):
         super(ImageDataset, self).__init__()
         self.dataset = np.array(dataset)
         self.flag = flag
@@ -376,9 +378,9 @@ class ImageDataset():
     def __getitem__(self, index):
         img_path, pid, camid = self.dataset[index]
         if self.flag == 'train':
-            img = read_and_preprocess_image(img_path,self.width,self.height)
+            img = read_and_preprocess_image(img_path, self.width, self.height)
         else:
-            img = read_test_image(img_path,self.width, self.height)
+            img = read_test_image(img_path, self.width, self.height)
         imgs = []
         imgs.append(img)
         imgs = np.asarray(imgs).astype(np.float32)
@@ -386,23 +388,23 @@ class ImageDataset():
 
     def __getbatch__(self, index):
         img_paths, pid, camid = zip(*self.dataset[index])
-        pid = list(map(int,pid))
-        camid = list(map(int,camid))
+        pid = list(map(int, pid))
+        camid = list(map(int, camid))
         imgs = []
         if self.flag == 'train':
             for img_path in img_paths:
-                img = read_and_preprocess_image(img_path,self.width,self.height)
+                img = read_and_preprocess_image(
+                    img_path, self.width, self.height)
                 imgs.append(img)
         else:
             for img_path in img_paths:
-                img = read_test_image(img_path,self.width,self.height)
+                img = read_test_image(img_path, self.width, self.height)
                 imgs.append(img)
         imgs = np.asarray(imgs).astype(np.float32)
         return imgs, np.array(pid), np.array(camid)
 
 
-
-def read_test_image(path,width,height):
+def read_test_image(path, width, height):
     """Reads image from path using ``PIL.Image``.
 
     Args:
@@ -419,17 +421,17 @@ def read_test_image(path,width,height):
     while not got_img:
         try:
             img = Image.open(path).convert('RGB')
-            img = resize(img, (height,width))
+            img = resize(img, (height, width))
             img = np.array(img).astype(np.float32) / 255.
             img = (img - rgb_mean) / rgb_std
             got_img = True
         except IOError:
-            print('IOError incurred when reading "{}". Will redo. Don\'t worry. Just chill.'.format(path))
+            print(
+                'IOError incurred when reading "{}". Will redo. Don\'t worry. Just chill.'.format(path))
     return img.transpose(2, 0, 1).astype(np.float32)
 
 
-
-def read_and_preprocess_image(path,width,height):
+def read_and_preprocess_image(path, width, height):
     """Reads image from path using ``PIL.Image``.
 
     Args:
@@ -449,7 +451,7 @@ def read_and_preprocess_image(path,width,height):
             img = Image.open(path).convert('RGB')
             img = resize(img, (height, width))
             img = RandomHorizontalFlip(img)
-            img = RandomCrop(img,(height, width))
+            img = RandomCrop(img, (height, width))
 
             img = np.array(img).astype(np.float32) / 255.
             img = (img - rgb_mean) / rgb_std
@@ -457,14 +459,12 @@ def read_and_preprocess_image(path,width,height):
             img = RandErasing(img)
             got_img = True
         except IOError:
-            print('IOError incurred when reading "{}". Will redo. Don\'t worry. Just chill.'.format(path))
+            print(
+                'IOError incurred when reading "{}". Will redo. Don\'t worry. Just chill.'.format(path))
     return img.astype(np.float32)
 
 
-
-
-
-def RandomCrop(img, size, padding = 10, fill = 0):
+def RandomCrop(img, size, padding=10, fill=0):
     if padding is not None:
         if img.mode == 'P':
             palette = img.getpalette()
@@ -475,6 +475,7 @@ def RandomCrop(img, size, padding = 10, fill = 0):
     i, j, h, w = get_params(img, size)
 
     return img.crop((j, i, j + w, i + h))
+
 
 def get_params(img, output_size):
     """Get parameters for ``crop`` for a random crop.
@@ -492,6 +493,7 @@ def get_params(img, output_size):
     i = random.randint(0, h - th)
     j = random.randint(0, w - tw)
     return i, j, th, tw
+
 
 def RandomHorizontalFlip(img):
     if random.random() < 0.5:

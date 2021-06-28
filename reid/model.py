@@ -1,39 +1,37 @@
-#-*- coding:utf-8 -*-
+# -*- coding:utf-8 -*-
 import math
 import oneflow.experimental as flow
 import oneflow.experimental.nn as nn
 from oneflow.experimental import Tensor
 
+
 class ResReid(nn.Module):
     def __init__(self, num_classes):
         super(ResReid, self).__init__()
         self.in_planes = 2048
-        self.model = ResNet(block=Bottleneck, layers=[3, 4, 6, 3], last_stride=1)
+        self.model = ResNet(block=Bottleneck, layers=[
+                            3, 4, 6, 3], last_stride=1)
         self.gap = nn.AdaptiveAvgPool2d(1)
 
         self.bnneck = nn.BatchNorm1d(self.in_planes)
         self.bnneck.bias.requires_grad_(False)  # no shift
         self.num_classes = num_classes
-        #初始化参数
         nn.init.normal_(self.bnneck.weight, 1, 0.02)
         nn.init.constant_(self.bnneck.bias, 0)
 
-        #分类器
-        self.classifier = nn.Linear(self.in_planes, self.num_classes, bias=False)
-        #初始化分类器参数
-        nn.init.normal_(self.classifier.weight, 0, 0.01)
+        self.classifier = nn.Linear(
+            self.in_planes, self.num_classes, bias=False)
 
+        nn.init.normal_(self.classifier.weight, 0, 0.01)
 
     def forward(self, x):
         x = self.model(x)
         global_feat = self.gap(x)  # (b, 2048, 1, 1)
-        #global_feat = global_feat[..., 0, 0]
-        global_feat = flow.squeeze(global_feat,dim=[2,3])
+        global_feat = flow.squeeze(global_feat, dim=[2, 3])
         bn_feat = self.bnneck(global_feat)
 
         # Evaluation
         if not self.training:
-            # print(self.bnneck.state_dict())
             return global_feat
 
         # Training
@@ -61,9 +59,11 @@ class BasicBlock(nn.Module):
         if norm_layer is None:
             norm_layer = nn.BatchNorm2d
         if groups != 1 or base_width != 64:
-            raise ValueError('BasicBlock only supports groups=1 and base_width=64')
+            raise ValueError(
+                'BasicBlock only supports groups=1 and base_width=64')
         if dilation > 1:
-            raise NotImplementedError("Dilation > 1 not supported in BasicBlock")
+            raise NotImplementedError(
+                "Dilation > 1 not supported in BasicBlock")
         # Both self.conv1 and self.downsample layers downsample the input when stride != 1
         self.conv1 = conv3x3(inplanes, planes, stride)
         self.bn1 = norm_layer(planes)
@@ -90,6 +90,7 @@ class BasicBlock(nn.Module):
         out = self.relu(out)
 
         return out
+
 
 class Bottleneck(nn.Module):
     expansion = 4
@@ -133,6 +134,7 @@ class Bottleneck(nn.Module):
 
         return out
 
+
 class ResNet(nn.Module):
     """Residual network.
 
@@ -160,7 +162,8 @@ class ResNet(nn.Module):
                              "or a 3-element tuple, got {}".format(replace_stride_with_dilation))
         self.groups = groups
         self.base_width = width_per_group
-        self.conv1 = nn.Conv2d(3, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False)
+        self.conv1 = nn.Conv2d(
+            3, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False)
         self.bn1 = norm_layer(self.inplanes)
         self.relu = nn.ReLU(inplace=True)
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
@@ -207,11 +210,11 @@ class ResNet(nn.Module):
 
         return nn.Sequential(*layers)
 
-
     def _init_params(self):
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
-                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+                nn.init.kaiming_normal_(
+                    m.weight, mode='fan_out', nonlinearity='relu')
                 if m.bias is not None:
                     nn.init.constant_(m.bias, 0)
             elif isinstance(m, nn.BatchNorm2d):
@@ -225,7 +228,6 @@ class ResNet(nn.Module):
                 if m.bias is not None:
                     nn.init.constant_(m.bias, 0)
 
-
     def forward(self, x):
         x = self.conv1(x)
         x = self.bn1(x)
@@ -236,8 +238,6 @@ class ResNet(nn.Module):
         x = self.layer3(x)
         x = self.layer4(x)
         return x
-
-
 
     def load_param(self, model_path):
         param_dict = flow.load(model_path)
