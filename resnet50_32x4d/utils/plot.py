@@ -21,11 +21,11 @@ indes = [i for i in range(len(of_losses))]
 plt.plot(indes, of_losses, label="oneflow")
 plt.plot(indes, torch_losses, label="pytorch")
 
-plt.xlabel('iter - axis')
+plt.xlabel("iter - axis")
 # Set the y axis label of the current axis.
-plt.ylabel('loss - axis')
+plt.ylabel("loss - axis")
 # Set a title of the current axes.
-plt.title('compare ')
+plt.title("compare ")
 # show a legend on the plot
 plt.legend()
 # Display a figure.

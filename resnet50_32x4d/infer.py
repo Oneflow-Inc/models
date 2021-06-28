@@ -12,11 +12,12 @@ from utils.numpy_data_utils import load_image
 def _parse_args():
     parser = argparse.ArgumentParser("flags for test resnext50_32x4d")
     parser.add_argument(
-        "--model_path", type=str, default="./resnext50_32x4d_oneflow_model", help="model path"
+        "--model_path",
+        type=str,
+        default="./resnext50_32x4d_oneflow_model",
+        help="model path",
     )
-    parser.add_argument(
-        "--image_path", type=str, default="", help="input image path"
-    )
+    parser.add_argument("--image_path", type=str, default="", help="input image path")
     return parser.parse_args()
 
 
@@ -27,13 +28,13 @@ def main(args):
     start_t = time.time()
     resnext50_32x4d_module = resnext50_32x4d()
     end_t = time.time()
-    print('init time : {}'.format(end_t - start_t))
+    print("init time : {}".format(end_t - start_t))
 
     start_t = time.time()
     pretrain_models = flow.load(args.model_path)
     resnext50_32x4d_module.load_state_dict(pretrain_models)
     end_t = time.time()
-    print('load params time : {}'.format(end_t - start_t))
+    print("load params time : {}".format(end_t - start_t))
 
     resnext50_32x4d_module.eval()
     resnext50_32x4d_module.to("cuda")
@@ -44,10 +45,12 @@ def main(args):
     predictions = resnext50_32x4d_module(image).softmax()
     predictions = predictions.numpy()
     end_t = time.time()
-    print('infer time : {}'.format(end_t - start_t))
+    print("infer time : {}".format(end_t - start_t))
     clsidx = np.argmax(predictions)
-    print("predict prob: %f, class name: %s" %
-          (np.max(predictions), clsidx_2_labels[clsidx]))
+    print(
+        "predict prob: %f, class name: %s"
+        % (np.max(predictions), clsidx_2_labels[clsidx])
+    )
 
 
 if __name__ == "__main__":
