@@ -4,7 +4,7 @@ import argparse
 import numpy as np
 import time
 
-from models.resnet50_32x4d import resnext50_32x4d
+from models.resnext50_32x4d import resnext50_32x4d
 from utils.imagenet1000_clsidx_to_labels import clsidx_2_labels
 from utils.numpy_data_utils import load_image
 

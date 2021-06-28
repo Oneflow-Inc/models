@@ -1,4 +1,4 @@
-# ResNet50_32x4d
+# ResNext50_32x4d
 
 ## Train on [imagenette](https://github.com/fastai/imagenette) Dataset
 
@@ -35,7 +35,7 @@ bash infer.sh
 convert pytorch pretrained model to oneflow pretrained model
 
 ```sh
-wget https://download.pytorch.org/models/resnext50_32x4d-owt-7be5be79.pth
+wget https://download.pytorch.org/models/resnext50_32x4d-7cdf4587.pth
 ```
 
 ```python
@@ -43,7 +43,7 @@ import torch
 import oneflow as flow 
 from models.resnext50_32x4d import resnext50_32x4d
 
-parameters = torch.load("resnext50_32x4d-owt-7be5be79.pth")
+parameters = torch.load("resnext50_32x4d-7cdf4587.pth")
 new_parameters = dict()
 for key,value in parameters.items():
      if "num_batches_tracked" not in key:
