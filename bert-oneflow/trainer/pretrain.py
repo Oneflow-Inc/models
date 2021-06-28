@@ -1,8 +1,9 @@
 
 import oneflow.experimental as flow
 import oneflow.experimental.nn as nn
-# from flow.utils.data import DataLoader
-from torch.utils.data import DataLoader
+from oneflow.python.utils.data import DataLoader
+
+# from torch.utils.data import DataLoader
 
 from model.language_model import BERTLM
 from model.bert import BERT
