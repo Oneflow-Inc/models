@@ -5,7 +5,8 @@ Implementation of DQN to play the Flappy Bird game with [Oneflow](https://github
 This work is based on: [uvipen/Flappy-bird-deep-Q-learning-pytorch](https://github.com/uvipen/Flappy-bird-deep-Q-learning-pytorch) and [Ldpe2G/DeepLearningForFun](https://github.com/Ldpe2G/DeepLearningForFun/tree/bb532da54df8d65471099222c0b534b2210315d5/Oneflow-Python/DRL-FlappyBird)
 
 ## screenshots
-<img src="demo/play.gif"/>
+<img src="https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/rl/flappybird_play.gif"/>
+
 
 ## Environment
 | Spec                        |                                                             |
