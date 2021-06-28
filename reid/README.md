@@ -30,7 +30,3 @@ Our model is trained using [ResNet50](https://oneflow-public.oss-cn-beijing.aliy
 
 ### Evaluate a model
 To evaluate a model, run ```sh infer.sh```
-
-
-
-
