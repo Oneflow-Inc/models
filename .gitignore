@@ -121,3 +121,4 @@ mnist
 .so
 
 *.pth
+.DS_Store

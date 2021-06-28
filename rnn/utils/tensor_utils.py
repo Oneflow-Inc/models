@@ -8,6 +8,7 @@ import random
 def letterToIndex(letter):
     return all_letters.find(letter)
 
+
 # Just for demonstration, turn a letter into a <1 x n_letters> Tensor
 def letterToTensor(letter):
     # NOTE(Liang Depeng): oneflow does not provide `flow.zeros`
@@ -17,6 +18,7 @@ def letterToTensor(letter):
     flow.nn.init.zeros_(tensor)
     tensor[letterToIndex(letter)] = 1
     return tensor.to("cuda")
+
 
 # Turn a line into a <line_length x 1 x n_letters>,
 # or an array of one-hot letter vectors
@@ -32,8 +34,10 @@ def lineToTensor(line):
         tensor[li, letterToIndex(letter)] = 1
     return tensor.to("cuda")
 
+
 def randomChoice(l):
     return l[random.randint(0, len(l) - 1)]
+
 
 def randomTrainingExample():
     category = randomChoice(all_categories)

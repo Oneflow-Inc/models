@@ -4,12 +4,15 @@ from typing import Union, List, Dict, Any, cast
 from collections import namedtuple
 
 __all__ = [
-    'vgg16', 'vgg16_bn',
-    'vgg19_bn', 'vgg19',
+    "vgg16",
+    "vgg16_bn",
+    "vgg19_bn",
+    "vgg19",
 ]
 
 # 31 is the raw depth of vgg16, while 37 is the raw depth of vgg19
-slice_pos = {31 : [4, 9, 16, 23], 37 : [4, 9, 18, 27]}
+slice_pos = {31: [4, 9, 16, 23], 37: [4, 9, 18, 27]}
+
 
 class VGG_WITH_FEATURES(flow.nn.Module):
     def __init__(self, vgg_pretrained_features, requires_grad):
@@ -40,17 +43,16 @@ class VGG_WITH_FEATURES(flow.nn.Module):
         h_relu3_3 = h
         h = self.slice4(h)
         h_relu4_3 = h
-        vgg_outputs = namedtuple("VggOutputs", ['relu1_2', 'relu2_2', 'relu3_3', 'relu4_3'])
+        vgg_outputs = namedtuple(
+            "VggOutputs", ["relu1_2", "relu2_2", "relu3_3", "relu4_3"]
+        )
         out = vgg_outputs(h_relu1_2, h_relu2_2, h_relu3_3, h_relu4_3)
         return out
 
-class VGG(nn.Module):
 
+class VGG(nn.Module):
     def __init__(
-        self,
-        features: nn.Module,
-        num_classes: int = 1000,
-        init_weights: bool = True
+        self, features: nn.Module, num_classes: int = 1000, init_weights: bool = True
     ) -> None:
         super(VGG, self).__init__()
         self.features = features
@@ -77,7 +79,7 @@ class VGG(nn.Module):
     def _initialize_weights(self) -> None:
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
-                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
+                nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
                 if m.bias is not None:
                     nn.init.constant_(m.bias, 0)
             elif isinstance(m, nn.BatchNorm2d):
@@ -92,7 +94,7 @@ def make_layers(cfg: List[Union[str, int]], batch_norm: bool = False) -> nn.Sequ
     layers: List[nn.Module] = []
     in_channels = 3
     for v in cfg:
-        if v == 'M':
+        if v == "M":
             layers += [nn.MaxPool2d(kernel_size=2, stride=2)]
         else:
             v = cast(int, v)
@@ -106,10 +108,51 @@ def make_layers(cfg: List[Union[str, int]], batch_norm: bool = False) -> nn.Sequ
 
 
 cfgs: Dict[str, List[Union[str, int]]] = {
-    'A': [64, 'M', 128, 'M', 256, 256, 'M', 512, 512, 'M', 512, 512, 'M'],
-    'B': [64, 64, 'M', 128, 128, 'M', 256, 256, 'M', 512, 512, 'M', 512, 512, 'M'],
-    'D': [64, 64, 'M', 128, 128, 'M', 256, 256, 256, 'M', 512, 512, 512, 'M', 512, 512, 512, 'M'],
-    'E': [64, 64, 'M', 128, 128, 'M', 256, 256, 256, 256, 'M', 512, 512, 512, 512, 'M', 512, 512, 512, 512, 'M'],
+    "A": [64, "M", 128, "M", 256, 256, "M", 512, 512, "M", 512, 512, "M"],
+    "B": [64, 64, "M", 128, 128, "M", 256, 256, "M", 512, 512, "M", 512, 512, "M"],
+    "D": [
+        64,
+        64,
+        "M",
+        128,
+        128,
+        "M",
+        256,
+        256,
+        256,
+        "M",
+        512,
+        512,
+        512,
+        "M",
+        512,
+        512,
+        512,
+        "M",
+    ],
+    "E": [
+        64,
+        64,
+        "M",
+        128,
+        128,
+        "M",
+        256,
+        256,
+        256,
+        256,
+        "M",
+        512,
+        512,
+        512,
+        512,
+        "M",
+        512,
+        512,
+        512,
+        512,
+        "M",
+    ],
 }
 
 
@@ -120,14 +163,16 @@ def _vgg(arch: str, cfg: str, batch_norm: bool, pretrained, model_path) -> VGG:
     return model
 
 
-def vgg16(pretrained=False, model_path="vgg_imagenet_pretrain_model/vgg16_oneflow_model/") -> VGG:
+def vgg16(
+    pretrained=False, model_path="vgg_imagenet_pretrain_model/vgg16_oneflow_model/"
+) -> VGG:
     r"""VGG 16-layer model (configuration "D")
     `"Very Deep Convolutional Networks For Large-Scale Image Recognition" <https://arxiv.org/pdf/1409.1556.pdf>`_.
     The required minimum input size of the model is 32x32.
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
     """
-    return _vgg('vgg16', 'D', False, pretrained, model_path)
+    return _vgg("vgg16", "D", False, pretrained, model_path)
 
 
 def vgg16_bn() -> VGG:
@@ -137,17 +182,19 @@ def vgg16_bn() -> VGG:
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
     """
-    return _vgg('vgg16_bn', 'D', True)
+    return _vgg("vgg16_bn", "D", True)
 
 
-def vgg19(pretrained=False, model_path="vgg_imagenet_pretrain_model/vgg19_oneflow_model/") -> VGG:
+def vgg19(
+    pretrained=False, model_path="vgg_imagenet_pretrain_model/vgg19_oneflow_model/"
+) -> VGG:
     r"""VGG 19-layer model (configuration "E")
     `"Very Deep Convolutional Networks For Large-Scale Image Recognition" <https://arxiv.org/pdf/1409.1556.pdf>`_.
     The required minimum input size of the model is 32x32.
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
     """
-    return _vgg('vgg19', 'E', False, pretrained, model_path)
+    return _vgg("vgg19", "E", False, pretrained, model_path)
 
 
 def vgg19_bn(pretrained: bool = False, **kwargs: Any) -> VGG:
@@ -157,4 +204,4 @@ def vgg19_bn(pretrained: bool = False, **kwargs: Any) -> VGG:
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
     """
-    return _vgg('vgg19_bn', 'E', True)
+    return _vgg("vgg19_bn", "E", True)
