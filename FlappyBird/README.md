@@ -26,7 +26,7 @@ This work is based on: [uvipen/Flappy-bird-deep-Q-learning-pytorch](https://gith
 
 ## Pretrain Model
 
-[DQN_FlappyBird.zip](https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/rl/DQN_FlappyBird.zip)
+[DQN_FlappyBird.zip](https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/rl/flappybird_pretrain_model.zip)
 
 ## Play with pretrain model
 
