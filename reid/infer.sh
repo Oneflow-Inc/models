@@ -1,7 +1,7 @@
 set -aux
 
 REID_MODEL_PATH="reid_oneflow_model"
-DATASET_PATH="market1501"
+DATASET_PATH="./datasets"
 
 
 if [ ! -d "$REID_MODEL_PATH" ]; then
