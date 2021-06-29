@@ -103,10 +103,8 @@ def main(args):
             scheduler = WarmupMultiStepLR(optimizer, milestones=args.step_size, gamma=args.gamma,
                                           warmup_factor=args.warmup_factor, warmup_iters=args.warmup_iters)
         else:
-            def lambda1(
-                epoch): return args.lr ** bisect_right(args.step_size, epoch)
             scheduler = flow.optim.lr_scheduler.LambdaLR(
-                optimizer, lr_lambda=lambda1
+                optimizer, lr_lambda=lambda epoch: args.lr ** bisect_right(args.step_size, epoch)
             )
 
         train(model, dataset, args.num_classes, optimizer, scheduler)
@@ -408,7 +406,7 @@ def re_ranking(q_g_dist, q_q_dist, g_g_dist, k1=20, k2=6, lambda_value=0.3):
 
     jaccard_dist = np.zeros_like(original_dist, dtype=np.float32)
 
-  # get jaccard_dist
+    # get jaccard_dist
     for i in range(query_num):
         temp_min = np.zeros(shape=[1, gallery_num], dtype=np.float32)
         indNonZero = np.where(V[i, :] != 0)[0]  # q_i's k-reciprocal index

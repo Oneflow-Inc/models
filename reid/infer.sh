@@ -1,7 +1,7 @@
 set -aux
 
 REID_MODEL_PATH="reid_oneflow_model"
-DATASET_PATH="./dataset"
+DATASET_PATH="market1501"
 
 
 if [ ! -d "$REID_MODEL_PATH" ]; then
@@ -10,11 +10,8 @@ if [ ! -d "$REID_MODEL_PATH" ]; then
 fi
 
 if [ ! -d "$DATASET_PATH" ]; then
-  mkdir $DATASET_PATH
-  cd $DATASET_PATH
   wget https://oneflow-static.oss-cn-beijing.aliyuncs.com/Dataset/market1501.zip
   unzip market1501.zip
-  cd ..
 fi
 
 python3 reid.py --evaluate --load_weights $REID_MODEL_PATH --data_dir $DATASET_PATH
