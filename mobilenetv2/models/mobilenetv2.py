@@ -4,7 +4,7 @@ from typing import Callable, Any, Optional, List
 import oneflow.experimental as flow
 from oneflow.experimental import nn, Tensor
 
-__all__ = ['MobileNetV2', 'mobilenet_v2']
+__all__ = ["MobileNetV2", "mobilenet_v2"]
 
 
 def _make_divisible(v: float, divisor: int, min_value: Optional[int] = None) -> int:
@@ -41,10 +41,18 @@ class ConvBNActivation(nn.Sequential):
         if activation_layer is None:
             activation_layer = nn.ReLU6
         super().__init__(
-            nn.Conv2d(in_planes, out_planes, kernel_size, stride, padding, dilation=dilation, groups=groups,
-                      bias=False),
+            nn.Conv2d(
+                in_planes,
+                out_planes,
+                kernel_size,
+                stride,
+                padding,
+                dilation=dilation,
+                groups=groups,
+                bias=False,
+            ),
             norm_layer(out_planes),
-            activation_layer(inplace=True)
+            activation_layer(inplace=True),
         )
         self.out_channels = out_planes
 
@@ -60,7 +68,7 @@ class InvertedResidual(nn.Module):
         oup: int,
         stride: int,
         expand_ratio: int,
-        norm_layer: Optional[Callable[..., nn.Module]] = None
+        norm_layer: Optional[Callable[..., nn.Module]] = None,
     ) -> None:
         super(InvertedResidual, self).__init__()
         self.stride = stride
@@ -75,14 +83,24 @@ class InvertedResidual(nn.Module):
         layers: List[nn.Module] = []
         if expand_ratio != 1:
             # pw
-            layers.append(ConvBNReLU(inp, hidden_dim, kernel_size=1, norm_layer=norm_layer))
-        layers.extend([
-            # dw
-            ConvBNReLU(hidden_dim, hidden_dim, stride=stride, groups=hidden_dim, norm_layer=norm_layer),
-            # pw-linear
-            nn.Conv2d(hidden_dim, oup, 1, 1, 0, bias=False),
-            norm_layer(oup),
-        ])
+            layers.append(
+                ConvBNReLU(inp, hidden_dim, kernel_size=1, norm_layer=norm_layer)
+            )
+        layers.extend(
+            [
+                # dw
+                ConvBNReLU(
+                    hidden_dim,
+                    hidden_dim,
+                    stride=stride,
+                    groups=hidden_dim,
+                    norm_layer=norm_layer,
+                ),
+                # pw-linear
+                nn.Conv2d(hidden_dim, oup, 1, 1, 0, bias=False),
+                norm_layer(oup),
+            ]
+        )
         self.conv = nn.Sequential(*layers)
         self.out_channels = oup
         self._is_cn = stride > 1
@@ -102,7 +120,7 @@ class MobileNetV2(nn.Module):
         inverted_residual_setting: Optional[List[List[int]]] = None,
         round_nearest: int = 8,
         block: Optional[Callable[..., nn.Module]] = None,
-        norm_layer: Optional[Callable[..., nn.Module]] = None
+        norm_layer: Optional[Callable[..., nn.Module]] = None,
     ) -> None:
         """
         MobileNet V2 main class
@@ -139,38 +157,58 @@ class MobileNetV2(nn.Module):
             ]
 
         # only check the first element, assuming user knows t,c,n,s are required
-        if len(inverted_residual_setting) == 0 or len(inverted_residual_setting[0]) != 4:
-            raise ValueError("inverted_residual_setting should be non-empty "
-                             "or a 4-element list, got {}".format(inverted_residual_setting))
+        if (
+            len(inverted_residual_setting) == 0
+            or len(inverted_residual_setting[0]) != 4
+        ):
+            raise ValueError(
+                "inverted_residual_setting should be non-empty "
+                "or a 4-element list, got {}".format(inverted_residual_setting)
+            )
 
         # building first layer
         input_channel = _make_divisible(input_channel * width_mult, round_nearest)
-        self.last_channel = _make_divisible(last_channel * max(1.0, width_mult), round_nearest)
-        features: List[nn.Module] = [ConvBNReLU(3, input_channel, stride=2, norm_layer=norm_layer)]
+        self.last_channel = _make_divisible(
+            last_channel * max(1.0, width_mult), round_nearest
+        )
+        features: List[nn.Module] = [
+            ConvBNReLU(3, input_channel, stride=2, norm_layer=norm_layer)
+        ]
         # building inverted residual blocks
         for t, c, n, s in inverted_residual_setting:
             output_channel = _make_divisible(c * width_mult, round_nearest)
             for i in range(n):
                 stride = s if i == 0 else 1
-                features.append(block(input_channel, output_channel, stride, expand_ratio=t, norm_layer=norm_layer))
+                features.append(
+                    block(
+                        input_channel,
+                        output_channel,
+                        stride,
+                        expand_ratio=t,
+                        norm_layer=norm_layer,
+                    )
+                )
                 input_channel = output_channel
         # building last several layers
-        features.append(ConvBNReLU(input_channel, self.last_channel, kernel_size=1, norm_layer=norm_layer))
-        
+        features.append(
+            ConvBNReLU(
+                input_channel, self.last_channel, kernel_size=1, norm_layer=norm_layer
+            )
+        )
+
         # make it nn.Sequential
         self.features = nn.Sequential(*features)
         self.adaptive_avg_pool2d = nn.AdaptiveAvgPool2d((1, 1))
 
         # building classifier
         self.classifier = nn.Sequential(
-            nn.Dropout(0.2),
-            nn.Linear(self.last_channel, num_classes),
+            nn.Dropout(0.2), nn.Linear(self.last_channel, num_classes),
         )
 
         # weight initialization
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
-                nn.init.kaiming_normal_(m.weight, mode='fan_out')
+                nn.init.kaiming_normal_(m.weight, mode="fan_out")
                 if m.bias is not None:
                     nn.init.zeros_(m.bias)
             elif isinstance(m, (nn.BatchNorm2d)):
