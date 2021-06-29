@@ -1,6 +1,6 @@
 # TextCNN
 
-TextCNN is a Text Classification model, our code is inspired by (https://github.com/leohsuofnthu/Pytorch-TextCNN).
+TextCNN is a Text Classification model, our code is inspired by [Pytorch-TextCNN](https://github.com/leohsuofnthu/Pytorch-TextCNN).
 
 
 ## Train on [imdb](https://www.imdb.com/interfaces/) Dataset
