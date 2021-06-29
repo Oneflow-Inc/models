@@ -32,11 +32,12 @@ class Market1501(object):
     # identities: 1501 (+1 for background)
     # images: 12936 (train) + 3368 (query) + 15913 (gallery)
     """
-    dataset_url = 'http://188.138.127.15:81/Datasets/Market-1501-v15.09.15.zip'
+    dataset_dir = 'market1501'
+    dataset_url = "https://oneflow-static.oss-cn-beijing.aliyuncs.com/Dataset/market1501.zip"
 
     def __init__(self, root='/home/data', show_summery=True):
         super(Market1501, self).__init__()
-        self.dataset_dir = root
+        self.dataset_dir = os.path.join(root, self.dataset_dir)
 
         self.train_dir = os.path.join(self.dataset_dir, 'bounding_box_train')
         self.query_dir = os.path.join(self.dataset_dir, 'query')

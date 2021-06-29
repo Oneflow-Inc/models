@@ -9,9 +9,5 @@ if [ ! -d "$REID_MODEL_PATH" ]; then
   unzip reid_oneflow_model.zip
 fi
 
-if [ ! -d "$DATASET_PATH" ]; then
-  wget https://oneflow-static.oss-cn-beijing.aliyuncs.com/Dataset/market1501.zip
-  unzip market1501.zip
-fi
 
 python3 reid.py --evaluate --load_weights $REID_MODEL_PATH --data_dir $DATASET_PATH
