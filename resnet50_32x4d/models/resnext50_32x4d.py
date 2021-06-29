@@ -7,11 +7,6 @@ from typing import Type, Any, Callable, Union, List, Optional
 __all__ = ["resnext50_32x4d"]
 
 
-model_urls = {
-    "resnext50_32x4d": "https://download.pytorch.org/models/resnext50_32x4d-7cdf4587.pth"
-}
-
-
 def conv3x3(
     in_planes: int, out_planes: int, stride: int = 1, groups: int = 1, dilation: int = 1
 ) -> nn.Conv2d:
