@@ -1,8 +1,0 @@
-_BASE_: "../_base_/mask_rcnn_R_50_FPN.yaml"
-DETECTOR:
-  WEIGHT: "/model_zoo/detection/of_d2_ckpt/cascade_mask_rcnn_R_50_FPN_1x_d2_ckpt"
-  ROI_HEAD:
-    TYPE: "CascadeRoIHead"
-    BBOX_REG_WEIGHTS: ((10.0, 10.0, 5.0, 5.0), (20.0, 20.0, 10.0, 10.0), (30.0, 30.0, 15.0, 15.0))
-    BOX_HEAD:
-      CLS_AGNOSTIC_BBOX_REG: True

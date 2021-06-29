@@ -121,3 +121,8 @@ mnist
 
 .so
 
+
+# MASK_RCNN
+*.pth
+mask_rcnn/*/log
+mask_rcnn/*/__pycache__

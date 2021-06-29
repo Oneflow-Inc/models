@@ -1,7 +1,0 @@
-_BASE_: "./htc_R_50_FPN.yaml"
-DETECTOR:
-  WEIGHT: "/model_zoo/detection/of_mmdet_ckpt/htc_X_101_32x4d_FPN_20e_mmdet_ckpt"
-  BACKBONE:
-    DEPTH: 101
-    NUM_GROUPS: 32
-    WIDTH_PER_GROUP: 4

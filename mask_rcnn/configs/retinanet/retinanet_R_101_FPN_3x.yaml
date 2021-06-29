@@ -1,5 +1,0 @@
-_BASE_: "../_base_/retinanet_R_50_FPN.yaml"
-DETECTOR:
-  WEIGHT: "/model_zoo/detection/of_d2_ckpt/retinanet_R_101_FPN_3x_d2_ckpt"
-  BACKBONE:
-    DEPTH: 101
