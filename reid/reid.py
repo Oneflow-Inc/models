@@ -51,8 +51,8 @@ def _parse_args():
     parser.add_argument("--evaluate", action='store_true',
                         default=False, help="train or eval")
     parser.add_argument("--eval_freq", type=int, default=20, required=False)
-    parser.add_argument("--dist_metric", type=str,
-                        default='euclidean', help="euclidean or cosine")
+    parser.add_argument("--dist_metric", type=str, choices=["euclidean", "cosine"],
+                        default="euclidean", help="euclidean or cosine")
     parser.add_argument('--rerank', type=bool, default=False)
     parser.add_argument("--load_weights", type=str,
                         default='./resnet50_pretrained_model', help="model load directory")
