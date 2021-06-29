@@ -104,7 +104,8 @@ def main(args):
                                           warmup_factor=args.warmup_factor, warmup_iters=args.warmup_iters)
         else:
             scheduler = flow.optim.lr_scheduler.LambdaLR(
-                optimizer, lr_lambda=lambda epoch: args.lr ** bisect_right(args.step_size, epoch)
+                optimizer, lr_lambda=lambda epoch: args.lr ** bisect_right(
+                    args.step_size, epoch)
             )
 
         train(model, dataset, args.num_classes, optimizer, scheduler)
