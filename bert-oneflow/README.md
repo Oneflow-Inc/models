@@ -1,3 +1,5 @@
+Oneflow version of bert implementation, origin form:https://github.com/codertimo/BERT-pytorch
+
 # BERT-oneflow
 
 oneflow implementation of Google AI's 2018 BERT, with simple annotation
@@ -23,6 +25,9 @@ and I expect many further papers about BERT will be published very soon.
 **NOTICE : Your corpus should be prepared with two sentences in one line with tab(\t) separator**
 
 ### 0. Prepare your corpus
+
+example dataset ：[data.zip](https://oneflow-public.oss-cn-beijing.aliyuncs.com/datasets/BERT-pytorch/sampledataset/data.zip)
+
 ```
 Welcome to the \t the jungle\n
 I can stay \t here all night\n
