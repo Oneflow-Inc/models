@@ -145,7 +145,6 @@ class BERTTrainer:
             # flow.save(self.bert.state_dict(), "checkpoints/bert_%d_loss_%f" % (i, loss.numpy().item()))
 
             # next sentence prediction accuracy
-            # correct = next_sent_output.argmax(dim=-1).eq(data["is_next"]).sum().item()
             correct = (
                 next_sent_output.argmax(dim=-1).eq(data["is_next"]).sum().numpy().item()
             )
