@@ -10,6 +10,13 @@ pip3 install -r requirements.txt
 ```
 
 
+### Download Pretrain Models
+
+```bash
+wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/cv/seg/linknet_oneflow_model.zip
+```
+
+
 ## Inference to segment face for webcam
 
 ```bash
