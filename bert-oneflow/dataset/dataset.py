@@ -6,7 +6,15 @@ import oneflow.experimental.nn as nn
 
 
 class BERTDataset(nn.Module):
-    def __init__(self, corpus_path, vocab, seq_len, encoding="utf-8", corpus_lines=None, on_memory=True):
+    def __init__(
+        self,
+        corpus_path,
+        vocab,
+        seq_len,
+        encoding="utf-8",
+        corpus_lines=None,
+        on_memory=True,
+    ):
         self.vocab = vocab
         self.seq_len = seq_len
 
@@ -21,15 +29,19 @@ class BERTDataset(nn.Module):
                     self.corpus_lines += 1
 
             if on_memory:
-                self.lines = [line[:-1].split("\t")
-                              for line in tqdm.tqdm(f, desc="Loading Dataset", total=corpus_lines)]
+                self.lines = [
+                    line[:-1].split("\t")
+                    for line in tqdm.tqdm(f, desc="Loading Dataset", total=corpus_lines)
+                ]
                 self.corpus_lines = len(self.lines)
 
         if not on_memory:
             self.file = open(corpus_path, "r", encoding=encoding)
             self.random_file = open(corpus_path, "r", encoding=encoding)
 
-            for _ in range(random.randint(self.corpus_lines if self.corpus_lines < 1000 else 1000)):
+            for _ in range(
+                random.randint(self.corpus_lines if self.corpus_lines < 1000 else 1000)
+            ):
                 self.random_file.__next__()
 
     def __len__(self):
@@ -47,17 +59,23 @@ class BERTDataset(nn.Module):
         t1_label = [self.vocab.pad_index] + t1_label + [self.vocab.pad_index]
         t2_label = t2_label + [self.vocab.pad_index]
 
-        segment_label = ([1 for _ in range(len(t1))] + [2 for _ in range(len(t2))])[:self.seq_len]
-        bert_input = (t1 + t2)[:self.seq_len]
-        bert_label = (t1_label + t2_label)[:self.seq_len]
+        segment_label = ([1 for _ in range(len(t1))] + [2 for _ in range(len(t2))])[
+            : self.seq_len
+        ]
+        bert_input = (t1 + t2)[: self.seq_len]
+        bert_label = (t1_label + t2_label)[: self.seq_len]
 
         padding = [self.vocab.pad_index for _ in range(self.seq_len - len(bert_input))]
-        bert_input.extend(padding), bert_label.extend(padding), segment_label.extend(padding)
+        bert_input.extend(padding), bert_label.extend(padding), segment_label.extend(
+            padding
+        )
 
-        output = {"bert_input": bert_input,
-                  "bert_label": bert_label,
-                  "segment_label": segment_label,
-                  "is_next": is_next_label}
+        output = {
+            "bert_input": bert_input,
+            "bert_label": bert_label,
+            "segment_label": segment_label,
+            "is_next": is_next_label,
+        }
 
         return {key: flow.tensor(value) for key, value in output.items()}
 
@@ -108,7 +126,7 @@ class BERTDataset(nn.Module):
                 self.file.close()
                 self.file = open(self.corpus_path, "r", encoding=self.encoding)
                 line = self.file.__next__()
-            
+
             t1, t2 = line[:-1].split("\t")
             return t1, t2
 
@@ -120,7 +138,9 @@ class BERTDataset(nn.Module):
         if line is None:
             self.file.close()
             self.file = open(self.corpus_path, "r", encoding=self.encoding)
-            for _ in range(random.randint(self.corpus_lines if self.corpus_lines < 1000 else 1000)):
+            for _ in range(
+                random.randint(self.corpus_lines if self.corpus_lines < 1000 else 1000)
+            ):
                 self.random_file.__next__()
             line = self.random_file.__next__()
         return line[:-1].split("\t")[1]

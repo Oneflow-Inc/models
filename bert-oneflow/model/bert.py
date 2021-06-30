@@ -33,18 +33,28 @@ class BERT(nn.Module):
 
         # multi-layers transformer blocks, deep network
         self.transformer_blocks = nn.ModuleList(
-            [TransformerBlock(hidden, attn_heads, hidden * 4, dropout) for _ in range(n_layers)])
-        
-    def forward(self, x, segment_info): # x.shape >> flow.Size([16, 20])
+            [
+                TransformerBlock(hidden, attn_heads, hidden * 4, dropout)
+                for _ in range(n_layers)
+            ]
+        )
+
+    def forward(self, x, segment_info):  # x.shape >> flow.Size([16, 20])
         # attention masking for padded token
-        
-        mask = (x > 0).unsqueeze(1).repeat(sizes=(1, x.shape[1], 1)).unsqueeze(1).repeat(sizes=(1, 8, 1, 1))
-    
+
+        mask = (
+            (x > 0)
+            .unsqueeze(1)
+            .repeat(sizes=(1, x.shape[1], 1))
+            .unsqueeze(1)
+            .repeat(sizes=(1, 8, 1, 1))
+        )
+
         # embedding the indexed sequence to sequence of vectors
         x = self.embedding(x, segment_info)
-        
+
         # running over multiple transformer blocks
         for transformer in self.transformer_blocks:
             x = transformer.forward(x, mask)
-            
+
         return x
