@@ -11,7 +11,7 @@ class LayerNorm(nn.Module):
         self.a_2 = nn.Parameter(flow.Tensor(flow.ones(features, dtype=flow.float32)))
         self.b_2 = nn.Parameter(flow.Tensor(flow.zeros(features, dtype=flow.float32)))
 
-    def forward(self, x):  # x input/output >> shape flow.Size([16, 20, 256])
+    def forward(self, x):
         mean = x.mean(-1, keepdim=True)
 
         std = x.std(dim=-1, keepdim=True)
