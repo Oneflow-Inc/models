@@ -1,4 +1,4 @@
-# BERT-onflowe
+# BERT-onflow
 
 oneflow implementation of Google AI's 2018 BERT, with simple annotation
 
