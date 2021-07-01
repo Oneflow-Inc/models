@@ -7,19 +7,20 @@ from oneflow.experimental.optim.lr_scheduler import LrScheduler
 
 class WarmupMultiStepLR(LrScheduler):
     def __init__(
-            self,
-            optimizer: flow.optim.Optimizer,
-            milestones: List[int],
-            gamma: float = 0.1,
-            warmup_factor: float = 0.001,
-            warmup_iters: int = 1000,
-            warmup_method: str = "linear",
-            last_step: int = -1,
-            **kwargs,
+        self,
+        optimizer: flow.optim.Optimizer,
+        milestones: List[int],
+        gamma: float = 0.1,
+        warmup_factor: float = 0.001,
+        warmup_iters: int = 1000,
+        warmup_method: str = "linear",
+        last_step: int = -1,
+        **kwargs,
     ):
         if not list(milestones) == sorted(milestones):
             raise ValueError(
-                "Milestones should be a list of" " increasing integers. Got {}", milestones
+                "Milestones should be a list of" " increasing integers. Got {}",
+                milestones,
             )
         self.milestones = milestones
         self.gamma = gamma
@@ -33,14 +34,15 @@ class WarmupMultiStepLR(LrScheduler):
             self.warmup_method, self.last_step, self.warmup_iters, self.warmup_factor
         )
         return [
-            base_lr * warmup_factor *
-            self.gamma ** bisect_right(self.milestones, self.last_step)
+            base_lr
+            * warmup_factor
+            * self.gamma ** bisect_right(self.milestones, self.last_step)
             for base_lr in self.base_lrs
         ]
 
 
 def _get_warmup_factor_at_iter(
-        method: str, iter: int, warmup_iters: int, warmup_factor: float
+    method: str, iter: int, warmup_iters: int, warmup_factor: float
 ) -> float:
     """
     Return the learning rate warmup factor at a specific iteration.
