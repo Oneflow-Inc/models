@@ -24,8 +24,8 @@ def main(args):
     res50_module = resnet50()
     # set for eval mode
     # res50_module.eval()
-    image = flow.tensor(image_nd, requires_grad=True)
-    label = flow.tensor(label_nd, dtype=flow.long, requires_grad=False)
+    image = flow.tensor(image_nd)
+    label = flow.tensor(label_nd)
     corss_entropy = flow.nn.CrossEntropyLoss(reduction="mean")
 
     image_gpu = image.to("cuda")
@@ -78,11 +78,11 @@ def main(args):
         torch_res50_module.parameters(), lr=learning_rate, momentum=mom
     )
 
-    image = torch.tensor(image_nd, requires_grad=True)
+    image = torch.tensor(image_nd)
     image_gpu = image.to("cuda")
     corss_entropy = torch.nn.CrossEntropyLoss()
     corss_entropy.to("cuda")
-    label = torch.tensor(label_nd, dtype=torch.long, requires_grad=False).to("cuda")
+    label = torch.tensor(label_nd, dtype=torch.long).to("cuda")
 
     for_time = 0.0
     bp_time = 0.0
