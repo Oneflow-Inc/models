@@ -12,7 +12,7 @@ from models.scloss import scloss
 from utils.ofrecord_data_utils import OFRecordDataLoader
 from visdom import Visdom
 viz = Visdom()
-viz.line([[0.]], [0], win='train', opts=dict(title='train-loss&acc', legend=['loss']))
+viz.line([[0.]], [0], win='train', opts=dict(title='train-loss', legend=['loss']))
 viz_val = Visdom()
 viz_val.line([[0.]], [0], win='val', opts=dict(title='val-acc', legend=['acc']))
 
