@@ -26,7 +26,6 @@ We have installed visdom to visualize the training model, and run the following 
 
 ```
 python -m visdom.server
-
 ```
 ```bash
 bash train_oneflow.sh
