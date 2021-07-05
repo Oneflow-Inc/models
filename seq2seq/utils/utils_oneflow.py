@@ -10,28 +10,34 @@ import oneflow.experimental as flow
 teacher_forcing_ratio = 0.5
 SOS_token = 0
 EOS_token = 1
-device = 'cuda'
+device = "cuda"
 MAX_LENGTH = 10
 eng_prefixes = (
-    "i am ", "i m ",
-    "he is", "he s ",
-    "she is", "she s ",
-    "you are", "you re ",
-    "we are", "we re ",
-    "they are", "they re "
+    "i am ",
+    "i m ",
+    "he is",
+    "he s ",
+    "she is",
+    "she s ",
+    "you are",
+    "you re ",
+    "we are",
+    "we re ",
+    "they are",
+    "they re ",
 )
+
 
 def showAttention(input_sentence, output_words, attentions):
     # Set up figure with colorbar
     fig = plt.figure()
     ax = fig.add_subplot(111)
-    cax = ax.matshow(attentions.numpy(), cmap='bone')
+    cax = ax.matshow(attentions.numpy(), cmap="bone")
     fig.colorbar(cax)
 
     # Set up axes
-    ax.set_xticklabels([''] + input_sentence.split(' ') +
-                       ['<EOS>'], rotation=90)
-    ax.set_yticklabels([''] + output_words)
+    ax.set_xticklabels([""] + input_sentence.split(" ") + ["<EOS>"], rotation=90)
+    ax.set_yticklabels([""] + output_words)
 
     # Show label at every tick
     ax.xaxis.set_major_locator(ticker.MultipleLocator(1))
@@ -47,14 +53,14 @@ def showPlot(points):
     loc = ticker.MultipleLocator(base=0.2)
     ax.yaxis.set_major_locator(loc)
     plt.plot(points)
-    plt.savefig('./loss_oneflow.jpg')
+    plt.savefig("./loss_oneflow.jpg")
     plt.show()
 
 
 def asMinutes(s):
     m = math.floor(s / 60)
     s -= m * 60
-    return '%dm %ds' % (m, s)
+    return "%dm %ds" % (m, s)
 
 
 def timeSince(since, percent):
@@ -62,17 +68,17 @@ def timeSince(since, percent):
     s = now - since
     es = s / (percent)
     rs = es - s
-    return '%s (- %s)' % (asMinutes(s), asMinutes(rs))
+    return "%s (- %s)" % (asMinutes(s), asMinutes(rs))
 
 
 def indexesFromSentence(lang, sentence):
-    return [lang.word2index[word] for word in sentence.split(' ')]
+    return [lang.word2index[word] for word in sentence.split(" ")]
 
 
 def tensorFromSentence(lang, sentence):
     indexes = indexesFromSentence(lang, sentence)
     indexes.append(EOS_token)
-    return flow.tensor(indexes, dtype=flow.long, device=device).reshape([-1,1])
+    return flow.tensor(indexes, dtype=flow.long, device=device).reshape([-1, 1])
 
 
 def tensorsFromPair(pair, input_lang, output_lang):
