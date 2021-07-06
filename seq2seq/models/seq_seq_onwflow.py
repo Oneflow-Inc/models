@@ -3,7 +3,6 @@ from utils.utils_oneflow import *
 from models.GRU_oneflow import *
 import oneflow.experimental.F as F
 
-device = "cuda"
 
 
 class EncoderRNN_oneflow(nn.Module):
@@ -23,7 +22,7 @@ class EncoderRNN_oneflow(nn.Module):
         return output, hidden
 
     def init_Hidden(self):
-        return flow.zeros((1, self.hidden_size)).to(device)
+        return flow.zeros((1, self.hidden_size))
 
 
 class AttnDecoderRNN_oneflow(nn.Module):
@@ -59,4 +58,4 @@ class AttnDecoderRNN_oneflow(nn.Module):
         return output, hidden, attn_weights
 
     def init_Hidden(self):
-        return flow.zeros([1, self.hidden_size]).to(device)
+        return flow.zeros([1, self.hidden_size])

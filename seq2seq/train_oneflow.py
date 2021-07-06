@@ -4,11 +4,25 @@ import oneflow.experimental.optim as optim
 import oneflow.experimental.nn as nn
 import time
 import random
+import argparse
 
 flow.enable_eager_execution()
 
 
 # refer to: https://pytorch.org/tutorials/intermediate/seq2seq_translation_tutorial.html
+
+
+def _parse_args():
+    parser = argparse.ArgumentParser("flags for train seq2seq")
+
+    parser.add_argument(
+        "--device",
+        type=str,
+        default="cuda",
+        help="device",
+    )
+
+    return parser.parse_args()
 
 
 def train(
@@ -21,7 +35,7 @@ def train(
     criterion,
     max_length=MAX_LENGTH,
 ):
-    encoder_hidden = encoder.init_Hidden()
+    encoder_hidden = encoder.init_Hidden().to(device)
 
     encoder_optimizer.zero_grad()
     decoder_optimizer.zero_grad()
@@ -72,8 +86,9 @@ def train(
 
 
 def trainIters(
-    encoder, decoder, n_iters, print_every=1000, plot_every=100, learning_rate=0.01
+    encoder, decoder, n_iters, pairs, input_lang, output_lang, print_every=1000, plot_every=100, learning_rate=0.01
 ):
+
     start = time.time()
     plot_losses = []
     print_loss_total = 0  # Reset every print_every
@@ -81,10 +96,7 @@ def trainIters(
 
     encoder_optimizer = optim.SGD(encoder.parameters(), lr=learning_rate)
     decoder_optimizer = optim.SGD(decoder.parameters(), lr=learning_rate)
-    training_pairs = [
-        tensorsFromPair(random.choice(pairs), input_lang, output_lang)
-        for _ in range(n_iters)
-    ]
+    training_pairs = [tensorsFromPair(random.choice(pairs), input_lang, output_lang) for _ in range(n_iters)]
     criterion = nn.NLLLoss()
 
     for iter in range(1, n_iters + 1):
@@ -125,7 +137,8 @@ def trainIters(
     showPlot(plot_losses)
 
 
-def main():
+def main(args):
+    device = args.device
     flow.env.init()
     # pre
     input_lang, output_lang, pairs = prepareData("eng", "fra", True)
@@ -135,11 +148,12 @@ def main():
     attn_decoder = AttnDecoderRNN_oneflow(
         hidden_size, output_lang.n_words, dropout_p=0.1
     ).to(device)
-    trainIters(encoder, attn_decoder, 75000, print_every=5000)
+    trainIters(encoder, attn_decoder, 75000, pairs, input_lang, output_lang, print_every=5000)
     # saving model...'
     flow.save(encoder.state_dict(), "./saving_model_oneflow/encoder/")
     flow.save(attn_decoder.state_dict(), "./saving_model_oneflow/decoder/")
 
 
 if __name__ == "__main__":
-    main()
+    args = _parse_args()
+    main(args)

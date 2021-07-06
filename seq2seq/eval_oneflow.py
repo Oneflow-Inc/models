@@ -23,6 +23,13 @@ def _parse_args():
         help="load pretrain decoder_model dir",
     )
 
+    parser.add_argument(
+        "--device",
+        type=str,
+        default="cuda",
+        help="device",
+    )
+
     return parser.parse_args()
 
 
@@ -35,7 +42,7 @@ def evaluate(
     with flow.no_grad():
         input_tensor = tensorFromSentence(input_lang, sentence)
         input_length = input_tensor.size()[0]
-        encoder_hidden = encoder.init_Hidden()
+        encoder_hidden = encoder.init_Hidden().to(device)
 
         encoder_outputs = []
 
@@ -57,7 +64,8 @@ def evaluate(
             decoder_output, decoder_hidden, decoder_attention = decoder(
                 decoder_input, decoder_hidden, encoder_outputs
             )
-            decoder_attentions[di] = decoder_attention.data
+            # print(decoder_attentions[di].size(),decoder_attention.squeeze(0).data.size())
+            decoder_attentions[di] = decoder_attention.squeeze(0).data
             topv, topi = decoder_output.data.topk(1)
             if topi.squeeze().numpy() == EOS_token:
                 decoded_words.append("<EOS>")
@@ -72,7 +80,7 @@ def evaluate(
         return decoded_words, decoder_attentions[: di + 1]
 
 
-def evaluateRandomly(encoder, decoder, pairs, n=10):
+def evaluateRandomly(encoder, decoder, pairs, input_lang, output_lang, n=10):
     for i in range(n):
         pair = random.choice(pairs)
         print(">", pair[0])
@@ -85,7 +93,7 @@ def evaluateRandomly(encoder, decoder, pairs, n=10):
         print("")
 
 
-def evaluateAndShowAttention(input_sentence, encoder, attn_decoder):
+def evaluateAndShowAttention(input_sentence, encoder, attn_decoder, input_lang, output_lang):
     output_words, attentions = evaluate(
         encoder, attn_decoder, input_sentence, input_lang, output_lang
     )
@@ -95,6 +103,7 @@ def evaluateAndShowAttention(input_sentence, encoder, attn_decoder):
 
 
 def main(args):
+    device = args.device
     input_lang, output_lang, pairs = prepareData("eng", "fra", True)
     e = flow.load(args.encoder_path)
     d = flow.load(args.decoder_path)
@@ -102,7 +111,7 @@ def main(args):
     decoder = AttnDecoderRNN_oneflow(256, output_lang.n_words, dropout_p=0.1).to(device)
     encoder.load_state_dict(e)
     decoder.load_state_dict(d)
-    evaluateRandomly(encoder, decoder, pairs)
+    evaluateRandomly(encoder, decoder, pairs, input_lang, output_lang)
 
 
 if __name__ == "__main__":
