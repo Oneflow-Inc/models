@@ -6,8 +6,6 @@ import time
 import random
 import argparse
 
-flow.enable_eager_execution()
-
 
 # refer to: https://pytorch.org/tutorials/intermediate/seq2seq_translation_tutorial.html
 
@@ -138,6 +136,9 @@ def trainIters(
 
 
 def main(args):
+    flow.enable_eager_execution()
+
+
     device = args.device
     flow.env.init()
     # pre

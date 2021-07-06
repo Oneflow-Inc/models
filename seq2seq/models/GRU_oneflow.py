@@ -3,7 +3,6 @@ import oneflow.experimental.nn as nn
 from numpy.random import rand
 from math import sqrt
 
-flow.enable_eager_execution()
 
 
 class GRU_oneflow(nn.Module):

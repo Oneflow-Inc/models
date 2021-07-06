@@ -19,7 +19,6 @@ eng_prefixes = (
 
 
 class Lang:
-    """构建单词表"""
 
     def __init__(self, name):
         self.name = name
@@ -43,14 +42,12 @@ class Lang:
 
 
 def unicodeToAscii(s):
-    """将Unicode转为ASCALL"""
     return "".join(
         c for c in unicodedata.normalize("NFD", s) if unicodedata.category(c) != "Mn"
     )
 
 
 def normalizeString(s):
-    """标准化文本"""
     s = unicodeToAscii(s.lower().strip())
     s = re.sub(r"([.!?])", r" \1", s)
     s = re.sub(r"[^a-zA-Z.!?]+", r" ", s)
@@ -80,7 +77,6 @@ def readLangs(lang1, lang2, reverse=False):
 
 
 def filterPair(p):
-    """取句子对分别小于10个词的句子对"""
     return (
         len(p[0].split(" ")) < MAX_LENGTH
         and len(p[1].split(" ")) < MAX_LENGTH

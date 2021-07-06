@@ -103,6 +103,8 @@ def evaluateAndShowAttention(input_sentence, encoder, attn_decoder, input_lang, 
 
 
 def main(args):
+    flow.enable_eager_execution()
+
     device = args.device
     input_lang, output_lang, pairs = prepareData("eng", "fra", True)
     e = flow.load(args.encoder_path)
