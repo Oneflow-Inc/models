@@ -51,6 +51,7 @@ def main(args):
     for e in range(args.train_epoch):    # outer loop for different epochs; we save the model by <epoch_count>, <epoch_count>+<save_latest_freq>
         random.shuffle(datasetA)
         random.shuffle(datasetB)
+        model.update_learning_rate()
         for i in range(train_iters):
             model.set_input(load_image2ndarray(args.datasetA_path + datasetA[i]), \
                 load_image2ndarray(args.datasetB_path + datasetB[i]))
