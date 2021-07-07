@@ -56,13 +56,14 @@ def main(args):
             model.set_input(load_image2ndarray(args.datasetA_path + datasetA[i]), \
                 load_image2ndarray(args.datasetB_path + datasetB[i]))
             model.optimize_parameters()
-            if (i + 1) % 20 == 0:
-                model.log_loss(e, i)
-                model.save_result(args.save_tmp_image_path)
 
-            if (i + 1) % 100 == 0:
-                flow.save(model.netG_A.state_dict(), args.checkpoint_save_dir + "A_checkpoint_epoch_%d_iter_%d" % (e, i))
-                flow.save(model.netG_B.state_dict(), args.checkpoint_save_dir + "B_checkpoint_epoch_%d_iter_%d" % (e, i))
+            if (i + 1) % 20 == 0:
+                model.log_loss(e, i + 1)
+                model.save_result(args.save_tmp_image_path + "epoch_%d_iter_%d.jpg" % (e, i))
+
+            if (i + 1) % 500 == 0:
+                flow.save(model.netG_A.state_dict(), args.checkpoint_save_dir + "horse_checkpoint_epoch_%d_iter_%d" % (e, i))
+                flow.save(model.netG_B.state_dict(), args.checkpoint_save_dir + "zebra_checkpoint_epoch_%d_iter_%d" % (e, i))
 
 
 def get_parser(parser = None):

@@ -3,15 +3,25 @@ CHECKPOINT_LOAD_DIR="./checkpoints/epoch_38_iter_400_gloss_5.349748_dloss_0.3349
 # make sure $CHECKPOINT_SAVE_DIR is already exists before start the training process.
 CHECKPOINT_SAVE_DIR="./checkpoints/"
 
+if [ ! -d "$CHECKPOINT_SAVE_DIR" ]; then
+    mkdir $CHECKPOINT_SAVE_DIR
+fi
+
+TRAIN_DATASET="horse2zebra"
+
 # 
-TRAIN_DATASET_A="./datasets/horse2zebra/trainA/"
-TRAIN_DATASET_B="./datasets/horse2zebra/trainB/"
+TRAIN_DATASET_A="./datasets/${TRAIN_DATASET}/trainA/"
+TRAIN_DATASET_B="./datasets/${TRAIN_DATASET}/trainB/"
 
 RESIZE_AND_CROP=True
 CROP_SIZE=256
 LOAD_SIZE=286
 
-SAVE_TMP_IMAGE_PATH="./training_cyclegan.jpg"
+SAVE_TMP_IMAGE_PATH="./training_cyclegan_${TRAIN_DATASET}/"
+
+if [ ! -d "$SAVE_TMP_IMAGE_PATH" ]; then
+    mkdir $SAVE_TMP_IMAGE_PATH
+fi
 
 EPOCH=300
 LR=0.0002

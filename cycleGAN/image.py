@@ -66,7 +66,6 @@ def load_image2ndarray(image_path,
                        load_size = 286,
                        crop_size = 256):
     im = cv2.imread(image_path)
-
     if resize_and_crop:
         im = cv2.resize(im, (load_size, load_size), interpolation = cv2.INTER_CUBIC)
         im = random_crop(im, crop_size, crop_size)
