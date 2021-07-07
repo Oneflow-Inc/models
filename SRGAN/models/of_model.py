@@ -10,8 +10,7 @@ class Generator(nn.Module):
 
         super(Generator, self).__init__()
         self.block1 = nn.Sequential(
-            nn.Conv2d(3, 64, kernel_size=9, padding=4),
-            nn.PReLU()
+            nn.Conv2d(3, 64, kernel_size=9, padding=4), nn.PReLU()
         )
         self.block2 = ResidualBlock(64)
         self.block3 = ResidualBlock(64)
@@ -19,8 +18,7 @@ class Generator(nn.Module):
         self.block5 = ResidualBlock(64)
         self.block6 = ResidualBlock(64)
         self.block7 = nn.Sequential(
-            nn.Conv2d(64, 64, kernel_size=3, padding=1),
-            nn.PReLU()
+            nn.Conv2d(64, 64, kernel_size=3, padding=1), nn.PReLU()
         )
         block8 = [UpsampleBLock(64, 2) for _ in range(upsample_block_num)]
         block8.append(nn.Conv2d(64, 3, kernel_size=9, padding=4))
@@ -46,46 +44,37 @@ class Discriminator(nn.Module):
         self.net = nn.Sequential(
             nn.Conv2d(3, 64, kernel_size=3, padding=1),
             nn.LeakyReLU(0.2),
-
             nn.Conv2d(64, 64, kernel_size=3, stride=2, padding=1),
             nn.BatchNorm2d(64),
             nn.LeakyReLU(0.2),
-
             nn.Conv2d(64, 128, kernel_size=3, padding=1),
             nn.BatchNorm2d(128),
             nn.LeakyReLU(0.2),
-
             nn.Conv2d(128, 128, kernel_size=3, stride=2, padding=1),
             nn.BatchNorm2d(128),
             nn.LeakyReLU(0.2),
-
             nn.Conv2d(128, 256, kernel_size=3, padding=1),
             nn.BatchNorm2d(256),
             nn.LeakyReLU(0.2),
-
             nn.Conv2d(256, 256, kernel_size=3, stride=2, padding=1),
             nn.BatchNorm2d(256),
             nn.LeakyReLU(0.2),
-
             nn.Conv2d(256, 512, kernel_size=3, padding=1),
             nn.BatchNorm2d(512),
             nn.LeakyReLU(0.2),
-
             nn.Conv2d(512, 512, kernel_size=3, stride=2, padding=1),
             nn.BatchNorm2d(512),
             nn.LeakyReLU(0.2),
-
             nn.AdaptiveAvgPool2d(1),
             nn.Conv2d(512, 1024, kernel_size=1),
             nn.LeakyReLU(0.2),
-            nn.Conv2d(1024, 1, kernel_size=1)
+            nn.Conv2d(1024, 1, kernel_size=1),
         )
 
     def forward(self, x):
         batch_size = x.size(0)
         # return flow.sigmoid(flow.reshape(self.net(x), shape=[batch_size, -1]))
         return flow.reshape(self.net(x), shape=[batch_size, -1])
-
 
 
 class ResidualBlock(nn.Module):
@@ -110,7 +99,9 @@ class ResidualBlock(nn.Module):
 class UpsampleBLock(nn.Module):
     def __init__(self, in_channels, up_scale):
         super(UpsampleBLock, self).__init__()
-        self.conv = nn.Conv2d(in_channels, in_channels * up_scale ** 2, kernel_size=3, padding=1)
+        self.conv = nn.Conv2d(
+            in_channels, in_channels * up_scale ** 2, kernel_size=3, padding=1
+        )
         self.pixel_shuffle = nn.PixelShuffle(up_scale)
         self.prelu = nn.PReLU()
 
@@ -121,19 +112,19 @@ class UpsampleBLock(nn.Module):
         return x
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     flow.enable_eager_execution()
     # x = torch.randn((1, 3, 128, 128))
     x = flow.Tensor(np.random.rand(8, 3, 128, 128))
-    x = x.to('cuda')
-    print(' input:', x.size())
+    x = x.to("cuda")
+    print(" input:", x.size())
     G = Generator(4).eval()
-    G.to('cuda')
+    G.to("cuda")
     out = G(x)
-    print(' out:', out.size())
+    print(" out:", out.size())
     D = Discriminator().eval()
     # D = Discriminator2().eval()
-    D.to('cuda')
+    D.to("cuda")
     c = D(out)
     real_out = flow.mean(c)
     d = np.random.rand(8, 1) * 0.25 + 0.85

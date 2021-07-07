@@ -5,7 +5,10 @@ from PIL import Image, ImageOps
 
 
 def is_image_file(filename):
-    return any(filename.endswith(extension) for extension in ['.png', '.jpg', '.jpeg', '.PNG', '.JPG', '.JPEG'])
+    return any(
+        filename.endswith(extension)
+        for extension in [".png", ".jpg", ".jpeg", ".PNG", ".JPG", ".JPEG"]
+    )
 
 
 def calculate_valid_crop_size(crop_size, upscale_factor):
@@ -14,12 +17,12 @@ def calculate_valid_crop_size(crop_size, upscale_factor):
 
 def load_image(image_path):
     im = Image.open(image_path)
-    im = im.convert('RGB')
+    im = im.convert("RGB")
     w, h = im.size
-    im = np.array(im).astype('float32') / 255.
+    im = np.array(im).astype("float32") / 255.0
     im = np.transpose(im, (2, 0, 1))
     im = np.expand_dims(im, axis=0)
-    return np.ascontiguousarray(im, 'float32'), h, w
+    return np.ascontiguousarray(im, "float32"), h, w
 
 
 class NumpyDataLoader(object):
@@ -45,10 +48,14 @@ class NumpyDataLoader(object):
         for i in range(self.batch_size):
             image_path = self.image_list[index]
             if not is_image_file(image_path):
-                print("The file is not an image in:{}, so we continune next one.".format(image_path))
+                print(
+                    "The file is not an image in:{}, so we continune next one.".format(
+                        image_path
+                    )
+                )
                 continue
             img = Image.open(image_path)
-            img = img.convert('RGB')
+            img = img.convert("RGB")
 
             # random crop crop_size
             w, h = img.size
@@ -63,10 +70,10 @@ class NumpyDataLoader(object):
                     lr_img = ImageOps.mirror(lr_img)
 
                 # normalizing the images to [0, 1]
-                hr_img = np.array(hr_img) / 255.
-                hr_img = hr_img.astype('float32')
-                lr_img = np.array(lr_img) / 255.
-                lr_img = lr_img.astype('float32')
+                hr_img = np.array(hr_img) / 255.0
+                hr_img = hr_img.astype("float32")
+                lr_img = np.array(lr_img) / 255.0
+                lr_img = lr_img.astype("float32")
                 hr_img = hr_img.transpose(2, 0, 1)
                 lr_img = lr_img.transpose(2, 0, 1)
                 assert hr_img.shape == (3, self.hr_size, self.hr_size), hr_img.shape
@@ -76,13 +83,16 @@ class NumpyDataLoader(object):
                 hr_batch.append(hr_img)
                 lr_batch.append(lr_img)
                 self.curr_idx += 1
-        if (len(hr_batch) == self.batch_size):
+        if len(hr_batch) == self.batch_size:
             global hr_datas
             hr_datas = np.concatenate(tuple(hr_batch), axis=0)
             global lr_datas
             lr_datas = np.concatenate(tuple(lr_batch), axis=0)
 
-        return np.ascontiguousarray(hr_datas, 'float32'), np.ascontiguousarray(lr_datas, 'float32')
+        return (
+            np.ascontiguousarray(hr_datas, "float32"),
+            np.ascontiguousarray(lr_datas, "float32"),
+        )
 
     def __len__(self):
         return len(self.image_list) // self.batch_size
@@ -94,26 +104,31 @@ class ValDatasetFromFolder(object):
         self.mode = mode
         self.upscale_factor = upscale_factor
         images_dir = os.path.join(self.dataset_dir, self.mode)
-        self.image_filenames = [os.path.join(images_dir, x) for x in listdir(images_dir) if is_image_file(x)]
+        self.image_filenames = [
+            os.path.join(images_dir, x) for x in listdir(images_dir) if is_image_file(x)
+        ]
 
     def __getitem__(self, index):
-        hr_image = Image.open(self.image_filenames[index]).convert('RGB')
+        hr_image = Image.open(self.image_filenames[index]).convert("RGB")
         w, h = hr_image.size
         crop_size = calculate_valid_crop_size(min(w, h), self.upscale_factor)
         lr_size = crop_size // self.upscale_factor
         hr_image = hr_image.crop((0, 0, crop_size, crop_size))
         lr_image = hr_image.resize((lr_size, lr_size), Image.BICUBIC)
 
-        hr_img = np.array(hr_image) / 255.
-        hr_img = hr_img.astype('float32')
-        lr_img = np.array(lr_image) / 255.
-        lr_img = lr_img.astype('float32')
+        hr_img = np.array(hr_image) / 255.0
+        hr_img = hr_img.astype("float32")
+        lr_img = np.array(lr_image) / 255.0
+        lr_img = lr_img.astype("float32")
         hr_img = hr_img.transpose(2, 0, 1)
         lr_img = lr_img.transpose(2, 0, 1)
         hr_img = np.expand_dims(hr_img, axis=0)
         lr_img = np.expand_dims(lr_img, axis=0)
 
-        return np.ascontiguousarray(hr_img, 'float32'), np.ascontiguousarray(lr_img, 'float32')
+        return (
+            np.ascontiguousarray(hr_img, "float32"),
+            np.ascontiguousarray(lr_img, "float32"),
+        )
 
     def __len__(self):
         return len(self.image_filenames)
