@@ -4,7 +4,6 @@ from models.GRU_oneflow import *
 import oneflow.experimental.F as F
 
 
-
 class EncoderRNN_oneflow(nn.Module):
     def __init__(self, input_size, hidden_size):
         super().__init__()

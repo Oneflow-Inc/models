@@ -24,10 +24,7 @@ def _parse_args():
     )
 
     parser.add_argument(
-        "--device",
-        type=str,
-        default="cuda",
-        help="device",
+        "--device", type=str, default="cuda", help="device",
     )
 
     return parser.parse_args()
@@ -92,7 +89,9 @@ def evaluateRandomly(encoder, decoder, pairs, input_lang, output_lang, n=10):
         print("")
 
 
-def evaluateAndShowAttention(input_sentence, encoder, attn_decoder, input_lang, output_lang):
+def evaluateAndShowAttention(
+    input_sentence, encoder, attn_decoder, input_lang, output_lang
+):
     output_words, attentions = evaluate(
         encoder, attn_decoder, input_sentence, input_lang, output_lang
     )

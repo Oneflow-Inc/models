@@ -14,52 +14,31 @@ def _parse_args():
     parser = argparse.ArgumentParser("flags for train seq2seq")
 
     parser.add_argument(
-        "--device",
-        type=str,
-        default="cuda",
-        help="device",
+        "--device", type=str, default="cuda", help="device",
     )
 
     parser.add_argument(
         "--save_encoder_checkpoint_path",
         type=str,
         default="./saving_model_oneflow/encoder/",
-        help="save checkpoint encoder dir"
+        help="save checkpoint encoder dir",
     )
 
     parser.add_argument(
         "--save_decoder_checkpoint_path",
         type=str,
         default="./saving_model_oneflow/decoder/",
-        help="save checkpoint decoder dir"
+        help="save checkpoint decoder dir",
     )
 
-    parser.add_argument(
-        "--hidden_size",
-        type=int,
-        default=256,
-        help="hidden size"
-    )
+    parser.add_argument("--hidden_size", type=int, default=256, help="hidden size")
+
+    parser.add_argument("--n_iters", type=int, default=75000, help="num of iters")
+
+    parser.add_argument("--lr", type=float, default=0.01, help="learning rate")
 
     parser.add_argument(
-        "--n_iters",
-        type=int,
-        default=75000,
-        help="num of iters"
-    )
-    
-    parser.add_argument(
-        "--lr",
-        type=float,
-        default=0.01,
-        help="learning rate"
-    )
-
-    parser.add_argument(
-        "--drop",
-        type=float,
-        default=0.1,
-        help="the dropout of decoder_embedding"
+        "--drop", type=float, default=0.1, help="the dropout of decoder_embedding"
     )
 
     return parser.parse_args()
@@ -126,7 +105,15 @@ def train(
 
 
 def trainIters(
-    encoder, decoder, n_iters, pairs, input_lang, output_lang, print_every=1000, plot_every=100, learning_rate=0.01
+    encoder,
+    decoder,
+    n_iters,
+    pairs,
+    input_lang,
+    output_lang,
+    print_every=1000,
+    plot_every=100,
+    learning_rate=0.01,
 ):
 
     start = time.time()
@@ -136,7 +123,10 @@ def trainIters(
 
     encoder_optimizer = optim.SGD(encoder.parameters(), lr=learning_rate)
     decoder_optimizer = optim.SGD(decoder.parameters(), lr=learning_rate)
-    training_pairs = [tensorsFromPair(random.choice(pairs), input_lang, output_lang) for _ in range(n_iters)]
+    training_pairs = [
+        tensorsFromPair(random.choice(pairs), input_lang, output_lang)
+        for _ in range(n_iters)
+    ]
     criterion = nn.NLLLoss()
 
     for iter in range(1, n_iters + 1):
@@ -180,7 +170,6 @@ def trainIters(
 def main(args):
     flow.enable_eager_execution()
 
-
     device = args.device
     flow.env.init()
     # pre
@@ -193,15 +182,15 @@ def main(args):
     ).to(device)
     trainIters(
         encoder,
-        attn_decoder, 
-        args.n_iters, 
-        pairs, 
-        input_lang, 
-        output_lang, 
-        print_every=5000, 
+        attn_decoder,
+        args.n_iters,
+        pairs,
+        input_lang,
+        output_lang,
+        print_every=5000,
         plot_every=100,
-        learning_rate=args.lr
-        )
+        learning_rate=args.lr,
+    )
     # saving model...'
     flow.save(encoder.state_dict(), args.save_encoder_checkpoint_path)
     flow.save(attn_decoder.state_dict(), args.save_decoder_checkpoint_path)

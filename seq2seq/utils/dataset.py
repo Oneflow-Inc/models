@@ -19,7 +19,6 @@ eng_prefixes = (
 
 
 class Lang:
-
     def __init__(self, name):
         self.name = name
         self.word2index = {}

@@ -4,7 +4,6 @@ from numpy.random import rand
 from math import sqrt
 
 
-
 class GRU_oneflow(nn.Module):
     def __init__(
         self,
