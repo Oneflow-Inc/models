@@ -127,9 +127,11 @@ mnist
 of_pix2pix
 pix2pix/data
 
+
 # resnet50
 imagenet*
 *.pth
+
 .DS_Store
 
 # SRGAN

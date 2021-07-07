@@ -21,9 +21,10 @@ class Generator(nn.Module):
         self.g_u2 = Upsample(512, 128)
         self.g_u1 = Upsample(256, 64)
         self.g_u0_deconv = nn.ConvTranspose2d(
-            128, out_channels, kernel_size=4, stride=2, padding=1)
+            128, out_channels, kernel_size=4, stride=2, padding=1
+        )
         self.tanh = nn.Tanh()
-        nn.init.normal_(self.g_u0_deconv.weight, 0., 0.02)
+        nn.init.normal_(self.g_u0_deconv.weight, 0.0, 0.02)
 
     def forward(self, x):
         # (n, 64, 128, 128)
@@ -78,7 +79,7 @@ class Discriminator(nn.Module):
         self.d_d3 = Downsample(128, 256)
         self.d_d4 = Downsample(256, 512, stride=1)
         self.d_conv = nn.Conv2d(512, 1, kernel_size=4, stride=1, padding=1)
-        nn.init.normal_(self.d_conv.weight, 0., 0.02)
+        nn.init.normal_(self.d_conv.weight, 0.0, 0.02)
 
     def forward(self, x):
         # (n, 6, 256, 256)
@@ -97,11 +98,19 @@ class Discriminator(nn.Module):
 
 
 class Downsample(nn.Module):
-    def __init__(self, in_channels, out_channels, apply_batchnorm=True, stride=2, padding=1):
+    def __init__(
+        self, in_channels, out_channels, apply_batchnorm=True, stride=2, padding=1
+    ):
         super().__init__()
 
-        self.downconv = nn.Conv2d(in_channels, out_channels, kernel_size=4,
-                                  stride=stride, padding=padding, bias=False)
+        self.downconv = nn.Conv2d(
+            in_channels,
+            out_channels,
+            kernel_size=4,
+            stride=stride,
+            padding=padding,
+            bias=False,
+        )
         downnorm = nn.BatchNorm2d(out_channels)
         downrelu = nn.LeakyReLU(0.2, True)
         if apply_batchnorm:
@@ -112,7 +121,7 @@ class Downsample(nn.Module):
         self._init_params()
 
     def _init_params(self):
-        nn.init.normal_(self.downconv.weight, 0., 0.02)
+        nn.init.normal_(self.downconv.weight, 0.0, 0.02)
 
     def forward(self, x):
         y = self.model(x)
@@ -123,8 +132,9 @@ class Upsample(nn.Module):
     def __init__(self, in_channels, out_channels, apply_dropout=False):
         super().__init__()
 
-        self.upconv = nn.ConvTranspose2d(in_channels, out_channels, kernel_size=4,
-                                         stride=2, padding=1, bias=False)
+        self.upconv = nn.ConvTranspose2d(
+            in_channels, out_channels, kernel_size=4, stride=2, padding=1, bias=False
+        )
         self.upnorm = nn.BatchNorm2d(out_channels)
         uprelu = nn.ReLU(True)
         if apply_dropout:
@@ -136,6 +146,7 @@ class Upsample(nn.Module):
 
     def _init_params(self):
         nn.init.normal_(self.upconv.weight, 0., 0.02)
+
 
     def forward(self, x):
         y = self.model(x)
