@@ -12,7 +12,12 @@ if [ ! -d "$PRETRAIN_PATH" ]; then
     tar -xzvf seq2seq_pre_train.tar.gz
 fi
 
+ENCODER_PATH="./saving_model_oneflow/encoder/"
+DECODER_PATH="./saving_model_oneflow/decoder/"
+
 DEVICE='cuda'
 
 python3 eval_oneflow.py \
+    --encoder_path $ENCODER_PATH \
+    --decoder_path $DECODER_PATH \
     --device $DEVICE \
