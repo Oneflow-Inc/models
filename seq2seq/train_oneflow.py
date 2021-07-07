@@ -20,6 +20,48 @@ def _parse_args():
         help="device",
     )
 
+    parser.add_argument(
+        "--save_encoder_checkpoint_path",
+        type=str,
+        default="./saving_model_oneflow/encoder/",
+        help="save checkpoint encoder dir"
+    )
+
+    parser.add_argument(
+        "--save_decoder_checkpoint_path",
+        type=str,
+        default="./saving_model_oneflow/decoder/",
+        help="save checkpoint decoder dir"
+    )
+
+    parser.add_argument(
+        "--hidden_size",
+        type=int,
+        default=256,
+        help="hidden size"
+    )
+
+    parser.add_argument(
+        "--n_iters",
+        type=int,
+        default=75000,
+        help="num of iters"
+    )
+    
+    parser.add_argument(
+        "--lr",
+        type=float,
+        default=0.01,
+        help="learning rate"
+    )
+
+    parser.add_argument(
+        "--drop",
+        type=float,
+        default=0.1,
+        help="the dropout of decoder_embedding"
+    )
+
     return parser.parse_args()
 
 
@@ -144,15 +186,25 @@ def main(args):
     # pre
     input_lang, output_lang, pairs = prepareData("eng", "fra", True)
     # training
-    hidden_size = 256
+    hidden_size = args.hidden_size
     encoder = EncoderRNN_oneflow(input_lang.n_words, hidden_size).to(device)
     attn_decoder = AttnDecoderRNN_oneflow(
-        hidden_size, output_lang.n_words, dropout_p=0.1
+        hidden_size, output_lang.n_words, dropout_p=args.drop
     ).to(device)
-    trainIters(encoder, attn_decoder, 75000, pairs, input_lang, output_lang, print_every=5000)
+    trainIters(
+        encoder,
+        attn_decoder, 
+        args.n_iters, 
+        pairs, 
+        input_lang, 
+        output_lang, 
+        print_every=5000, 
+        plot_every=100,
+        learning_rate=args.lr
+        )
     # saving model...'
-    flow.save(encoder.state_dict(), "./saving_model_oneflow/encoder/")
-    flow.save(attn_decoder.state_dict(), "./saving_model_oneflow/decoder/")
+    flow.save(encoder.state_dict(), args.save_encoder_checkpoint_path)
+    flow.save(attn_decoder.state_dict(), args.save_decoder_checkpoint_path)
 
 
 if __name__ == "__main__":
