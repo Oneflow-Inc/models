@@ -1,4 +1,4 @@
-from models.seq_seq_onwflow import AttnDecoderRNN_oneflow, EncoderRNN_oneflow
+from models.seq_seq_oneflow import AttnDecoderRNN_oneflow, EncoderRNN_oneflow
 from utils.utils_oneflow import *
 import random
 import oneflow.experimental as flow
