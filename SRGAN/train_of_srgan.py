@@ -1,17 +1,17 @@
 import argparse
-import os, sys
+import os
 import numpy as np
 import time
 import pickle
 import oneflow.experimental as flow
 import oneflow.experimental.optim as optim
 from tqdm import tqdm
-from oneflow_data_utils import NumpyDataLoader, ValDatasetFromFolder
-
 from skimage.metrics import peak_signal_noise_ratio
 from skimage.metrics import structural_similarity
-from of_loss import GeneratorLoss
-from oneflow_model import Generator, Discriminator
+
+from utils.of_data_utils import NumpyDataLoader, ValDatasetFromFolder
+from utils.of_loss import GeneratorLoss
+from models.of_model import Generator, Discriminator
 
 parser = argparse.ArgumentParser(description='Train Super Resolution Models')
 parser.add_argument('--data_dir', default='./data/VOC2012',

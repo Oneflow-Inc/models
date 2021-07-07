@@ -132,3 +132,8 @@ imagenet*
 *.pth
 
 .DS_Store
+
+
+# SRGAN
+netG_epoch_4_99
+vgg_imagenet_pretrain_model

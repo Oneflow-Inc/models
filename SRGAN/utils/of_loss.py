@@ -1,7 +1,7 @@
 import oneflow.experimental as flow
 import oneflow.experimental.nn as nn
 import sys, os
-sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))))
 from  vgg.models.vgg import vgg19_bn, vgg16_bn, vgg19, vgg16
 model_dict = {"vgg16": vgg16, "vgg19": vgg19, "vgg16_bn": vgg16_bn, "vgg19_bn": vgg19_bn}
 

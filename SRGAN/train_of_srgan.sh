@@ -23,6 +23,7 @@ EPOCH=100
 BATCH_SIZE=64
 HR_SIZE=88
 
+
 python3 train_of_srgan.py \
     --lr $LEARNING_RATE \
     --b1 $WEIGHT_DECAY_A \
