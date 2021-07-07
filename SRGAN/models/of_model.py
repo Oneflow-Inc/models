@@ -83,7 +83,9 @@ class Discriminator(nn.Module):
 
     def forward(self, x):
         batch_size = x.size(0)
-        return flow.sigmoid(flow.reshape(self.net(x), shape=[batch_size, -1]))
+        # return flow.sigmoid(flow.reshape(self.net(x), shape=[batch_size, -1]))
+        return flow.reshape(self.net(x), shape=[batch_size, -1])
+
 
 
 class ResidualBlock(nn.Module):

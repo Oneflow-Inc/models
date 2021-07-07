@@ -14,7 +14,7 @@ from utils.of_loss import GeneratorLoss
 from models.of_model import Generator, Discriminator
 
 parser = argparse.ArgumentParser(description='Train Super Resolution Models')
-parser.add_argument('--data_dir', default='./data/VOC2012',
+parser.add_argument('--data_dir', default='./data/VOC',
                     type=str, help='data root')
 parser.add_argument('--hr_size', default=88, type=int,
                     help='training images crop size')
@@ -32,7 +32,7 @@ parser.add_argument("--load_checkpoint_D", type=str,
                     default="", help="load checkpoint")
 
 parser.add_argument("--save_path", type=str,
-                    default="./srgan0", help="save results root dir")
+                    default="./srgan", help="save results root dir")
 parser.add_argument("--vgg_path", type=str,
                     default="./vgg_imagenet_pretrain_model/vgg16_oneflow_model", help="vgg pretrained weight path")
 parser.add_argument("--lr", type=float, default=0.0002,
@@ -89,7 +89,7 @@ if __name__ == '__main__':
 
     generator_criterion = GeneratorLoss(opt.vgg_path)
     # bce = BCELoss()
-    bce = flow.nn.BCELoss()
+    bce = flow.nn.BCEWithLogitsLoss()
     end_t = time.time()
     print('init time : {}'.format(end_t - start_t))
 
@@ -214,20 +214,21 @@ if __name__ == '__main__':
                     desc='[converting LR images to SR images] PSNR: %.4f dB SSIM: %.4f' % (
                         valing_results['psnr'], valing_results['ssim']))
 
+        # save loss\scores\psnr\ssim
+        results['d_loss'].append(
+            running_results['d_loss'] / running_results['batch_sizes'])
+        results['g_loss'].append(
+            running_results['g_loss'] / running_results['batch_sizes'])
+        results['d_score'].append(
+            running_results['d_score'] / running_results['batch_sizes'])
+        results['g_score'].append(
+            running_results['g_score'] / running_results['batch_sizes'])
+        results['psnr'].append(valing_results['psnr'])
+        results['ssim'].append(valing_results['ssim'])
+        
     # save model parameters
     flow.save(netG.state_dict(), os.path.join(opt.save_path, "netG_epoch_%d_%d" %
                 (UPSCALE_FACTOR, epoch)))
     flow.save(netD.state_dict(), os.path.join(opt.save_path, "netD_epoch_%d_%d" %
                 (UPSCALE_FACTOR, epoch)))
-    # save loss\scores\psnr\ssim
-    results['d_loss'].append(
-        running_results['d_loss'] / running_results['batch_sizes'])
-    results['g_loss'].append(
-        running_results['g_loss'] / running_results['batch_sizes'])
-    results['d_score'].append(
-        running_results['d_score'] / running_results['batch_sizes'])
-    results['g_score'].append(
-        running_results['g_score'] / running_results['batch_sizes'])
-    results['psnr'].append(valing_results['psnr'])
-    results['ssim'].append(valing_results['ssim'])
     save_obj(results, os.path.join(opt.save_path, "results"))
