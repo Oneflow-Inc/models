@@ -64,7 +64,6 @@ def evaluate(
             decoder_output, decoder_hidden, decoder_attention = decoder(
                 decoder_input, decoder_hidden, encoder_outputs
             )
-            # print(decoder_attentions[di].size(),decoder_attention.squeeze(0).data.size())
             decoder_attentions[di] = decoder_attention.squeeze(0).data
             topv, topi = decoder_output.data.topk(1)
             if topi.squeeze().numpy() == EOS_token:
