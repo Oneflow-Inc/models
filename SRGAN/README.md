@@ -16,10 +16,3 @@ The trained model will be automatically download.
 
 Inference results
 ![](results.png)
-
-
-## Test Benchmark Datasets
-```
-python test_benchmark.py
-```
-Val dataset will be evaluated by metrics, including psnr and ssim.

@@ -130,9 +130,7 @@ pix2pix/data
 # resnet50
 imagenet*
 *.pth
-
 .DS_Store
-
 
 # SRGAN
 SRGAN/data0
