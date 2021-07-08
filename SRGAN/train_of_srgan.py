@@ -101,8 +101,7 @@ if __name__ == "__main__":
     start_t = time.time()
 
     netG = Generator(UPSCALE_FACTOR)
-    print('# generator parameters:', sum(param.numel()
-          for param in netG.parameters()))
+    print("# generator parameters:", sum(param.numel() for param in netG.parameters()))
     netD = Discriminator()
     print(
         "# discriminator parameters:", sum(param.numel() for param in netD.parameters())
@@ -164,10 +163,12 @@ if __name__ == "__main__":
 
             real_out = netD(real_img)
             fake_out = netD(fake_img.detach())
-            label1 = to_tensor(np.random.rand(batch_size, 1) *
-                               0.25 + 0.85, False, dtype=flow.float32).to('cuda')
-            label0 = to_tensor(np.random.rand(
-                batch_size, 1) * 0.15, dtype=flow.float32).to('cuda')
+            label1 = to_tensor(
+                np.random.rand(batch_size, 1) * 0.25 + 0.85, False, dtype=flow.float32
+            ).to("cuda")
+            label0 = to_tensor(
+                np.random.rand(batch_size, 1) * 0.15, dtype=flow.float32
+            ).to("cuda")
             d_loss = bce(fake_out, label0) + bce(real_out, label1)
 
             # d_loss = 1 - real_out + fake_out
