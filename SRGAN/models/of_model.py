@@ -119,28 +119,4 @@ class UpsampleBLock(nn.Module):
         x = self.pixel_shuffle(x)
         x = self.prelu(x)
         return x
-
-
-if __name__ == '__main__':
-    flow.enable_eager_execution()
-    # x = torch.randn((1, 3, 128, 128))
-    x = flow.Tensor(np.random.rand(8, 3, 128, 128))
-    x = x.to('cuda')
-    print(' input:', x.size())
-    G = Generator(4).eval()
-    G.to('cuda')
-    out = G(x)
-    print(' out:', out.size())
-    D = Discriminator().eval()
-    # D = Discriminator2().eval()
-    D.to('cuda')
-    c = D(out)
-    real_out = flow.mean(c)
-    d = np.random.rand(8, 1) * 0.25 + 0.85
-
-    print(c.shape)
-    print(real_out.grad)
-
-    # print('   y_c:', y_c.size())
-    # print(' prior:', prs.size())
-    # print('     y:', out.size())
+        

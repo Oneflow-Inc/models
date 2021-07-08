@@ -82,13 +82,11 @@ if __name__ == '__main__':
     netG = Generator(UPSCALE_FACTOR)
     print('# generator parameters:', sum(param.numel()
           for param in netG.parameters()))
-    # netD = Discriminator(HR_SIZE)
     netD = Discriminator()
     print('# discriminator parameters:', sum(param.numel()
           for param in netD.parameters()))
 
     generator_criterion = GeneratorLoss(opt.vgg_path)
-    # bce = BCELoss()
     bce = flow.nn.BCEWithLogitsLoss()
     end_t = time.time()
     print('init time : {}'.format(end_t - start_t))
@@ -137,12 +135,12 @@ if __name__ == '__main__':
             fake_out = netD(fake_img.detach())
             label1 = to_tensor(np.random.rand(batch_size, 1) *
                                0.25 + 0.85, False, dtype=flow.float32).to('cuda')
-            label0 = flow.Tensor(np.random.rand(
+            label0 = to_tensor(np.random.rand(
                 batch_size, 1) * 0.15, dtype=flow.float32).to('cuda')
             d_loss = bce(fake_out, label0) + bce(real_out, label1)
 
             # d_loss = 1 - real_out + fake_out
-            d_loss.backward(retain_graph=True)
+            d_loss.backward()
             optimizerD.step()
             optimizerD.zero_grad()
 
@@ -150,14 +148,14 @@ if __name__ == '__main__':
             # (2) Update G network: minimize 1-D(G(z)) + Perception Loss + Image Loss + TV Loss
             ###########################
 
+            fake_img = netG(z)
+            fake_out = netD(fake_img)
             g_loss = generator_criterion(fake_out, fake_img, real_img)
             g_loss.backward()
-
-            fake_img = netG(z)
-            fake_out = flow.mean(netD(fake_img))
             optimizerG.step()
             optimizerG.zero_grad()
 
+            fake_out = flow.mean(fake_out)
             # loss for current batch before optimization
             running_results['g_loss'] += g_loss.numpy()[0] * batch_size
             running_results['d_loss'] += d_loss.numpy()[0] * batch_size
