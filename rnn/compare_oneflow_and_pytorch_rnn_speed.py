@@ -49,7 +49,7 @@ def main(args):
     for_time = 0.0
     bp_time = 0.0
     update_time = 0.0
-    
+
     print("start oneflow training loop....")
     start_t = time.time()
     for i in range(bp_iters):

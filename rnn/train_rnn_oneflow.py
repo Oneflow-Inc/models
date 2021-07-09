@@ -11,6 +11,7 @@ import time
 import math
 import numpy as np
 
+
 def _parse_args():
     parser = argparse.ArgumentParser("flags for compare oneflow and pytorch speed")
     parser.add_argument(
