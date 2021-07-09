@@ -11,9 +11,6 @@ import time
 import math
 import numpy as np
 
-flow.env.init()
-flow.enable_eager_execution()
-
 
 def _parse_args():
     parser = argparse.ArgumentParser("flags for compare oneflow and pytorch speed")
@@ -77,6 +74,8 @@ learning_rate = (
 
 
 def main(args):
+    flow.env.init()
+    flow.enable_eager_execution()
     random.seed(args.seed)
     dataset_path = "./data/names"
     n_categories = processDataset(dataset_path)
