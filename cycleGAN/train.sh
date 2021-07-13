@@ -24,7 +24,7 @@ if [ ! -d "$SAVE_TMP_IMAGE_PATH" ]; then
 fi
 
 EPOCH=300
-LR=0.0002
+LR=0.0001
 
 LAMBDA_A=10.0 
 LAMBDA_B=10.0
@@ -32,6 +32,7 @@ LAMBDA_IDENTITY=0.5
  
 
 CUDA_VISIBLE_DEVICES=1 python3 train.py \
+    --dataset_name $TRAIN_DATASET \
     --datasetA_path $TRAIN_DATASET_A \
     --datasetB_path $TRAIN_DATASET_B \
     --resize_and_crop $RESIZE_AND_CROP \
