@@ -134,6 +134,7 @@ imagenet*
 .DS_Store
 
 # SRGAN
+SRGAN/data
 SRGAN/data0
 SRGAN_netG_epoch_4_99
 vgg_imagenet_pretrain_model

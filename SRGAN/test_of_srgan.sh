@@ -1,10 +1,16 @@
 set -aux
 
-IMAGE_PATH='data/Set14/LR_bicubic/X4/monarchx4.png'
-HR_PATH='data/Set14/HR/monarch.png'
-SAVE_IMAGE_PATH='data/Set14/SR/X4/monarchx4-oneflow.png'
+IMAGE_PATH='data/monarchx4.png'
+HR_PATH='data/monarch.png'
+SAVE_IMAGE_PATH='data/monarchx4-oneflow.png'
 MODEL_PATH="SRGAN_netG_epoch_4_99"
 
+DATA_PATH='data/'
+mkdir -p ${DATA_PATH}
+wget https://oneflow-static.oss-cn-beijing.aliyuncs.com/train_data_zjlab/monarch.png
+wget https://oneflow-static.oss-cn-beijing.aliyuncs.com/train_data_zjlab/monarchx4.png
+mv "monarch.png" $DATA_PATH
+mv "monarchx4.png" $DATA_PATH
 
 if [ ! -d "$MODEL_PATH" ]; then
   wget https://oneflow-static.oss-cn-beijing.aliyuncs.com/train_data_zjlab/SRGAN_netG_epoch_4_99.zip
