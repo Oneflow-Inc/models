@@ -6,17 +6,17 @@ from .resnet_torch import resnet50
 
 
 class TSN(nn.Module):
-
-    def __init__(self,
-                 spatial_feature_size,
-                 dropout_ratio,
-                 num_classes,
-                 modality='RGB',
-                 in_channels=3,
-                 spatial_type='avg',
-                 spatial_size=7,
-                 consensus_type='avg'
-                 ):
+    def __init__(
+        self,
+        spatial_feature_size,
+        dropout_ratio,
+        num_classes,
+        modality="RGB",
+        in_channels=3,
+        spatial_type="avg",
+        spatial_size=7,
+        consensus_type="avg",
+    ):
 
         super(TSN, self).__init__()
         self.backbone = resnet50()
@@ -27,7 +27,7 @@ class TSN(nn.Module):
         self.segmental_consensus = SimpleConsensus(consensus_type)
         self.cls_head = ClsHead(spatial_feature_size, dropout_ratio, num_classes)
 
-        assert modality in ['RGB', 'Flow', 'RGBDiff']
+        assert modality in ["RGB", "Flow", "RGBDiff"]
 
         self.init_weights()
 
