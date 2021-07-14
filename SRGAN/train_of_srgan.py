@@ -151,8 +151,8 @@ if __name__ == "__main__":
             target, data = train_data[idx]
             batch_size = data.shape[0]
             running_results["batch_sizes"] += batch_size
-            z = to_tensor(data)
-            real_img = to_tensor(target)
+            z = to_tensor(data, False)
+            real_img = to_tensor(target, False)
             ############################
             # (1) Update D network: maximize D(x)-1-D(G(z))
             ###########################
@@ -167,11 +167,10 @@ if __name__ == "__main__":
                 np.random.rand(batch_size, 1) * 0.25 + 0.85, False, dtype=flow.float32
             ).to("cuda")
             label0 = to_tensor(
-                np.random.rand(batch_size, 1) * 0.15, dtype=flow.float32
+                np.random.rand(batch_size, 1) * 0.15, False, dtype=flow.float32
             ).to("cuda")
             d_loss = bce(fake_out, label0) + bce(real_out, label1)
 
-            # d_loss = 1 - real_out + fake_out
             d_loss.backward()
             optimizerD.step()
             optimizerD.zero_grad()
@@ -180,9 +179,9 @@ if __name__ == "__main__":
             # (2) Update G network: minimize 1-D(G(z)) + Perception Loss + Image Loss + TV Loss
             ###########################
 
-            fake_img = netG(z)
-            fake_out = netD(fake_img)
-            g_loss = generator_criterion(fake_out, fake_img, real_img)
+            fake_img_0 = netG(z)
+            fake_out_0 = netD(fake_img_0)
+            g_loss = generator_criterion(fake_out_0, fake_img_0, real_img)
             g_loss.backward()
             optimizerG.step()
             optimizerG.zero_grad()

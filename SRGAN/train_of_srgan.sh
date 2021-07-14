@@ -1,9 +1,13 @@
 set -aux
 
 DATA_PATH='data/'
-mkdir -p ${DATA_PATH}
-wget https://oneflow-static.oss-cn-beijing.aliyuncs.com/train_data_zjlab/VOC2012.zip
-unzip VOC2012.zip -d $DATA_PATH
+if [ ! -d $DATA_PATH ]; then
+  mkdir ${DATA_PATH}
+fi
+if [ ! -d $DATA_PATH'VOC' ]; then
+  wget https://oneflow-static.oss-cn-beijing.aliyuncs.com/train_data_zjlab/VOC2012.zip
+  unzip VOC2012.zip -d $DATA_PATH
+fi
 
 PRETRAIN_MODEL_PATH="vgg_imagenet_pretrain_model/"
 MODEL="vgg16" #choose from vgg16, vgg16_bn, vgg19, vgg19_bn
