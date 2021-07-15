@@ -131,7 +131,7 @@ if __name__ == "__main__":
         input_shape,
         disable_backward=args.disable_backward,
         times=args.times,
-        time_only=args.time_only
+        time_only=args.time_only,
     )
 
     test_oneflow = True
@@ -141,6 +141,5 @@ if __name__ == "__main__":
         input_shape,
         disable_backward=args.disable_backward,
         times=args.times,
-        time_only=args.time_only
+        time_only=args.time_only,
     )
-
