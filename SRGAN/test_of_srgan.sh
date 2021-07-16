@@ -7,11 +7,11 @@ MODEL_PATH="SRGAN_netG_epoch_4_99"
 if [ ! -d $DATA_PATH ]; then
   mkdir ${DATA_PATH}
 fi
-if [ ! -d $DATA_PATH$IMAGE_NAME'.png' ]; then
+if [ ! -f $DATA_PATH$IMAGE_NAME'.png' ]; then
   wget https://oneflow-static.oss-cn-beijing.aliyuncs.com/train_data_zjlab/monarch.png
   mv $IMAGE_NAME'.png' $DATA_PATH
 fi
-if [ ! -d $DATA_PATH$IMAGE_NAME'x4.png' ]; then
+if [ ! -f $DATA_PATH$IMAGE_NAME'x4.png' ]; then
   wget https://oneflow-static.oss-cn-beijing.aliyuncs.com/train_data_zjlab/monarchx4.png
   mv $IMAGE_NAME'x4.png' $DATA_PATH
 fi
