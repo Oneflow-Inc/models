@@ -145,8 +145,8 @@ if __name__ == "__main__":
         no_verbose=args.no_verbose,
     )
     if args.no_verbose:
-        print(f"relative speed: {pytorch_time/oneflow_time}")
+        print(f"Relative speed: {pytorch_time/oneflow_time}")
     else:
-        print(f"relative speed: {pytorch_time/oneflow_time} (= {pytorch_time} / {oneflow_time}")
+        print(f"Relative speed: {pytorch_time/oneflow_time} (= {pytorch_time} / {oneflow_time}")
 
 
