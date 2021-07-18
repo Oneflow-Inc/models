@@ -36,7 +36,7 @@ def test(
     input_shape: Sequence[int],
     disable_backward=False,
     times=DEFAULT_TIMES,
-    time_only=False,
+    no_verbose=False,
 ):
     framework_name = "OneFlow" if test_oneflow else "PyTorch"
     if test_oneflow:
@@ -102,12 +102,13 @@ def test(
     end = time.time()
     total_time = end - start
     time_per_run = total_time / times
-    if time_only:
-        print(time_per_run)
+    if no_verbose:
+        print(f"{framework_name}: {time_per_run}")
     else:
         print(
             f"{framework_name} {module_name} time: {time_per_run} (= {total_time} / {times}, input_shape={input_shape}, backward is {'disabled' if disable_backward else 'enabled'})"
         )
+    return time_per_run
 
 
 if __name__ == "__main__":
@@ -117,7 +118,7 @@ if __name__ == "__main__":
     parser.add_argument("input_shape", type=str)
     parser.add_argument("--times", type=int, default=DEFAULT_TIMES)
     parser.add_argument("--disable-backward", action="store_true")
-    parser.add_argument("--time-only", action="store_true")
+    parser.add_argument("--no-verbose", action="store_true")
 
     args = parser.parse_args()
     input_shape = list(map(int, args.input_shape.split("x")))
@@ -125,22 +126,27 @@ if __name__ == "__main__":
     global test_oneflow
 
     test_oneflow = False
-    test(
+    pytorch_time = test(
         args.model_path,
         args.module_name,
         input_shape,
         disable_backward=args.disable_backward,
         times=args.times,
-        time_only=args.time_only
+        no_verbose=args.no_verbose,
     )
 
     test_oneflow = True
-    test(
+    oneflow_time = test(
         args.model_path,
         args.module_name,
         input_shape,
         disable_backward=args.disable_backward,
         times=args.times,
-        time_only=args.time_only
+        no_verbose=args.no_verbose,
     )
+    if args.no_verbose:
+        print(f"relative speed: {pytorch_time/oneflow_time}")
+    else:
+        print(f"relative speed: {pytorch_time/oneflow_time} (= {pytorch_time} / {oneflow_time}")
+
 
