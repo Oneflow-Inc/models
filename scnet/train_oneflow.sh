@@ -13,9 +13,6 @@ EPOCH=1000
 TRAIN_BATCH_SIZE=16
 VAL_BATCH_SIZE=16
 
-# LOAD PREVIOUS CHECKPOINT 
-# LOAD_CHECKPOINT=$CHECKPOINT_PATH/epoch_2_val_acc_0.111168
-
 python train_oneflow.py \
     --save_checkpoint_path $CHECKPOINT_PATH \
     --ofrecord_path $OFRECORD_PATH \
