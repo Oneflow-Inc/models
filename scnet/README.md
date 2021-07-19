@@ -2,11 +2,6 @@
 
 Scnet is a vehicle color classification network based on scloss, which can be easily combined with different backbone networks.
 
-## Inference on Single Image
-
-```bash
-bash infer.sh
-```
 
 
 ## Train on [hustcolor](http://cloud.eic.hust.edu.cn:8071/~pchen/color.rar) Dataset
@@ -24,7 +19,13 @@ python -m visdom.server
 ```bash
 bash train_oneflow.sh
 ```
+## Inference on Single Image
 
+```bash
+bash infer.sh
+```
+ ![image](https://github.com/XinYangDong/models/blob/main/scnet/data/red_prediction.png)
+ ![image](https://github.com/XinYangDong/models/blob/main/scnet/data/yellow_prediction.png)
 ### Performer of model
 |         | val(Top1) |
 | :-----: | :-----------------: |
