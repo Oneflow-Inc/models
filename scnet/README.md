@@ -25,7 +25,6 @@ bash train_oneflow.sh
 bash infer.sh
 ```
  ![image](https://github.com/XinYangDong/models/blob/main/scnet/data/red_prediction.png)
- ![image](https://github.com/XinYangDong/models/blob/main/scnet/data/yellow_prediction.png)
 ### Performer of model
 |         | val(Top1) |
 | :-----: | :-----------------: |
