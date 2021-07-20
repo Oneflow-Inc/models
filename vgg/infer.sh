@@ -7,6 +7,11 @@ MODEL="vgg19_bn" #choose from vgg16, vgg16_bn, vgg19, vgg19_bn
 IMAGE_PATH="data/tiger.jpg"
 # IMAGE_PATH="data/ILSVRC2012_val_00020287.JPEG"
 
+if [ ! -d "data" ]; then
+  wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/cv/data.tar.gz
+  tar zxf data.tar.gz
+fi
+
 if [ ! -d "$PRETRAIN_MODEL_PATH" ]; then
   mkdir ${PRETRAIN_MODEL_PATH}
 fi

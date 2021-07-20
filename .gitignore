@@ -110,7 +110,6 @@ venv.bak/
 
 
 # data
-data/
 images/
 *.tar*
 
@@ -122,7 +121,27 @@ mnist
 .so
 
 
+
 # MASK_RCNN
 *.pth
 mask_rcnn/*/log
 mask_rcnn/*/__pycache__
+
+.vscode
+.history
+
+# pix2pix
+of_pix2pix
+data
+
+# resnet50
+imagenet*
+*.pth
+
+.DS_Store
+
+# SRGAN
+SRGAN/data*
+SRGAN_netG_epoch_4_99
+vgg_imagenet_pretrain_model
+
