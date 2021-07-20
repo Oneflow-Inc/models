@@ -15,8 +15,15 @@ The face pose dataset can be downloaded from [BaiduNetdis](https://pan.baidu.com
 #### Download Ofrecord
 
 ```bash
-wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/datasets/imagenette_ofrecord.tar.gz
-tar zxf imagenette_ofrecord.tar.gz
+wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/datasets/models/pose/pose_dataset.zip
+unzip pose_dataset.zip
+```
+
+### Download pretrained model
+
+```bash
+wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/cv/pose/posenet_pretrain_model.tar.gz
+tar zxf posenet_pretrain_model.tar.gz
 ```
 
 ### Run Oneflow Training script
