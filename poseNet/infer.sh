@@ -4,7 +4,7 @@ PRETRAIN_MODEL_PATH="posenet_pretrain_model"
 IMAGE_PATH="data/0-1.jpg"
 
 if [ ! -d "$PRETRAIN_MODEL_PATH" ]; then
-  wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/cv/classification/posenet_pretrain_model.tar.gz
+  wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/cv/pose/posenet_pretrain_model.tar.gz
   tar zxf posenet_pretrain_model.tar.gz
 fi
 
