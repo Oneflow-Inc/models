@@ -68,7 +68,6 @@ def test(
         import torch
     Net = getattr(python_module, module_name)
 
-    times = 20
     warmup_times = 5
 
     m = Net()
