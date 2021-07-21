@@ -1,9 +1,6 @@
 import oneflow.experimental as flow
 from oneflow.experimental import nn
 from oneflow.python.nn.parameter import Parameter
-flow.enable_eager_execution()
-
-
 
 #%% Text CNN model
 class textCNN(nn.Module):
@@ -15,14 +12,15 @@ class textCNN(nn.Module):
                 kernel_wins, 
                 dropout_rate, 
                 num_class,
-                max_seq_len):
+                max_seq_len,
+                training=True):
         super(textCNN, self).__init__()
         self.embed = nn.Embedding(vocab_size, word_emb_dim)
         self.convs = nn.ModuleList([nn.Conv2d(1, dim_channel, (w, word_emb_dim)) for w in kernel_wins])
         self.maxpool = nn.ModuleList([nn.MaxPool2d((max_seq_len-w+1,1), stride=1) for w in kernel_wins])
-
         #Dropout layer
         self.dropout = nn.Dropout(dropout_rate)
+        self.training=training
         
         #FC layer
         self.fc = nn.Linear(len(kernel_wins)*dim_channel, num_class)
@@ -32,7 +30,7 @@ class textCNN(nn.Module):
         emb_x = emb_x.unsqueeze(1)
 
         con_x = [conv(emb_x) for conv in self.convs]
-
+        
 
         pool_x = []
         for i in range(len(con_x)):
@@ -40,7 +38,7 @@ class textCNN(nn.Module):
             pool_x.append(cur_maxpool_layer(con_x[i]).squeeze(-1).squeeze(-1))
         
         fc_x = flow.cat(pool_x, dim=1)
-
-        fc_x = self.dropout(fc_x)
+        if self.training:
+           fc_x = self.dropout(fc_x)        
         logit = self.fc(fc_x)
         return logit

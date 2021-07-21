@@ -5,7 +5,6 @@ import numpy as np
 import pickle
 import json
 
-
 from model import textCNN
 import utils
 
@@ -55,10 +54,8 @@ def main(args):
     
 
     textcnn.load_state_dict(flow.load(args.model_path))
-
     textcnn.eval()
     textcnn.to(device)
-
     text =  utils.clean_str(args.text)
     text = [utils.tokenizer(text)]
     input = flow.tensor(np.array(utils.tensorize_data(text,

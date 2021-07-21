@@ -5,14 +5,15 @@ import numpy as np
 import argparse
 import shutil
 import pickle
+from tqdm import tqdm
 import json
 
 from model import textCNN
-from training import train
+from training import train,_eval
 import utils
 
 flow.enable_eager_execution()
-flow.InitEagerGlobalSession()
+
 
 
 def _parse_args():
@@ -26,17 +27,13 @@ def _parse_args():
     )
 
     parser.add_argument(
-        "--load_checkpoint", type=str, default="checkpoints", help="load checkpoint"
+        "--load_checkpoint", type=str, default="", help="load checkpoint"
     )
     parser.add_argument(
         "--dataset_path", type=str, default="./aclImdb", help="dataset path"
     )
-
-
-    parser.add_argument(
-        '--no_cuda', action='store_true', default=False, help='disables CUDA training'
-    )
-
+    parser.add_argument('--no_cuda', action='store_true', default=False,
+                        help='disables CUDA training')
     # training hyper-parameters
     parser.add_argument(
         "--learning_rate", type=float, default=1e-3, help="learning rate"
@@ -48,7 +45,7 @@ def _parse_args():
         "--train_batch_size", type=int, default=16, help="train batch size"
     )
     parser.add_argument(
-        "--val_batch_size", type=int, default=128, help="val batch size"
+        "--val_batch_size", type=int, default=16, help="val batch size"
     )
 
     parser.add_argument(
@@ -79,7 +76,23 @@ def _parse_args():
     return parser.parse_args()
 
 
+def batch_loader(data, 
+                label, 
+                batch_size,
+                shuffle = True):
+    if shuffle:
+        permu = np.random.permutation(len(data))
+        data, label = data[permu], label[permu]
 
+
+    batch_n = len(data) // batch_size
+
+    x_batch = [flow.tensor(data[i * batch_size:(i * batch_size + batch_size)],dtype = flow.long) for i in range(batch_n)]
+    y_batch = [flow.tensor(label[i * batch_size:(i * batch_size + batch_size)],dtype = flow.long)for i in range(batch_n)]
+    if batch_size*batch_n < len(data):
+        x_batch += [flow.tensor(data[batch_size*batch_n:len(label)],dtype = flow.long)]
+        y_batch += [flow.tensor(label[batch_size*batch_n:len(label)],dtype = flow.long)]
+    return x_batch, y_batch
 
 
 def main(args):
@@ -92,10 +105,6 @@ def main(args):
     }
     with open('config.json', 'w') as f:
         json.dump(config_dct, f)
-
-
-
-
 
     device = flow.device('cpu') if args.no_cuda else flow.device('cuda')
     
@@ -119,13 +128,14 @@ def main(args):
                      dropout_rate = args.dropout_rate, 
                      num_class = args.num_class,
                      max_seq_len = args.max_seq_len)
-    
-    if args.load_checkpoint != "":
-        textcnn.load_state_dict(flow.load(args.load_checkpoint))
-    
     textcnn.to(device)
     optimizer = flow.optim.Adam(textcnn.parameters(), lr = args.learning_rate)
     loss_func = flow.nn.BCEWithLogitsLoss().to(device)
+
+    if args.load_checkpoint != "":
+        textcnn.load_state_dict(flow.load(args.load_checkpoint))
+    
+
 
     train(model = textcnn,
           device = device,
@@ -141,7 +151,6 @@ def main(args):
 
 if __name__ == '__main__':
     args = _parse_args()
-    print(args.kernel_size)
     main(args)
     
 
