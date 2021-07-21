@@ -4,20 +4,18 @@ from .simple_consensus import SimpleConsensus
 from .simple_spatial_module import SimpleSpatialModule
 from .cls_head import ClsHead
 
-
 class TSN(nn.Module):
-    def __init__(
-        self,
-        spatial_feature_size,
-        dropout_ratio,
-        num_classes,
-        pretrained=None,
-        modality="RGB",
-        in_channels=3,
-        spatial_type="avg",
-        spatial_size=7,
-        consensus_type="avg",
-    ):
+    def __init__(self,
+                 spatial_feature_size,
+                 dropout_ratio,
+                 num_classes,
+                 pretrained=None,
+                 modality='RGB',
+                 in_channels=3,
+                 spatial_type='avg',
+                 spatial_size=7,
+                 consensus_type='avg'
+                 ):
 
         super(TSN, self).__init__()
         self.backbone = resnet50(pretrained=pretrained)
@@ -28,7 +26,7 @@ class TSN(nn.Module):
         self.segmental_consensus = SimpleConsensus(consensus_type)
         self.cls_head = ClsHead(spatial_feature_size, dropout_ratio, num_classes)
 
-        assert modality in ["RGB", "Flow", "RGBDiff"]
+        assert modality in ['RGB', 'Flow', 'RGBDiff']
 
         self.init_weights()
 
@@ -38,20 +36,23 @@ class TSN(nn.Module):
         self.segmental_consensus.init_weights()
         self.cls_head.init_weights()
 
+
     def forward(self, num_modalities, gt_label, img_group, return_loss=False):
         if return_loss:
             return self.forward_train(num_modalities, gt_label, img_group)
         else:
             return self.forward_test(num_modalities, gt_label, img_group)
 
-    def forward_train(self, num_modalities, gt_label, img_group):
+    def forward_train(self,
+                      num_modalities,
+                      gt_label,
+                      img_group):
         assert num_modalities == 1
         # img_group = kwargs['img_group_0']
 
         bs = img_group.shape[0]
         img_group = img_group.reshape(
-            (-1, self.in_channels) + tuple(img_group.shape[3:])
-        )
+            (-1, self.in_channels) + tuple(img_group.shape[3:]))
         num_seg = img_group.shape[0] // bs
 
         x = self.extract_feat(img_group)
@@ -72,7 +73,11 @@ class TSN(nn.Module):
 
         return cls_score
 
-    def forward_test(self, num_modalities, gt_label, img_group):
+    def forward_test(self,
+                    num_modalities,
+                    gt_label,
+                    img_group
+                    ):
         # print("--inference start--")
         assert num_modalities == 1
         # img_group = kwargs['img_group_0']
@@ -80,8 +85,7 @@ class TSN(nn.Module):
         bs = img_group.shape[0]
         # print(img_group.shape)
         img_group = img_group.reshape(
-            (-1, self.in_channels) + tuple(img_group.shape[3:])
-        )
+            (-1, self.in_channels) + tuple(img_group.shape[3:]))
         # print(img_group.shape)
 
         num_seg = img_group.shape[0] // bs
@@ -98,6 +102,9 @@ class TSN(nn.Module):
         # print(x)
         return x.numpy()
 
+
+
     def extract_feat(self, img_group):
         x = self.backbone(img_group)
         return x
+
