@@ -1,4 +1,2 @@
 numpy
-mmcv
-torch
-torchvision
+PIL

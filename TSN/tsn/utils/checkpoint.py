@@ -1,8 +1,8 @@
 import oneflow.experimental as flow
 
-
 def load_checkpoint(
-    model, path_to_checkpoint,
+    model,
+    path_to_checkpoint,
 ):
     """
     Load the checkpoint from the given file. If inflation is True, inflate the
@@ -15,12 +15,11 @@ def load_checkpoint(
 
     if not isinstance(checkpoint, dict):
         raise RuntimeError(
-            "No state_dict found in checkpoint file {}".format(path_to_checkpoint)
-        )
+            "No state_dict found in checkpoint file {}".format(path_to_checkpoint))
 
     # get state_dict from checkpoint
-    if "state_dict" in checkpoint:
-        state_dict = checkpoint["state_dict"]
+    if 'state_dict' in checkpoint:
+        state_dict = checkpoint['state_dict']
     else:
         state_dict = checkpoint
 
