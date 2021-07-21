@@ -19,6 +19,9 @@ python -m visdom.server
 ```bash
 bash train_oneflow.sh
 ```
+##Download pretrained model
+pretrained [model](https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/cv/classification/transfer_learning/scnet_acc_0.947254.zip) on hustcolor
+
 ## Inference on Single Image
 
 ```bash
