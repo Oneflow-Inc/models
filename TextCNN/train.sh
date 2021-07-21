@@ -6,9 +6,6 @@ if [ ! -d "$IMDB_PATH" ]; then
     tar zxf aclImdb_v1.tar.gz
 fi
 
-
-
-
 LEARNING_RATE=0.001
 EPOCH=15
 TRAIN_BATCH_SIZE=16

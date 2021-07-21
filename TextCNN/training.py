@@ -12,10 +12,7 @@ def batch_loader(data,
     if shuffle:
         permu = np.random.permutation(len(data))
         data, label = data[permu], label[permu]
-
-
     batch_n = len(data) // batch_size
-
     x_batch = [flow.tensor(data[i * batch_size:(i * batch_size + batch_size)],dtype = flow.long) for i in range(batch_n)]
     y_batch = [flow.tensor(label[i * batch_size:(i * batch_size + batch_size)],dtype = flow.long)for i in range(batch_n)]
     if batch_size*batch_n < len(data):
@@ -33,7 +30,6 @@ def train(model,
           train_batch_size,
           eval_batch_size,
           save_path):
-    
     global_acc = float('-inf')
     for i in range(epochs):
         x_batch, y_batch = batch_loader(train_data[0],train_data[1],train_batch_size)
@@ -59,13 +55,11 @@ def train(model,
             optimizer.zero_grad()
         all_ground_truths = flow.cat(all_ground_truths)
         train_acc = total_correct / len(all_ground_truths.numpy())
-        
         acc = _eval(model,
                    dev_data,   
                    device,
                    eval_batch_size
                 )
-
         if acc > global_acc:
             global_acc = acc
             if os.path.exists(save_path):
@@ -73,9 +67,6 @@ def train(model,
             flow.save(model.state_dict(), save_path)
         print(f'[Epoch{i}] training loss: {training_loss/(idx+1)}  training accuracy: {train_acc} evaluation accuracy: {acc}')
     
-
-
-
 def _eval(model,
           dev_data,
           device,
@@ -97,19 +88,7 @@ def _eval(model,
             total_correct += (res.numpy() == label.numpy()).sum()
             all_res.append(res)
             all_ground_truths.append(label)
-
     all_res = flow.cat(all_res)
     all_ground_truths = flow.cat(all_ground_truths)
     acc = total_correct / len(all_ground_truths.numpy())
-
     return acc
-
-
-
-
-
-
-            
-
-
-

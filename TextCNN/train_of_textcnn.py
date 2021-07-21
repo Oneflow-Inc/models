@@ -14,18 +14,14 @@ import utils
 
 flow.enable_eager_execution()
 
-
-
 def _parse_args():
     parser = argparse.ArgumentParser("flags for train TextCNN")
     parser.add_argument(
         "--save_checkpoint_path", type=str, default="./checkpoints", help="save checkpoint root dir"
     )
-
     parser.add_argument(
         "--save_vocab_path", type=str, default="vocab.pkl", help="save vocab root dir"
     )
-
     parser.add_argument(
         "--load_checkpoint", type=str, default="", help="load checkpoint"
     )
@@ -47,32 +43,24 @@ def _parse_args():
     parser.add_argument(
         "--val_batch_size", type=int, default=16, help="val batch size"
     )
-
     parser.add_argument(
         "--word_emb_dim", type=int, default=100, help="dimensions of word embeddings"
     )
-
     parser.add_argument(
         "--conv_channel_size", type=int, default=64, help="channel size of Conv2d"
     )
-
     parser.add_argument(
         "--kernel_size", nargs='+', type=int, default=[3,4,5], help="channel size of Conv2d"
     )
-
     parser.add_argument(
         "--dropout_rate", type=float, default=0.5, help="dropout rate"
     )
-
     parser.add_argument(
         "--num_class", type=int, default=2, help="number of classes"
     )
-
     parser.add_argument(
         "--max_seq_len", type=int, default=200, help="maximum allowed sequence length"
     )
-
-
     return parser.parse_args()
 
 
@@ -83,10 +71,7 @@ def batch_loader(data,
     if shuffle:
         permu = np.random.permutation(len(data))
         data, label = data[permu], label[permu]
-
-
     batch_n = len(data) // batch_size
-
     x_batch = [flow.tensor(data[i * batch_size:(i * batch_size + batch_size)],dtype = flow.long) for i in range(batch_n)]
     y_batch = [flow.tensor(label[i * batch_size:(i * batch_size + batch_size)],dtype = flow.long)for i in range(batch_n)]
     if batch_size*batch_n < len(data):
@@ -135,8 +120,6 @@ def main(args):
     if args.load_checkpoint != "":
         textcnn.load_state_dict(flow.load(args.load_checkpoint))
     
-
-
     train(model = textcnn,
           device = device,
           train_data = (x_train,y_train),
@@ -152,15 +135,3 @@ def main(args):
 if __name__ == '__main__':
     args = _parse_args()
     main(args)
-    
-
-
-        
-    
-
-
-
-    
-
-
-

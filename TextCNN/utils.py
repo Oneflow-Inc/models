@@ -3,16 +3,10 @@ from glob import glob
 import spacy
 import re
 from tqdm import tqdm
-
-
-
-
 spacy_en = spacy.load("en_core_web_sm", disable=['tagger', 'parser', 'ner', 'textcat'
                                     'entity_ruler', 'sentencizer', 
                                     'merge_noun_chunks', 'merge_entities',
                                     'merge_subtokens'])
-
-
 def clean_str(string):
     string = re.sub(r"[^A-Za-z0-9(),!?\'\`]", " ", string)
     string = re.sub(r"\'s", " \'s", string)
@@ -28,16 +22,9 @@ def clean_str(string):
     string = re.sub(r"\?", " \? ", string)
     string = re.sub(r"\s{2,}", " ", string)
     return string.strip()
-    
-
-    
-
 
 def tokenizer(text):
     return [tok.text for tok in spacy_en.tokenizer(text)]
-
-
-
 
 def load_dataset(path):
     data_set = []
@@ -50,8 +37,6 @@ def load_dataset(path):
                 line = clean_str(line)
                 line = tokenizer(line)
                 data_set.append(line)
-
-
     all_pos_f = glob(path+'/pos/*.txt')
     for f in tqdm(all_pos_f):
         data_labels.append(1)
@@ -63,15 +48,11 @@ def load_dataset(path):
     
     return data_set, data_labels
     
-
-
 def build_vocab_from_pretrained_embed():
     word_to_idx = {}
     word_embeddings = []
-
     word_to_idx["<UNK>"] = 0
-    word_to_idx["<PAD>"] = 1
-        
+    word_to_idx["<PAD>"] = 1 
     word_embeddings.append([0.] * 100)
     word_embeddings.append([0.] * 100)
     with open('./glove.6B.100d.txt') as file:
@@ -86,7 +67,6 @@ def build_vocab_from_pretrained_embed():
                     tmp.append(float(x))
             word_embeddings.append(tmp)
     return word_to_idx,np.array(word_embeddings)
-
 
 def build_vocab(dataset):
     word_to_idx = {}
