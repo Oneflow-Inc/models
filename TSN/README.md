@@ -18,3 +18,9 @@ Our model is trained using ResNet50 as backbones
 ##Evaluate a model
 
 To evaluate a model, run sh infer.sh
+
+## accuracy
+            oneflow     torch
+top1 acc    0.6373      0.6373
+top5 acc    0.6785      0.6785
+
