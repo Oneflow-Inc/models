@@ -7,11 +7,14 @@ Prerequisites
 pip3 install -r requirements.txt
 
 ## Data preparation
-We use Kinetics400 to train and evaluate our models. Please refer to PREPARING_KINETICS400.md for data prepration.
-
+We use Kinetics400 to train and evaluate our models. Please refer to (https://github.com/open-mmlab/mmaction/tree/master/data_tools/kinetics400) for data prepration.
+download mini_dataset here for evaluate the model.
+```bash
+wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/datasets/TSN/kinetics400.zip
+unzip kinetics400.zip
+```
 
 ##Train a model
-
 To train a model, run sh train.sh
 
 Our model is trained using ResNet50 as backbones
@@ -23,4 +26,3 @@ To evaluate a model, run sh infer.sh
             oneflow     torch
 top1 acc    0.6373      0.6373
 top5 acc    0.6785      0.6785
-
