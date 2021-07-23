@@ -19,12 +19,12 @@ def parse_args():
     parser.add_argument("-load_checkpoint", default="", help="checkpoint file")
     parser.add_argument(
         "--data_dir",
-        default="/home/liling/work/oneflow/mmaction/data",
+        default="./data",
         help="data file path",
     )
     parser.add_argument(
         "--pretrained",
-        default="/home/liling/work/oneflow/TSN/weights/resnet50_imagenet_pretrain_model",
+        default="./resnet50_imagenet_pretrain_model",
         help="test videos prefix path",
     )
     parser.add_argument(
@@ -38,7 +38,7 @@ def parse_args():
     parser.add_argument("--batch_size", default=4, help="imgs per gpu")
     parser.add_argument(
         "--save_checkpoint_path",
-        default="/home/liling/work/oneflow/TSN/res",
+        default="./res",
         help="imgs per gpu",
     )
     parser.add_argument("--lr", default=0.0025, help="learning_rate")

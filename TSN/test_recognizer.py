@@ -18,12 +18,12 @@ def parse_args():
     parser.add_argument("--test_mode", default=True, help="train or test mode")
     parser.add_argument(
         "--checkpoint",
-        default="/home/liling/work/oneflow/TSN/weights/tsn_model_oneflow",
+        default="./tsn_model_oneflow",
         help="checkpoint file",
     )
     parser.add_argument(
         "--data_dir",
-        default="/home/liling/work/oneflow/TSN/data",
+        default="./data",
         help="data file path",
     )
     parser.add_argument("--batch_size", default=2, help="batch_size")
