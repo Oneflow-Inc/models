@@ -106,9 +106,9 @@ def main():
     )
 
     train_ann_file = (
-        args.data_dir + "/kinetics400/kinetics400_val_list_videos_sub_frames.txt"
+        args.data_dir + "/kinetics400/kinetics400_train_list_videos_sub_frames.txt"
     )
-    train_prefix = args.data_dir + "/kinetics400/rawframes_val"
+    train_prefix = args.data_dir + "/kinetics400/rawframes_train"
     val_ann_file = (
         args.data_dir + "/kinetics400/kinetics400_val_list_videos_sub_frames.txt"
     )

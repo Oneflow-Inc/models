@@ -2,9 +2,10 @@ set -aux
 
 PRETRAIN_MODEL_PATH="resnet50_imagenet_pretrain_model"
 DATASET_PATH="./data"
+TRAIN_DATASET_PATH="./data/kinetics400/rawframes_train"
 SAVE_PATH="./save_path"
 
-if [ ! -d "$DATASET_PATH" ]; then
+if [ ! -d "$TRAIN_DATASET_PATH" ]; then
     echo "Error! The training data set is empty! Please refer to (https://github.com/open-mmlab/mmaction/tree/master/data_tools/kinetics400) for data prepration."
     exit
 fi
