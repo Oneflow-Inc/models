@@ -17,14 +17,10 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Test an action recognizer")
     parser.add_argument("--test_mode", default=True, help="train or test mode")
     parser.add_argument(
-        "--checkpoint",
-        default="./tsn_model_oneflow",
-        help="checkpoint file",
+        "--checkpoint", default="./tsn_model_oneflow", help="checkpoint file",
     )
     parser.add_argument(
-        "--data_dir",
-        default="./data",
-        help="data file path",
+        "--data_dir", default="./data", help="data file path",
     )
     parser.add_argument("--batch_size", default=2, help="batch_size")
     parser.add_argument(

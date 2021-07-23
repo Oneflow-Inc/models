@@ -18,9 +18,7 @@ def parse_args():
     parser.add_argument("--test_mode", default=False, help="train or test mode")
     parser.add_argument("-load_checkpoint", default="", help="checkpoint file")
     parser.add_argument(
-        "--data_dir",
-        default="./data",
-        help="data file path",
+        "--data_dir", default="./data", help="data file path",
     )
     parser.add_argument(
         "--pretrained",
@@ -37,9 +35,7 @@ def parse_args():
     parser.add_argument("--lr_steps", default=[40, 80], help="lr step")
     parser.add_argument("--batch_size", default=4, help="imgs per gpu")
     parser.add_argument(
-        "--save_checkpoint_path",
-        default="./res",
-        help="imgs per gpu",
+        "--save_checkpoint_path", default="./res", help="imgs per gpu",
     )
     parser.add_argument("--lr", default=0.0025, help="learning_rate")
     parser.add_argument("--mom", default=0.9, help="momentum")
