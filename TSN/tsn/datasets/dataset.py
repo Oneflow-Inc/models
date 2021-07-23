@@ -28,7 +28,7 @@ class TSNDataSet(object):
         self,
         root_path,
         list_file,
-        video_dir="/home/liling/work/oneflow/mmaction/data/kinetics400/rawframes_val",
+        video_dir="./data/kinetics400/rawframes_val",
         num_segments=3,
         new_length=1,
         modality="RGB",

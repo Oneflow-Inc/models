@@ -26,9 +26,4 @@ def load_checkpoint(
 
     model.load_state_dict(state_dict)
 
-    # parameters=model.state_dict()
-    # print(parameters)
-    # for key, value in parameters.items():
-    #     print(value)
-
     return model

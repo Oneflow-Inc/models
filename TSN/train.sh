@@ -5,7 +5,8 @@ DATASET_PATH="./data"
 SAVE_PATH="./save_path"
 
 if [ ! -d "$DATASET_PATH" ]; then
-    mkdir data
+    echo "Error! The training data set is empty! Please refer to (https://github.com/open-mmlab/mmaction/tree/master/data_tools/kinetics400) for data prepration."
+    exit
 fi
 
 if [ ! -d "$PRETRAIN_MODEL_PATH" ]; then

@@ -133,9 +133,7 @@ class ResNet(nn.Module):
         block: Type[Union[BasicBlock, Bottleneck]],
         layers: List[int],
         num_classes: int = 1000,
-        # zero_init_residual: bool = False,
         pretrained=None,
-        # pretrained=None,
         groups: int = 1,
         width_per_group: int = 64,
         replace_stride_with_dilation: Optional[List[bool]] = None,
@@ -176,8 +174,6 @@ class ResNet(nn.Module):
         self.layer4 = self._make_layer(
             block, 512, layers[3], stride=2, dilate=replace_stride_with_dilation[2]
         )
-        # self.avgpool = nn.AvgPool2d((7, 7))
-        # self.fc = nn.Linear(512 * block.expansion, num_classes)
 
     def init_weights(self):
         # Zero-initialize the last BN in each residual branch,
@@ -250,10 +246,6 @@ class ResNet(nn.Module):
         x = self.layer2(x)
         x = self.layer3(x)
         x = self.layer4(x)
-
-        # x = self.avgpool(x)
-        # x = flow.flatten(x, 1)
-        # x = self.fc(x)
 
         return x
 

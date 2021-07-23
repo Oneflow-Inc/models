@@ -59,8 +59,6 @@ class ClsHead(nn.Module):
 
             shape = (x.shape[0], x.shape[1] * x.shape[2] * x.shape[3])
             x = x.reshape(shape)
-            # print(x)
-            # x = x.view(x.size(0), -1)
             cls_score = self.fc_cls(x)
             return cls_score
         else:
@@ -84,8 +82,6 @@ class ClsHead(nn.Module):
             return class_map
 
     def loss(self, cls_score, labels):
-        # losses = dict()
-        # losses['loss_cls'] = nn.CrossEntropyLoss(cls_score, labels)
         losses = nn.CrossEntropyLoss(cls_score, labels)
 
         return losses

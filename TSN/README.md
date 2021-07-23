@@ -14,11 +14,6 @@ We train and evaluate our models on Kinetics400 dataset. Please refer to (https:
 
 Download the mini_dataset to evaluate the model.
 
-```bash
-wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/datasets/TSN/kinetics400.zip
-unzip kinetics400.zip
-```
-
 ## Training
 
 ```bash

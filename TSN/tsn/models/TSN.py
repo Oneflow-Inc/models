@@ -23,7 +23,6 @@ class TSN(nn.Module):
         self.backbone = resnet50(pretrained=pretrained)
         self.modality = modality
         self.in_channels = in_channels
-        #
         self.spatial_temporal_module = SimpleSpatialModule(spatial_type, spatial_size)
         self.segmental_consensus = SimpleConsensus(consensus_type)
         self.cls_head = ClsHead(spatial_feature_size, dropout_ratio, num_classes)
@@ -46,7 +45,6 @@ class TSN(nn.Module):
 
     def forward_train(self, num_modalities, gt_label, img_group):
         assert num_modalities == 1
-        # img_group = kwargs['img_group_0']
 
         bs = img_group.shape[0]
         img_group = img_group.reshape(
@@ -64,38 +62,25 @@ class TSN(nn.Module):
         losses = dict()
 
         cls_score = self.cls_head(x)
-        # gt_label = gt_label.squeeze()
-        # print(cls_score)
-        # print(gt_label)
-        # loss_cls = self.cls_head.loss(cls_score, gt_label)
-        # losses.update(loss_cls)
 
         return cls_score
 
     def forward_test(self, num_modalities, gt_label, img_group):
-        # print("--inference start--")
         assert num_modalities == 1
-        # img_group = kwargs['img_group_0']
 
         bs = img_group.shape[0]
-        # print(img_group.shape)
         img_group = img_group.reshape(
             (-1, self.in_channels) + tuple(img_group.shape[3:])
         )
-        # print(img_group.shape)
 
         num_seg = img_group.shape[0] // bs
-        # print(num_seg)
-
         x = self.extract_feat(img_group)
-        # print(x)
         x = self.spatial_temporal_module(x)
         x = x.reshape((-1, num_seg) + tuple(x.shape[1:]))
         x = self.segmental_consensus(x)
         x = x.squeeze(1)
         x = self.cls_head(x)
-        # print(x.shape)
-        # print(x)
+
         return x.numpy()
 
     def extract_feat(self, img_group):
