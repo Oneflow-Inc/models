@@ -1,5 +1,5 @@
 import random
-from PIL import Image, ImageOps, ImageEnhance, __version__ as PILLOW_VERSION
+from PIL import Image, ImageOps, __version__ as PILLOW_VERSION
 
 try:
     import accimage
@@ -142,7 +142,6 @@ class GroupScale(object):
 
     def __init__(self, size, interpolation=Image.BILINEAR):
         self.worker = Resize_own(size, interpolation)
-        # self.worker = torchvision.transforms.Scale(size, interpolation)
 
     def __call__(self, img_group):
         return [self.worker(img) for img in img_group]

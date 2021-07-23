@@ -2,8 +2,6 @@ import argparse
 import time
 import os
 import numpy as np
-from tsn.datasets.video_dataset import VideoDataset
-from tsn.datasets.build_loader import build_dataloader
 from tsn.models.TSN import TSN
 from tsn.utils.checkpoint import load_checkpoint
 import oneflow.experimental as flow
@@ -29,8 +27,6 @@ def parse_args():
         default="/home/liling/work/oneflow/TSN/weights/resnet50_imagenet_pretrain_model",
         help="test videos prefix path",
     )
-    # parser.add_argument('--normvalue', default={'mean': [123.675, 116.28, 103.53], 'std': [58.395, 57.12, 57.375], 'to_rgb': True},
-    #                     help='data normalization value')
     parser.add_argument(
         "--input_mean", default=[0.485, 0.456, 0.406], help="data normalization value"
     )

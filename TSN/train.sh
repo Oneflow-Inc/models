@@ -1,12 +1,20 @@
 set -aux
 
 PRETRAIN_MODEL_PATH="resnet50_imagenet_pretrain_model"
-DATASET_PATH="../data"
+DATASET_PATH="./data"
+SAVE_PATH="./save_path"
 
-
-if [ ! -d "PRETRAIN_MODEL_PATH" ]; then
-  wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/cv/action_recognition/resnet50_imagenet_pretrain_model.zip
-  unzip resnet50_imagenet_pretrain_model.zip
+if [ ! -d "$DATASET_PATH" ]; then
+    mkdir data
 fi
 
-python3 train_recognizer.py --pretrained PRETRAIN_MODEL_PATH --data_dir $DATASET_PATH
+if [ ! -d "$PRETRAIN_MODEL_PATH" ]; then
+    wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/cv/action_recognition/resnet50_imagenet_pretrain_model.zip
+    unzip resnet50_imagenet_pretrain_model.zip
+fi
+
+if [ ! -d "$SAVE_PATH" ]; then
+    mkdir save_path
+fi
+
+python3 train_recognizer.py --pretrained $PRETRAIN_MODEL_PATH --data_dir $DATASET_PATH --save_checkpoint_path $SAVE_PATH
