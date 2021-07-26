@@ -1,5 +1,5 @@
 
-import oneflow.experimental as flow
+import oneflow as flow
 
 import argparse
 import numpy as np
@@ -86,13 +86,11 @@ def main(args):
 
         for b in range(len(train_data_loader)):
             image, label = train_data_loader.get_batch()
-        
             # oneflow train 
             start_t = time.time()
             image = image.to('cuda')
             label = label.to('cuda')
             logits,body = res50_module(image)
-            #loss = of_cross_entropy(logits, label)
             loss = scloss(label).to("cuda")(body,logits)
             loss.backward()
             of_sgd.step()
@@ -109,7 +107,6 @@ def main(args):
         correct_of = 0.0
         for b in range(len(val_data_loader)):
             image, label = val_data_loader.get_batch()
-
             start_t = time.time()
             image = image.to('cuda')
             with flow.no_grad():
@@ -136,11 +133,3 @@ def main(args):
 if __name__ == "__main__":
     args = _parse_args()
     main(args)
-
-
-
-
-
-
-
-
