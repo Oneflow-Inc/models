@@ -141,3 +141,4 @@ vgg_imagenet_pretrain_model
 # yolov3
 yolov3/*_ckpt
 coco
+yolov3/runs
