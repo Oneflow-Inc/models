@@ -8,7 +8,7 @@ import argparse
 from typing import Sequence
 
 
-import oneflow.experimental as flow
+import oneflow as flow
 import oneflow._oneflow_internal as oneflow_internal
 
 flow.enable_eager_execution()

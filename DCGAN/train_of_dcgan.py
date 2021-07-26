@@ -8,7 +8,7 @@ import matplotlib
 
 matplotlib.use("agg")
 import matplotlib.pyplot as plt
-import oneflow.experimental as flow
+import oneflow as flow
 
 
 def _parse_args():

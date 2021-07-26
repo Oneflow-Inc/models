@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 from __future__ import division
 
-import oneflow.experimental as flow
+import oneflow as flow
 
 import numpy as np
 

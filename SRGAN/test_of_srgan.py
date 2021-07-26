@@ -3,7 +3,7 @@ import time
 import numpy as np
 
 from PIL import Image
-import oneflow.experimental as flow
+import oneflow as flow
 from skimage.metrics import peak_signal_noise_ratio
 from skimage.metrics import structural_similarity
 

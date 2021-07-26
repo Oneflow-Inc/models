@@ -1,4 +1,4 @@
-import oneflow.experimental.nn as nn
+import oneflow.nn as nn
 
 
 class ClsHead(nn.Module):

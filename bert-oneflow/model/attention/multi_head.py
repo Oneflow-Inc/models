@@ -1,4 +1,4 @@
-import oneflow.experimental.nn as nn
+import oneflow.nn as nn
 import oneflow as flow
 from model.attention.single import Attention
 

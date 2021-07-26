@@ -137,3 +137,4 @@ imagenet*
 SRGAN/data*
 SRGAN_netG_epoch_4_99
 vgg_imagenet_pretrain_model
+result

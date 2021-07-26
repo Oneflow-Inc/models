@@ -7,7 +7,7 @@ import os
 from random import random, randint, sample
 
 import numpy as np
-import oneflow.experimental as flow
+import oneflow as flow
 
 from model.deep_q_network import DeepQNetwork
 from game.wrapped_flappy_bird import GameState

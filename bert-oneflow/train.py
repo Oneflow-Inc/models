@@ -1,6 +1,6 @@
 import argparse
 
-import oneflow.experimental as flow
+import oneflow as flow
 from oneflow.python.utils.data import DataLoader
 
 from model.bert import BERT
