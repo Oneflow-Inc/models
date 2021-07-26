@@ -1,26 +1,9 @@
-# -*- coding: UTF-8 -*-
-""" inceptionv4 in pytorch
-
-
-[1] Christian Szegedy, Sergey Ioffe, Vincent Vanhoucke, Alex Alemi
-
-    Inception-v4, Inception-ResNet and the Impact of Residual Connections on Learning
-    https://arxiv.org/abs/1602.07261
-"""
-
-# import torch
-# import torch.nn as nn
-# import oneflow.experimental as torch
-# from oneflow.experimental import nn
-import oneflow.experimental as flow
-from oneflow.experimental import nn
+import oneflow as flow
+from oneflow import nn
 
 from typing import Any
 
 __all__ = ["PoseNet", "posenet"]
-
-# def _get_kernel_initializer():
-# return oneflow.variance_scaling_initializer(distribution="random_normal", data_format="NCHW")
 
 
 class BasicConv2d(nn.Module):
@@ -150,7 +133,6 @@ class block35(nn.Module):
 
         self.Branch_0 = BasicConv2d(input_channels, 32, kernel_size=1)
 
-        # self.reduction1x1 = nn.Conv2d(128, 384, kernel_size=1)
         self.Conv2d_1x1 = nn.Conv2d(128, 320, kernel_size=1)
         self.relu = nn.ReLU(inplace=True)
 
@@ -370,17 +352,12 @@ class PoseNet(nn.Module):
 
         net = self.Conv2d_7b_1x1(netAll)
         net = self.AvgPool_1a_8x8(net)
-
-        # net = net.view(net.shape[0], -1)
         net = flow.reshape(net, [net.shape[0], -1])
 
         hidden = self.dense(net)
         hidden = self.relu(hidden)
 
         return hidden
-
-    # if train:
-    #    hidden = flow.nn.dropout(hidden, 0.8, name="dropout")
 
     @staticmethod
     def _generate_inception_module(input_channels, output_channels, block_num, block):
@@ -391,10 +368,6 @@ class PoseNet(nn.Module):
             input_channels = output_channels
 
         return layers
-
-# def PoseNet(pretrained: bool = False, progress: bool = True, **kwargs: Any) -> posenet:
-#     model = posenet(**kwargs)
-#     return model
 
 
 def _posenet(
