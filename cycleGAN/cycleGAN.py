@@ -12,19 +12,19 @@ class CycleGANModel:
     def __init__(self, opt):
         self.opt = opt
         self.device = "cuda"
-        self.netG_A = networks.ResnetGenerator(3, 3, n_blocks=opt.n_blocks).to(self.device)#, opt.ngf, opt.norm, opt.dropout, opt.n_blocks)
-        self.netG_B = networks.ResnetGenerator(3, 3, n_blocks=opt.n_blocks).to(self.device)#, opt.ngf, opt.norm, opt.dropout, opt.n_blocks)
+        self.netG_A = networks.ResnetGenerator(n_blocks=opt.n_blocks).to(self.device)
+        self.netG_B = networks.ResnetGenerator(n_blocks=opt.n_blocks).to(self.device)
 
-        self.netD_A = networks.NLayerDiscriminator(3).to(self.device)#opt.ndf, opt.n_layers_D, opt.norm)
-        self.netD_B = networks.NLayerDiscriminator(3).to(self.device) #opt.ndf, opt.n_layers_D, opt.norm)
+        self.netD_A = networks.NLayerDiscriminator().to(self.device)
+        self.netD_B = networks.NLayerDiscriminator().to(self.device)
 
         self.fake_A_pool = ImagePool(opt.pool_size)
         self.fake_B_pool = ImagePool(opt.pool_size)
 
-        self.criterionGAN = networks.GANLoss('lsgan').to(self.device) # define GAN loss.
+        self.criterionGAN = networks.GANLoss('lsgan').to(self.device)
         self.criterionCycle = flow.nn.L1Loss()
         self.criterionIdt = flow.nn.L1Loss()
-        # initialize optimizers; schedulers will be automatically created by function <BaseModel.setup>.
+
         self.optimizer_G = flow.optim.Adam(itertools.chain(self.netG_A.parameters(), self.netG_B.parameters()), lr=opt.lr, betas=(opt.beta1, opt.beta2))
         self.optimizer_D = flow.optim.Adam(itertools.chain(self.netD_A.parameters(), self.netD_B.parameters()), lr=opt.lr, betas=(opt.beta1, opt.beta2))
         self.optimizers = [self.optimizer_G, self.optimizer_D]
@@ -88,7 +88,6 @@ class CycleGANModel:
         pred_fake = netD(fake.detach())
         loss_D_fake = self.criterionGAN(pred_fake, False)
         # Combined loss and calculate gradients
-        #print("loss_D_real: %f loss_D_fake: %f" % (loss_D_real.numpy()[0], loss_D_fake.numpy()[0]))
         loss_D = (loss_D_real + loss_D_fake) * 0.5
         loss_D.backward()
         return loss_D
@@ -137,12 +136,10 @@ class CycleGANModel:
         # forward
         self.forward()      # compute fake images and reconstruction images.
         # G_A and G_B
-        #self.set_requires_grad([self.netD_A, self.netD_B], False)  # Ds require no gradients when optimizing Gs
         self.optimizer_G.zero_grad()  # set G_A and G_B's gradients to zero
         self.backward_G()             # calculate gradients for G_A and G_B
         self.optimizer_G.step()       # update G_A and G_B's weights
         # D_A and D_B
-        #self.set_requires_grad([self.netD_A, self.netD_B], True)
         self.optimizer_D.zero_grad()   # set D_A and D_B's gradients to zero
         self.backward_D_A()      # calculate gradients for D_A
         self.backward_D_B()      # calculate graidents for D_B

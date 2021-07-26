@@ -1,13 +1,12 @@
-CHECKPOINT_LOAD_DIR="./checkpoints/epoch_38_iter_400_gloss_5.349748_dloss_0.334908"
+#CHECKPOINT_LOAD_DIR="./"
 
-# make sure $CHECKPOINT_SAVE_DIR is already exists before start the training process.
 CHECKPOINT_SAVE_DIR="./checkpoints/"
 
 if [ ! -d "$CHECKPOINT_SAVE_DIR" ]; then
     mkdir $CHECKPOINT_SAVE_DIR
 fi
 
-TRAIN_DATASET="horse2zebra"
+TRAIN_DATASET="apple2orange"
 
 # 
 TRAIN_DATASET_A="./datasets/${TRAIN_DATASET}/trainA/"
@@ -17,7 +16,10 @@ RESIZE_AND_CROP=True
 CROP_SIZE=256
 LOAD_SIZE=286
 
-SAVE_TMP_IMAGE_PATH="./training_cyclegan_${TRAIN_DATASET}/"
+BETA1=0.5
+BETA2=0.9
+
+SAVE_TMP_IMAGE_PATH="./training_cyclegan_${TRAIN_DATASET}_${BETA1}_${BETA2}/"
 
 if [ ! -d "$SAVE_TMP_IMAGE_PATH" ]; then
     mkdir $SAVE_TMP_IMAGE_PATH
@@ -26,12 +28,15 @@ fi
 EPOCH=300
 LR=0.0001
 
-LAMBDA_A=10.0 
-LAMBDA_B=10.0
+LAMBDA_A=1
+LAMBDA_B=1
 LAMBDA_IDENTITY=0.5
  
+LOAD_EPOCH=10
 
-CUDA_VISIBLE_DEVICES=1 python3 train.py \
+echo "Train with Adam beta1 ${BETA1} and beta2 ${BETA2}"
+
+CUDA_VISIBLE_DEVICES=3 python3 train.py \
     --dataset_name $TRAIN_DATASET \
     --datasetA_path $TRAIN_DATASET_A \
     --datasetB_path $TRAIN_DATASET_B \
@@ -45,5 +50,8 @@ CUDA_VISIBLE_DEVICES=1 python3 train.py \
     --lambda_B $LAMBDA_B \
     --lambda_identity $LAMBDA_IDENTITY \
     --checkpoint_save_dir $CHECKPOINT_SAVE_DIR \
+    --checkpoint_load_epoch $LOAD_EPOCH \
+    --beta1 $BETA1 \
+    --beta2 $BETA2 \
     # --checkpoint_load_dir $CHECKPOINT_LOAD_DIR
 

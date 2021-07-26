@@ -31,10 +31,8 @@ import oneflow.experimental as flow
 import oneflow.experimental.nn as nn
 
 def main(args):
-    random.seed(1)
     flow.env.init()
     flow.enable_eager_execution()
-    opt = args
 
     datasetA = os.listdir(args.datasetA_path)
     datasetB = os.listdir(args.datasetB_path)
@@ -46,9 +44,7 @@ def main(args):
 
     train_iters = min(datasetA_num, datasetB_num)          
 
-    model = CycleGANModel(opt)
-    # model.netG_A.load_state_dict(flow.load("htz_model_oneflow/"))
-    # model.netG_B.load_state_dict(flow.load("zth_model_oneflow/"))
+    model = CycleGANModel(args)
 
     for e in range(args.train_epoch):    # outer loop for different epochs; we save the model by <epoch_count>, <epoch_count>+<save_latest_freq>
         random.shuffle(datasetA)
@@ -59,13 +55,16 @@ def main(args):
                 load_image2ndarray(args.datasetB_path + datasetB[i]))
             model.optimize_parameters()
 
-            if (i + 1) % 200 == 0:
+            if (i + 1) % 100 == 0:
                 model.log_loss(e, i + 1)
                 model.save_result(args.save_tmp_image_path + "epoch_%d_iter_%d.jpg" % (e, i + 1))
                 
-        if e % 5 == 0:
-            flow.save(model.netG_A.state_dict(), args.checkpoint_save_dir + args.dataset_name + "_checkpoint_epoch_%d" % (e))
-            flow.save(model.netG_B.state_dict(), args.checkpoint_save_dir + args.dataset_name + "_checkpoint_epoch_%d" % (e))
+        if e % 10 == 0:
+            flow.save(model.netG_A.state_dict(), args.checkpoint_save_dir + args.dataset_name + "_A2B_checkpoint_epoch_%d_%f_%f" % (e, args.beta1, args.beta2))
+            flow.save(model.netG_B.state_dict(), args.checkpoint_save_dir + args.dataset_name + "_B2A_checkpoint_epoch_%d_%f_%f" % (e, args.beta1, args.beta2))
+            flow.save(model.netD_A.state_dict(), args.checkpoint_save_dir + args.dataset_name + "_D_A_checkpoint_epoch_%d_%f_%f" % (e, args.beta1, args.beta2))
+            flow.save(model.netD_B.state_dict(), args.checkpoint_save_dir + args.dataset_name + "_D_B_checkpoint_epoch_%d_%f_%f" % (e, args.beta1, args.beta2))
+
 
 
 def get_parser(parser = None):
@@ -82,7 +81,7 @@ def get_parser(parser = None):
     parser.add_argument("--resize_and_crop", type = bool, default = True)
 
     # checkpoint
-    parser.add_argument("--checkpoint_load_dir", type = str, default = "", help = "load previous saved checkpoint from")
+    parser.add_argument("--checkpoint_load_epoch", type = int, default = None, help = "load previous saved checkpoint from")
     parser.add_argument("--checkpoint_save_dir", type = str, default = "checkpoints/", help = "save checkpoint to")
     parser.add_argument("--save_tmp_image_path", type = str, default = 'train_temp_image.jpg', help = "image path")
 

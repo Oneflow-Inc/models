@@ -68,7 +68,7 @@ class ResnetGenerator(nn.Module):
     We adapt Torch code and idea from Justin Johnson's neural style transfer project(https://github.com/jcjohnson/fast-neural-style)
     """
 
-    def __init__(self, input_nc, output_nc, ngf=64, norm_layer=nn.InstanceNorm2d, use_dropout=False, n_blocks=9, padding_type='reflect'):
+    def __init__(self, input_nc=3, output_nc=3, ngf=64, norm_layer=nn.InstanceNorm2d, use_dropout=False, n_blocks=9, padding_type='reflect'):
         """Construct a Resnet-based generator
 
         Parameters:
@@ -125,7 +125,7 @@ class ResnetGenerator(nn.Module):
 class NLayerDiscriminator(nn.Module):
     """Defines a PatchGAN discriminator"""
 
-    def __init__(self, input_nc, ndf=64, n_layers=3, norm_layer=nn.BatchNorm2d):
+    def __init__(self, input_nc=3, ndf=64, n_layers=3, norm_layer=nn.BatchNorm2d):
         """Construct a PatchGAN discriminator
 
         Parameters:

@@ -36,7 +36,6 @@ import oneflow.experimental as flow
 import oneflow.experimental.nn as nn
 
 def main(args):
-    random.seed(1)
     flow.env.init()
     flow.enable_eager_execution()
     opt = args
@@ -49,19 +48,9 @@ def main(args):
     print("dataset A size: %d" % datasetA_num)
     print("dataset B size: %d" % datasetB_num) 
 
-    train_iters = min(datasetA_num, datasetB_num)          
-    # parameters = torch.load("./checkpoints/latest_net_G.pth")
 
-    # new_parameters = dict()
-    # for key,value in parameters.items():
-    #     if "num_batches_tracked" not in key and not key.endswith("running_mean") and not key.endswith("running_var"):
-    #         val = value.detach().cpu().numpy()
-    #         new_parameters[key] = val
-
-    # htz_model.load_state_dict(new_parameters)
-    # flow.save(htz_model.state_dict(), "zth_model_oneflow")
-    netG_A = ResnetGenerator(3, 3).to("cuda")
-    netG_B = ResnetGenerator(3, 3).to("cuda")
+    netG_A = ResnetGenerator().to("cuda")
+    netG_B = ResnetGenerator().to("cuda")
 
     netG_A.load_state_dict(flow.load(args.netG_A_dir))
     netG_B.load_state_dict(flow.load(args.netG_B_dir))
@@ -79,7 +68,7 @@ def main(args):
         cv2.imwrite("%s%d.jpg" % (args.fake_B_save_dir, i), result)
 
     print("Begin transforming from B to A")
-    for i in range(datasetA_num):
+    for i in range(datasetB_num):
         if i % 10 == 0:
             print ("Transformed %d pictures..." % (i))
         imageB = load_image2ndarray(args.datasetB_path + datasetB[i])

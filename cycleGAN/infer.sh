@@ -1,13 +1,18 @@
-TRAIN_DATASET="horse2zebra"
+TRAIN_DATASET="apple2orange"
 
 TESTA_DIR="./datasets/${TRAIN_DATASET}/testA/"
 TESTB_DIR="./datasets/${TRAIN_DATASET}/testB/"
 
-NETG_A_DIR="htz_model_oneflow/"
-NETG_B_DIR="zth_model_oneflow/"
+if [ ! -d "cycleGAN/" ]; then
+    wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/cv/gan/pretrained.tar.gz
+    tar -zxvf pretrained.tar.gz pretrained/
+fi
 
-SAVE_A_DIR="fake_B/"
-SAVE_B_DIR="fake_A/"
+NETG_A_DIR="cycleGAN/${TRAIN_DATASET}/"
+NETG_B_DIR="cycleGAN/${TRAIN_DATASET}_reverse/"
+
+SAVE_A_DIR="${TRAIN_DATASET}_images/"
+SAVE_B_DIR="${TRAIN_DATASET}_reverse_images/"
 
 if [ ! -d $SAVE_A_DIR ]; then
     mkdir $SAVE_A_DIR
