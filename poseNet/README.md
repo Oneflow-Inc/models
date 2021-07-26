@@ -30,6 +30,7 @@ tar zxf posenet_pretrain_model.tar.gz
 We have installed visdom to visualize the training model, and run the following program to enter http://localhost:8097/ get the training curve.
 
 ```
+pip3 install -r requiements.txt --user
 python -m visdom.server
 ```
 ```bash
