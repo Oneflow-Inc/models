@@ -138,6 +138,8 @@ SRGAN/data*
 SRGAN_netG_epoch_4_99
 vgg_imagenet_pretrain_model
 
+result
+
 # yolov3
 yolov3/*_ckpt
 coco

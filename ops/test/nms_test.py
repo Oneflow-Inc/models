@@ -3,7 +3,7 @@ from collections import OrderedDict
 
 import numpy as np
 
-import oneflow.experimental as flow
+import oneflow as flow
 from ops.test.test_util import GenArgList
 from ops import nms, lib_path
 

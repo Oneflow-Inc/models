@@ -3,7 +3,7 @@
 @author: Yizhang Wang <1739601638@qq.com>
 """
 import argparse
-import oneflow.experimental as flow
+import oneflow as flow
 
 from model.deep_q_network import DeepQNetwork
 from game.wrapped_flappy_bird import GameState

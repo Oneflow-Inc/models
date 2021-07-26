@@ -1,5 +1,5 @@
-import oneflow.experimental.nn as nn
-import oneflow.experimental as flow
+import oneflow.nn as nn
+import oneflow as flow
 
 from model.attention.multi_head import MultiHeadedAttention
 from model.utils.sublayer import SublayerConnection

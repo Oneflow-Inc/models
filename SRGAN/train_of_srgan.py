@@ -3,8 +3,8 @@ import os
 import numpy as np
 import time
 import pickle
-import oneflow.experimental as flow
-import oneflow.experimental.optim as optim
+import oneflow as flow
+import oneflow.optim as optim
 from tqdm import tqdm
 from skimage.metrics import peak_signal_noise_ratio
 from skimage.metrics import structural_similarity
