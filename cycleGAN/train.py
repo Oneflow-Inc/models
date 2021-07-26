@@ -27,8 +27,8 @@ from cycleGAN import CycleGANModel
 from image import ImagePool, ndarray2image, load_image2ndarray
 import os
 import random
-import oneflow.experimental as flow
-import oneflow.experimental.nn as nn
+import oneflow as flow
+import oneflow.nn as nn
 
 def main(args):
     flow.env.init()

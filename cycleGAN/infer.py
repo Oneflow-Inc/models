@@ -32,8 +32,8 @@ import torch
 import re
 import random
 import cv2
-import oneflow.experimental as flow
-import oneflow.experimental.nn as nn
+import oneflow as flow
+import oneflow.nn as nn
 
 def main(args):
     flow.env.init()

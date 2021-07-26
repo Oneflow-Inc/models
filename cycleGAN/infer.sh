@@ -1,11 +1,11 @@
-TRAIN_DATASET="apple2orange"
+TRAIN_DATASET="apple2orange" #choose between apple2orange, horse2zebra, summer2winter_yosemite
 
 TESTA_DIR="./datasets/${TRAIN_DATASET}/testA/"
 TESTB_DIR="./datasets/${TRAIN_DATASET}/testB/"
 
 if [ ! -d "cycleGAN/" ]; then
     wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/cv/gan/pretrained.tar.gz
-    tar -zxvf pretrained.tar.gz pretrained/
+    tar -zxvf pretrained.tar.gz
 fi
 
 NETG_A_DIR="cycleGAN/${TRAIN_DATASET}/"

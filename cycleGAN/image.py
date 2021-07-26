@@ -1,5 +1,5 @@
 import random
-import oneflow.experimental as flow
+import oneflow as flow
 import numpy as np
 import cv2
 
