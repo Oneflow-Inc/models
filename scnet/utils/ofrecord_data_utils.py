@@ -1,5 +1,4 @@
-import oneflow.experimental as flow
-
+import oneflow as flow
 import os
 
 class OFRecordDataLoader(object):
