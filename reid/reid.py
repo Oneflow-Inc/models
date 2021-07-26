@@ -3,7 +3,7 @@
 import sys
 import argparse
 from data_loader import Market1501, RandomIdentitySampler, ImageDataset
-import oneflow.experimental as flow
+import oneflow as flow
 from bisect import bisect_right
 import os
 import os.path as osp

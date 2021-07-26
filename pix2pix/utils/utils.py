@@ -1,6 +1,6 @@
 import os, sys
 import numpy as np
-import oneflow.experimental as flow
+import oneflow as flow
 import matplotlib.pyplot as plt
 from datetime import datetime
 import logging

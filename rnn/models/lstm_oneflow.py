@@ -1,5 +1,5 @@
-import oneflow.experimental as flow
-import oneflow.experimental.nn as nn
+import oneflow as flow
+import oneflow.nn as nn
 import math
 
 # Reference: https://github.com/piEsposito/pytorch-lstm-by-hand

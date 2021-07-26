@@ -4,7 +4,7 @@ import numpy as np
 from tsn.datasets.dataset import TSNDataSet
 from tsn.models.TSN import TSN
 from tsn.utils.checkpoint import load_checkpoint
-import oneflow.experimental as flow
+import oneflow as flow
 
 from tsn.datasets.transform import *
 

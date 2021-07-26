@@ -1,4 +1,4 @@
-import oneflow.experimental.nn as nn
+import oneflow.nn as nn
 from .resnet50 import resnet50
 from .simple_consensus import SimpleConsensus
 from .simple_spatial_module import SimpleSpatialModule

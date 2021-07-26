@@ -1,7 +1,7 @@
 import numpy as np
 import cv2
 
-import oneflow.experimental as flow
+import oneflow as flow
 import oneflow.typing as tp
 
 

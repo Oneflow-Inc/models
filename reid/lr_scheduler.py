@@ -1,8 +1,8 @@
 # -*- coding:utf-8 -*-
-import oneflow.experimental as flow
+import oneflow as flow
 from bisect import bisect_right
 from typing import List
-from oneflow.experimental.optim.lr_scheduler import LrScheduler
+from oneflow.optim.lr_scheduler import LrScheduler
 
 
 class WarmupMultiStepLR(LrScheduler):

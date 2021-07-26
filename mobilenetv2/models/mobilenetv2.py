@@ -1,8 +1,8 @@
 import math
 from typing import Callable, Any, Optional, List
 
-import oneflow.experimental as flow
-from oneflow.experimental import nn, Tensor
+import oneflow as flow
+from oneflow import nn, Tensor
 
 __all__ = ["MobileNetV2", "mobilenet_v2"]
 

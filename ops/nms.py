@@ -1,6 +1,6 @@
 import oneflow as flow
-import oneflow.experimental as flow_exp
-from oneflow.experimental import Tensor
+import oneflow as flow_exp
+from oneflow import Tensor
 
 
 def nms(boxes: Tensor, scores: Tensor, iou_threshold: float) -> Tensor:

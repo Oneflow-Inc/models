@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 import math
 import time
-import oneflow.experimental as flow
+import oneflow as flow
 
 # refer to: https://pytorch.org/tutorials/intermediate/seq2seq_translation_tutorial.html
 

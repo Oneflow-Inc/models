@@ -2,7 +2,7 @@ import os
 import numpy as np
 import time
 import argparse
-import oneflow.experimental as flow
+import oneflow as flow
 from models.networks import Generator, Discriminator
 from utils.data_utils import load_facades
 from utils.utils import init_logger, to_tensor, to_numpy, save_images, mkdirs

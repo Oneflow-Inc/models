@@ -1,6 +1,6 @@
-import oneflow.experimental as flow
-from oneflow.experimental import optim
-import oneflow.experimental.nn as nn
+import oneflow as flow
+from oneflow import optim
+import oneflow.nn as nn
 
 from utils.dataset import *
 from utils.tensor_utils import *
