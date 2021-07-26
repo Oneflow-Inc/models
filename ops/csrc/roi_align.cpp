@@ -35,7 +35,7 @@ REGISTER_USER_OP("roi_align")
       return Maybe<void>::Ok();
     })
     .SetInputArgModifyFn([](user_op::GetInputArgModifier GetInputArgModifierFn,
-                            const user_op::UserOpConfWrapper&) {
+                            const user_op::UserOpConfWrapper&) -> Maybe<void> {
       user_op::InputArgModifier* roi_modifier = GetInputArgModifierFn("rois", 0);
       CHECK(roi_modifier != nullptr);
       roi_modifier->set_requires_grad(false);
