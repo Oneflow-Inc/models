@@ -125,7 +125,7 @@ mnist
 
 # pix2pix
 of_pix2pix
-data
+pix2pix/data
 
 # resnet50
 imagenet*
@@ -137,3 +137,7 @@ imagenet*
 SRGAN/data*
 SRGAN_netG_epoch_4_99
 vgg_imagenet_pretrain_model
+
+# yolov3
+yolov3/*_ckpt
+coco
