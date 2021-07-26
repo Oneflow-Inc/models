@@ -31,6 +31,8 @@ We have installed visdom to visualize the training model, and run the following 
 
 ```
 pip3 install -r requiements.txt --user
+```
+```
 python -m visdom.server
 ```
 ```bash
