@@ -80,7 +80,7 @@ def save_obj(obj, name):
 
 
 if __name__ == "__main__":
-    flow.enable_eager_execution()
+
     opt = parser.parse_args()
     os.environ["CUDA_VISIBLE_DEVICES"] = opt.gpu_ids
 

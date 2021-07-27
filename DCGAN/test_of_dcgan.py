@@ -25,7 +25,6 @@ def _parse_args():
 
 
 def main(args):
-    flow.enable_eager_execution()
 
     device = "cpu" if args.no_cuda else "cuda"
     start_t = time.time()

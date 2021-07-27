@@ -2,7 +2,7 @@
 import oneflow as flow
 from bisect import bisect_right
 from typing import List
-from oneflow.optim.lr_scheduler import LrScheduler
+from oneflow.nn.optimizer.lr_scheduler import LrScheduler
 
 
 class WarmupMultiStepLR(LrScheduler):

@@ -125,8 +125,6 @@ def multi_test(model, data_loader):
 
 
 def main():
-    flow.env.init()
-    flow.enable_eager_execution()
 
     global args
     args = parse_args()

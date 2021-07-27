@@ -19,9 +19,6 @@ def _parse_args():
 
 
 def main(args):
-    flow.env.init()
-    flow.enable_eager_execution()
-
     start_t = time.time()
     alexnet_module = alexnet()
     end_t = time.time()

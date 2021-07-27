@@ -1,6 +1,6 @@
 import oneflow as flow
 from oneflow import nn
-from oneflow.python.nn.parameter import Parameter
+from oneflow.nn.parameter import Parameter
 
 #%% Text CNN model
 class textCNN(nn.Module):

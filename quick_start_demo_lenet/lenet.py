@@ -32,7 +32,7 @@ class LeNet5(nn.Module):
 
 
 # enable eager mode
-flow.enable_eager_execution()
+
 
 # init model
 model = LeNet5(10)

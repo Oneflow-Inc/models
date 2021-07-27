@@ -22,8 +22,6 @@ def _parse_args():
 
 
 def main(args):
-    flow.env.init()
-    flow.enable_eager_execution()
 
     start_t = time.time()
     mobilenetv2_module = mobilenet_v2()

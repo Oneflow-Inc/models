@@ -95,7 +95,7 @@ def adjust_learning_rate(optimizer, epoch, lr_steps):
 
 
 def main():
-    flow.enable_eager_execution()
+
     flow.InitEagerGlobalSession()
 
     global args

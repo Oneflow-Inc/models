@@ -74,8 +74,7 @@ learning_rate = (
 
 
 def main(args):
-    flow.env.init()
-    flow.enable_eager_execution()
+
     random.seed(args.seed)
     dataset_path = "./data/names"
     n_categories = processDataset(dataset_path)

@@ -198,7 +198,7 @@ class Pix2Pix:
 
 
 if __name__ == "__main__":
-    flow.enable_eager_execution()
+
     parser = argparse.ArgumentParser(description="oneflow PIX2PIX")
     parser.add_argument("--path", type=str, default="./of_pix2pix", required=False)
     parser.add_argument("-e", "--epoch_num", type=int, default=200, required=False)

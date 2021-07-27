@@ -40,7 +40,7 @@ def main(args):
 
 
 if __name__ == "__main__":
-    flow.enable_eager_execution()
+
     parser = argparse.ArgumentParser(description="oneflow PIX2PIX")
     parser.add_argument("--model_path", type=str, required=True, help="model path")
     parser.add_argument(

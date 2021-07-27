@@ -4,7 +4,7 @@ from collections import OrderedDict
 import numpy as np
 
 import oneflow as flow
-from oneflow.python.test.modules.test_util import GenArgList
+from oneflow.test.modules.test_util import GenArgList
 from ops import nms, lib_path
 
 flow.config.load_library_now(lib_path())

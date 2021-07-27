@@ -96,7 +96,6 @@ def _parse_args():
 
 
 def main(args):
-    flow.enable_eager_execution()
 
     # log setting
     log_name = "log_test.log" if args.evaluate else "log_train.log"
