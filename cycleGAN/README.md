@@ -6,7 +6,7 @@ bash download.sh
 
 You can customize the dataset by modifying download.sh
 
-Note that download.sh is provided by original CycleGAN paper.
+Note that download.sh is provided by the original CycleGAN paper.
 
 https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix.git
 
@@ -34,7 +34,7 @@ You can customize infer settings by modifying infer.sh
 
 ### Results
 
-The result is not as good as the original version, but not too bad as well.
+About 100 epochs are trained on these three models.
 
 #### apple2orange
 
