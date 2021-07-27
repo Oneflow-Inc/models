@@ -318,8 +318,8 @@ def main():
 
     args = main_arg_parser.parse_args()
 
-    flow.env.init()
-    flow.enable_eager_execution()
+    
+    
 
     if args.subcommand is None:
         print("ERROR: specify either train or eval")

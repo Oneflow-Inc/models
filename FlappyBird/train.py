@@ -48,7 +48,7 @@ def get_args():
 
 
 def train(opt):
-    flow.enable_eager_execution()
+    
 
     # Step 1: init BrainDQN
     model = DeepQNetwork()

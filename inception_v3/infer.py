@@ -22,8 +22,8 @@ def _parse_args():
 
 
 def main(args):
-    flow.env.init()
-    flow.enable_eager_execution()
+    
+    
 
     start_t = time.time()
     inceptionv3_module = inception_v3()

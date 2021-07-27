@@ -27,8 +27,8 @@ def letterToIndex(letter):
 
 
 def main(args):
-    flow.env.init()
-    flow.enable_eager_execution()
+    
+    
     rnn_module = LSTM(n_letters, n_hidden, n_categories)
     # Fake data, only for speed test purpose
     test_word = "Depeng"

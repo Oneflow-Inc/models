@@ -22,8 +22,8 @@ def _parse_args():
 
 
 def main(args):
-    flow.env.init()
-    flow.enable_eager_execution()
+    
+    
 
     start_t = time.time()
     res50_module = resnet50()

@@ -11,7 +11,7 @@ from typing import Sequence
 import oneflow as flow
 import oneflow._oneflow_internal as oneflow_internal
 
-flow.enable_eager_execution()
+
 
 DEFAULT_TIMES = 20
 

@@ -12,7 +12,7 @@ from model import textCNN
 from training import train, _eval
 import utils
 
-flow.enable_eager_execution()
+
 
 
 def _parse_args():

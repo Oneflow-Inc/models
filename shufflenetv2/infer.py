@@ -35,8 +35,8 @@ def _parse_args():
 def main(args):
     assert args.model in model_dict
     print("Predicting using", args.model, "...")
-    flow.env.init()
-    flow.enable_eager_execution()
+    
+    
     start_t = time.time()
     shufflenet_module = model_dict[args.model]()
     end_t = time.time()

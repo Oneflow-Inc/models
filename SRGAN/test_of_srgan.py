@@ -9,7 +9,7 @@ from skimage.metrics import structural_similarity
 
 from models.of_model import Generator
 
-flow.enable_eager_execution()
+
 
 parser = argparse.ArgumentParser(description="Test Single Image")
 parser.add_argument(

@@ -29,8 +29,8 @@ def get_args():
 
 
 def test(opt):
-    flow.env.init()
-    flow.enable_eager_execution()
+    
+    
 
     model = DeepQNetwork()
     pretrain_models = flow.load("{}".format(opt.saved_path))
