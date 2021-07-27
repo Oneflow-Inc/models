@@ -13,8 +13,6 @@ from training import train, _eval
 import utils
 
 
-
-
 def _parse_args():
     parser = argparse.ArgumentParser("flags for train TextCNN")
     parser.add_argument(

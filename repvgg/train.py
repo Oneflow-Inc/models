@@ -37,7 +37,7 @@ def _parse_args():
 
 
 def main(args):
-    
+
     flow.InitEagerGlobalSession()
 
     train_data_loader = OFRecordDataLoader(

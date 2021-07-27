@@ -125,8 +125,6 @@ def multi_test(model, data_loader):
 
 
 def main():
-    
-    
 
     global args
     args = parse_args()

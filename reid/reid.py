@@ -96,7 +96,6 @@ def _parse_args():
 
 
 def main(args):
-    
 
     # log setting
     log_name = "log_test.log" if args.evaluate else "log_train.log"

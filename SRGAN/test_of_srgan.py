@@ -10,7 +10,6 @@ from skimage.metrics import structural_similarity
 from models.of_model import Generator
 
 
-
 parser = argparse.ArgumentParser(description="Test Single Image")
 parser.add_argument(
     "--upscale_factor", default=4, type=int, help="super resolution upscale factor"

@@ -37,8 +37,7 @@ def _parse_args():
 def main(args):
     assert args.model in model_dict
     print("Predicting using", args.model, "...")
-    
-    
+
     start_t = time.time()
     vgg_module = model_dict[args.model]()
     end_t = time.time()

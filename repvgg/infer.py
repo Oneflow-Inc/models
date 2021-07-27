@@ -19,8 +19,6 @@ def _parse_args():
 
 
 def main(args):
-    
-    
 
     start_t = time.time()
     repVGGA0 = create_RepVGG_A0()

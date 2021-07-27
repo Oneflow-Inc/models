@@ -22,8 +22,6 @@ def _parse_args():
 
 
 def main(args):
-    
-    
 
     start_t = time.time()
     resnext50_32x4d_module = resnext50_32x4d()

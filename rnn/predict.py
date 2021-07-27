@@ -5,8 +5,6 @@ from utils.tensor_utils import *
 from models.rnn_model import RNN
 
 
-
-
 dataset_path = "./data/names"
 n_categories = processDataset(dataset_path)
 print(letterToTensor("J"))

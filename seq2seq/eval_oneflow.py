@@ -101,7 +101,6 @@ def evaluateAndShowAttention(
 
 
 def main(args):
-    
 
     device = args.device
     input_lang, output_lang, pairs = prepareData("eng", "fra", True)

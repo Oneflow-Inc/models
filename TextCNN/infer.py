@@ -28,8 +28,7 @@ def _parse_args():
 
 
 def main(args):
-    
-    
+
     device = flow.device("cpu") if args.no_cuda else flow.device("cuda")
     with open(args.config_path, "r") as f:
         config = json.load(f)

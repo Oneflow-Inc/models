@@ -73,8 +73,7 @@ learning_rate = (
 
 
 def main(args):
-    
-    
+
     random.seed(args.seed)
     dataset_path = "./data/names"
     n_categories = processDataset(dataset_path)

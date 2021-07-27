@@ -48,7 +48,6 @@ def get_args():
 
 
 def train(opt):
-    
 
     # Step 1: init BrainDQN
     model = DeepQNetwork()

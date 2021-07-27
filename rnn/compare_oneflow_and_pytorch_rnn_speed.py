@@ -27,8 +27,7 @@ def letterToIndex(letter):
 
 
 def main(args):
-    
-    
+
     rnn_module = RNN(n_letters, n_hidden, n_categories)
     # Fake data, only for speed test purpose
     test_word = "Depeng"

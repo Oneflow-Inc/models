@@ -29,8 +29,6 @@ def get_args():
 
 
 def test(opt):
-    
-    
 
     model = DeepQNetwork()
     pretrain_models = flow.load("{}".format(opt.saved_path))

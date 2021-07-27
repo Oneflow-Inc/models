@@ -8,6 +8,7 @@ from trainer.pretrain import BERTTrainer
 from dataset.dataset import BERTDataset
 from dataset.vocab import WordVocab
 
+
 def main():
 
     parser = argparse.ArgumentParser()

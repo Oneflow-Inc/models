@@ -15,8 +15,7 @@ def _parse_args():
 
 
 def main(args):
-    
-    
+
     batch_size = 16
     image_nd = np.random.rand(batch_size, 3, 224, 224).astype(np.float32)
     label_nd = np.array([e for e in range(batch_size)], dtype=np.int32)
