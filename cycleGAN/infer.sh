@@ -1,4 +1,5 @@
-TRAIN_DATASET="apple2orange" #choose between apple2orange, horse2zebra, summer2winter_yosemite
+TRAIN_DATASET="summer2winter_yosemite" 
+#choose between apple2orange, horse2zebra, summer2winter_yosemite. Note that you need to download the corresponding dataset first.
 
 TESTA_DIR="./datasets/${TRAIN_DATASET}/testA/"
 TESTB_DIR="./datasets/${TRAIN_DATASET}/testB/"
@@ -29,5 +30,4 @@ CUDA_VISIBLE_DEVICES=1 python3 infer.py \
     --netG_B_dir $NETG_B_DIR \
     --fake_B_save_dir $SAVE_A_DIR \
     --fake_A_save_dir $SAVE_B_DIR \
-    # --checkpoint_load_dir $CHECKPOINT_LOAD_DIR
 

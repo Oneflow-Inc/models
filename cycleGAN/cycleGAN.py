@@ -1,6 +1,4 @@
 import oneflow as flow
-import oneflow.nn as nn
-from oneflow.python.nn.modules.instancenorm import InstanceNorm2d
 import networks
 import itertools
 from image import ImagePool, ndarray2image

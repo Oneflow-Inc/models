@@ -23,21 +23,13 @@ import argparse
 
 from numpy.lib.npyio import load
 import numpy as np
-
-from cycleGAN import CycleGANModel
-from image import ImagePool, ndarray2image, load_image2ndarray
+from image import ndarray2image, load_image2ndarray
 from networks import ResnetGenerator
 import os
-import torch
-import re
-import random
 import cv2
 import oneflow as flow
-import oneflow.nn as nn
 
 def main(args):
-    flow.env.init()
-    flow.enable_eager_execution()
     opt = args
 
     datasetA = os.listdir(args.datasetA_path)
@@ -47,7 +39,6 @@ def main(args):
     datasetB_num = len(datasetB)
     print("dataset A size: %d" % datasetA_num)
     print("dataset B size: %d" % datasetB_num) 
-
 
     netG_A = ResnetGenerator().to("cuda")
     netG_B = ResnetGenerator().to("cuda")

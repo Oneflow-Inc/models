@@ -18,22 +18,15 @@ See options/base_options.py and options/train_options.py for more training optio
 See training and test tips at: https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix/blob/master/docs/tips.md
 See frequently asked questions at: https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix/blob/master/docs/qa.md
 """
-import time
 import argparse
 
-from numpy.lib.npyio import load
-
 from cycleGAN import CycleGANModel
-from image import ImagePool, ndarray2image, load_image2ndarray
+from image import load_image2ndarray
 import os
 import random
 import oneflow as flow
-import oneflow.nn as nn
 
 def main(args):
-    flow.env.init()
-    flow.enable_eager_execution()
-
     datasetA = os.listdir(args.datasetA_path)
     datasetB = os.listdir(args.datasetB_path)
 

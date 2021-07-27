@@ -1,7 +1,6 @@
 import oneflow as flow
 import oneflow.nn as nn
 import functools
-import numpy as np
 
 class ResnetBlock(nn.Module):
     """Define a Resnet block"""
@@ -228,8 +227,6 @@ class GANLoss(nn.Module):
         if self.gan_mode in ['lsgan', 'vanilla']:
             target_tensor = self.get_target_tensor(prediction, target_is_real)
             loss = self.loss(prediction, target_tensor)
-            # print("pred:", flow.sum(prediction), "target:", flow.sum(target_tensor))
-            # print("loss:", loss)
         elif self.gan_mode == 'wgangp':
             if target_is_real:
                 loss = -prediction.mean()

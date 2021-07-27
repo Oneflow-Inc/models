@@ -1,4 +1,4 @@
-#CHECKPOINT_LOAD_DIR="./"
+#CHECKPOINT_LOAD_DIR=""
 
 CHECKPOINT_SAVE_DIR="./checkpoints/"
 
@@ -6,9 +6,9 @@ if [ ! -d "$CHECKPOINT_SAVE_DIR" ]; then
     mkdir $CHECKPOINT_SAVE_DIR
 fi
 
-TRAIN_DATASET="apple2orange"
+TRAIN_DATASET="summer2winter_yosemite"
+#choose between apple2orange, horse2zebra, summer2winter_yosemite. Note that you need to download the corresponding dataset first.
 
-# 
 TRAIN_DATASET_A="./datasets/${TRAIN_DATASET}/trainA/"
 TRAIN_DATASET_B="./datasets/${TRAIN_DATASET}/trainB/"
 
@@ -36,7 +36,7 @@ LOAD_EPOCH=10
 
 echo "Train with Adam beta1 ${BETA1} and beta2 ${BETA2}"
 
-CUDA_VISIBLE_DEVICES=3 python3 train.py \
+CUDA_VISIBLE_DEVICES=1 python3 train.py \
     --dataset_name $TRAIN_DATASET \
     --datasetA_path $TRAIN_DATASET_A \
     --datasetB_path $TRAIN_DATASET_B \
