@@ -66,7 +66,7 @@ def main(args):
     val_data_loader = OFRecordDataLoader(
         ofrecord_root=args.ofrecord_path,
         mode="val",
-        dataset_size=1900,
+        dataset_size=1990,
         batch_size=args.val_batch_size)
 
     # oneflow init
