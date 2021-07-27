@@ -7,7 +7,7 @@ class OFRecordDataLoader(object):
     def __init__(self,
                  ofrecord_root: str = "./ofrecord",
                  mode: str = "train",  # "val"
-                 dataset_size: int = 9469,
+                 dataset_size: int = 7459,
                  batch_size: int = 1,
                  ):
         channel_last = False
