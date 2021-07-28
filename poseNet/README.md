@@ -30,7 +30,7 @@ bash train_oneflow.sh
 bash infer.sh
 ```
 
-### Performer of model
+### Accuracy
 |         | val(Top1) |
 | :-----: | :-----------------: |
 | Posenet  |        0.906        |
