@@ -1,4 +1,6 @@
 import math
+
+import numpy as np
 import oneflow.experimental as flow
 from oneflow.experimental import Tensor
 
@@ -45,36 +47,50 @@ class BalancedPositiveNegativeSampler(object):
         pos_idx = []
         neg_idx = []
         for matched_idxs_per_image in matched_idxs:
-            positive = torch.where(matched_idxs_per_image >= 1)[0]
-            negative = torch.where(matched_idxs_per_image == 0)[0]
+            # positive = torch.where(matched_idxs_per_image >= 1)[0]
+            # negative = torch.where(matched_idxs_per_image == 0)[0]
+            #TODO:argwhere 0-dim tensor
+            positive_list = []
+            negative_list = []
+            for i in range(matched_idxs_per_image.shape[0]):
+                if matched_idxs_per_image[i] >= 1:
+                    positive_list.append(i)
+                elif matched_idxs_per_image[i] == 0:
+                    negative_list.append(i)
+            if len(positive_list):
+                positive = flow.tensor(positive_list, device = matched_idxs_per_image.device, dtype = flow.int8)
+            if len(negative_list):
+                negative = flow.tensor(negative_list, device=matched_idxs_per_image.device, dtype=flow.int8)
 
             num_pos = int(self.batch_size_per_image * self.positive_fraction)
             # protect against not enough positive examples
-            num_pos = min(positive.numel(), num_pos)
+            if len(positive_list):
+                num_pos = min(positive.numel(), num_pos)
             num_neg = self.batch_size_per_image - num_pos
             # protect against not enough negative examples
-            num_neg = min(negative.numel(), num_neg)
+            if len(negative_list):
+                num_neg = min(negative.numel(), num_neg)
 
             # randomly select positive and negative examples
-            perm1 = torch.randperm(positive.numel(), device=positive.device)[:num_pos]
-            perm2 = torch.randperm(negative.numel(), device=negative.device)[:num_neg]
-
-            pos_idx_per_image = positive[perm1]
-            neg_idx_per_image = negative[perm2]
-
-            # create binary mask from indices
-            pos_idx_per_image_mask = torch.zeros_like(
-                matched_idxs_per_image, dtype=torch.uint8
-            )
-            neg_idx_per_image_mask = torch.zeros_like(
-                matched_idxs_per_image, dtype=torch.uint8
-            )
-
-            pos_idx_per_image_mask[pos_idx_per_image] = 1
-            neg_idx_per_image_mask[neg_idx_per_image] = 1
-
-            pos_idx.append(pos_idx_per_image_mask)
-            neg_idx.append(neg_idx_per_image_mask)
+            # perm1 = torch.randperm(positive.numel(), device=positive.device)[:num_pos]
+            # perm2 = torch.randperm(negative.numel(), device=negative.device)[:num_neg]
+            if len(positive_list):
+                perm1 = np.random.randint(0, positive.numel(), (1, ))
+                pos_idx_per_image = positive[perm1]
+                # create binary mask from indices
+                pos_idx_per_image_mask = flow.zeros_like(
+                    matched_idxs_per_image, dtype=flow.uint8
+                )
+                pos_idx_per_image_mask[pos_idx_per_image] = 1
+                pos_idx.append(pos_idx_per_image_mask)
+            if len(negative_list):
+                perm2 = np.random.randint(0, negative.numel(), (1,))
+                neg_idx_per_image = negative[perm2]
+                neg_idx_per_image_mask = flow.zeros_like(
+                    matched_idxs_per_image, dtype=flow.uint8
+                )
+                neg_idx_per_image_mask[neg_idx_per_image] = 1
+                neg_idx.append(neg_idx_per_image_mask)
 
         return pos_idx, neg_idx
 
@@ -98,10 +114,15 @@ def encode_boxes(reference_boxes, proposals, weights):
     ww = weights[2]
     wh = weights[3]
 
-    proposals_x1 = proposals[:, 0].unsqueeze(1)
-    proposals_y1 = proposals[:, 1].unsqueeze(1)
-    proposals_x2 = proposals[:, 2].unsqueeze(1)
-    proposals_y2 = proposals[:, 3].unsqueeze(1)
+    # proposals_x1 = proposals[:, 0].unsqueeze(1)
+    # proposals_y1 = proposals[:, 1].unsqueeze(1)
+    # proposals_x2 = proposals[:, 2].unsqueeze(1)
+    # proposals_y2 = proposals[:, 3].unsqueeze(1)
+
+    proposals_x1 = proposals[..., 0].unsqueeze(2)
+    proposals_y1 = proposals[..., 1].unsqueeze(2)
+    proposals_x2 = proposals[..., 2].unsqueeze(2)
+    proposals_y2 = proposals[..., 3].unsqueeze(2)
 
     reference_boxes_x1 = reference_boxes[:, 0].unsqueeze(1)
     reference_boxes_y1 = reference_boxes[:, 1].unsqueeze(1)
@@ -146,11 +167,19 @@ class BoxCoder(object):
 
     def encode(self, reference_boxes, proposals):
         # type: (List[Tensor], List[Tensor]) -> List[Tensor]
-        boxes_per_image = [len(b) for b in reference_boxes]
+        boxes_per_image = [b.shape[0] for b in reference_boxes]
         reference_boxes = flow.cat(reference_boxes, dim=0)
         proposals = flow.cat(proposals, dim=0)
         targets = self.encode_single(reference_boxes, proposals)
-        return targets.split(boxes_per_image, 0)
+        #TODO: split op
+        split_targets = []
+        box_idx = 0
+        for box_size in boxes_per_image:
+            split_targets.append(targets[box_idx:box_idx + box_size])
+            box_idx += box_size
+        return split_targets
+        # return targets.split(boxes_per_image, 0)
+
 
     def encode_single(self, reference_boxes, proposals):
         """
@@ -171,19 +200,19 @@ class BoxCoder(object):
     def decode(self, rel_codes, boxes):
         # type: (Tensor, List[Tensor]) -> Tensor
         assert isinstance(boxes, (list, tuple))
-        assert isinstance(rel_codes, Tensor)
+        # assert isinstance(rel_codes, Tensor)
         boxes_per_image = [b.size(0) for b in boxes]
         concat_boxes = flow.cat(boxes, dim=0)
         box_sum = 0
         for val in boxes_per_image:
             box_sum += val
         if box_sum > 0:
-            rel_codes = rel_codes.reshape(box_sum, -1)
+            rel_codes = rel_codes.reshape((box_sum, -1))
         pred_boxes = self.decode_single(
             rel_codes, concat_boxes
         )
         if box_sum > 0:
-            pred_boxes = pred_boxes.reshape(box_sum, -1, 4)
+            pred_boxes = pred_boxes.reshape((box_sum, -1, 4))
         return pred_boxes
 
     def decode_single(self, rel_codes, boxes):
@@ -197,11 +226,10 @@ class BoxCoder(object):
         """
 
         boxes = boxes.to(rel_codes.dtype)
-
-        widths = boxes[:, 2] - boxes[:, 0]
-        heights = boxes[:, 3] - boxes[:, 1]
-        ctr_x = boxes[:, 0] + 0.5 * widths
-        ctr_y = boxes[:, 1] + 0.5 * heights
+        widths = boxes[..., 2] - boxes[..., 0]
+        heights = boxes[..., 3] - boxes[..., 1]
+        ctr_x = boxes[..., 0] + 0.5 * widths
+        ctr_y = boxes[..., 1] + 0.5 * heights
 
         wx, wy, ww, wh = self.weights
         dx = rel_codes[:, 0::4] / wx
@@ -218,10 +246,10 @@ class BoxCoder(object):
         pred_w = flow.exp(dw) * widths[:, None]
         pred_h = flow.exp(dh) * heights[:, None]
 
-        pred_boxes1 = pred_ctr_x - flow.Tensor(0.5, dtype=pred_ctr_x.dtype, device=pred_w.device) * pred_w
-        pred_boxes2 = pred_ctr_y - flow.Tensor(0.5, dtype=pred_ctr_y.dtype, device=pred_h.device) * pred_h
-        pred_boxes3 = pred_ctr_x + flow.Tensor(0.5, dtype=pred_ctr_x.dtype, device=pred_w.device) * pred_w
-        pred_boxes4 = pred_ctr_y + flow.Tensor(0.5, dtype=pred_ctr_y.dtype, device=pred_h.device) * pred_h
+        pred_boxes1 = pred_ctr_x - flow.tensor(0.5, dtype=pred_ctr_x.dtype, device=pred_w.device) * pred_w
+        pred_boxes2 = pred_ctr_y - flow.tensor(0.5, dtype=pred_ctr_y.dtype, device=pred_h.device) * pred_h
+        pred_boxes3 = pred_ctr_x + flow.tensor(0.5, dtype=pred_ctr_x.dtype, device=pred_w.device) * pred_w
+        pred_boxes4 = pred_ctr_y + flow.tensor(0.5, dtype=pred_ctr_y.dtype, device=pred_h.device) * pred_h
         pred_boxes = flow.stack((pred_boxes1, pred_boxes2, pred_boxes3, pred_boxes4), dim=2).flatten(1)
         return pred_boxes
 
@@ -295,7 +323,8 @@ class Matcher(object):
 
         # match_quality_matrix is M (gt) x N (predicted)
         # Max over gt elements (dim 0) to find best gt candidate for each prediction
-        matched_vals, matches = match_quality_matrix.max(dim=0)
+        matched_vals = match_quality_matrix.max(dim=0)
+        matches = match_quality_matrix.argmax(dim=0)
         if self.allow_low_quality_matches:
             all_matches = matches.clone()
         else:
@@ -303,11 +332,20 @@ class Matcher(object):
 
         # Assign candidate matches with low quality to negative (unassigned) values
         below_low_threshold = matched_vals < self.low_threshold
-        between_thresholds = (matched_vals >= self.low_threshold) & (
-            matched_vals < self.high_threshold
-        )
-        matches[below_low_threshold] = self.BELOW_LOW_THRESHOLD
-        matches[between_thresholds] = self.BETWEEN_THRESHOLDS
+        # between_thresholds = (matched_vals >= self.low_threshold) & (
+        #     matched_vals < self.high_threshold
+        # )
+        between_thresholds = (matched_vals >= self.low_threshold).mul(
+                matched_vals < self.high_threshold
+            )
+        for i in range(below_low_threshold.shape[0]):
+            if below_low_threshold[i].numpy().item() > 0:
+                matches[i] = self.BELOW_LOW_THRESHOLD
+        for i in range(between_thresholds.shape[0]):
+            if between_thresholds[i].numpy().item() > 0:
+                matches[i] = self.BETWEEN_THRESHOLDS
+        # matches[below_low_threshold] = self.BELOW_LOW_THRESHOLD
+        # matches[between_thresholds] = self.BETWEEN_THRESHOLDS
 
         if self.allow_low_quality_matches:
             assert all_matches is not None
@@ -324,11 +362,12 @@ class Matcher(object):
         quality value.
         """
         # For each gt, find the prediction with which it has highest quality
-        highest_quality_foreach_gt, _ = match_quality_matrix.max(dim=1)
+        highest_quality_foreach_gt = match_quality_matrix.max(dim=1)
         # Find highest quality match available, even if it is low, including ties
-        gt_pred_pairs_of_highest_quality = flow.where(
-            match_quality_matrix == highest_quality_foreach_gt[:, None]
-        )
+        # gt_pred_pairs_of_highest_quality = flow.where(
+        #     match_quality_matrix == highest_quality_foreach_gt[:, None]
+        # )
+        gt_pred_pairs_of_highest_quality = flow.argwhere(flow.eq(match_quality_matrix, highest_quality_foreach_gt[:, None]))
         # Example gt_pred_pairs_of_highest_quality:
         #   tensor([[    0, 39796],
         #           [    1, 32055],

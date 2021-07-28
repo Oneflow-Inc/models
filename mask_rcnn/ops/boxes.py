@@ -1,41 +1,42 @@
 
 from typing import Tuple
+from ops import nms
 from ops.box_convert import _box_cxcywh_to_xyxy, _box_xyxy_to_cxcywh, _box_xywh_to_xyxy, _box_xyxy_to_xywh
 # import torchvision
 # from torchvision.extension import _assert_has_ops
 import oneflow.experimental as flow
 from oneflow.experimental import Tensor
 
-def nms(boxes: Tensor, scores: Tensor, iou_threshold: float) -> Tensor:
-    """
-    Performs non-maximum suppression (NMS) on the boxes according
-    to their intersection-over-union (IoU).
-
-    NMS iteratively removes lower scoring boxes which have an
-    IoU greater than iou_threshold with another (higher scoring)
-    box.
-
-    If multiple boxes have the exact same score and satisfy the IoU
-    criterion with respect to a reference box, the selected box is
-    not guaranteed to be the same between CPU and GPU. This is similar
-    to the behavior of argsort in PyTorch when repeated values are present.
-
-    Args:
-        boxes (Tensor[N, 4])): boxes to perform NMS on. They
-            are expected to be in ``(x1, y1, x2, y2)`` format with ``0 <= x1 < x2`` and
-            ``0 <= y1 < y2``.
-        scores (Tensor[N]): scores for each one of the boxes
-        iou_threshold (float): discards all overlapping boxes with IoU > iou_threshold
-
-    Returns:
-        keep (Tensor): int64 tensor with the indices
-            of the elements that have been kept
-            by NMS, sorted in decreasing order of scores
-    """
-    # _assert_has_ops()
-    # TODO:
-    # replace flow nms
-    return torch.ops.torchvision.nms(boxes, scores, iou_threshold)
+# def nms(boxes: Tensor, scores: Tensor, iou_threshold: float) -> Tensor:
+#     """
+#     Performs non-maximum suppression (NMS) on the boxes according
+#     to their intersection-over-union (IoU).
+#
+#     NMS iteratively removes lower scoring boxes which have an
+#     IoU greater than iou_threshold with another (higher scoring)
+#     box.
+#
+#     If multiple boxes have the exact same score and satisfy the IoU
+#     criterion with respect to a reference box, the selected box is
+#     not guaranteed to be the same between CPU and GPU. This is similar
+#     to the behavior of argsort in PyTorch when repeated values are present.
+#
+#     Args:
+#         boxes (Tensor[N, 4])): boxes to perform NMS on. They
+#             are expected to be in ``(x1, y1, x2, y2)`` format with ``0 <= x1 < x2`` and
+#             ``0 <= y1 < y2``.
+#         scores (Tensor[N]): scores for each one of the boxes
+#         iou_threshold (float): discards all overlapping boxes with IoU > iou_threshold
+#
+#     Returns:
+#         keep (Tensor): int64 tensor with the indices
+#             of the elements that have been kept
+#             by NMS, sorted in decreasing order of scores
+#     """
+#     # _assert_has_ops()
+#     # TODO:
+#     # replace flow nms
+#     return nms(boxes, scores, iou_threshold)
 
 
 # @torch.jit._script_if_tracing
@@ -71,9 +72,12 @@ def batched_nms(
     # only on the class idx, and is large enough so that boxes
     # from different classes do not overlap
     else:
+        assert scores.device == flow.device('cuda'), "Only supports tensor on GPU, but get tensor on {}".format(scores.device)
         max_coordinate = boxes.max()
-        offsets = idxs.to(boxes) * (max_coordinate + flow.Tensor(1).to(boxes))
+        offsets = idxs.to(device = boxes.device, dtype= boxes.dtype) * (max_coordinate + flow.Tensor(1, device = boxes.device, dtype = boxes.dtype))
         boxes_for_nms = boxes + offsets[:, None]
+        assert boxes_for_nms.device == flow.device('cuda'), "Only supports tensor on GPU, but get tensor on {}".format(boxes_for_nms.device)
+        # print(boxes_for_nms.device, scores.device, iou_threshold)
         keep = nms(boxes_for_nms, scores, iou_threshold)
         return keep
 
@@ -92,8 +96,13 @@ def remove_small_boxes(boxes: Tensor, min_size: float) -> Tensor:
             larger than min_size
     """
     ws, hs = boxes[:, 2] - boxes[:, 0], boxes[:, 3] - boxes[:, 1]
-    keep = (ws >= min_size) & (hs >= min_size)
-    keep = flow.where(keep)[0]
+    print("ws", ws, "hs", hs)
+    # keep = (ws >= min_size) & (hs >= min_size)
+    #TODO: 0-D tensor
+    # Check failed: (start) < (stop) (0 vs 0) slice start must be less than stop
+    keep = (ws >= min_size).mul(hs >= min_size)
+    print("keep", keep)
+    keep = flow.argwhere(keep)
     return keep
 
 
@@ -178,7 +187,7 @@ def box_convert(boxes: Tensor, in_fmt: str, out_fmt: str) -> Tensor:
 
 def _upcast(t: Tensor) -> Tensor:
     # Protects from numerical overflows in multiplications by upcasting to the equivalent higher type
-    if t.is_floating_point():
+    if t.dtype == flow.float32:
         return t if t.dtype in (flow.float32, flow.float64) else t.float()
     else:
         return t if t.dtype in (flow.int32, flow.int64) else t.int()
@@ -206,9 +215,18 @@ def box_area(boxes: Tensor) -> Tensor:
 def _box_inter_union(boxes1: Tensor, boxes2: Tensor) -> Tuple[Tensor, Tensor]:
     area1 = box_area(boxes1)
     area2 = box_area(boxes2)
+    lt = flow.zeros((boxes1.shape[0], boxes2.shape[0], 2), device=boxes1.device, dtype=flow.float32)
+    rb = flow.zeros((boxes1.shape[0], boxes2.shape[0], 2), device=boxes1.device, dtype=flow.float32)
+    tmp = flow.zeros((1, 2), device=boxes1.device, dtype=flow.float32)
+    for i in range(boxes1.shape[0]):
+        for j in range(boxes2.shape[0]):
+            tmp = flow.stack([boxes1[i, :2], boxes2[j, :2]],dim=1)
+            lt[i, j, :] = flow.max(tmp, dim=1)
+            tmp = flow.stack([boxes1[i, 2:], boxes2[j, 2:]], dim=1)
+            rb[i, j, :] = flow.max(tmp, dim=1)
+    # lt = flow.max(boxes1[:, None, :2], boxes2[:, :2])  # [N,M,2]
+    # rb = flow.min(boxes1[:, None, 2:], boxes2[:, 2:])  # [N,M,2]
 
-    lt = flow.max(boxes1[:, None, :2], boxes2[:, :2])  # [N,M,2]
-    rb = flow.min(boxes1[:, None, 2:], boxes2[:, 2:])  # [N,M,2]
 
     wh = _upcast(rb - lt).clamp(min=0)  # [N,M,2]
     inter = wh[:, :, 0] * wh[:, :, 1]  # [N,M]

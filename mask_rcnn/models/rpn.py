@@ -54,7 +54,8 @@ class RPNHead(nn.Module):
         logits = []
         bbox_reg = []
         for feature in x:
-            t = F.relu(self.conv(feature))
+            # t = nn.ReLU((self.conv(feature)))
+            t = nn.ReLU()(self.conv(feature))
             logits.append(self.cls_logits(t))
             bbox_reg.append(self.bbox_pred(t))
         return logits, bbox_reg
@@ -62,9 +63,9 @@ class RPNHead(nn.Module):
 
 def permute_and_flatten(layer, N, A, C, H, W):
     # type: (Tensor, int, int, int, int, int) -> Tensor
-    layer = layer.view(N, -1, C, H, W)
+    layer = layer.view((N, -1, C, H, W))
     layer = layer.permute(0, 3, 4, 1, 2)
-    layer = layer.reshape(N, -1, C)
+    layer = layer.reshape((N, -1, C))
     return layer
 
 
@@ -77,7 +78,7 @@ def concat_box_prediction_layers(box_cls, box_regression):
     # all feature levels concatenated, so we keep the same representation
     # for the objectness and the box_regression
     for box_cls_per_level, box_regression_per_level in zip(
-        box_cls, box_regression
+            box_cls, box_regression
     ):
         N, AxC, H, W = box_cls_per_level.shape
         Ax4 = box_regression_per_level.shape[1]
@@ -96,7 +97,9 @@ def concat_box_prediction_layers(box_cls, box_regression):
     # take into account the way the labels were generated (with all feature maps
     # being concatenated as well)
     box_cls = flow.cat(box_cls_flattened, dim=1).flatten(0, -2)
-    box_regression = flow.cat(box_regression_flattened, dim=1).reshape(-1, 4)
+    box_regression = flow.cat(box_regression_flattened, dim=1).reshape((-1, 4))
+    # oneflow._oneflow_internal.Tensor -> flow.Tensor
+    # box_regression = flow.Tensor(*box_regression)
     return box_cls, box_regression
 
 
@@ -149,10 +152,15 @@ class RegionProposalNetwork(nn.Module):
         # used during training
         self.box_similarity = box_ops.box_iou
 
+        # self.proposal_matcher = det_utils.Matcher(
+        #     fg_iou_thresh,
+        #     bg_iou_thresh,
+        #     allow_low_quality_matches=True,
+        # )
         self.proposal_matcher = det_utils.Matcher(
             fg_iou_thresh,
             bg_iou_thresh,
-            allow_low_quality_matches=True,
+            allow_low_quality_matches=False,
         )
 
         self.fg_bg_sampler = det_utils.BalancedPositiveNegativeSampler(
@@ -179,7 +187,7 @@ class RegionProposalNetwork(nn.Module):
         # type: (List[Tensor], List[Dict[str, Tensor]]) -> Tuple[List[Tensor], List[Tensor]]
         labels = []
         matched_gt_boxes = []
-        for anchors_per_image, targets_per_image in zip(anchors, targets):
+        for anchors_per_image, targets_per_image in zip(anchors[0], targets):
             gt_boxes = targets_per_image["boxes"]
 
             if gt_boxes.numel() == 0:
@@ -194,7 +202,12 @@ class RegionProposalNetwork(nn.Module):
                 # NB: need to clamp the indices because we can have a single
                 # GT in the image, and matched_idxs can be -2, which goes
                 # out of bounds
-                matched_gt_boxes_per_image = gt_boxes[matched_idxs.clamp(min=0)]
+                # matched_gt_boxes_per_image = gt_boxes[matched_idxs.clamp(min=0)]
+                matched_gt_boxes_per_image = flow.zeros((matched_idxs.shape[0], 4), device= gt_boxes.device, dtype = gt_boxes.dtype)
+                for idx, val in enumerate(matched_idxs.clamp(min=0)):
+                    matched_gt_boxes_per_image[idx, :] = gt_boxes[val.numpy().item()]
+
+
 
                 labels_per_image = matched_idxs >= 0
                 labels_per_image = labels_per_image.to(dtype=flow.float32)
@@ -213,18 +226,32 @@ class RegionProposalNetwork(nn.Module):
 
     def _get_top_n_idx(self, objectness, num_anchors_per_level):
         # type: (Tensor, List[int]) -> Tensor
+        # r = []
+        # offset = 0
+        #
+        # # if torchvision._is_tracing():
+        # #     num_anchors, pre_nms_top_n = _onnx_get_num_anchors_and_pre_nms_top_n(ob, self.pre_nms_top_n())
+        # # else:
+        #
+        # # for ob in objectness.split(num_anchors_per_level, 1):
+        # for ob in objectness:
+        #     ob = ob.unsqueeze(dim=0)
+        #     num_anchors = ob.shape[1]
+        #     pre_nms_top_n = min(self.pre_nms_top_n(), num_anchors)
+        #     _, top_n_idx = ob.topk(pre_nms_top_n, dim=1)
+        #     r.append(top_n_idx + offset)
+        #     offset += num_anchors
+        # return flow.cat(r, dim=1)
+
         r = []
-        offset = 0
-        for ob in objectness.split(num_anchors_per_level, 1):
-            # if torchvision._is_tracing():
-            #     num_anchors, pre_nms_top_n = _onnx_get_num_anchors_and_pre_nms_top_n(ob, self.pre_nms_top_n())
-            # else:
+        for ob in objectness:
+            ob = ob.unsqueeze(dim=0)
             num_anchors = ob.shape[1]
             pre_nms_top_n = min(self.pre_nms_top_n(), num_anchors)
             _, top_n_idx = ob.topk(pre_nms_top_n, dim=1)
-            r.append(top_n_idx + offset)
-            offset += num_anchors
-        return flow.cat(r, dim=1)
+            r.append(top_n_idx)
+
+        return r
 
     def filter_proposals(self, proposals, objectness, image_shapes, num_anchors_per_level):
         # type: (Tensor, Tensor, List[Tuple[int, int]], List[int]) -> Tuple[List[Tensor], List[Tensor]]
@@ -232,26 +259,59 @@ class RegionProposalNetwork(nn.Module):
         device = proposals.device
         # do not backprop throught objectness
         objectness = objectness.detach()
-        objectness = objectness.reshape(num_images, -1)
+        objectness = objectness.reshape((num_images, -1))
 
         levels = [
             # flow.full((n,), idx, dtype=torch.int64, device=device)
-            flow.ones((n,), dtype=flow.int64, device=device) * idx
+            flow.ones((n,), dtype=flow.float32, device=device) * idx
             for idx, n in enumerate(num_anchors_per_level)
         ]
         levels = flow.cat(levels, 0)
-        levels = levels.reshape(1, -1).expand_as(objectness)
+        # print(levels.shape, levels.dtype, levels.device, objectness.shape, objectness.dtype, objectness.device)
+        levels = (levels.reshape((1, -1))).expand(*objectness.shape)
 
         # select top_n boxes independently per level before applying nms
         top_n_idx = self._get_top_n_idx(objectness, num_anchors_per_level)
+        print("top_k done", num_images, device)
 
-        image_range = flow.arange(num_images, device=device)
-        batch_idx = image_range[:, None]
+        # TODO:
+        # advance indexing
+        # image_range = flow.arange(num_images, device=device, dtype=flow.int64)
+        # print("image_range", image_range)
+        # # batch_idx = image_range[:, None]
+        # batch_idx = image_range.unsqueeze(dim=1)
+        # print("batch_idx", batch_idx, "top_n_idx", top_n_idx.shape, "objectness", objectness.shape)
+        # objectness = objectness[batch_idx, top_n_idx]
+        # print(objectness)
+        # levels = levels[batch_idx, top_n_idx]
+        # proposals = proposals[batch_idx, top_n_idx]
+        # print(top_n_idx[0].shape)
 
-        objectness = objectness[batch_idx, top_n_idx]
-        levels = levels[batch_idx, top_n_idx]
-        proposals = proposals[batch_idx, top_n_idx]
+        tmp_levels = flow.zeros_like(levels)
+        tmp_proposals = flow.zeros_like(proposals)
+        for i in range(num_images):
+            for j in range(top_n_idx[i].shape[0]):
 
+                # if j >= self.pre_nms_top_n():
+                #     offset = j // self.pre_nms_top_n()
+                #     offset = offset * objectness.shape[1]
+                # else:
+                #     offset = 0
+                # print(i, j, top_n_idx_numpy[0, j], type(top_n_idx_numpy[0, j].item()))
+                top_n_idx_numpy = top_n_idx[i].numpy()
+                tmp_levels[i, j] = levels[i, top_n_idx_numpy[0, j].item()]
+                tmp_proposals[i, j] = proposals[i, top_n_idx_numpy[0, j].item()]
+        levels = tmp_levels[:, :top_n_idx[0].shape[0]]
+        proposals = tmp_proposals[:, :top_n_idx[0].shape[0]]
+
+        # print(levels)
+        # tmp = flow.zeros_like(proposals)
+        # for i in range(num_images):
+        #     for j in range(top_n_idx[0].shape[0]):
+        #
+
+
+        # print(proposals)
         objectness_prob = flow.sigmoid(objectness)
 
         final_boxes = []
@@ -261,20 +321,45 @@ class RegionProposalNetwork(nn.Module):
 
             # remove small boxes
             keep = box_ops.remove_small_boxes(boxes, self.min_size)
-            boxes, scores, lvl = boxes[keep], scores[keep], lvl[keep]
+            #TODO:advance index
+            # boxes, scores, lvl = boxes[keep], scores[keep], lvl[keep]
+            tmp_boxes = flow.zeros_like(boxes)
+            tmp_scores = flow.zeros_like(scores)
+            tmp_lvl = flow.zeros_like(lvl)
+            keep_numpy = keep.numpy()
+            for i in range(keep.shape[0]):
+                tmp_boxes[i], tmp_scores[i], tmp_lvl[i] = boxes[keep_numpy[i].item()], scores[keep_numpy[i].item()], lvl[keep_numpy[i].item()]
+            boxes = tmp_boxes[:keep.shape[0]]
+            scores = tmp_scores[:keep.shape[0]]
+            lvl = tmp_lvl[:keep.shape[0]]
 
             # remove low scoring boxes
             # use >= for Backwards compatibility
-            keep = flow.where(scores >= self.score_thresh)[0]
-            boxes, scores, lvl = boxes[keep], scores[keep], lvl[keep]
+            keep = flow.argwhere(scores >= self.score_thresh)
+            keep_numpy = keep.numpy()
+            # TODO:advance index
+            # boxes, scores, lvl = boxes[keep], scores[keep], lvl[keep]
+            for i in range(keep.shape[0]):
+                tmp_boxes[i], tmp_scores[i], tmp_lvl[i] = boxes[keep_numpy[i].item()], scores[keep_numpy[i].item()], lvl[keep_numpy[i].item()]
+            boxes = tmp_boxes[:keep.shape[0]]
+            scores = tmp_scores[:keep.shape[0]]
+            lvl = tmp_lvl[:keep.shape[0]]
+
 
             # non-maximum suppression, independently done per level
+            boxes = boxes.to('cuda')
+            scores = scores.to('cuda')
             keep = box_ops.batched_nms(boxes, scores, lvl, self.nms_thresh)
 
             # keep only topk scoring predictions
             keep = keep[:self.post_nms_top_n()]
-            boxes, scores = boxes[keep], scores[keep]
-
+            # TODO:advance index
+            tmp_boxes = flow.zeros_like(boxes)
+            tmp_scores = flow.zeros_like(scores)
+            keep_numpy = keep.numpy()
+            for i in range(keep.shape[0]):
+                tmp_boxes[i], tmp_scores[i], = boxes[keep_numpy[i].item()], scores[keep_numpy[i].item()]
+            boxes, scores = tmp_boxes, tmp_scores
             final_boxes.append(boxes)
             final_scores.append(scores)
         return final_boxes, final_scores
@@ -318,8 +403,8 @@ class RegionProposalNetwork(nn.Module):
         return objectness_loss, box_loss
 
     def forward(self,
-                images,       # type: ImageList
-                features,     # type: Dict[str, Tensor]
+                images,  # type: ImageList
+                features,  # type: Dict[str, Tensor]
                 targets=None  # type: Optional[List[Dict[str, Tensor]]]
                 ):
         # type: (...) -> Tuple[List[Tensor], Dict[str, Tensor]]
@@ -352,8 +437,9 @@ class RegionProposalNetwork(nn.Module):
         # apply pred_bbox_deltas to anchors to obtain the decoded proposals
         # note that we detach the deltas because Faster R-CNN do not backprop through
         # the proposals
+
         proposals = self.box_coder.decode(pred_bbox_deltas.detach(), anchors)
-        proposals = proposals.view(num_images, -1, 4)
+        proposals = proposals.view((num_images, -1, 4))
         boxes, scores = self.filter_proposals(proposals, objectness, images.image_sizes, num_anchors_per_level)
 
         losses = {}

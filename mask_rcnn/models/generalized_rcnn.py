@@ -83,10 +83,20 @@ class GeneralizedRCNN(nn.Module):
             for target_idx, target in enumerate(targets):
                 boxes = target["boxes"]
                 degenerate_boxes = boxes[:, 2:] <= boxes[:, :2]
-                if degenerate_boxes.any():
+                any_flag = False
+                any_index = flow.zeros(degenerate_boxes.shape[0], dtype = flow.int8, device = degenerate_boxes.device)
+                for i in range(degenerate_boxes.shape[0]):
+                    for j in range(degenerate_boxes.shape[1]):
+                        if degenerate_boxes[i, j].numpy() > 0:
+                            any_flag = True
+                            any_index[i] = 1
+
+
+
+                if any_flag:
                     # print the first degenerate box
-                    bb_idx = flow.where(degenerate_boxes.any(dim=1))[0][0]
-                    degen_bb: List[float] = boxes[bb_idx].tolist()
+                    bb_idx = flow.argwhere(any_index)[0][0]
+                    degen_bb: List[float] = boxes[bb_idx.numpy().item()].tolist()
                     raise ValueError("All bounding boxes should have positive height and width."
                                      " Found invalid box {} for target at index {}."
                                      .format(degen_bb, target_idx))

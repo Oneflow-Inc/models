@@ -25,6 +25,13 @@ the number of epochs should be adapted so that we have the same number of iterat
 # 5.boxes.py: return torch.ops.torchvision.nms(boxes, scores, iou_threshold)-> flow.nms
 # 6.ms_roi_align.py roi_heads.py: from torchvision.ops import roi_align -> flow.roi_align
 # 7.GroupedBatchSampler
+# 8.unsqueeze -> w_ratios[:, None] already supported
+# 9. Tensor.flatten() -> Tensor.reshape(-1) not implement -> Tensor.view(-1)
+# 10.Tensor.mul->localTensor * Tensor
+# 11.tensor &
+# 12.tensor index_select advance index
+# 13. tensor.to(tensor)
+# 14. tensor.copy_(tensor)
 # not important:IntermediateLayerGetter
 
 import datetime

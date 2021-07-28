@@ -36,9 +36,9 @@ class AnchorGenerator(nn.Module):
     }
 
     def __init__(
-        self,
-        sizes=((128, 256, 512),),
-        aspect_ratios=((0.5, 1.0, 2.0),),
+            self,
+            sizes=((128, 256, 512),),
+            aspect_ratios=((0.5, 1.0, 2.0),),
     ):
         super(AnchorGenerator, self).__init__()
 
@@ -65,9 +65,14 @@ class AnchorGenerator(nn.Module):
         aspect_ratios = flow.Tensor(aspect_ratios, dtype=dtype, device=device)
         h_ratios = flow.sqrt(aspect_ratios)
         w_ratios = 1 / h_ratios
-
-        ws = (w_ratios[:, None] * scales[None, :]).view(-1)
-        hs = (h_ratios[:, None] * scales[None, :]).view(-1)
+        # print(h_ratios, w_ratios)
+        # TODO:flow.view() w_ratios[:, None] reshape(-1)
+        # ws = (w_ratios[:, None] * scales[None, :]).view(-1)
+        # hs = (h_ratios[:, None] * scales[None, :]).view(-1)
+        ws = (w_ratios[:, None] * scales[None, :]).flatten()
+        hs = (h_ratios[:, None] * scales[None, :]).flatten()
+        # ws = (w_ratios.unsqueeze(1) * scales.unsqueeze(0)).flatten()
+        # hs = (h_ratios.unsqueeze(1) * scales.unsqueeze(0)).flatten()
 
         base_anchors = flow.stack([-ws, -hs, ws, hs], dim=1) / 2
         return base_anchors.round()
@@ -109,28 +114,31 @@ class AnchorGenerator(nn.Module):
                              "feature maps passed and the number of sizes / aspect ratios specified.")
 
         for size, stride, base_anchors in zip(
-            grid_sizes, strides, cell_anchors
+                grid_sizes, strides, cell_anchors
         ):
             grid_height, grid_width = size
             stride_height, stride_width = stride
             device = base_anchors.device
 
+            print(flow.arange(
+                0, grid_width, dtype=flow.float32, device=device
+            ))
+            print(flow.cast(stride_width, dtype=flow.float32))
             # For output anchor, compute [x_center, y_center, x_center, y_center]
             shifts_x = flow.arange(
                 0, grid_width, dtype=flow.float32, device=device
-            ) * stride_width
+            ) * flow.cast(stride_width, dtype=flow.float32)
             shifts_y = flow.arange(
                 0, grid_height, dtype=flow.float32, device=device
-            ) * stride_height
+            )* flow.cast(stride_height, dtype=flow.float32)
             shift_y, shift_x = flow.meshgrid(shifts_y, shifts_x)
-            shift_x = shift_x.reshape(-1)
-            shift_y = shift_y.reshape(-1)
+            shift_x = shift_x.flatten()
+            shift_y = shift_y.flatten()
             shifts = flow.stack((shift_x, shift_y, shift_x, shift_y), dim=1)
-
             # For every (base anchor, output anchor) pair,
             # offset each zero-centered base anchor by the center of the output anchor.
             anchors.append(
-                (shifts.view(-1, 1, 4) + base_anchors.view(1, -1, 4)).reshape(-1, 4)
+                (shifts.view((-1, 1, 4)) + base_anchors.view((1, -1, 4)).reshape((-1, 4)))
             )
 
         return anchors

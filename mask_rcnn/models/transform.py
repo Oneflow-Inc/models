@@ -7,7 +7,7 @@ import oneflow.experimental as flow
 from oneflow.experimental import nn, Tensor
 from typing import List, Tuple, Dict, Optional
 
-from .image_list import ImageList
+from utils.image_list import ImageList
 from .roi_heads import paste_masks_in_image
 
 
@@ -36,14 +36,14 @@ def _resize_image_and_masks_onnx(image, self_min_size, self_max_size, target):
 
 def _resize_image_and_masks(image, self_min_size, self_max_size, target):
     # type: (Tensor, float, float, Optional[Dict[str, Tensor]]) -> Tuple[Tensor, Optional[Dict[str, Tensor]]]
-    im_shape = flow.tensor(image.shape[-2:])
-    min_size = float(flow.min(im_shape))
-    max_size = float(flow.max(im_shape))
+    im_shape = flow.Tensor((image.shape[-2], image.shape[-1]), device = image.device, dtype = image.dtype)
+    min_size = flow.min(im_shape)
+    max_size = flow.max(im_shape)
     scale_factor = self_min_size / min_size
     if max_size * scale_factor > self_max_size:
         scale_factor = self_max_size / max_size
     image = nn.functional.interpolate(
-        image[None], scale_factor=scale_factor, mode='bilinear', recompute_scale_factor=True,
+        image[None], scale_factor=scale_factor.numpy().item(), mode='bilinear', recompute_scale_factor=True,
         align_corners=False)[0]
 
     if target is None:
@@ -51,8 +51,8 @@ def _resize_image_and_masks(image, self_min_size, self_max_size, target):
 
     if "masks" in target:
         mask = target["masks"]
-        mask = F.interpolate(mask[:, None].float(), scale_factor=scale_factor, recompute_scale_factor=True)[:, 0].byte()
-        target["masks"] = mask
+        mask = nn.functional.interpolate(flow.cast(mask[:, None], dtype=flow.float32), scale_factor=scale_factor.numpy().item(), recompute_scale_factor=True)[:, 0]
+        target["masks"] = flow.cast(mask, dtype=flow.uint8)
     return image, target
 
 
@@ -119,7 +119,7 @@ class GeneralizedRCNNTransform(nn.Module):
         return image_list, targets
 
     def normalize(self, image):
-        if not image.is_floating_point():
+        if not image.dtype == flow.float32:
             raise TypeError(
                 f"Expected input images to be of floating type (in range [0, 1]), "
                 f"but found type {image.dtype} instead"
@@ -136,7 +136,9 @@ class GeneralizedRCNNTransform(nn.Module):
         TorchScript. Remove if https://github.com/pytorch/pytorch/issues/25803
         is fixed.
         """
-        index = int(flow.empty(1).uniform_(0., float(len(k))).item())
+        rng = flow.zeros(1)
+        rng.uniform_(0., float(len(k)))
+        index = int(rng.numpy().item())
         return k[index]
 
     def resize(self, image, target):
@@ -212,9 +214,11 @@ class GeneralizedRCNNTransform(nn.Module):
         max_size[2] = int(math.ceil(float(max_size[2]) / stride) * stride)
 
         batch_shape = [len(images)] + max_size
-        batched_imgs = images[0].new_full(batch_shape, 0)
+
+        batched_imgs = flow.zeros(flow.Size(batch_shape), dtype = images[0].dtype, device = images[0].device)
         for img, pad_img in zip(images, batched_imgs):
-            pad_img[: img.shape[0], : img.shape[1], : img.shape[2]].copy_(img)
+            # pad_img[: img.shape[0], : img.shape[1], : img.shape[2]].copy_(img)
+            pad_img[: img.shape[0], : img.shape[1], : img.shape[2]] = img[:, :, :]
 
         return batched_imgs
 
@@ -272,12 +276,19 @@ def resize_keypoints(keypoints, original_size, new_size):
 def resize_boxes(boxes, original_size, new_size):
     # type: (Tensor, List[int], List[int]) -> Tensor
     ratios = [
-        flow.Tensor(s, dtype=flow.float32, device=boxes.device) /
-        flow.Tensor(s_orig, dtype=flow.float32, device=boxes.device)
+        flow.tensor(s, dtype=flow.float32, device=boxes.device) /
+        flow.tensor(s_orig, dtype=flow.float32, device=boxes.device)
         for s, s_orig in zip(new_size, original_size)
     ]
     ratio_height, ratio_width = ratios
-    xmin, ymin, xmax, ymax = boxes.unbind(1)
+    # xmin, ymin, xmax, ymax = boxes.unbind(1)
+    xmin = flow.zeros(boxes.shape[0], device = boxes.device, dtype=boxes.dtype)
+    xmax = flow.zeros(boxes.shape[0], device=boxes.device, dtype=boxes.dtype)
+    ymin = flow.zeros(boxes.shape[0], device=boxes.device, dtype=boxes.dtype)
+    ymax = flow.zeros(boxes.shape[0], device=boxes.device, dtype=boxes.dtype)
+
+    for idx, val in enumerate(boxes):
+        xmin[idx], xmax[idx], ymin[idx], ymax[idx] = val
 
     xmin = xmin * ratio_width
     xmax = xmax * ratio_width
