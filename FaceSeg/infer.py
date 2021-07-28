@@ -45,10 +45,10 @@ class CaptureFrames():
         self.model.eval()
         time_1 = time.time()
 
-        fps = 27
-        size = (640,480)
+        fps = 24
+        size = orig.shape[:2][::-1] #(480, 360)# (640,480)#
         fourcc = cv2.VideoWriter_fourcc(*'XVID')
-        result_video = cv2.VideoWriter("result_video2.avi", fourcc, fps, size)
+        result_video = cv2.VideoWriter("result.avi", fourcc, fps, size)
         self.frames_count = 0
         while grabbed:
             (grabbed, orig) = camera.read()
@@ -104,6 +104,7 @@ def main(args):
 
     # set path=0 for webcam or set to a video file
     source = "result_video.avi"
+    source = '/home/jiaojiao/jiaojiao/project/video_source/source1.avi'
     source = 0
     model_path = args.model_path
 

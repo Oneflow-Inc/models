@@ -65,7 +65,8 @@ class LinkNet34(nn.Module):
 
         # if pretrained=True, load pretrained resnet model
         if pretrained:
-            resnet = load_model_params(resnet,pretrained_model_path)
+            # resnet = load_model_params(resnet,pretrained_model_path)
+            resnet.load_state_dict(flow.load(pretrained_model_path))
 
         self.firstconv = resnet.conv1
         self.firstbn = resnet.bn1

@@ -8,7 +8,6 @@ def load_image(image_path='data/fish.jpg'):
     rgb_mean = [123.68, 116.779, 103.939]
     rgb_std = [58.393, 57.12, 57.375]
     im = Image.open(image_path)
-    #im = im.resize((224, 224))
     im = im.resize((256, 256))
     im = im.convert('RGB')  # 有的图像是单通道的，不加转换会报错
     im = np.array(im).astype('float32')
@@ -20,8 +19,6 @@ def load_image(image_path='data/fish.jpg'):
 def image_transform(im):
     rgb_mean = [123.68, 116.779, 103.939]
     rgb_std = [58.393, 57.12, 57.375]
-    # im = Image.open(image_path)
-    #im = im.resize((224, 224))
     im = im.resize((256, 256))
     im = im.convert('RGB')  # 有的图像是单通道的，不加转换会报错
     im = np.array(im).astype('float32')
@@ -29,22 +26,6 @@ def image_transform(im):
     im = np.transpose(im, (2, 0, 1))
     im = np.expand_dims(im, axis=0)
     return np.ascontiguousarray(im, 'float32')
-
-# def load_image(image_path='data/fish.jpg'):
-#     # rgb_mean = [123.68, 116.779, 103.939]
-#     # rgb_std = [58.393, 57.12, 57.375]
-#
-#     rgb_mean = [0.485, 0.456, 0.406]
-#     rgb_std = [0.229, 0.224, 0.225]
-#     im = Image.open(image_path)
-#     #im = im.resize((224, 224))
-#     im = im.resize((256, 256))
-#     im = im.convert('RGB')  # 有的图像是单通道的，不加转换会报错
-#     im = np.array(im).astype('float32')
-#     im = (im - rgb_mean) / rgb_std
-#     im = np.transpose(im, (2, 0, 1))
-#     im = np.expand_dims(im, axis=0)
-#     return np.ascontiguousarray(im, 'float32')
 
 
 class NumpyDataLoader(object):
@@ -90,4 +71,46 @@ class NumpyDataLoader(object):
         return len(self.image_2_class_label_list) // self.batch_size
 
 
+class face_seg(object):
+    def __init__(self, dataset_root: str, batch_size: int = 1,augmentation=None, training=True):
+        self.dataset_root = dataset_root
+        sub_folders = os.listdir(self.dataset_root)
+        self.image_2_class_label_list = []
+        self.label_2_class_name = {}
+        self.batch_size = batch_size
+        if training:
+            self.images = np.array(np.load(self.dataset_root + 'img_train.npy'))
+            self.labels = np.array(np.load(self.dataset_root + 'mask_train.npy'))
+        else:
+            self.images = np.array(np.load(self.dataset_root + 'img_test.npy'))
+            self.labels = np.array(np.load(self.dataset_root + 'mask_test.npy'))
+        self.augmentation = augmentation
 
+        self.curr_idx = 0
+        self.shuffle_data()
+
+    def shuffle_data(self):
+        random.shuffle(self.image_2_class_label_list)
+        self.curr_idx = 0
+
+    def __getitem__(self, index):
+        batch_datas = []
+        batch_labels = []
+        for i in range(self.batch_size):
+            _image = self.images[self.curr_idx]
+            _label = self.labels[self.curr_idx]
+            if self.augmentation is not None:
+                data = {"image": _image, "mask": _label}
+                augmented = self.augmentation(**data)
+                _image, _label = augmented["image"], augmented["mask"]
+
+            batch_datas.append(_image)
+            batch_labels.append(_label)
+            self.curr_idx += 1
+        np_datas = np.array(batch_datas)
+        np_labels = np.array(batch_labels, dtype=np.int32)
+
+        return np.ascontiguousarray(np_datas, 'float32'), np_labels
+
+    def __len__(self):
+        return self.images.shape[0] // self.batch_size
