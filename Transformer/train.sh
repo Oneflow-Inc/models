@@ -23,7 +23,7 @@ NHEAD=8
 NUM_LAYERS=6
 DIM_FF=1024
 
-LOAD_DIR="best_model"
+LOAD_DIR="."
 SAVE_DIR="best_model"
 
 python3 train_transformer.py \
