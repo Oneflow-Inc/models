@@ -99,9 +99,6 @@ class CaptureFrames():
 
 
 def main(args):
-    # flow.env.init()
-    # flow.enable_eager_execution()
-
     # set path=0 for webcam or set to a video file
     source = "./source1.avi" #0
     model_path = args.model_path
