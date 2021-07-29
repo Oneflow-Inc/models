@@ -1,6 +1,6 @@
 import oneflow as flow
 import oneflow.nn as nn
-from utils import pad_sequences, load_imdb_data
+from utils import pad_sequences
 from model import TransformerEncoderModel
 
 import numpy as np
