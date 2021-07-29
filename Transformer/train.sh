@@ -2,8 +2,8 @@ set -aux
 
 IMDB_PATH="imdb"
 if [ ! -d "$IMDB_PATH" ]; then
-    wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/datasets/aclImdb_v1.tar.gz
-    tar zxf aclImdb_v1.tar.gz
+    wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/datasets/Imdb_ofrecord.tar.gz
+    tar zxf Imdb_ofrecord.tar.gz
 fi
 
 MODEL_PATH="best_model"

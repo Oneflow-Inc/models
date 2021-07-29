@@ -7,21 +7,14 @@ This repo is based on https://github.com/pytorch/pytorch/blob/master/torch/nn/mo
 ### Preparing IMDb dataset
 
 ```bash
-wget
-tar zxf
+wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/datasets/Imdb_ofrecord.tar.gz
+tar zxf Imdb_ofrecord.tar.gz
 ```
 
 ### Train
 
 ```bash
 bash train.sh
-```
-
-### Pre-trained model
-
-```bash
-wget xxx
-tar zxf transformer_model.tar.gz
 ```
 
 Note that the parameters of the provided pre-trained model is :
