@@ -1,8 +1,7 @@
 # -*- coding:utf-8 -*-
-import oneflow.experimental as flow
-import oneflow.experimental.nn as nn
+import oneflow as flow
+import oneflow.nn as nn
 from models.resnet50 import resnet50
-from utils.load_model_params import load_model_params
 
 
 def conv3x3(in_planes: int, out_planes: int, stride: int = 1, groups: int = 1, dilation: int = 1) -> nn.Conv2d:
@@ -55,8 +54,9 @@ class DecoderBlockLinkNet(nn.Module):
         x = self.relu(x)
         return x
 
+
 class LinkNet34(nn.Module):
-    def __init__(self, num_classes=1, num_channels=3, pretrained=False, pretrained_model_path = ""):
+    def __init__(self, num_classes=1, num_channels=3, pretrained=False, pretrained_model_path=""):
         super().__init__()
         assert num_channels == 3
         self.num_classes = num_classes
@@ -65,7 +65,6 @@ class LinkNet34(nn.Module):
 
         # if pretrained=True, load pretrained resnet model
         if pretrained:
-            # resnet = load_model_params(resnet,pretrained_model_path)
             resnet.load_state_dict(flow.load(pretrained_model_path))
 
         self.firstconv = resnet.conv1
@@ -117,7 +116,7 @@ class LinkNet34(nn.Module):
         f4 = self.finalrelu2(f3)
         f5 = self.finalconv3(f4)
         if self.num_classes > 1:
-            x_out = nn.logsoftmax(f5,axis=1)
+            x_out = nn.logsoftmax(f5, axis=1)
         else:
             x_out = f5
         return x_out

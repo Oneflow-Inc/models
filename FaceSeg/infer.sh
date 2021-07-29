@@ -8,4 +8,9 @@ if [ ! -d "$PRETRAIN_MODEL_PATH" ]; then
   rm linknet_oneflow_model.zip
 fi
 
+SOURCE="./source1.avi"
+if [ ! -f "$SOURCE" ]; then
+  wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/datasets/models/seg/source1.avi
+fi
+
 python3 infer.py --model_path $PRETRAIN_MODEL_PATH

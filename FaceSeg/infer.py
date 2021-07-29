@@ -7,9 +7,9 @@ import numpy as np
 from PIL import Image
 import argparse
 
-import oneflow.experimental as flow
+import oneflow as flow
 from models.LinkNet34 import LinkNet34
-from utils.numpy_data_utils import load_image,image_transform
+from utils.numpy_data_utils import load_image, image_transform
 
 
 def _parse_args():
@@ -46,7 +46,7 @@ class CaptureFrames():
         time_1 = time.time()
 
         fps = 24
-        size = orig.shape[:2][::-1] #(480, 360)# (640,480)#
+        size = orig.shape[:2][::-1]  # (480, 360)# (640,480)#
         fourcc = cv2.VideoWriter_fourcc(*'XVID')
         result_video = cv2.VideoWriter("result.avi", fourcc, fps, size)
         self.frames_count = 0
@@ -69,7 +69,8 @@ class CaptureFrames():
             ind = np.where(mask == 0)
             rgba[ind] = rgba[ind] - [0, 0, 0, 180]
 
-            canvas = Image.new('RGBA', (rgba.shape[1], rgba.shape[0]), (255, 255, 255, 255))
+            canvas = Image.new(
+                'RGBA', (rgba.shape[1], rgba.shape[0]), (255, 255, 255, 255))
             canvas.paste(Image.fromarray(rgba), mask=Image.fromarray(rgba))
             rgba = np.array(canvas)
             rgb = cv2.cvtColor(rgba, cv2.COLOR_BGRA2BGR)
@@ -97,15 +98,12 @@ class CaptureFrames():
         camera.release()
 
 
-# model_path = "linknet.pth"
 def main(args):
-    flow.env.init()
-    flow.enable_eager_execution()
+    # flow.env.init()
+    # flow.enable_eager_execution()
 
     # set path=0 for webcam or set to a video file
-    source = "result_video.avi"
-    source = '/home/jiaojiao/jiaojiao/project/video_source/source1.avi'
-    source = 0
+    source = "./source1.avi" #0
     model_path = args.model_path
 
     model = LinkNet34()

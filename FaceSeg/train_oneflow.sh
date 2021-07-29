@@ -5,13 +5,14 @@ MOM=0.9
 EPOCH=10
 MODEL_PATH="./pretrained_resnet_oneflow_model"
 DATASET_PATH="./faceseg_data/"
-SAVE_MODEL_NAME="linknet34_oneflow_model"
+SAVE_MODEL_NAME="linknet_oneflow_model"
 # LOAD PREVIOUS CHECKPOINT
 # LOAD_CHECKPOINT=$CHECKPOINT_PATH/epoch_2_val_acc_0.111168
 
 if [ ! -d "$DATASET_PATH" ]; then
     wget https://oneflow-static.oss-cn-beijing.aliyuncs.com/train_data_zjlab/faceseg_data.zip
-    tar zxf faceseg_data
+    mkdir faceseg_data
+    unzip faceseg_data -d faceseg_data
 fi
 
 python3 train.py \

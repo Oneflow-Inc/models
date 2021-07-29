@@ -1,11 +1,11 @@
-import oneflow.experimental as flow
+import oneflow as flow
 import time
 import argparse
 
 from utils.numpy_data_utils import face_seg
 from models.LinkNet34 import LinkNet34
 
-import oneflow.experimental.nn as nn
+import oneflow.nn as nn
 import sys
 
 from albumentations import (
@@ -32,6 +32,7 @@ def _parse_args():
     parser.add_argument("--mom", type=float, default=0.9, help="")
     return parser.parse_args()
 
+
 class LossBinary:
     def __init__(self, jaccard_weight=0):
         self.nll_loss = nn.BCEWithLogitsLoss(reduction='mean')
@@ -41,37 +42,36 @@ class LossBinary:
         loss = (1 - self.jaccard_weight) * self.nll_loss(outputs, targets)
         if self.jaccard_weight:
             eps = 1e-15
-            jaccard_target = flow.Tensor((targets.numpy() == 1)).to(flow.device('cuda'))
+            jaccard_target = flow.Tensor(
+                (targets.numpy() == 1)).to(flow.device('cuda'))
             jaccard_output = flow.sigmoid(outputs)
             intersection = (jaccard_output * jaccard_target).sum()
             union = jaccard_output.sum() + jaccard_target.sum()
-            loss -= self.jaccard_weight * flow.log((intersection + eps) / (union - intersection + eps))
+            loss -= self.jaccard_weight * \
+                flow.log((intersection + eps) / (union - intersection + eps))
         return loss
 
-def main(args):
-    flow.env.init()
-    flow.enable_eager_execution()
 
-    # epochs = 10
-    # batch_size = 4 # NOTE(Liang Depeng): when batch bigger than 12, for example 16 loss will increase
-    # learning_rate = 0.01
-    # mom = 0.9
+def main(args):
     train_aug = Compose([
         HorizontalFlip(p=0.5),
         Rotate(15),
     ])
 
-    train_data_loader = face_seg(args.dataset_path, args.batch_size, augmentation=train_aug)
+    train_data_loader = face_seg(
+        args.dataset_path, args.batch_size, augmentation=train_aug)
     print(len(train_data_loader))
 
     #################
     # oneflow init
     start_t = time.time()
-    linknet34_module = LinkNet34(pretrained=True,pretrained_model_path=args.model_path)
+    linknet34_module = LinkNet34(
+        pretrained=True, pretrained_model_path=args.model_path)
     end_t = time.time()
 
     linknet34_module.to(flow.device('cuda'))
-    of_sgd = flow.optim.SGD(linknet34_module.parameters(), lr=args.learning_rate, momentum=args.mom)
+    of_sgd = flow.optim.SGD(linknet34_module.parameters(),
+                            lr=args.learning_rate, momentum=args.mom)
     cosine = flow.optim.lr_scheduler.CosineAnnealingLR(of_sgd, 2)
 
     ############################
@@ -86,10 +86,11 @@ def main(args):
 
             of_sgd.zero_grad()
             image_nd, label_nd = train_data_loader[b]
-            # oneflow train 
+            # oneflow train
             start_t = time.time()
             image = flow.Tensor(image_nd)
-            label = flow.Tensor(label_nd, dtype=flow.float32, requires_grad=False)
+            label = flow.Tensor(
+                label_nd, dtype=flow.float32, requires_grad=False)
             image = image.to(flow.device('cuda'))
             label = label.to(flow.device('cuda'))
             logits = linknet34_module(image)
@@ -103,11 +104,11 @@ def main(args):
             end_t = time.time()
             l = loss.numpy()[0]
             of_losses.append(l)
-            sys.stdout.write(f'\rEpoch: {epoch} ---- Loss: {round(epoch_loss / (b + 1), 4)} ----- num: {b}')
+            sys.stdout.write(
+                f'\rEpoch: {epoch} ---- Loss: {round(epoch_loss / (b + 1), 4)} ----- num: {b}')
             sys.stdout.flush()
 
         print("epoch %d done, start validation" % epoch)
-    # flow.save(linknet34_module.state_dict(), "linknet34_oneflow_training_model_50_test3")
     flow.save(linknet34_module.state_dict(), args.save_model_name)
 
     writer = open("of_losses.txt", "w")
@@ -115,14 +116,7 @@ def main(args):
         writer.write("%f\n" % o)
     writer.close()
 
+
 if __name__ == "__main__":
     args = _parse_args()
     main(args)
-
-
-
-
-
-
-
-

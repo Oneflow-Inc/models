@@ -38,7 +38,8 @@ bash infer.sh
 ### Data preparation
 
 We combine several dataset and preprocess them, for training and evaluating our 
-face segmentation model. We provide the final compressed dataset, please download dataset from [here](https://oneflow-static.oss-cn-beijing.aliyuncs.com/train_data_zjlab/faceseg_d~~~~ata.zip) , unzip it and put it in `./`
+face segmentation model. We provide the final compressed dataset, please download dataset from 
+[here](https://oneflow-static.oss-cn-beijing.aliyuncs.com/train_data_zjlab/faceseg_data.zip) , unzip it and put it in `./`
 
 ### Run Oneflow Training script
 
