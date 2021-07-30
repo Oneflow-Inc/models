@@ -84,7 +84,19 @@ def main(args):
             return loss
 
     alexnet_graph = AlexNetGraph()
-    # print("repr(alexnet_graph): \n", repr(alexnet_graph))
+
+    # class AlexNetEvalGraph(flow.nn.Graph):
+    #     def __init__(self):
+    #         super().__init__()
+    #         self.alexnet = alexnet_module
+    #     
+    #     def build(self, image):
+    #         with flow.no_grad():
+    #             logits = self.alexnet(image)
+    #             predictions = logits.softmax()
+    #         return predictions
+
+    # alexnet_eval_graph = AlexNetEvalGraph()
 
     of_losses = []
     all_samples = len(val_data_loader) * args.val_batch_size
@@ -123,9 +135,8 @@ def main(args):
 
         #     start_t = time.time()
         #     image = image.to("cuda")
-        #     with flow.no_grad():
-        #         logits = alexnet_module(image)
-        #         predictions = logits.softmax()
+        #     predictions = alexnet_eval_graph(image)
+
         #     of_predictions = predictions.numpy()
         #     clsidxs = np.argmax(of_predictions, axis=1)
 
@@ -145,7 +156,7 @@ def main(args):
         #     ),
         # )
 
-    writer = open("of_losses.txt", "w")
+    writer = open("graph_of_losses.txt", "w")
     for o in of_losses:
         writer.write("%f\n" % o)
     writer.close()
