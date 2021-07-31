@@ -1,20 +1,46 @@
-# models
-Models and examples implement with OneFlow(version >= 0.4.0).
+# CSRNet
 
-## Install Oneflow
+## Introduction
+This repo is based on: https://github.com/leeyeehoo/CSRNet-pytorch
+## Installation
+oneflow==0.4.0<br>
+cuda==10.2
+## Get started
+### Dataset
+ShanghaiTech Dataset:
+Baidu Netdisk: 
 
-https://github.com/Oneflow-Inc/oneflow#install-with-pip-package
+pretrained model:
 
-## Build custom ops from source
-In the root directory, run:
-```bash
-mkdir build
-cd build
-cmake ..
-make -j$(nrpoc)
-```
-Example of using ops:
-```bash
-from ops import RoIAlign
-pooler = RoIAlign(output_size=(14, 14), spatial_scale=2.0, sampling_ratio=2)
-```
+ 
+
+### Train a model
+python train.py train.json val.json 0 0
+### Test a model
+python val.py
+
+
+### Citation
+
+
+    @inproceedings{li2018csrnet,
+    title={CSRNet: Dilated convolutional neural networks for understanding the highly congested scenes},
+    author={Li, Yuhong and Zhang, Xiaofan and Chen, Deming},
+    booktitle={Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition},
+    pages={1091--1100},
+    year={2018}
+    }
+
+    @inproceedings{zhang2016single,
+    title={Single-image crowd counting via multi-column convolutional neural network},
+    author={Zhang, Yingying and Zhou, Desen and Chen, Siqin and Gao, Shenghua and Ma, Yi},
+    booktitle={Proceedings of the IEEE conference on computer vision and pattern recognition},
+    pages={589--597},
+    year={2016}
+}
+
+#### Compare
+|         | ShanghaiA MAE | ShanghaiB MAE   |
+| :------ | :-----------: | ---------------:|
+| PyTorch |     68.2      |      10.6       |
+| OneFlow |     70.3      |       9.9       |
