@@ -86,7 +86,6 @@ def main(args):
             return loss
 
     alexnet_graph = AlexNetGraph()
-    # print("repr(alexnet_graph): \n", repr(alexnet_graph))
 
     class AlexNetEvalGraph(flow.nn.Graph):
         def __init__(self):
@@ -158,7 +157,7 @@ def main(args):
             ),
         )
 
-    writer = open("of_losses.txt", "w")
+    writer = open("graph_of_losses.txt", "w")
     for o in of_losses:
         writer.write("%f\n" % o)
     writer.close()
