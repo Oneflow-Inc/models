@@ -4,9 +4,8 @@ import numpy as np
 import os
 import time
 
-from simplenet import SimpleNet
 from utils.ofrecord_data_utils import OFRecordDataLoader
-
+from models.alexnet import AlexNet
 
 def _parse_args():
     parser = argparse.ArgumentParser("flags for train quantization models")
@@ -56,21 +55,21 @@ def main(args):
 
     # oneflow init
     start_t = time.time()
-    simplenet_module = SimpleNet()
+    quantization_module = AlexNet()
     if args.load_checkpoint != "":
         print("load_checkpoint >>>>>>>>> ", args.load_checkpoint)
-        simplenet_module.load_state_dict(flow.load(args.load_checkpoint))
+        quantization_module.load_state_dict(flow.load(args.load_checkpoint))
 
     end_t = time.time()
     print("init time : {}".format(end_t - start_t))
 
     of_cross_entropy = flow.nn.CrossEntropyLoss()
 
-    simplenet_module.to("cuda")
+    quantization_module.to("cuda")
     of_cross_entropy.to("cuda")
 
     of_sgd = flow.optim.SGD(
-        simplenet_module.parameters(), lr=args.learning_rate, momentum=args.mom
+        quantization_module.parameters(), lr=args.learning_rate, momentum=args.mom
     )
 
     of_losses = []
@@ -78,7 +77,7 @@ def main(args):
     print_interval = 100
 
     for epoch in range(args.epochs):
-        simplenet_module.train()
+        quantization_module.train()
 
         for b in range(len(train_data_loader)):
             image, label = train_data_loader.get_batch()
@@ -87,7 +86,7 @@ def main(args):
             start_t = time.time()
             image = image.to("cuda")
             label = label.to("cuda")
-            logits = simplenet_module.quantize_forward(image)
+            logits = quantization_module.quantize_forward(image)
             loss = of_cross_entropy(logits, label)
             loss.backward()
             of_sgd.step()
@@ -104,7 +103,7 @@ def main(args):
 
         print("epoch %d train done, start validation" % epoch)
 
-        simplenet_module.eval()
+        quantization_module.eval()
         correct_of = 0.0
         for b in range(len(val_data_loader)):
             image, label = val_data_loader.get_batch()
@@ -112,7 +111,7 @@ def main(args):
             start_t = time.time()
             image = image.to("cuda")
             with flow.no_grad():
-                logits = simplenet_module(image)
+                logits = quantization_module(image)
                 predictions = logits.softmax()
             of_predictions = predictions.numpy()
             clsidxs = np.argmax(of_predictions, axis=1)
@@ -126,7 +125,7 @@ def main(args):
         print("epoch %d, oneflow top1 val acc: %f" % (epoch, correct_of / all_samples))
 
         flow.save(
-            simplenet_module.state_dict(),
+            quantization_module.state_dict(),
             os.path.join(
                 args.save_checkpoint_path,
                 "epoch_%d_val_acc_%f" % (epoch, correct_of / all_samples),
