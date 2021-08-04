@@ -20,7 +20,7 @@ def _parse_args():
         "--load_checkpoint", type=str, default="", help="load checkpoint"
     )
     parser.add_argument(
-        "--ofrecord_path", type=str, default="./ofrecord", help="dataset path"
+        "--ofrecord_path", type=str, default="/data/imagenet/ofrecord/", help="dataset path"
     )
     # training hyper-parameters
     parser.add_argument(
@@ -29,19 +29,43 @@ def _parse_args():
     parser.add_argument("--mom", type=float, default=0.9, help="momentum")
     parser.add_argument("--epochs", type=int, default=100, help="training epochs")
     parser.add_argument(
-        "--train_batch_size", type=int, default=32, help="train batch size"
+        "--train_batch_size", type=int, default=128, help="train batch size"
     )
     parser.add_argument("--val_batch_size", type=int, default=32, help="val batch size")
-
+    parser.add_argument("--results", type=str, default="./results", help="tensorboard file path")
+    parser.add_argument("--tag", type=str, default="default", help="tag of experiment")
     return parser.parse_args()
 
 
 def main(args):
+    #==================
+    #=== Path Setup ===
+    #==================
+    training_results_path = os.path.join(args.results, args.tag)
+    os.makedirs(training_results_path, exist_ok=True)
+
+    #=====================
+    #=== Dataset Setup ===
+    #=====================
+    # imagenet
+    # train_data_loader = OFRecordDataLoader(
+    #     ofrecord_root=args.ofrecord_path,
+    #     mode="train",
+    #     dataset_size=1281167,
+    #     batch_size=args.train_batch_size,
+    # )
+
+    # val_data_loader = OFRecordDataLoader(
+    #     ofrecord_root=args.ofrecord_path,
+    #     mode="validation",
+    #     dataset_size=50000,
+    #     batch_size=args.val_batch_size,
+    # )
+
+    # imagenette
     train_data_loader = OFRecordDataLoader(
         ofrecord_root=args.ofrecord_path,
         mode="train",
-        #dataset_size=94,
-        #dataset_size=940,
         dataset_size=9469,
         batch_size=args.train_batch_size,
     )
@@ -101,15 +125,16 @@ def main(args):
     alexnet_eval_graph = AlexNetEvalGraph()
 
     of_losses = []
+    of_accuracy = []
     all_samples = len(val_data_loader) * args.val_batch_size
-    print_interval = 100
+    print_interval = 20
 
 
     for epoch in range(args.epochs):
         alexnet_module.train()
 
         for b in range(len(train_data_loader)):
-            image, label = train_data_loader.get_batch()
+            image, label = train_data_loader()
 
             # oneflow graph train
             start_t = time.time()
@@ -147,7 +172,9 @@ def main(args):
                     correct_of += 1
             end_t = time.time()
 
-        print("epoch %d, oneflow top1 val acc: %f" % (epoch, correct_of / all_samples))
+        top1 = correct_of / all_samples
+        of_accuracy.append(top1)
+        print("epoch %d, oneflow top1 val acc: %f" % (epoch, top1))
 
         flow.save(
             alexnet_module.state_dict(),
@@ -159,6 +186,11 @@ def main(args):
 
     writer = open("graph_of_losses.txt", "w")
     for o in of_losses:
+        writer.write("%f\n" % o)
+    writer.close()
+
+    writer = open("graph_of_accuracy.txt", "w")
+    for o in of_accuracy:
         writer.write("%f\n" % o)
     writer.close()
 

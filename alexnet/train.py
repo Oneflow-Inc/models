@@ -74,8 +74,9 @@ def main(args):
     )
 
     of_losses = []
+    of_accuracy = []
     all_samples = len(val_data_loader) * args.val_batch_size
-    print_interval = 100
+    print_interval = 20
 
     for epoch in range(args.epochs):
         alexnet_module.train()
@@ -122,8 +123,9 @@ def main(args):
                 if clsidxs[i] == label_nd[i]:
                     correct_of += 1
             end_t = time.time()
-
-        print("epoch %d, oneflow top1 val acc: %f" % (epoch, correct_of / all_samples))
+        top1 = correct_of / all_samples
+        of_accuracy.append(top1)
+        print("epoch %d, oneflow top1 val acc: %f" % (epoch, top1))
 
         flow.save(
             alexnet_module.state_dict(),
@@ -138,6 +140,10 @@ def main(args):
         writer.write("%f\n" % o)
     writer.close()
 
+    writer = open("of_accuracy.txt", "w")
+    for o in of_accuracy:
+        writer.write("%f\n" % o)
+    writer.close()
 
 if __name__ == "__main__":
     args = _parse_args()

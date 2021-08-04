@@ -13,7 +13,7 @@ fi
 
 LEARNING_RATE=0.001
 MOM=0.9
-EPOCH=20
+EPOCH=3
 TRAIN_BATCH_SIZE=16
 VAL_BATCH_SIZE=16
 
@@ -23,7 +23,7 @@ VAL_BATCH_SIZE=16
 export CUDA_VISIBLE_DEVICES=1
 export GLOG_v=2
 
-python3 graph_train.py \
+python3 check_model.py \
     --save_checkpoint_path $CHECKPOINT_PATH \
     --ofrecord_path $OFRECORD_PATH \
     --learning_rate $LEARNING_RATE \
