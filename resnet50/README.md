@@ -30,4 +30,7 @@ tar zxf imagenette_ofrecord.tar.gz
 ```bash
 bash train_oneflow.sh
 ```
-
+### Run graph training
+```bash
+bash graph_train.sh
+```
