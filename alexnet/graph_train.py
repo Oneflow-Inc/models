@@ -27,6 +27,7 @@ def _parse_args():
         "--learning_rate", type=float, default=0.001, help="learning rate"
     )
     parser.add_argument("--mom", type=float, default=0.9, help="momentum")
+    parser.add_argument("--wd", type=float, default=0.0005, help="weight decay")
     parser.add_argument("--epochs", type=int, default=100, help="training epochs")
     parser.add_argument(
         "--train_batch_size", type=int, default=32, help="train batch size"
@@ -69,7 +70,7 @@ def main(args):
     of_cross_entropy.to("cuda")
 
     of_sgd = flow.optim.SGD(
-        alexnet_module.parameters(), lr=args.learning_rate, momentum=args.mom
+        alexnet_module.parameters(), lr=args.learning_rate, momentum=args.mom, weight_decay=args.wd,
     )
 
     class AlexNetGraph(flow.nn.Graph):
@@ -127,35 +128,36 @@ def main(args):
                         epoch, b, l, end_t - start_t
                     )
                 )
+        
+        if (epoch + 1) % 10 == 0:
+            print("epoch %d train done, start validation" % epoch)
 
-        print("epoch %d train done, start validation" % epoch)
+            alexnet_module.eval()
+            correct_of = 0.0
+            for b in range(len(val_data_loader)):
+                image, label = val_data_loader.get_batch()
 
-        alexnet_module.eval()
-        correct_of = 0.0
-        for b in range(len(val_data_loader)):
-            image, label = val_data_loader.get_batch()
+                start_t = time.time()
+                image = image.to("cuda")
+                predictions = alexnet_eval_graph(image)
+                of_predictions = predictions.numpy()
+                clsidxs = np.argmax(of_predictions, axis=1)
 
-            start_t = time.time()
-            image = image.to("cuda")
-            predictions = alexnet_eval_graph(image)
-            of_predictions = predictions.numpy()
-            clsidxs = np.argmax(of_predictions, axis=1)
+                label_nd = label.numpy()
+                for i in range(args.val_batch_size):
+                    if clsidxs[i] == label_nd[i]:
+                        correct_of += 1
+                end_t = time.time()
 
-            label_nd = label.numpy()
-            for i in range(args.val_batch_size):
-                if clsidxs[i] == label_nd[i]:
-                    correct_of += 1
-            end_t = time.time()
+            print("epoch %d, oneflow top1 val acc: %f" % (epoch, correct_of / all_samples))
 
-        print("epoch %d, oneflow top1 val acc: %f" % (epoch, correct_of / all_samples))
-
-        flow.save(
-            alexnet_module.state_dict(),
-            os.path.join(
-                args.save_checkpoint_path,
-                "epoch_%d_val_acc_%f" % (epoch, correct_of / all_samples),
-            ),
-        )
+            flow.save(
+                alexnet_module.state_dict(),
+                os.path.join(
+                    args.save_checkpoint_path,
+                    "epoch_%d_val_acc_%f" % (epoch, correct_of / all_samples),
+                ),
+            )
 
     writer = open("graph_of_losses.txt", "w")
     for o in of_losses:
