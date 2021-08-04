@@ -38,8 +38,7 @@ def main(args):
         
         def build(self, image):
             with flow.no_grad():
-                logits = self.alexnet(image)
-                predictions = logits.softmax()
+                predictions = self.alexnet(image).softmax()
             return predictions
 
     alexnet_eval_graph = AlexNetEvalGraph()
