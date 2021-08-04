@@ -44,25 +44,7 @@ def main(args):
     training_results_path = os.path.join(args.results, args.tag)
     os.makedirs(training_results_path, exist_ok=True)
 
-    #=====================
-    #=== Dataset Setup ===
-    #=====================
-    # imagenet
-    # train_data_loader = OFRecordDataLoader(
-    #     ofrecord_root=args.ofrecord_path,
-    #     mode="train",
-    #     dataset_size=1281167,
-    #     batch_size=args.train_batch_size,
-    # )
-
-    # val_data_loader = OFRecordDataLoader(
-    #     ofrecord_root=args.ofrecord_path,
-    #     mode="validation",
-    #     dataset_size=50000,
-    #     batch_size=args.val_batch_size,
-    # )
-
-    # imagenette
+    # build dataloader
     train_data_loader = OFRecordDataLoader(
         ofrecord_root=args.ofrecord_path,
         mode="train",
