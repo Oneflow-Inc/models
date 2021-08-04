@@ -1,5 +1,7 @@
 import oneflow as flow
-from ..q_module import QParam, QModule
+from  quantization_ops.q_module import QModule, QParam
+
+__all__ = ["QConv2d"]
 
 class QConv2d(QModule):
 

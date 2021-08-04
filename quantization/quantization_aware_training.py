@@ -56,6 +56,7 @@ def main(args):
     # oneflow init
     start_t = time.time()
     quantization_module = AlexNet()
+    quantization_module.quantize(quantization_bit=8, )
     if args.load_checkpoint != "":
         print("load_checkpoint >>>>>>>>> ", args.load_checkpoint)
         quantization_module.load_state_dict(flow.load(args.load_checkpoint))
@@ -93,7 +94,7 @@ def main(args):
             of_sgd.zero_grad()
             end_t = time.time()
             if b % print_interval == 0:
-                l = loss.numpy()[0]
+                l = loss.numpy()
                 of_losses.append(l)
                 print(
                     "epoch {} train iter {} oneflow loss {}, train time : {}".format(

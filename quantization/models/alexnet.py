@@ -1,6 +1,6 @@
 import oneflow as flow
 import oneflow.nn as nn
-from ..ops import *
+from quantization_ops import *
 
 __all__ = ["AlexNet"]
 
@@ -60,12 +60,12 @@ class AlexNet(nn.Module):
         self.q_avgpool = nn.AdaptiveAvgPool2d((6, 6))
         self.q_classifier = nn.Sequential(
             nn.Dropout(),
-            q_linear(self.features[1], qi=True, qo=False, quantization_bit=quantization_bit, quantization_scheme=quantization_scheme, quantization_formula=quantization_formula, per_layer_quantization=per_layer_quantization),
+            q_linear(self.classifier[1], qi=True, qo=False, quantization_bit=quantization_bit, quantization_scheme=quantization_scheme, quantization_formula=quantization_formula, per_layer_quantization=per_layer_quantization),
             nn.ReLU(inplace=True),
             nn.Dropout(),
-            q_linear(self.features[4], qi=True, qo=False, quantization_bit=quantization_bit, quantization_scheme=quantization_scheme, quantization_formula=quantization_formula, per_layer_quantization=per_layer_quantization),
+            q_linear(self.classifier[4], qi=True, qo=False, quantization_bit=quantization_bit, quantization_scheme=quantization_scheme, quantization_formula=quantization_formula, per_layer_quantization=per_layer_quantization),
             nn.ReLU(inplace=True),
-            q_linear(self.features[6], qi=True, qo=False, quantization_bit=quantization_bit, quantization_scheme=quantization_scheme, quantization_formula=quantization_formula, per_layer_quantization=per_layer_quantization),
+            q_linear(self.classifier[6], qi=True, qo=False, quantization_bit=quantization_bit, quantization_scheme=quantization_scheme, quantization_formula=quantization_formula, per_layer_quantization=per_layer_quantization),
         )
 
     def quantize_forward(self, x):

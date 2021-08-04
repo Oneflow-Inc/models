@@ -1,13 +1,15 @@
 import oneflow as flow
-from ..q_module import QParam, QModule
+from  quantization_ops.q_module import QModule, QParam
+
+__all__ = ["QLinear"]
 
 class QLinear(QModule):
 
-    def __init__(self, fc_module, qi=True, qo=True, quantization_bit=8):
-        super(QLinear, self).__init__(qi=qi, qo=qo, quantization_bit=quantization_bit)
+    def __init__(self, fc_module, qi=True, qo=True, quantization_bit=8, quantization_scheme='symmetric', quantization_formula='google', per_layer_quantization=True):
+        super(QLinear, self).__init__(qi=qi, qo=qo, quantization_bit=quantization_bit, quantization_scheme='symmetric', quantization_formula='google', per_layer_quantization=True)
         self.quantization_bit = quantization_bit
         self.fc_module = fc_module
-        self.qw = QParam(quantization_bit=quantization_bit)
+        self.qw = QParam(quantization_bit=quantization_bit, quantization_scheme='symmetric', quantization_formula='google', per_layer_quantization=True)
 
     def freeze(self, qi=None, qo=None):
 
@@ -39,8 +41,7 @@ class QLinear(QModule):
             x = self.qi.fake_quantize_tensor(x)
 
         self.qw.update(self.fc_module.weight.data)
-
-        x = flow.F.matmul(x, self.qw.fake_quantize_tensor(self.fc_module.weight)) + self.fc_module.bias
+        x = flow.F.matmul(x, self.qw.fake_quantize_tensor(self.fc_module.weight), transpose_a=False, transpose_b=True) + self.fc_module.bias
  
         if hasattr(self, 'qo'):
             self.qo.update(x)

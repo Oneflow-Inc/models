@@ -126,6 +126,8 @@ mnist
 # pix2pix
 of_pix2pix
 data
+ofrecord/
+checkpoints/
 
 # resnet50
 imagenet*
