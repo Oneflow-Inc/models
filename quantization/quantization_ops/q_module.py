@@ -12,16 +12,18 @@ class QParam:
         self.per_layer_quantization = per_layer_quantization
         self.scale = None
         self.zero_point = None
+        self.min_max_observer = flow.nn.MinMaxObserver(quantization_formula=quantization_formula, quantization_bit=quantization_bit, quantization_scheme=quantization_scheme, per_layer_quantization=per_layer_quantization)
+        self.fake_quantization = flow.nn.FakeQuantization(quantization_formula=quantization_formula, quantization_bit=quantization_bit, quantization_scheme=quantization_scheme)
+        self.quantization = flow.nn.Quantization(quantization_formula=quantization_formula, quantization_bit=quantization_bit, quantization_scheme=quantization_scheme)
 
     def update(self, tensor):
-        self.scale, self.zero_point = flow.quantization.min_max_observer(tensor, quantization_bit=self.quantization_bit, 
-                                                                        quantization_scheme=self.quantization_scheme, per_layer_quantization=self.per_layer_quantization)
+        self.scale, self.zero_point = self.min_max_observer(tensor)
 
     def quantize_tensor(self, tensor):
-        return flow.quantization.quantization(tensor, self.scale, self.zero_point, self.quantization_formula, self.quantization_bit, self.quantization_scheme)
+        return self.quantization(tensor, self.scale, self.zero_point)
     
     def fake_quantize_tensor(self, tensor):
-        return flow.quantization.fake_quantization(tensor, self.scale, self.zero_point, self.quantization_formula, self.quantization_bit, self.quantization_scheme)
+        return self.fake_quantization(tensor, self.scale, self.zero_point)
 
     def __str__(self):
         info = 'scale: %.10f ' % self.scale

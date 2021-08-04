@@ -9,6 +9,7 @@ class QLinear(QModule):
         super(QLinear, self).__init__(qi=qi, qo=qo, quantization_bit=quantization_bit, quantization_scheme='symmetric', quantization_formula='google', per_layer_quantization=True)
         self.quantization_bit = quantization_bit
         self.fc_module = fc_module
+        self.fake_quantization = flow.nn.FakeQuantization(quantization_formula=quantization_formula, quantization_bit=quantization_bit, quantization_scheme=quantization_scheme)
         self.qw = QParam(quantization_bit=quantization_bit, quantization_scheme='symmetric', quantization_formula='google', per_layer_quantization=True)
 
     def freeze(self, qi=None, qo=None):
@@ -31,8 +32,7 @@ class QLinear(QModule):
 
         self.fc_module.weight.data = self.qw.quantize_tensor(self.fc_module.weight.data)
         self.fc_module.weight.data = self.fc_module.weight.data - self.qw.zero_point
-        self.fc_module.bias.data = flow.quantization.fake_quantization(self.fc_module.bias.data, scale=self.qi.scale * self.qw.scale,
-                                                     zero_point=0, quantization_formula="google", quantization_bit=32, quantization_scheme="affine")
+        self.fc_module.bias.data = self.fake_quantization(self.fc_module.bias.data, scale=self.qi.scale * self.qw.scale, zero_point=0)
 
 
     def forward(self, x):

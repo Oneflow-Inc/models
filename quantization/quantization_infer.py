@@ -4,7 +4,7 @@ import argparse
 import numpy as np
 import time
 
-from models.alexnet import AlexNet
+from models.q_alexnet import QuantizationAlexNet
 from utils.imagenet1000_clsidx_to_labels import clsidx_2_labels
 from utils.numpy_data_utils import load_image
 
@@ -24,7 +24,7 @@ def _parse_args():
 
 def main(args):
     start_t = time.time()
-    alexnet_module = AlexNet()
+    alexnet_module = QuantizationAlexNet()
     alexnet_module.quantize(quantization_bit=args.quantization_bit, quantization_scheme=args.quantization_scheme, 
                                 quantization_formula=args.quantization_formula, per_layer_quantization=args.per_layer_quantization)
     end_t = time.time()

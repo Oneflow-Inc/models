@@ -2,12 +2,11 @@ import oneflow as flow
 import oneflow.nn as nn
 from quantization_ops import *
 
-__all__ = ["AlexNet"]
+__all__ = ["QuantizationAlexNet"]
 
-class AlexNet(nn.Module):
-
+class QuantizationAlexNet(nn.Module):
     def __init__(self, num_classes: int = 1000) -> None:
-        super(AlexNet, self).__init__()
+        super(QuantizationAlexNet, self).__init__()
         self.features = nn.Sequential(
             nn.Conv2d(3, 64, kernel_size=11, stride=4, padding=2),
             nn.ReLU(inplace=True),
@@ -33,13 +32,6 @@ class AlexNet(nn.Module):
             nn.ReLU(inplace=True),
             nn.Linear(4096, num_classes),
         )
-
-    def forward(self, x: flow.Tensor) -> flow.Tensor:
-        x = self.features(x)
-        x = self.avgpool(x)
-        x = flow.flatten(x, 1)
-        x = self.classifier(x)
-        return x
 
     def quantize(self, quantization_bit=8, quantization_scheme='symmetric', quantization_formula='google', per_layer_quantization=True):
         self.q_features = nn.Sequential(
@@ -84,6 +76,3 @@ class AlexNet(nn.Module):
         self.q_classifier[1].freeze()
         self.q_classifier[4].freeze()
         self.q_classifier[6].freeze()
-
-    def quantize_inference(self, x):
-        pass

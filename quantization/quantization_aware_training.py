@@ -5,7 +5,7 @@ import os
 import time
 
 from utils.ofrecord_data_utils import OFRecordDataLoader
-from models.alexnet import AlexNet
+from models.q_alexnet import QuantizationAlexNet
 
 def _parse_args():
     parser = argparse.ArgumentParser("flags for train quantization models")
@@ -59,7 +59,7 @@ def main(args):
 
     # oneflow init
     start_t = time.time()
-    quantization_module = AlexNet()
+    quantization_module = QuantizationAlexNet()
     quantization_module.quantize(quantization_bit=args.quantization_bit, quantization_scheme=args.quantization_scheme, 
                                 quantization_formula=args.quantization_formula, per_layer_quantization=args.per_layer_quantization)
     if args.load_checkpoint != "":
