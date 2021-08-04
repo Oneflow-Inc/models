@@ -2,22 +2,46 @@
 
 ## Introduction
 This repo is based on: https://github.com/leeyeehoo/CSRNet-pytorch
-## Installation
-oneflow==0.4.0<br>
-cuda==10.2
+
+
+## Prerequisites
+
+```
+pip3 install -r requirements.txt
+```
+
 ## Get started
 ### Dataset
-ShanghaiTech Dataset:
-Baidu Netdisk: 
+ShanghaiTech crowd counting dataset contains 1198 an-notated images with a total amount of 330,165 persons.
+This dataset consists of two parts as Part A containing 482 images with highly congested scenes randomly downloaded
+from the Internet while Part B includes 716 images with relatively sparse crowd scenes taken from streets in Shang-
+hai.[ShanghaiTech ](https://oneflow-public.oss-cn-beijing.aliyuncs.com/datasets/models/CSRNet/Shanghai_dataset.rar) Dataset are provided.
 
-pretrained model:
 
- 
+### Download Pretrain Models
+
+```bash
+wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/cv/CSRNet/Shanghai_BestModelA.rar
+wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/cv/CSRNet/Shanghai_BestModelB.rar
+```
+
+## Follow the val.sh to try the validation
+First, modify the address of the Pretrain Models to be used in the val.py file
+```bigquery
+checkpoint = flow.load('checkpoint/Shanghai_BestModelA/shanghaiA_bestmodel')
+```
+```bash
+bash infer.sh
+```
 
 ### Train a model
-python train.py train.json val.json 0 0
-### Test a model
-python val.py
+```
+python train.py part_A_train.json part_A_val.json 0 0
+```
+
+```bash
+bash train.sh
+```
 
 
 ### Citation
@@ -40,7 +64,7 @@ python val.py
 }
 
 #### Compare
-|         | ShanghaiA MAE | ShanghaiB MAE   |
+|         | ShanghaiA MAE |  ShanghaiB MAE   |
 | :------ | :-----------: | ---------------:|
 | PyTorch |     68.2      |      10.6       |
 | OneFlow |     70.3      |       9.9       |
