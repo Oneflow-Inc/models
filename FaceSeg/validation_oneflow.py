@@ -113,7 +113,7 @@ def evaluate():
         mask_probs_flat = flow.reshape(logits, shape=[-1])
         true_masks_flat = flow.reshape(label, shape=[-1])
         loss = Loss(mask_probs_flat, true_masks_flat)
-        l = loss.numpy()[0]
+        l = loss.numpy()
         train_loss += l
         iou_np = criterion.get_miou(logits.numpy(), label.numpy())
         miou += iou_np
@@ -139,7 +139,7 @@ def evaluate():
         mask_probs_flat = flow.reshape(logits, shape=[-1])
         true_masks_flat = flow.reshape(label, shape=[-1])
         loss = Loss(mask_probs_flat, true_masks_flat)
-        l = loss.numpy()[0]
+        l = loss.numpy()
         val_loss += l
         iou_np = criterion.get_miou(logits.numpy(), label.numpy())
         miou += iou_np
