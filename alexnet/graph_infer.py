@@ -30,7 +30,9 @@ def main(args):
     end_t = time.time()
     print("load params time : {}".format(end_t - start_t))
 
+    alexnet_module.eval()
     alexnet_module.to("cuda")
+
     class AlexNetEvalGraph(flow.nn.Graph):
         def __init__(self):
             super().__init__()
@@ -38,7 +40,7 @@ def main(args):
         
         def build(self, image):
             with flow.no_grad():
-                predictions = self.alexnet(image).softmax()
+                predictions = self.alexnet(image)
             return predictions
 
     alexnet_eval_graph = AlexNetEvalGraph()
@@ -46,7 +48,7 @@ def main(args):
     start_t = time.time()
     image = load_image(args.image_path)
     image = flow.Tensor(image, device=flow.device("cuda"))
-    predictions = alexnet_eval_graph(image)
+    predictions = alexnet_eval_graph(image).softmax()
     predictions = predictions.numpy()
     end_t = time.time()
     print("infer time : {}".format(end_t - start_t))
