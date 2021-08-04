@@ -42,15 +42,6 @@ class OFRecordDataLoader(object):
         self.num_wide_sparse_fields = FLAGS.num_wide_sparse_fields
         self.num_deep_sparse_fields = FLAGS.num_deep_sparse_fields
 
-        if FLAGS.dataset_format == 'ofrecord':
-            self.forward_fn = self._data_loader_ofrecord
-        elif FLAGS.dataset_format == 'onerec':
-            self.forward_fn = self._data_loader_onerec
-        elif FLAGS.dataset_format == 'synthetic':
-            self.forward_fn = self._data_loader_synthetic
-        else:
-            assert 0, "Please specify dataset_type as `ofrecord`, `onerec` or `synthetic`."
-
     def forward(self):
         with flow.scope.placement("cpu", self.devices):
             return flow.identity_n(self.forward_fn())
@@ -71,35 +62,3 @@ class OFRecordDataLoader(object):
         deep_sparse_fields = _blob_decoder("deep_sparse_fields", (self.num_deep_sparse_fields,))
         return reader, [labels, dense_fields, wide_sparse_fields, deep_sparse_fields]
 
-
-    def _data_loader_synthetic(self):
-        def _blob_random(shape, dtype=flow.int32, initializer=flow.zeros_initializer(flow.int32)):
-            return nn.decode_random(shape=shape, dtype=dtype, batch_size=self.batch_size, 
-                                            initializer=initializer)
-        labels = _blob_random((1,), initializer=flow.random_uniform_initializer(dtype=flow.int32))
-        dense_fields = _blob_random((self.num_dense_fields,), dtype=flow.float, 
-                                    initializer=flow.random_uniform_initializer())
-        wide_sparse_fields = _blob_random((self.num_wide_sparse_fields,))
-        deep_sparse_fields = _blob_random((self.num_deep_sparse_fields,))
-        print('use synthetic data')
-        return None, [labels, dense_fields, wide_sparse_fields, deep_sparse_fields]
-
-
-    def _data_loader_onerec(self):
-        print('load onerec data form', self.data_dir)
-        files = glob.glob(os.path.join(self.data_dir, '*.onerec'))
-        readdata = flow.data.onerec_reader(files=files, batch_size=self.batch_size, 
-                                        random_shuffle=self.shuffle,
-                                        verify_example=False,
-                                        shuffle_mode="batch",
-                                        shuffle_buffer_size=64,
-                                        shuffle_after_epoch=self.shuffle)
-
-        def _blob_decoder(bn, shape, dtype=flow.int32):
-            return flow.data.onerec_decoder(readdata, key=bn, shape=shape, dtype=dtype)
-
-        labels = _blob_decoder('labels', shape=(1,))
-        dense_fields = _blob_decoder("dense_fields", (self.num_dense_fields,), flow.float)
-        wide_sparse_fields = _blob_decoder("wide_sparse_fields", (self.num_wide_sparse_fields,))
-        deep_sparse_fields = _blob_decoder("deep_sparse_fields", (self.num_deep_sparse_fields,))
-        return [labels, dense_fields, wide_sparse_fields, deep_sparse_fields]
