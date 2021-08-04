@@ -1,5 +1,5 @@
 import oneflow as flow
-import oneflow.nn as nn
+from oneflow import nn
 from oneflow import Tensor
 from typing import Type, Any, Callable, Union, List, Optional
 
@@ -240,7 +240,7 @@ class ResNet(nn.Module):
 
         return nn.Sequential(*layers)
 
-    def _forward_impl(self, x: Tensor) -> Tensor:
+    def forward(self, x: Tensor) -> Tensor:
         x = self.conv1(x)
         x = self.bn1(x)
         x = self.relu(x)
@@ -256,9 +256,6 @@ class ResNet(nn.Module):
         x = self.fc(x)
 
         return x
-
-    def forward(self, x: Tensor) -> Tensor:
-        return self._forward_impl(x)
 
 
 def _resnet(
