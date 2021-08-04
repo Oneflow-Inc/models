@@ -31,6 +31,10 @@ def _parse_args():
         "--train_batch_size", type=int, default=32, help="train batch size"
     )
     parser.add_argument("--val_batch_size", type=int, default=32, help="val batch size")
+    parser.add_argument("--quantization_bit", type=int, default=8, help="quantization bit")
+    parser.add_argument("--quantization_scheme", type=str, default="symmetric", help="quantization scheme")
+    parser.add_argument("--quantization_formula", type=str, default="google", help="quantization formula")
+    parser.add_argument("--per_layer_quantization", type=bool, default=True, help="per_layer_quantization")
 
     return parser.parse_args()
 
@@ -56,7 +60,8 @@ def main(args):
     # oneflow init
     start_t = time.time()
     quantization_module = AlexNet()
-    quantization_module.quantize(quantization_bit=8, )
+    quantization_module.quantize(quantization_bit=args.quantization_bit, quantization_scheme=args.quantization_scheme, 
+                                quantization_formula=args.quantization_formula, per_layer_quantization=args.per_layer_quantization)
     if args.load_checkpoint != "":
         print("load_checkpoint >>>>>>>>> ", args.load_checkpoint)
         quantization_module.load_state_dict(flow.load(args.load_checkpoint))

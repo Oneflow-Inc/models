@@ -48,12 +48,3 @@ class QLinear(QModule):
             x = self.qo.fake_quantize_tensor(x)
 
         return x
-
-    def quantize_inference(self, x):
-        x = x - self.qi.zero_point
-        x = self.fc_module(x)
-        x = self.M * x
-        x = x.round() 
-        x = x + self.qo.zero_point
-        x = x.clamp(0., 2.**self.quantization_bit-1.).round()
-        return x
