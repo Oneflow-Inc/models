@@ -40,8 +40,7 @@ def _parse_args():
     )
     return parser.parse_args()
 
-
-def setup(args):
+def build_loader(args):
     train_data_loader = OFRecordDataLoader(
         ofrecord_root=args.ofrecord_path,
         mode="train",
@@ -56,7 +55,9 @@ def setup(args):
         dataset_size=3925,
         batch_size=args.val_batch_size,
     )
+    return train_data_loader, val_data_loader  
 
+def setup(args):
     criterion = flow.nn.CrossEntropyLoss()
     
     # model setup
@@ -78,7 +79,7 @@ def setup(args):
     criterion = flow.nn.CrossEntropyLoss()
     criterion = criterion.to("cuda")
 
-    return train_data_loader, val_data_loader, eager_model, graph_model, eager_optimizer, graph_optimizer, criterion
+    return eager_model, graph_model, eager_optimizer, graph_optimizer, criterion
 
 # def build_graph(args, graph_model, criterion, optimizer):
 #     criterion = criterion
@@ -306,17 +307,23 @@ def save_result(trainer):
 if __name__ == "__main__":
     args = _parse_args()
     trainer = Trainer(args)
-    train_data_loader, val_data_loader, eager_model, graph_model, eager_optimizer, graph_optimizer, criterion = setup(args)
+    eager_model, graph_model, eager_optimizer, graph_optimizer, criterion = setup(args)
     print("***** Graph Training *****")
-    trainer.graph_train(train_data_loader = train_data_loader, 
-                        val_data_loader = val_data_loader, 
+    print("***** Preparing Dataloader *****")
+    graph_train_loader, graph_val_loader = build_loader(args)
+    print("***** Done *****")
+    trainer.graph_train(train_data_loader = graph_train_loader, 
+                        val_data_loader = graph_val_loader, 
                         model = graph_model, 
                         criterion = criterion, 
                         optimizer = graph_optimizer)
 
     print("***** Eager Training *****")
-    trainer.eager_train(train_data_loader = train_data_loader, 
-                        val_data_loader = val_data_loader, 
+    print("***** Preparing Dataloader *****")
+    eager_train_loader, eager_val_loader = build_loader(args)
+    print("***** Done *****")
+    trainer.eager_train(train_data_loader = eager_train_loader, 
+                        val_data_loader = eager_val_loader, 
                         model = eager_model, 
                         criterion = criterion, 
                         optimizer = eager_optimizer)
