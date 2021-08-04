@@ -20,11 +20,8 @@ VAL_BATCH_SIZE=16
 # LOAD PREVIOUS CHECKPOINT 
 # LOAD_CHECKPOINT=$CHECKPOINT_PATH/epoch_2_val_acc_0.111168
 
-export CUDA_VISIBLE_DEVICES=1
-<<<<<<< HEAD
-export GLOG_v=2
-=======
->>>>>>> bdc9ac59196311eca0e1be0e4c91ac6cbb729aaf
+# export CUDA_VISIBLE_DEVICES=1
+# export GLOG_v=2
 
 python3 graph_train.py \
     --save_checkpoint_path $CHECKPOINT_PATH \
