@@ -21,13 +21,3 @@ class LayerNorm(flow.nn.Module):
 
         std = x.std(dim=-1, keepdim=True)
         return self.a_2 * (x - mean) / (std + self.eps) + self.b_2
-
-
-def logical_or(input, other):
-    """
-    using only in this situation:
-        attn_mask = logical_or(attn_mask, key_padding_mask)
-
-    :return:
-    """
-    return input + other

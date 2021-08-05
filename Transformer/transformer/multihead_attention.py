@@ -11,10 +11,6 @@ from oneflow import Tensor
 from oneflow.nn import Module, Parameter, Linear
 from oneflow.nn.init import xavier_uniform_, constant_, xavier_normal_
 
-# fix the bug of LayerNorm in oneflow.nn
-from .dev_ops import logical_or
-# from oneflow import logical_or
-
 from .utils import _in_projection_packed, _scaled_dot_product_attention, linear, _in_projection, pad
 
 
@@ -264,7 +260,7 @@ def multi_head_attention_forward(
         if attn_mask is None:
             attn_mask = key_padding_mask
         elif attn_mask.dtype == flow.int32:
-            attn_mask = logical_or(attn_mask, key_padding_mask)
+            attn_mask = flow.logical_or(attn_mask, key_padding_mask)
         else:
             attn_mask = attn_mask.masked_fill(key_padding_mask, float("-inf"))
 
