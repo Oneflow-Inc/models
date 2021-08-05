@@ -85,7 +85,7 @@ def train_one_epoch(args, model, criterion, data_loader, optimizer, epoch, lr_sc
         optimizer.zero_grad()
 
         # update metrics
-        loss_meter.update(loss.numpy()[0], args.train_batch_size)
+        loss_meter.update(loss.numpy(), args.train_batch_size)
         batch_time.update(time.time() - end)
         end = time.time()
 
@@ -113,7 +113,7 @@ def valid(args, model, criterion, data_loader):
             logits = model(image)
             preds = logits.softmax()
             eval_loss = criterion(logits, label)
-            eval_losses.update(eval_loss.numpy()[0])
+            eval_losses.update(eval_loss.numpy())
 
         preds = preds.numpy()
         preds = np.argmax(preds, axis=-1)
@@ -217,10 +217,10 @@ def main(args):
 
     # saving training information
     print("***** Save Logs *****")
-    save_logs(loss_list, "of_losses.txt")
-    print("Save loss info as: ", "./of_losses.txt")
-    save_logs(accuracy_list, "of_accuracy.txt")
-    print("Save acc info as: ", "./of_accuracy.txt")
+    save_logs(loss_list, "eager_losses.txt")
+    print("Save loss info as: ", "./eager_losses.txt")
+    save_logs(accuracy_list, "eager_accuracy.txt")
+    print("Save acc info as: ", "./eager_accuracy.txt")
 
 if __name__ == "__main__":
     args = _parse_args()

@@ -38,9 +38,7 @@ def _parse_args():
 
 
 def main(args):
-    #==================
-    #=== Path Setup ===
-    #==================
+    # path setup
     training_results_path = os.path.join(args.results, args.tag)
     os.makedirs(training_results_path, exist_ok=True)
 
@@ -84,8 +82,12 @@ def main(args):
             self.alexnet = alexnet_module
             self.cross_entropy = of_cross_entropy
             self.add_optimizer("sgd", of_sgd)
+            self.train_data_loader = train_data_loader
         
-        def build(self, image, label):
+        def build(self):
+            image, label = self.train_data_loader()
+            image = image.to("cuda")
+            label = label.to("cuda")
             logits = self.alexnet(image)
             loss = self.cross_entropy(logits, label)
             loss.backward()
@@ -97,12 +99,15 @@ def main(args):
         def __init__(self):
             super().__init__()
             self.alexnet = alexnet_module
+            self.val_data_loader = val_data_loader
         
-        def build(self, image):
+        def build(self):
+            image, label = self.val_data_loader()
+            image = image.to("cuda")
             with flow.no_grad():
                 logits = self.alexnet(image)
                 predictions = logits.softmax()
-            return predictions
+            return predictions, label
 
     alexnet_eval_graph = AlexNetEvalGraph()
 
@@ -116,15 +121,9 @@ def main(args):
         alexnet_module.train()
 
         for b in range(len(train_data_loader)):
-            image, label = train_data_loader()
-
             # oneflow graph train
             start_t = time.time()
-            image = image.to("cuda")
-            label = label.to("cuda")
-
-            loss = alexnet_graph(image, label)
-
+            loss = alexnet_graph()
             end_t = time.time()
             if b % print_interval == 0:
                 l = loss.numpy()
@@ -140,11 +139,8 @@ def main(args):
         alexnet_module.eval()
         correct_of = 0.0
         for b in range(len(val_data_loader)):
-            image, label = val_data_loader.get_batch()
-
             start_t = time.time()
-            image = image.to("cuda")
-            predictions = alexnet_eval_graph(image)
+            predictions, label = alexnet_eval_graph()
             of_predictions = predictions.numpy()
             clsidxs = np.argmax(of_predictions, axis=1)
 

@@ -183,7 +183,7 @@ class Trainer(object):
                 loss = model_train_graph(image, label)
                 iter_end_time = time.time()
                 if b % print_interval == 0:
-                    l = loss.numpy()[0]
+                    l = loss.numpy()
                     iter_time = iter_end_time - iter_start_time
                     print(
                         "epoch {} train iter {} oneflow loss {}, train time : {}".format(
@@ -240,7 +240,7 @@ class Trainer(object):
                 optimizer.zero_grad()
                 iter_end_time = time.time()
                 if b % print_interval == 0:
-                    l = loss.numpy()[0]
+                    l = loss.numpy()
                     iter_time = iter_end_time - iter_start_time
                     print(
                         "epoch {} train iter {} oneflow loss {}, train time : {}".format(
