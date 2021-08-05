@@ -1,5 +1,6 @@
 import argparse
 import json
+import os
 
 import numpy as np
 import oneflow as flow
@@ -13,7 +14,8 @@ parser.add_argument('--emb_dim', type=int, default=100)
 parser.add_argument('--hidden_size', type=int, default=256)
 parser.add_argument('--nfc', type=int, default=128)
 parser.add_argument('--sequence_length', type=int, default=128)
-parser.add_argument('--model_load_dir', type=str, default='pretrain_model.pt')
+parser.add_argument('--model_load_dir', type=str, default='pretrain_model')
+parser.add_argument('--imdb_path', type=str, default='../imdb')
 parser.add_argument('--text', type=str, default='This film is too bad.')
 
 args = parser.parse_args()
@@ -33,7 +35,7 @@ def predict(model, text):
 
 
 def inference(text):
-    with open('../imdb/word_index.json') as f:
+    with open(os.path.join(args.imdb_path, 'word_index.json')) as f:
         word_index = json.load(f)
     word_index = {k: (v + 2) for k, v in word_index.items()}
     word_index["<PAD>"] = 0

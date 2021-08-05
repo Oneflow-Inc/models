@@ -30,9 +30,8 @@ def shuffle_batch(data, label, batch_size):
 def load_data():
     print(colored_string('Start Loading Data', 'green'))
     start = time.time()
-    path = '../imdb'
-    (train_data, train_labels), (test_data, test_labels) = load_imdb_data(path)
-    with open(os.path.join(path, 'word_index.json')) as f:
+    (train_data, train_labels), (test_data, test_labels) = load_imdb_data(args.imdb_path)
+    with open(os.path.join(args.imdb_path, 'word_index.json')) as f:
         word_index = json.load(f)
     word_index = {k: (v + 2) for k, v in word_index.items()}
     word_index["<PAD>"] = 0
@@ -61,7 +60,8 @@ def train_eager(args):
     
     model_eager = LSTMText(args.emb_num, args.emb_dim, hidden_size=args.hidden_size,
                            nfc=args.nfc, n_classes=args.n_classes, batch_size=args.batch_size)
-    model_eager.load_state_dict(flow.load(args.model_load_dir))
+    if args.model_load_dir != ".":
+        model_eager.load_state_dict(flow.load(args.model_load_dir))
     print(colored_string("Start Training in Eager Mode", 'green'))
     time_map['t5'] = time.time()
     criterion = flow.nn.CrossEntropyLoss()
@@ -124,10 +124,11 @@ if __name__ == '__main__':
     parser.add_argument('--lr', type=float, default=3e-4)
     parser.add_argument('--sequence_length', type=int, default=128)
     parser.add_argument('--batch_size', type=int, default=32)
-    parser.add_argument('--model_load_dir', type=str, default='')
+    parser.add_argument('--model_load_dir', type=str, default='.')
     parser.add_argument('--model_save_every_n_epochs', type=int, default=5)
     parser.add_argument('--n_epochs', type=int, default=30)
     parser.add_argument('--model_save_dir', type=str, default='./save')
+    parser.add_argument('--imdb_path', type=str, default='../imdb')
     
     args = parser.parse_args()
     args.emb_num = 50000
