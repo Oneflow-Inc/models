@@ -11,7 +11,7 @@ LOAD_DIR="best_model"
 IMDB_PATH="../../imdb"
 TEXT="It is awesome! It is nice. The director does a good job!"
 
-if [ ! -d "LOAD_DIR" ]; then
+if [ ! -d "$LOAD_DIR" ]; then
     echo "Directory '$LOAD_DIR' doesn't exist."
     echo "Please train the model first or download pretrained model."
     exit 1
