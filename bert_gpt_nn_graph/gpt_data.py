@@ -1,5 +1,11 @@
+import oneflow as flow
+import oneflow.nn as nn
+
+from config import get_args
+
 class GPTDataLoader(nn.Module):
     def __init__(self, name):
+        super(GPTDataLoader, self).__init__()
         self.name = name
         args = get_args()
         self.src = self.SrcModule(args)

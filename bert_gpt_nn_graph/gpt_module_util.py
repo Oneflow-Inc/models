@@ -1,6 +1,11 @@
-import oneflow.experimental as flow
-import oneflow.experimental.nn as nn
-import oneflow.experimental.nn.functional as F
+import math
+import numpy as np
+
+import oneflow as flow
+import oneflow.nn as nn
+import oneflow.nn.functional as F
+
+from config import get_args
 
 def init_method_const(tensor):
     return nn.init.constant_(tensor, 0.0)
@@ -17,11 +22,13 @@ def scaled_init_method_normal(tensor, sigma, num_layers):
 
 class ColLinear(nn.Module):
     def __init__(
+        self,
         input_size,
         output_size,
         need_gelu=False,
         bias_gelu_fusion=True,
     ):
+        super(ColLinear, self).__init__()
         args = get_args()
         # TODO(): 这里之前的脚本中get_linear_params中传递了x.dtype，可能有问题
         # TODO(dis, done)
@@ -59,32 +66,36 @@ class ColLinear(nn.Module):
 
 class RowLinear(nn.Module):
     def __init__(
+        self,
         input_size,
         output_size,
         dropout_rate=0.1,
         bias_dropout_fusion=True,
     ):
+        super(RowLinear, self).__init__()
+        args = get_args()
         # TODO(): 这里之前的脚本中get_linear_params中传递了x.dtype，可能有问题
         # TODO(dis, done)
         # weight_parallel_dist=distribute.get_row_linear_weight_parallel_dist(),
         self.w = nn.Parameter(flow.Tensor((input_size, output_size)))
-        scaled_init_method_normal(self.w, sigma=args.init_method_std)
+        scaled_init_method_normal(self.w, sigma=args.init_method_std, num_layers=args.num_layers)
         # TODO(dis, done)
         # bias_parallel_dist=distribute.get_row_linear_bias_parallel_dist(),
         self.b = nn.Parameter(flow.Tensor((output_size,)))
         init_method_const(self.b)
         self.bias_dropout_fusion = bias_dropout_fusion
+        self.dropout_rate = dropout_rate
         self.dropout = flow.nn.Dropout(dropout_rate)
 
     def forward(self, x):
         # 2d sbp sig: [S(0), S(1)] x [B, S(0)] -> [S(0), P] -> [S(0), B]
         # data grad 2d sbp sig: [S(0), B] x [B, S(1)](transposed) -> [S(0), S(1)]
-        x = flow.matmul(x, w)
+        x = flow.matmul(x, self.w)
         # TODO(dis)
         # x = distribute.forward_p2b_parallel_cast(x)
         if self.bias_dropout_fusion:
             # TODO: flow.nn.fused_bias_add_dropout是特殊实现的op，后面迁移到F.fused_bias_add_dropout
-            x = F.fused_bias_add_dropout(x, b, data_format="NHC", rate=dropout_rate)
+            x = F.fused_bias_add_dropout(x, self.b, data_format="NHC", rate=self.dropout_rate)
         else:
             x += self.b
             x = self.dropout(x)
@@ -99,6 +110,7 @@ class TransformerLayer(nn.Module):
         seq_length,
         hidden_size,
     ):
+        super(TransformerLayer, self).__init__()
         self.layer_id = layer_id
         self.batch_size = batch_size
         self.seq_length = seq_length
@@ -158,6 +170,7 @@ class SelfAttention(nn.Module):
         hidden_size,
         hidden_dropout_rate,
     ):
+        super(SelfAttention, self).__init__()
         self.layer_id = layer_id
         self.batch_size = batch_size
         self.seq_length = seq_length
@@ -214,8 +227,7 @@ class SelfAttention(nn.Module):
 
         h = flow.reshape(h, new_shape)
         q, k, v = (
-            h[:, :, :, i * self.head_size:(i + 1) * self.head_size].permute(*perm),
-            for i in range(3)
+            h[:, :, :, i * self.head_size:(i + 1) * self.head_size].permute(*perm) for i in range(3)
         )
         return q, k, v
 
@@ -329,6 +341,7 @@ class MLP(nn.Module):
         hidden_size,
         hidden_dropout_rate,
     ):
+        super(MLP, self).__init__()
         self.batch_size = batch_size
         self.seq_length = seq_length
         self.hidden_size = hidden_size
@@ -338,8 +351,7 @@ class MLP(nn.Module):
         self.bias_gelu_fusion = args.bias_gelu_fusion
         self.bias_dropout_fusion = args.bias_dropout_fusion
 
-        self.col_linear = ColLinear(self.hidden_size, self.hidden_size*4,
-            need_gelu=True, bias_gelu_fusion=self.bias_gelu_fusion)
+        self.col_linear = ColLinear(self.hidden_size, self.hidden_size*4, need_gelu=True, bias_gelu_fusion=self.bias_gelu_fusion)
 
         self.row_linear = RowLinear(
             self.hidden_size,
@@ -362,3 +374,14 @@ class MLP(nn.Module):
         # data parallel sbp: S(0)
         # 2d sbp: [S(0), B]
         return h
+
+if __name__ == "__main__":
+    batch_size = 1
+    seq_length = 10
+    hidden_size = 128
+    hidden_dropout_rate = 0.5
+    mlp = MLP(batch_size, seq_length, hidden_size, hidden_dropout_rate).to("cuda")
+
+    
+
+

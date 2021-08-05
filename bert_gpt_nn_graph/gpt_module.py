@@ -2,15 +2,19 @@
 gpt-2 model参考megatron-lm
 '''
 import copy
-import flow
 import math
-import oneflow.experimental as flow
-import oneflow.experimental.nn as nn
-import oneflow.experimental.nn.functional as F
+
+import oneflow as flow
+import oneflow.nn as nn
+import oneflow.nn.functional as F
+
 from gpt_module_util import *
+from config import get_args
 
 class Embedding(nn.Module):
     def __init__(self, batch_size, seq_length, hidden_size, vocab_size):
+        super().__init__()
+
         self.batch_size = batch_size
         self.seq_length = seq_length
         self.hidden_size = hidden_size
@@ -54,22 +58,24 @@ class Embedding(nn.Module):
         if self.use_fp16:
             # TODO(dis, done): amp
             # 标记 + cast, h = flow.gather(flow.amp_white_identity(wte), tokens)
-            h = flow.gather(wte, tokens)
+            h = flow.gather(self.wte, tokens)
             # TODO(dis, done): amp
             # wpe也需要转下, wpe = flow.amp_white_identity(wpe)
         else:
-            h = flow.gather(wte, tokens)
+            h = flow.gather(self.wte, tokens)
 
         # TODO(dis): 2d sbp
         # h = distribute.forward_p2b_parallel_cast(h) + wpe
-        h = h + wpe
+        h = h + self.wpe
         h = self.dropout(h)
 
-        return h, wte
+        return h, self.wte
 
 
-class Transformer(object):
+class Transformer(nn.Module):
     def __init__(self, batch_size, seq_length, hidden_size):
+        super().__init__()
+
         self.batch_size = batch_size
         self.seq_length = seq_length
         self.hidden_size = hidden_size
@@ -113,14 +119,14 @@ class Transformer(object):
         assert hidden_states.shape[1] == self.seq_length
         assert hidden_states.shape[2] == self.hidden_size
 
-        if self.multihead_attention_fusion:
+        # if self.multihead_attention_fusion:
         # TODO(dis, done)
         # with distribute.layer_placement_scope(0):
             # [b, s, H] -> [s, b, H] for multihead_attention_fusion
             # h = hidden_states.permute(1, 0 , 2)
-            h = self.permute(h)
-        else:
-            h = hidden_states
+            # h = self.permute(h)
+        # else:
+        h = hidden_states
 
         for i in range(self.num_layers):
         # TODO(dis, done)
@@ -136,6 +142,7 @@ class Transformer(object):
 
 class Logits(nn.Module):
     def __init__(self):
+        super().__init__()
         args = get_args() # config args
         self.batch_size = args.global_batch_size // args.num_accumulation_steps
         self.seq_length = args.seq_length
@@ -185,6 +192,7 @@ class Logits(nn.Module):
 
 class GPTModel(nn.Module):
     def __init__(self):
+        super().__init__()
         args = get_args() # config args
         self.batch_size = args.global_batch_size // args.num_accumulation_steps
         self.seq_length = args.seq_length
@@ -217,6 +225,7 @@ class GPTModel(nn.Module):
 
 class SparseSoftmaxCrossEntropyLoss(nn.Module):
     def __init__(self):
+        super().__init__()
         args = get_args()
         self.batch_size = args.global_batch_size // args.num_accumulation_steps
         self.seq_length = args.seq_length
@@ -256,16 +265,16 @@ class SparseSoftmaxCrossEntropyLoss(nn.Module):
         # 如果模型并行，使用该loss op，是一个专门实现的loss op
         # 模型并行时使用的
         # TODO: 需要迁移到Module
-        if distribute.get_dist_util().tensor_model_parallel_size > 1:
-            loss = flow.nn.distributed_sparse_softmax_cross_entropy_with_logits(
-                labels, logits
-            )
-            loss = flow.math.reduce_mean(loss)
-        else:
+        # if distribute.get_dist_util().tensor_model_parallel_size > 1:
+        #     loss = flow.nn.distributed_sparse_softmax_cross_entropy_with_logits(
+        #         labels, logits
+        #     )
+        #     loss = flow.math.reduce_mean(loss)
+        # else:
             # 这个是非模型并行的版本
-            loss = self.loss_module(
-                logits, labels 
-            )
+        loss = self.loss_module(
+            logits, labels 
+        )
             # TODO(dis, done): amp
             #loss = flow.amp_white_identity(loss)
 
