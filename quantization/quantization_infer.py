@@ -24,24 +24,26 @@ def _parse_args():
 
 def main(args):
     start_t = time.time()
-    alexnet_module = QuantizationAlexNet()
-    alexnet_module.quantize(quantization_bit=args.quantization_bit, quantization_scheme=args.quantization_scheme, 
+    quantization_module = QuantizationAlexNet()
+    quantization_module.quantize(quantization_bit=args.quantization_bit, quantization_scheme=args.quantization_scheme, 
                                 quantization_formula=args.quantization_formula, per_layer_quantization=args.per_layer_quantization)
     end_t = time.time()
     print("init time : {}".format(end_t - start_t))
 
     start_t = time.time()
     pretrain_models = flow.load(args.model_path)
-    alexnet_module.load_state_dict(pretrain_models)
+    quantization_module.load_state_dict(pretrain_models)
     end_t = time.time()
     print("load params time : {}".format(end_t - start_t))
 
-    alexnet_module.to("cuda")
+    quantization_module.eval()
+    # quantization_module.freeze()
+    quantization_module.to("cuda")
 
     start_t = time.time()
     image = load_image(args.image_path)
     image = flow.Tensor(image, device=flow.device("cuda"))
-    predictions = alexnet_module.quantize_forward(image).softmax()
+    predictions = quantization_module(image).softmax()
     predictions = predictions.numpy()
     end_t = time.time()
     print("infer time : {}".format(end_t - start_t))

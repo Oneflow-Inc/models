@@ -24,17 +24,21 @@
 
 |模型|Epoch|量化比特数|量化规则|量化方法|是否是PerLayer|精度|
 |--|--|--|--|--|--|--|
-|AlexNet|20|32|xx|xx|xx|0.61|
-|AlexNet|20|8|google|symmetric|Yes||
+|AlexNet|20|32|xx|xx|xx|0.60999|
+|AlexNet|20|8|google|symmetric|Yes|0.637755|
 |AlexNet|20|8|google|symmetric|No||
-|AlexNet|20|8|affine|symmetric|Yes||
-|AlexNet|20|8|affine|symmetric|No||
+|AlexNet|20|8|google|affine|Yes||
+|AlexNet|20|8|google|affine|No||
 |AlexNet|20|4|google|symmetric|Yes||
 |AlexNet|20|4|google|symmetric|No||
-|AlexNet|20|4|affine|symmetric|Yes||
-|AlexNet|20|4|affine|symmetric|No||
+|AlexNet|20|4|google|affine|Yes||
+|AlexNet|20|4|google|affine|No||
 |AlexNet|20|2|google|symmetric|Yes||
 |AlexNet|20|2|google|symmetric|No||
-|AlexNet|20|2|affine|symmetric|Yes||
-|AlexNet|20|2|affine|symmetric|No||
+|AlexNet|20|2|google|affine|Yes||
+|AlexNet|20|2|google|affine|No||
+|AlexNet|20|8|cambricon|symmetric|Yes||
+|AlexNet|20|4|cambricon|symmetric|Yes||
+|AlexNet|20|2|cambricon|symmetric|Yes||
+
 

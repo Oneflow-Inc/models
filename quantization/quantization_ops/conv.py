@@ -14,6 +14,7 @@ class QConv2d(QModule):
         self.conv_module = conv_module
         self.fake_quantization = flow.nn.FakeQuantization(quantization_formula=quantization_formula, quantization_bit=quantization_bit, quantization_scheme=quantization_scheme)
         self.qw = QParam(quantization_bit=quantization_bit, quantization_scheme=quantization_scheme, quantization_formula=quantization_formula, per_layer_quantization=per_layer_quantization)
+        self.quantization = flow.nn.Quantization(quantization_bit=32, quantization_scheme="affine", quantization_formula="google")
 
     def freeze(self, qi=None, qo=None):
         
@@ -36,7 +37,7 @@ class QConv2d(QModule):
         self.conv_module.weight.data = self.qw.quantize_tensor(self.conv_module.weight.data)
         self.conv_module.weight.data = self.conv_module.weight.data - self.qw.zero_point
 
-        self.conv_module.bias.data = self.fake_quantization(self.conv_module.bias.data, scale=self.qi.scale * self.qw.scale, zero_point=0)
+        self.conv_module.bias.data = self.quantization(self.conv_module.bias.data, scale=self.qi.scale * self.qw.scale, zero_point=0)
 
     def forward(self, x):
         if hasattr(self, 'qi'):

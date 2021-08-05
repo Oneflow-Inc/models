@@ -1,6 +1,6 @@
 set -aux
 
-PRETRAIN_MODEL_PATH="./checkpoints/epoch_19_val_acc_0.717857"
+PRETRAIN_MODEL_PATH="./checkpoints/epoch_19_val_acc_0.708929"
 IMAGE_PATH="data/fish.jpg"
 # IMAGE_PATH="data/tiger.jpg"
 # IMAGE_PATH="data/ILSVRC2012_val_00020287.JPEG"

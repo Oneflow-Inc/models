@@ -42,8 +42,6 @@ class QModule(nn.Module):
     def freeze(self):
         pass
 
-    def quantize_inference(self, x):
-        raise NotImplementedError('quantize_inference should be implemented.')
 
 
 
