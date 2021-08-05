@@ -200,7 +200,7 @@ def train(model, dataset, num_classes, optimizer, scheduler):
             "loss_x:",
             loss_x.numpy()[0],
             "loss:",
-            loss.numpy()[0],
+            loss.numpy(),
             "lr:",
             optimizer.param_groups[0]["lr"],
         )

@@ -97,12 +97,12 @@ def main(args):
             mask_probs_flat = flow.reshape(logits, shape=[-1])
             true_masks_flat = flow.reshape(label, shape=[-1])
             loss = criterion(mask_probs_flat, true_masks_flat)
-            epoch_loss += loss.numpy()[0]
+            epoch_loss += loss.numpy()
             loss.backward()
             of_sgd.step()
             cosine.step()
             end_t = time.time()
-            l = loss.numpy()[0]
+            l = loss.numpy()
             of_losses.append(l)
             sys.stdout.write(
                 f'\rEpoch: {epoch} ---- Loss: {round(epoch_loss / (b + 1), 4)} ----- num: {b}')
