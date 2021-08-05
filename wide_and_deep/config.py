@@ -25,15 +25,11 @@ def get_args(print_args=True):
         action="store_true",
         help="use single dataloader threads per node or not."
     )
+    parser.add_argument('--model_load_dir', type=str, default='')
     parser.add_argument('--num_dataloader_thread_per_gpu', type=int, default=2)
-    parser.add_argument('--train_data_dir', type=str, default='')
-    parser.add_argument('--train_data_part_num', type=int, default=1)
-    parser.add_argument('--train_part_name_suffix_length', type=int, default=-1)
-    parser.add_argument('--eval_data_dir', type=str, default='')
-    parser.add_argument('--eval_data_part_num', type=int, default=1)
-    parser.add_argument('--eval_part_name_suffix_length', type=int, default=-1)
+    parser.add_argument('--data_dir', type=str, default='/dataset/wdl_ofrecord/ofrecord')
+    parser.add_argument('--print_interval', type=int, default=1000)
     parser.add_argument('--eval_batchs', type=int, default=20)
-    parser.add_argument('--eval_interval', type=int, default=1000)
     parser.add_argument('--batch_size', type=int, default=16384)
     parser.add_argument('--learning_rate', type=float, default=1e-3)
     parser.add_argument('--wide_vocab_size', type=int, default=3200000)

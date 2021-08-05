@@ -2,13 +2,12 @@ import os
 import oneflow as flow
 import oneflow.nn as nn
 
-
 class OFRecordDataLoader(nn.Module):
     def __init__(
         self,
         FLAGS,
         batch_size: int = 32,  
-        ofrecord_root: str = "./ofrecord",
+        data_root: str = "./ofrecord",
         data_part_num: int = 256,
         part_name_suffix_length: int = 5,
         mode: str = "train",  # "val" "test"
@@ -26,7 +25,7 @@ class OFRecordDataLoader(nn.Module):
         self.batch_size = batch_size
         # with flow.scope.placement("cpu", self.devices):
         self.reader = nn.OfrecordReader(
-            os.path.join(ofrecord_root, mode),
+            os.path.join(data_root, mode),
             batch_size=batch_size,
             data_part_num=data_part_num,
             part_name_suffix_length=part_name_suffix_length,
