@@ -11,6 +11,12 @@ DIM_FF=128
 LOAD_DIR="best_model"
 INPUT_START=4386
 
+if [ ! -d "LOAD_DIR" ]; then
+    echo "Directory '$LOAD_DIR' doesn't exist."
+    echo "Please train the model first or download pretrained model."
+    exit 1
+fi
+
 python3 infer_transformer_odd_numbers.py \
     --vocab_sz $VOCAB_SZ \
     --d_model $D_MODEL \
