@@ -4,6 +4,7 @@ from quantization_ops import *
 
 __all__ = ["QuantizationAlexNet"]
 
+
 class QuantizationAlexNet(nn.Module):
     def __init__(self, num_classes: int = 1000) -> None:
         super(QuantizationAlexNet, self).__init__()
@@ -32,7 +33,7 @@ class QuantizationAlexNet(nn.Module):
             nn.ReLU(inplace=True),
             nn.Linear(4096, num_classes),
         )
-    
+
     def forward(self, x: flow.Tensor) -> flow.Tensor:
         x = self.features(x)
         x = self.avgpool(x)
@@ -42,29 +43,37 @@ class QuantizationAlexNet(nn.Module):
 
     def quantize(self, quantization_bit=8, quantization_scheme='symmetric', quantization_formula='google', per_layer_quantization=True):
         self.q_features = nn.Sequential(
-            q_conv(self.features[0], qi=True, qo=True, quantization_bit=quantization_bit, quantization_scheme=quantization_scheme, quantization_formula=quantization_formula, per_layer_quantization=per_layer_quantization),
+            q_conv(self.features[0], qi=True, qo=True, quantization_bit=quantization_bit, quantization_scheme=quantization_scheme,
+                   quantization_formula=quantization_formula, per_layer_quantization=per_layer_quantization),
             nn.ReLU(inplace=True),
             nn.MaxPool2d(kernel_size=3, stride=2),
-            q_conv(self.features[3], qi=False, qo=True, quantization_bit=quantization_bit, quantization_scheme=quantization_scheme, quantization_formula=quantization_formula, per_layer_quantization=per_layer_quantization),
+            q_conv(self.features[3], qi=False, qo=True, quantization_bit=quantization_bit, quantization_scheme=quantization_scheme,
+                   quantization_formula=quantization_formula, per_layer_quantization=per_layer_quantization),
             nn.ReLU(inplace=True),
             nn.MaxPool2d(kernel_size=3, stride=2),
-            q_conv(self.features[6], qi=False, qo=True, quantization_bit=quantization_bit, quantization_scheme=quantization_scheme, quantization_formula=quantization_formula, per_layer_quantization=per_layer_quantization),
+            q_conv(self.features[6], qi=False, qo=True, quantization_bit=quantization_bit, quantization_scheme=quantization_scheme,
+                   quantization_formula=quantization_formula, per_layer_quantization=per_layer_quantization),
             nn.ReLU(inplace=True),
-            q_conv(self.features[8], qi=False, qo=True, quantization_bit=quantization_bit, quantization_scheme=quantization_scheme, quantization_formula=quantization_formula, per_layer_quantization=per_layer_quantization),
+            q_conv(self.features[8], qi=False, qo=True, quantization_bit=quantization_bit, quantization_scheme=quantization_scheme,
+                   quantization_formula=quantization_formula, per_layer_quantization=per_layer_quantization),
             nn.ReLU(inplace=True),
-            q_conv(self.features[10], qi=False, qo=True, quantization_bit=quantization_bit, quantization_scheme=quantization_scheme, quantization_formula=quantization_formula, per_layer_quantization=per_layer_quantization),
+            q_conv(self.features[10], qi=False, qo=True, quantization_bit=quantization_bit, quantization_scheme=quantization_scheme,
+                   quantization_formula=quantization_formula, per_layer_quantization=per_layer_quantization),
             nn.ReLU(inplace=True),
             nn.MaxPool2d(kernel_size=3, stride=2),
         )
         self.q_avgpool = nn.AdaptiveAvgPool2d((6, 6))
         self.q_classifier = nn.Sequential(
             nn.Dropout(),
-            q_linear(self.classifier[1], qi=False, qo=True, quantization_bit=quantization_bit, quantization_scheme=quantization_scheme, quantization_formula=quantization_formula, per_layer_quantization=per_layer_quantization),
+            q_linear(self.classifier[1], qi=False, qo=True, quantization_bit=quantization_bit, quantization_scheme=quantization_scheme,
+                     quantization_formula=quantization_formula, per_layer_quantization=per_layer_quantization),
             nn.ReLU(inplace=True),
             nn.Dropout(),
-            q_linear(self.classifier[4], qi=False, qo=True, quantization_bit=quantization_bit, quantization_scheme=quantization_scheme, quantization_formula=quantization_formula, per_layer_quantization=per_layer_quantization),
+            q_linear(self.classifier[4], qi=False, qo=True, quantization_bit=quantization_bit, quantization_scheme=quantization_scheme,
+                     quantization_formula=quantization_formula, per_layer_quantization=per_layer_quantization),
             nn.ReLU(inplace=True),
-            q_linear(self.classifier[6], qi=False, qo=True, quantization_bit=quantization_bit, quantization_scheme=quantization_scheme, quantization_formula=quantization_formula, per_layer_quantization=per_layer_quantization),
+            q_linear(self.classifier[6], qi=False, qo=True, quantization_bit=quantization_bit, quantization_scheme=quantization_scheme,
+                     quantization_formula=quantization_formula, per_layer_quantization=per_layer_quantization),
         )
 
     def quantize_forward(self, x):
