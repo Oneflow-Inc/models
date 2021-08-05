@@ -5,7 +5,7 @@ import os
 import time
 from tqdm import tqdm
 
-from models.alexnet import alexnet
+from model.alexnet import alexnet
 from utils.ofrecord_data_utils import OFRecordDataLoader
 
 
@@ -33,8 +33,8 @@ def _parse_args():
         "--train_batch_size", type=int, default=128, help="train batch size"
     )
     parser.add_argument("--val_batch_size", type=int, default=32, help="val batch size")
-    parser.add_argument("--results", type=str, default="./results", help="tensorboard file path")
-    parser.add_argument("--tag", type=str, default="default", help="tag of experiment")
+    parser.add_argument("--results", type=str, default="./check_results", help="tensorboard file path")
+    parser.add_argument("--tag", type=str, default="training_info", help="info tag")
     parser.add_argument(
         "--print_interval", type=int, default=10, help="print info frequency"
     )
@@ -80,38 +80,6 @@ def setup(args):
     criterion = criterion.to("cuda")
 
     return eager_model, graph_model, eager_optimizer, graph_optimizer, criterion
-
-# def build_graph(args, graph_model, criterion, optimizer):
-#     criterion = criterion
-#     optimizer = optimizer
-#     class ModelTrainGraph(flow.nn.Graph):
-#         def __init__(self):
-#             super().__init__()
-#             self.graph_model = graph_model
-#             self.criterion = criterion
-#             self.add_optimizer("sgd", optimizer)
-        
-#         def build(self, image, label):
-#             logits = self.graph_model(image)
-#             loss = self.criterion(logits, label)
-#             loss.backward()
-#             return loss
-    
-#     class ModelEvalGraph(flow.nn.Graph):
-#         def __init__(self):
-#             super().__init__()
-#             self.graph_model = graph_model
-        
-#         def build(self, image):
-#             with flow.no_grad():
-#                 logits = self.graph_model(image)
-#                 predictions = logits.softmax()
-#             return predictions
-    
-#     model_train_graph = ModelTrainGraph()
-#     model_eval_graph = ModelEvalGraph()
-#     return model_train_graph, model_eval_graph
-
 
 class Trainer(object):
     def __init__(self, args):
@@ -327,4 +295,5 @@ if __name__ == "__main__":
                         model = eager_model, 
                         criterion = criterion, 
                         optimizer = eager_optimizer)
+    
     save_result(trainer)

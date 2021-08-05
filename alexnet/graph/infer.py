@@ -4,7 +4,7 @@ import argparse
 import numpy as np
 import time
 
-from models.alexnet import alexnet
+from model.alexnet import alexnet
 from utils.imagenet1000_clsidx_to_labels import clsidx_2_labels
 from utils.numpy_data_utils import load_image
 
@@ -33,10 +33,22 @@ def main(args):
     alexnet_module.eval()
     alexnet_module.to("cuda")
 
+    class AlexNetEvalGraph(flow.nn.Graph):
+        def __init__(self):
+            super().__init__()
+            self.alexnet = alexnet_module
+        
+        def build(self, image):
+            with flow.no_grad():
+                predictions = self.alexnet(image)
+            return predictions
+
+    alexnet_eval_graph = AlexNetEvalGraph()
+
     start_t = time.time()
     image = load_image(args.image_path)
     image = flow.Tensor(image, device=flow.device("cuda"))
-    predictions = alexnet_module(image).softmax()
+    predictions = alexnet_eval_graph(image).softmax()
     predictions = predictions.numpy()
     end_t = time.time()
     print("infer time : {}".format(end_t - start_t))

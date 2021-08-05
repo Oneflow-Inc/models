@@ -4,7 +4,7 @@ import numpy as np
 import os
 import time
 
-from models.alexnet import alexnet
+from model.alexnet import alexnet
 from utils.ofrecord_data_utils import OFRecordDataLoader
 
 
@@ -162,12 +162,12 @@ def main(args):
             ),
         )
 
-    writer = open("graph_of_losses.txt", "w")
+    writer = open("graph/losses.txt", "w")
     for o in of_losses:
         writer.write("%f\n" % o)
     writer.close()
 
-    writer = open("graph_of_accuracy.txt", "w")
+    writer = open("graph/accuracy.txt", "w")
     for o in of_accuracy:
         writer.write("%f\n" % o)
     writer.close()

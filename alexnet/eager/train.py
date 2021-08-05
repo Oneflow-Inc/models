@@ -6,7 +6,8 @@ import datetime
 import shutil
 from tqdm import tqdm
 import oneflow as flow
-from models.alexnet import alexnet
+
+from model.alexnet import alexnet
 from utils.ofrecord_data_utils import OFRecordDataLoader
 
 class AverageMeter:
@@ -51,7 +52,7 @@ def _parse_args():
         "--train_batch_size", type=int, default=32, help="train batch size"
     )
     parser.add_argument(
-        "--print_interval", type=int, default=20, help="print info frequency"
+        "--print_interval", type=int, default=10, help="print info frequency"
     )
     parser.add_argument("--val_batch_size", type=int, default=32, help="val batch size")
 
@@ -217,10 +218,10 @@ def main(args):
 
     # saving training information
     print("***** Save Logs *****")
-    save_logs(loss_list, "eager_losses.txt")
-    print("Save loss info as: ", "./eager_losses.txt")
-    save_logs(accuracy_list, "eager_accuracy.txt")
-    print("Save acc info as: ", "./eager_accuracy.txt")
+    save_logs(loss_list, "eager/losses.txt")
+    print("Save loss info to: ", "eager/losses.txt")
+    save_logs(accuracy_list, "eager/accuracy.txt")
+    print("Save acc info to: ", "eager/accuracy.txt")
 
 if __name__ == "__main__":
     args = _parse_args()
