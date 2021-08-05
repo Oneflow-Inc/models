@@ -102,7 +102,7 @@ class BiLSTM(nn.Module):
         self.layer1 = nn.ModuleList()
         self.layer1.append(CustomLSTM(input_dim, hidden_dim, num_layers=num_layers, batch_size=batch_size))
         if bi_flag:
-            # 如果是双向，额外加入逆向层
+            # add reverse layer.
             self.layer1.append(CustomLSTM(input_dim, hidden_dim, num_layers=num_layers, batch_size=batch_size))
     
     def init_hidden(self, batch_size):
@@ -117,7 +117,7 @@ class BiLSTM(nn.Module):
         out = [data, reverse_inputs]
         for l in range(self.bi_num):
             out[l], hidden[l] = self.layer1[l](out[l], hidden[l])
-            # 如果是逆向层，需要额外将输出翻过来
+            # reverse output
             if l == 1:
                 out[l] = reverse(out[l], dim=0)
         if self.bi_num == 1:

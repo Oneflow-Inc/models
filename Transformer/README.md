@@ -19,7 +19,7 @@ Also, We found out that `oneflow.nn.LayerNorm` suffers from some problems so tha
 We use Imdb dataset to test our model first.
 
 ```bash
-wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/datasets/Imdb_ofrecord.tar.gz
+wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/datasets/models/Imdb_ofrecord.tar.gz
 tar zxf Imdb_ofrecord.tar.gz
 ```
 

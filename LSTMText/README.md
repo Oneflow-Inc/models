@@ -7,7 +7,7 @@ This repo is based on https://github.com/pytorch/pytorch/blob/master/torch/nn/mo
 ### Preparing IMDb dataset
 
 ```bash
-wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/datasets/Imdb_ofrecord.tar.gz
+wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/datasets/models/Imdb_ofrecord.tar.gz
 tar zxf Imdb_ofrecord.tar.gz
 ```
 
