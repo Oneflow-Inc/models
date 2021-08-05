@@ -240,7 +240,7 @@ class ResNet(nn.Module):
 
         return nn.Sequential(*layers)
 
-    def forward(self, x: Tensor) -> Tensor:
+    def _forward_impl(self, x: Tensor) -> Tensor:
         x = self.conv1(x)
         x = self.bn1(x)
         x = self.relu(x)
@@ -257,26 +257,8 @@ class ResNet(nn.Module):
 
         return x
 
-
-    # def _forward_impl(self, x: Tensor) -> Tensor:
-    #     x = self.conv1(x)
-    #     x = self.bn1(x)
-    #     x = self.relu(x)
-    #     x = self.maxpool(x)
-
-    #     x = self.layer1(x)
-    #     x = self.layer2(x)
-    #     x = self.layer3(x)
-    #     x = self.layer4(x)
-
-    #     x = self.avgpool(x)
-    #     x = flow.flatten(x, 1)
-    #     x = self.fc(x)
-
-    #     return x
-
-    # def forward(self, x: Tensor) -> Tensor:
-    #     return self._forward_impl(x)
+    def forward(self, x: Tensor) -> Tensor:
+        return self._forward_impl(x)
 
 
 def _resnet(

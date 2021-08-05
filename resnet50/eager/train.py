@@ -80,7 +80,7 @@ def main(args):
         res50_module.train()
 
         for b in range(len(train_data_loader)):
-            image, label = train_data_loader.get_batch()
+            image, label = train_data_loader()
 
             # oneflow train
             start_t = time.time()
@@ -93,7 +93,7 @@ def main(args):
             of_sgd.zero_grad()
             end_t = time.time()
             if b % print_interval == 0:
-                l = loss.numpy()[0]
+                l = loss.numpy()
                 of_losses.append(l)
                 print(
                     "epoch {} train iter {} oneflow loss {}, train time : {}".format(
@@ -106,7 +106,7 @@ def main(args):
         res50_module.eval()
         correct_of = 0.0
         for b in range(len(val_data_loader)):
-            image, label = val_data_loader.get_batch()
+            image, label = val_data_loader()
 
             start_t = time.time()
             image = image.to("cuda")

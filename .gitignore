@@ -130,7 +130,7 @@ data
 # resnet50
 imagenet*
 *.pth
-
+ofrecord
 .DS_Store
 
 # SRGAN

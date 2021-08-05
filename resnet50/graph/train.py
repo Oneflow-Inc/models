@@ -56,7 +56,6 @@ def main(args):
     # oneflow init
     start_t = time.time()
     resnet50_module = resnet50()
-    print(resnet50_module)
     if args.load_checkpoint != "":
         print("load_checkpoint >>>>>>>>> ", args.load_checkpoint)
         resnet50_module.load_state_dict(flow.load(args.load_checkpoint))
@@ -79,8 +78,12 @@ def main(args):
             self.resnet50 = resnet50_module
             self.cross_entropy = of_cross_entropy
             self.add_optimizer("sgd", of_sgd)
+            self.train_data_loader = train_data_loader
         
         def build(self, image, label):
+            image, label = self.train_data_loader()
+            image = image.to("cuda")
+            label = label.to("cuda")
             logits = self.resnet50(image)
             loss = self.cross_entropy(logits, label)
             loss.backward()
@@ -92,12 +95,15 @@ def main(args):
         def __init__(self):
             super().__init__()
             self.resnet50 = resnet50_module
+            self.val_data_loader = val_data_loader
         
         def build(self, image):
+            image, label = self.val_data_loader()
+            image = image.to("cuda")
             with flow.no_grad():
                 logits = self.resnet50(image)
                 predictions = logits.softmax()
-            return predictions
+            return predictions, label
 
     resnet50_eval_graph = Resnet50EvalGraph()
 
@@ -110,7 +116,7 @@ def main(args):
         resnet50_module.train()
 
         for b in range(len(train_data_loader)):
-            image, label = train_data_loader.get_batch()
+            image, label = train_data_loader()
 
             # oneflow graph train
             start_t = time.time()
@@ -121,7 +127,7 @@ def main(args):
 
             end_t = time.time()
             if b % print_interval == 0:
-                l = loss.numpy()[0]
+                l = loss.numpy()
                 of_losses.append(l)
                 print(
                     "epoch {} train iter {} oneflow loss {}, train time : {}".format(
@@ -134,11 +140,8 @@ def main(args):
         resnet50_module.eval()
         correct_of = 0.0
         for b in range(len(val_data_loader)):
-            image, label = val_data_loader.get_batch()
-
             start_t = time.time()
-            image = image.to("cuda")
-            predictions = resnet50_eval_graph(image)
+            predictions, label = resnet50_eval_graph(image)
             of_predictions = predictions.numpy()
             clsidxs = np.argmax(of_predictions, axis=1)
 
