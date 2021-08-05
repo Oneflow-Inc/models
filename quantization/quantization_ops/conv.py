@@ -32,19 +32,18 @@ class QConv2d(QModule):
             self.qi = qi
         if qo is not None:
             self.qo = qo
-        self.M = self.qw.scale * self.qi.scale / self.qo.scale
+        self.M = self.qw.scale.numpy() * self.qi.scale.numpy() / self.qo.scale.numpy()
 
-        self.conv_module.weight.data = self.qw.quantize_tensor(self.conv_module.weight.data)
-        self.conv_module.weight.data = self.conv_module.weight.data - self.qw.zero_point
-
-        self.conv_module.bias.data = self.quantization(self.conv_module.bias.data, scale=self.qi.scale * self.qw.scale, zero_point=0)
+        self.conv_module.weight = flow.nn.Parameter(self.qw.quantize_tensor(self.conv_module.weight)  - self.qw.zero_point)
+        self.conv_module.bias = flow.nn.Parameter(self.quantization(self.conv_module.bias, self.qi.scale * self.qw.scale, flow.Tensor([0])))
 
     def forward(self, x):
         if hasattr(self, 'qi'):
             self.qi.update(x)
             x = self.qi.fake_quantize_tensor(x)
+            
 
-        self.qw.update(self.conv_module.weight.data)
+        self.qw.update(self.conv_module.weight)
 
         x = flow.F.conv2d(x, self.qw.fake_quantize_tensor(self.conv_module.weight), self.conv_module.bias, 
                      stride=self.conv_module.stride,

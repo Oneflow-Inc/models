@@ -26,8 +26,8 @@ class QParam:
         return self.fake_quantization(tensor, self.scale, self.zero_point)
 
     def __str__(self):
-        info = 'scale: %.10f ' % self.scale
-        info += 'zp: %d ' % self.zero_point
+        info = 'scale: %.10f ' % self.scale.numpy()
+        info += 'zp: %d ' % self.zero_point.numpy()
         return info
 
 class QModule(nn.Module):

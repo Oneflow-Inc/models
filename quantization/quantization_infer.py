@@ -37,7 +37,6 @@ def main(args):
     print("load params time : {}".format(end_t - start_t))
 
     quantization_module.eval()
-    # quantization_module.freeze()
     quantization_module.to("cuda")
 
     start_t = time.time()

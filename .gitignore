@@ -146,3 +146,4 @@ result
 # quantization
 ._data
 *.tar.gz
+imagenette2/

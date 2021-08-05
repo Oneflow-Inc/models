@@ -29,11 +29,10 @@ class QLinear(QModule):
             self.qi = qi
         if qo is not None:
             self.qo = qo
-        self.M = self.qw.scale * self.qi.scale / self.qo.scale
+        self.M = self.qw.scale.numpy() * self.qi.scale.numpy() / self.qo.scale.numpy()
 
-        self.fc_module.weight.data = self.qw.quantize_tensor(self.fc_module.weight.data)
-        self.fc_module.weight.data = self.fc_module.weight.data - self.qw.zero_point
-        self.fc_module.bias.data = self.quantization(self.fc_module.bias.data, scale=self.qi.scale * self.qw.scale, zero_point=0)
+        self.fc_module.weight = flow.nn.Parameter(self.qw.quantize_tensor(self.conv_module.weight)  - self.qw.zero_point)
+        self.fc_module.bias = flow.nn.Parameter(self.qw.quantize_tensor(self.conv_module.weight)  - self.qw.zero_point)
 
 
     def forward(self, x):
@@ -41,7 +40,7 @@ class QLinear(QModule):
             self.qi.update(x)
             x = self.qi.fake_quantize_tensor(x)
 
-        self.qw.update(self.fc_module.weight.data)
+        self.qw.update(self.fc_module.weight)
         x = flow.F.matmul(x, self.qw.fake_quantize_tensor(self.fc_module.weight), transpose_a=False, transpose_b=True) + self.fc_module.bias
  
         if hasattr(self, 'qo'):

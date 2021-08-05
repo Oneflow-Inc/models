@@ -1,9 +1,7 @@
 set -aux
 
-PRETRAIN_MODEL_PATH="./checkpoints/epoch_19_val_acc_0.708929"
-IMAGE_PATH="data/fish.jpg"
-# IMAGE_PATH="data/tiger.jpg"
-# IMAGE_PATH="data/ILSVRC2012_val_00020287.JPEG"
+PRETRAIN_MODEL_PATH="./checkpoints/epoch_19_val_acc_0.732143"
+IMAGE_PATH="imagenette2/val/n01440764/ILSVRC2012_val_00009111.JPEG"
 QUANTIZATION_BIT=8
 QUANTIZATION_SCHEME="symmetric"
 QUANTIZATION_FORMULA="google"
@@ -22,3 +20,4 @@ python3 quantization_infer.py \
     --quantization_scheme $QUANTIZATION_SCHEME \
     --quantization_formula $QUANTIZATION_FORMULA \
     --per_layer_quantization $PER_LAYER_QUANTIZATION
+ 
