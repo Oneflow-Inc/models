@@ -1,33 +1,47 @@
 # AlexNet
+Training Alexnet on [imagenette](https://github.com/fastai/imagenette) Dataset using OneFlow
 
-## Train on [imagenette](https://github.com/fastai/imagenette) Dataset
+## Usage
+### 0. Requirements
+Experiment environment:
+- oneflow
+- tqdm
+- tensorboardX (optional)
 
-### Prepare Traning Data And Pretrain Models
-
+### 1. Prepare Traning Data And Pretrain Models
 #### Download Ofrecord
-
 ```bash
 wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/datasets/imagenette_ofrecord.tar.gz
 tar zxf imagenette_ofrecord.tar.gz
 ```
 
-### Download Pretrain Models
+#### Download Pretrain Models
 
 ```bash
 wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/cv/classification/alexnet/alexnet_oneflow_model.tar.gz
 ```
 
-### Run Oneflow Training script
-
+### 2. Run Oneflow Training Script
+#### Graph Training Scripts
 ```bash
-bash train.sh
+bash graph/train.sh
+```
+
+#### Eager Training Scripts
+```bash
+bash eager/train.sh
 ```
 
 
-## Inference on Single Image
-
+### 3. Inference on Single Image
+#### Graph Inference
 ```bash
-bash infer.sh
+bash graph/infer.sh
+```
+
+#### Eager Inference
+```bash
+bash eager/infer.sh
 ```
 
 #### Util
