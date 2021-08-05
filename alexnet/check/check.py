@@ -270,7 +270,65 @@ def save_result(trainer):
     
     save_results(trainer.graph_eval_epoch_time_list, os.path.join(training_results_path, 'graph_eval_epoch_time_list.txt'))
     save_results(trainer.eager_eval_epoch_time_list, os.path.join(training_results_path, 'eager_eval_epoch_time_list.txt'))
-    print("***** File Saved! *****")
+    print("Results saved to: ", training_results_path)
+
+# report helpers
+def square(lst):
+    res = list(map(lambda x: x ** 2, lst))
+    return res
+
+# calculate correlation
+def calc_corr(a, b):
+    E_a = np.mean(a)
+    E_b = np.mean(b)
+    E_ab = np.mean(list(map(lambda x: x[0] * x[1], zip(a, b))))
+
+    cov_ab = E_ab - E_a * E_b
+
+    D_a = np.mean(square(a)) - E_a ** 2
+    D_b = np.mean(square(b)) - E_b ** 2
+
+    σ_a = np.sqrt(D_a)
+    σ_b = np.sqrt(D_b)
+
+    corr_factor = cov_ab / (σ_a * σ_b)
+    return corr_factor
+
+def time_compare(a, b):
+    return np.divide(a, b).mean()
+
+def save_report(trainer):
+    print("***** Save Report *****")
+    # folder setup
+    report_path = os.path.join(args.results)
+    os.makedirs(report_path, exist_ok=True)
+    
+    # calculate losses linear correlation
+    loss_corr = calc_corr(trainer.eager_losses, trainer.graph_losses)
+
+    # calculate accuracy linear correlation
+    acc_corr = calc_corr(trainer.eager_acc, trainer.graph_acc)
+
+    # training time compare
+    train_time_compare = time_compare(trainer.graph_train_epoch_time_list, trainer.eager_train_epoch_time_list)
+
+    # validate time compare
+    val_time_compare = time_compare(trainer.graph_eval_epoch_time_list, trainer.eager_eval_epoch_time_list)
+
+    # save report
+    save_path = os.path.join(report_path, 'check_report.txt')
+    writer = open(save_path, "w")
+    writer.write("Check Report\n")
+    writer.write("Model: Alexnet\n")
+    writer.write("Check Results Between Eager Model and Graph Model\n")
+    writer.write("=================================================\n")
+    writer.write("Loss Correlation: %.4f\n\n" % loss_corr)
+    writer.write("Accuracy Correlation: %.4f\n\n" % acc_corr)
+    writer.write("Train Time Compare: %.4f (Eager) : %.4f (Graph)\n\n" % (1.0, train_time_compare))
+    writer.write("Val Time Compare: %.4f (Eager) : %.4f (Graph)\n\n" % (1.0, val_time_compare))
+    writer.close()
+    print("Report saved to: ", save_path)
+
 
 if __name__ == "__main__":
     args = _parse_args()
@@ -297,3 +355,4 @@ if __name__ == "__main__":
                         optimizer = eager_optimizer)
     
     save_result(trainer)
+    save_report(trainer)
