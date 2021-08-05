@@ -303,6 +303,9 @@ def save_report(trainer):
     report_path = os.path.join(args.results)
     os.makedirs(report_path, exist_ok=True)
     
+    # calculate absolute loss difference
+    abs_loss_diff = abs(np.array(trainer.eager_losses) - np.array(trainer.graph_losses))
+
     # calculate losses linear correlation
     loss_corr = calc_corr(trainer.eager_losses, trainer.graph_losses)
 
@@ -323,9 +326,12 @@ def save_report(trainer):
     writer.write("Check Results Between Eager Model and Graph Model\n")
     writer.write("=================================================\n")
     writer.write("Loss Correlation: %.4f\n\n" % loss_corr)
+    writer.write("Max Loss Difference: %.4f\n" % abs_loss_diff.max())
+    writer.write("Min Loss Difference: %.4f\n" % abs_loss_diff.min())
+    writer.write("Loss Difference Range: (%.4f, %.4f)\n\n" % (abs_loss_diff.min(), abs_loss_diff.max()))
     writer.write("Accuracy Correlation: %.4f\n\n" % acc_corr)
     writer.write("Train Time Compare: %.4f (Eager) : %.4f (Graph)\n\n" % (1.0, train_time_compare))
-    writer.write("Val Time Compare: %.4f (Eager) : %.4f (Graph)\n\n" % (1.0, val_time_compare))
+    writer.write("Val Time Compare: %.4f (Eager) : %.4f (Graph)" % (1.0, val_time_compare))
     writer.close()
     print("Report saved to: ", save_path)
 
