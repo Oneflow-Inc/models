@@ -44,8 +44,15 @@ bash graph/infer.sh
 bash eager/infer.sh
 ```
 
-#### Util
+## Util
+### 1. Model Compare
+Compare Alexnet model on different training mode (Graph / Eager)
+```bash
+bash check/check.sh
+```
+Compare results will be saved to `check_results/training info`
 
+### 2. Convert Pretrained Model Weight
 convert pytorch pretrained model to oneflow pretrained model
 
 ```sh
