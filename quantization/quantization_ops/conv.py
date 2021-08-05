@@ -21,6 +21,24 @@ class QConv2d(QModule):
         self.quantization = flow.nn.Quantization(
             quantization_bit=32, quantization_scheme="affine", quantization_formula="google")
 
+    def forward(self, x):
+        if hasattr(self, 'qi'):
+            self.qi.update(x)
+            x = self.qi.fake_quantize_tensor(x)
+
+        self.qw.update(self.conv_module.weight)
+
+        x = flow.F.conv2d(x, self.qw.fake_quantize_tensor(self.conv_module.weight), self.conv_module.bias,
+                          stride=self.conv_module.stride,
+                          padding=self.conv_module.padding, dilation=self.conv_module.dilation,
+                          groups=self.conv_module.groups)
+
+        if hasattr(self, 'qo'):
+            self.qo.update(x)
+            x = self.qo.fake_quantize_tensor(x)
+
+        return x
+
     def freeze(self, qi=None, qo=None):
 
         if hasattr(self, 'qi') and qi is not None:
@@ -43,21 +61,3 @@ class QConv2d(QModule):
             self.qw.quantize_tensor(self.conv_module.weight) - self.qw.zero_point)
         self.conv_module.bias = flow.nn.Parameter(self.quantization(
             self.conv_module.bias, self.qi.scale * self.qw.scale, flow.Tensor([0])))
-
-    def forward(self, x):
-        if hasattr(self, 'qi'):
-            self.qi.update(x)
-            x = self.qi.fake_quantize_tensor(x)
-
-        self.qw.update(self.conv_module.weight)
-
-        x = flow.F.conv2d(x, self.qw.fake_quantize_tensor(self.conv_module.weight), self.conv_module.bias,
-                          stride=self.conv_module.stride,
-                          padding=self.conv_module.padding, dilation=self.conv_module.dilation,
-                          groups=self.conv_module.groups)
-
-        if hasattr(self, 'qo'):
-            self.qo.update(x)
-            x = self.qo.fake_quantize_tensor(x)
-
-        return x
