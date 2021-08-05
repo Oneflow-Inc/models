@@ -22,26 +22,26 @@ wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/cv/classificat
 ```
 
 ### 2. Run Oneflow Training Script
-#### Graph Training Scripts
-```bash
-bash graph/train.sh
-```
-
 #### Eager Training Scripts
 ```bash
 bash eager/train.sh
 ```
 
-
-### 3. Inference on Single Image
-#### Graph Inference
+#### Graph Training Scripts
 ```bash
-bash graph/infer.sh
+bash graph/train.sh
 ```
 
+
+### 3. Inference on Single Image
 #### Eager Inference
 ```bash
 bash eager/infer.sh
+```
+
+#### Graph Inference
+```bash
+bash graph/infer.sh
 ```
 
 ## Util
