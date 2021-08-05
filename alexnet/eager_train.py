@@ -3,6 +3,7 @@ import numpy as np
 import os
 import time
 import datetime
+import shutil
 from tqdm import tqdm
 import oneflow as flow
 from models.alexnet import alexnet
@@ -152,21 +153,6 @@ def save_logs(training_info, file_path):
 
 
 def main(args):
-    # imagenet
-    # train_data_loader = OFRecordDataLoader(
-    #     ofrecord_root=args.ofrecord_path,
-    #     mode="train",
-    #     dataset_size=1281167,
-    #     batch_size=args.train_batch_size,
-    # )
-
-    # val_data_loader = OFRecordDataLoader(
-    #     ofrecord_root=args.ofrecord_path,
-    #     mode="validation",
-    #     dataset_size=50000,
-    #     batch_size=args.val_batch_size,
-    # )
-
     # Data Setup
     train_data_loader = OFRecordDataLoader(
         ofrecord_root=args.ofrecord_path,
@@ -196,7 +182,6 @@ def main(args):
     criterion = flow.nn.CrossEntropyLoss()
     model.to("cuda")
     criterion.to("cuda")
-    # TODO: 如果model.to()之前定义了optimizer的话，不会有梯度？
     optimizer = flow.optim.SGD(
         model.parameters(), lr=args.learning_rate, momentum=args.mom, weight_decay=args.weight_decay
     )
@@ -219,8 +204,9 @@ def main(args):
         
         # save best model
         if best_acc < accuracy:
-            # TODO: 无法重复保存同一个名字的文件？我记得pytorch里是可以覆盖的
             save_path = os.path.join(args.save_checkpoint_path, "best_model")
+            if os.path.exists(save_path):
+                shutil.rmtree(save_path, True)
             save_checkpoint(model, save_path)
             best_acc = accuracy
         
