@@ -1,3 +1,4 @@
+import os
 import time
 import numpy as np
 from sklearn.metrics import roc_auc_score
@@ -22,6 +23,11 @@ if __name__ == '__main__':
         wdl_module.load_state_dict(flow.load(args.model_load_dir))
     for name, param in wdl_module.named_parameters():
         print(name, param.shape)
+
+    if args.save_initial_model and args.model_save_dir != "":
+        path = os.path.join(args.model_save_dir, 'initial_checkpoint')
+        if not os.path.isdir(path):
+            flow.save(wdl_module.state_dict(), path)
 
     bce_loss = flow.nn.BCELoss(reduction="none")
 
@@ -60,6 +66,8 @@ if __name__ == '__main__':
             for j in range(args.eval_batchs):
                 labels, dense_fields, wide_sparse_fields, deep_sparse_fields = val_dataloader()
                 labels = labels.to("cuda").to(dtype=flow.float32)
+                print(labels.numpy().flatten())
+                # print(j)
                 dense_fields = dense_fields.to("cuda")
                 wide_sparse_fields = wide_sparse_fields.to("cuda")
                 deep_sparse_fields = deep_sparse_fields.to("cuda")
@@ -69,9 +77,12 @@ if __name__ == '__main__':
                 eval_loss += loss.numpy().mean()
                 lables_list.append(labels.numpy())
                 predicts_list.append(predicts.numpy())
-            labels = np.concatenate(lables_list, axis=0)
-            predicts = np.concatenate(predicts_list, axis=0)
-            auc = "NaN" if np.isnan(predicts).any() else roc_auc_score(labels, predicts)
+            all_labels = np.concatenate(lables_list, axis=0)
+            all_predicts = np.concatenate(predicts_list, axis=0)
+            print(all_labels.shape, all_predicts.shape)
+            print(np.isnan(all_predicts).any())
+            print(all_labels.flatten())
+            auc = "NaN" if np.isnan(all_predicts).any() else roc_auc_score(all_labels, all_predicts)
             print(f"iter {i} eval_loss {eval_loss/args.eval_batchs} auc {auc}")
 
             losses = []
