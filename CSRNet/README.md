@@ -42,7 +42,14 @@ python train.py part_A_train.json part_A_val.json 0 0
 ```bash
 bash train.sh
 ```
+### predicted values on a single image:
+```
+python test.py
+```
 
+```bash
+bash infer.sh
+```
 
 ### Citation
 
