@@ -112,8 +112,6 @@ class BERTTrainer:
 
         for i, data in data_iter:
             for key, value in data.items():
-                if key == "is_next":
-                    value = value.squeeze(1)
                 data[str(key)] = flow.Tensor(
                     value.numpy(), dtype=flow.int64, device=self.device
                 )
