@@ -38,16 +38,26 @@ class BERT(nn.Module):
                 for _ in range(n_layers)
             ]
         )
+        # self.zero = flow.zeros((0, ))
+        # self.zero = flow.nn.Parameter(flow.Tensor(np.array(0)))
+        # self.zero = flow.Tensor(np.array(0))
 
     def forward(self, x, segment_info):  # x.shape >> flow.Size([16, 20])
         # attention masking for padded token
+        # self.zero.to(flow.device(x.device.type))
 
+        # mask = (
+        #     (x > self.zero)
+        #     .unsqueeze(1)
+        #     .repeat((1, x.shape[1], 1))
+        #     .unsqueeze(1)
+        #     .repeat((1, 8, 1, 1))
+        # )
         mask = (
-            (x > 0)
+            x.unsqueeze(1)
+            .repeat((1, x.shape[1], 1))
             .unsqueeze(1)
-            .repeat(sizes=(1, x.shape[1], 1))
-            .unsqueeze(1)
-            .repeat(sizes=(1, 8, 1, 1))
+            .repeat((1, 8, 1, 1))
         )
 
         # embedding the indexed sequence to sequence of vectors

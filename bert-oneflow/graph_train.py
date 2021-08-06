@@ -167,7 +167,9 @@ def main():
     #         self.optim, self.bert.hidden, n_warmup_steps=warmup_steps
     #     )
 
-    of_nll_loss = nn.NLLLoss(ignore_index=0)
+    # of_nll_loss = nn.NLLLoss(ignore_index=0)
+    of_nll_loss = nn.NLLLoss()
+
     of_nll_loss.to(device)
 
     class BertGraph(flow.nn.Graph):
@@ -228,15 +230,20 @@ def main():
         for i, data in data_iter:
             for key, value in data.items():
                 if key == "is_next":
-                    value = value.squeeze(1)
+                    # print("value shape is: ", value.shape)
+                    # value = value.squeeze(1)
+                    value = value.squeeze(0)
+
                 data[str(key)] = flow.Tensor(
                     value.numpy(), dtype=flow.int64, device=device
                 )
-            print("Device is: ", device)
+            # print("Device is: ", device)
             #     # 0. batch_data will be sent into the device(GPU or cpu)
             data = {key: value.to(device=device) for key, value in data.items()}
 
+            print("Graph Before ==== ")
             next_sent_output, mask_lm_output, loss = bert_graph(data["bert_input"], data["segment_label"], data["is_next"], data["bert_label"])
+            print("Graph After !!!! ")
 
             # flow.save(self.bert.state_dict(), "checkpoints/bert_%d_loss_%f" % (i, loss.numpy().item()))
 

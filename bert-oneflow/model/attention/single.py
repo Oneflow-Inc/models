@@ -18,13 +18,23 @@ class Attention(nn.Module):
         scores = x / math.sqrt(query.size(-1))
 
         if mask is not None:
-            mask = flow.Tensor(
-                (mask.numpy() == 0).astype(np.int8),
-                dtype=flow.int,
-                device=scores.device,
-            )
-            scores = scores.masked_fill(mask, -1e9)
+            # mask = flow.Tensor(
+            #     (mask.numpy() == 0).astype(np.int8),
+            #     dtype=flow.int,
+            #     device=scores.device,
+            # )
 
+            # ==0 换成equal 0. 要么加scalar版本，要么等chengcheng的PR
+            
+            # mask = flow.Tensor(
+            #     (mask.numpy() == 0).astype(np.int8),
+            #     dtype=flow.int,
+            #     device=scores.device,
+            # )
+
+            # scores = scores.masked_fill(mask, -1e9)
+            print("==")
+            
         p_attn = self.softmax(scores)
 
         if dropout is not None:
