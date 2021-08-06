@@ -40,7 +40,6 @@ def _parse_args():
     )
     return parser.parse_args()
 
-
 def setup(args):
     train_data_loader = OFRecordDataLoader(
         ofrecord_root=args.ofrecord_path,
@@ -250,32 +249,69 @@ class Trainer(object):
             print("epoch %d, graph top1 val acc: %f, eager top1 val acc: %f" % (epoch, graph_top1_acc, eager_top1_acc))
 
 
-def save_results(training_info, file_path):
-    writer = open(file_path, "w")
-    for info in training_info:
-        writer.write("%f\n" % info)
-    writer.close()
+    def save_result(self, ):
+        print("***** Save Report *****")
+        # folder setup
+        report_path = os.path.join(self.args.results)
+        os.makedirs(report_path, exist_ok=True)
+        
+        # calculate absolute loss difference
+        abs_loss_diff = abs(np.array(self.eager_losses) - np.array(self.graph_losses))
 
-def save_result(trainer):
-    # create folder
-    training_results_path = os.path.join(args.results, args.tag)
-    os.makedirs(training_results_path, exist_ok=True)
-    print("***** Save Results *****")
-    save_results(trainer.graph_losses, os.path.join(training_results_path, 'graph_losses.txt'))
-    save_results(trainer.eager_losses, os.path.join(training_results_path, 'eager_losses.txt'))
+        # calculate losses linear correlation
+        loss_corr = calc_corr(self.eager_losses, self.graph_losses)
 
-    save_results(trainer.graph_acc, os.path.join(training_results_path, 'graph_acc.txt'))
-    save_results(trainer.eager_acc, os.path.join(training_results_path, 'eager_acc.txt'))
+        # calculate accuracy linear correlation
+        acc_corr = calc_corr(self.eager_acc, self.graph_acc)
 
-    save_results(trainer.graph_train_step_time_list, os.path.join(training_results_path, 'graph_train_step_time_list.txt'))
-    save_results(trainer.eager_train_step_time_list, os.path.join(training_results_path, 'eager_train_step_time_list.txt'))
+        # training time compare
+        train_time_compare = time_compare(self.graph_train_epoch_time_list, self.eager_train_epoch_time_list)
 
-    save_results(trainer.graph_train_epoch_time_list, os.path.join(training_results_path, 'graph_train_epoch_time_list.txt'))
-    save_results(trainer.eager_train_epoch_time_list, os.path.join(training_results_path, 'eager_train_epoch_time_list.txt'))
+        # validate time compare
+        val_time_compare = time_compare(self.graph_eval_epoch_time_list, self.eager_eval_epoch_time_list)
 
-    save_results(trainer.graph_eval_epoch_time_list, os.path.join(training_results_path, 'graph_eval_epoch_time_list.txt'))
-    save_results(trainer.eager_eval_epoch_time_list, os.path.join(training_results_path, 'eager_eval_epoch_time_list.txt'))
-    print("***** File Saved! *****")
+        # save report
+        save_path = os.path.join(report_path, 'check_report.txt')
+        writer = open(save_path, "w")
+        writer.write("Check Report\n")
+        writer.write("Model: Resnet50\n")
+        writer.write("Check Results Between Eager Model and Graph Model\n")
+        writer.write("=================================================\n")
+        writer.write("Loss Correlation: %.4f\n\n" % loss_corr)
+        writer.write("Max Loss Difference: %.4f\n" % abs_loss_diff.max())
+        writer.write("Min Loss Difference: %.4f\n" % abs_loss_diff.min())
+        writer.write("Loss Difference Range: (%.4f, %.4f)\n\n" % (abs_loss_diff.min(), abs_loss_diff.max()))
+        writer.write("Accuracy Correlation: %.4f\n\n" % acc_corr)
+        writer.write("Train Time Compare: %.4f (Eager) : %.4f (Graph)\n\n" % (1.0, train_time_compare))
+        writer.write("Val Time Compare: %.4f (Eager) : %.4f (Graph)" % (1.0, val_time_compare))
+        writer.close()
+        print("Report saved to: ", save_path)
+
+# report helpers
+def square(lst):
+    res = list(map(lambda x: x ** 2, lst))
+    return res
+
+# calculate correlation
+def calc_corr(a, b):
+    E_a = np.mean(a)
+    E_b = np.mean(b)
+    E_ab = np.mean(list(map(lambda x: x[0] * x[1], zip(a, b))))
+
+    cov_ab = E_ab - E_a * E_b
+
+    D_a = np.mean(square(a)) - E_a ** 2
+    D_b = np.mean(square(b)) - E_b ** 2
+
+    σ_a = np.sqrt(D_a)
+    σ_b = np.sqrt(D_b)
+
+    corr_factor = cov_ab / (σ_a * σ_b)
+    return corr_factor
+
+def time_compare(a, b):
+    return np.divide(a, b).mean()
+
 
 if __name__ == "__main__":
     args = _parse_args()
@@ -284,4 +320,4 @@ if __name__ == "__main__":
     print("init done")
     trainer.compare_eager_graph(compare_dic)
     del compare_dic
-    save_result(trainer)
+    trainer.save_result()

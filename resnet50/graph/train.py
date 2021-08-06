@@ -107,7 +107,7 @@ def main(args):
 
     resnet50_eval_graph = Resnet50EvalGraph()
 
-    of_losses = []
+    of_losses, of_accuracy = [], []
     all_samples = len(val_data_loader) * args.val_batch_size
     print_interval = 100
 
@@ -151,7 +151,9 @@ def main(args):
                     correct_of += 1
             end_t = time.time()
 
-        print("epoch %d, oneflow top1 val acc: %f" % (epoch, correct_of / all_samples))
+        top1 = correct_of / all_samples
+        of_accuracy.append(top1)
+        print("epoch %d, oneflow top1 val acc: %f" % (epoch, top1))
 
         flow.save(
             resnet50_module.state_dict(),
@@ -166,6 +168,10 @@ def main(args):
         writer.write("%f\n" % o)
     writer.close()
 
+    writer = open("graph/accuracy.txt", "w")
+    for o in of_accuracy:
+        writer.write("%f\n" % o)
+    writer.close()
 
 if __name__ == "__main__":
     args = _parse_args()
