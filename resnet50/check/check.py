@@ -165,6 +165,7 @@ class Trainer(object):
                 # oneflow graph train
                 graph_iter_start_time = time.time()
                 graph_loss = model_train_graph(image, label)
+                graph_loss.numpy()
                 graph_iter_end_time = time.time()
 
                 # oneflow eager train
@@ -174,6 +175,7 @@ class Trainer(object):
                 eager_loss.backward()
                 eager_optimizer.step()
                 eager_optimizer.zero_grad()
+                eager_loss.numpy()
                 eager_iter_end_time = time.time()
 
                 # print("=====graph fc param=====")
