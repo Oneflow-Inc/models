@@ -31,15 +31,12 @@
 |AlexNet|20|8|google|affine|Yes|0.737245|
 |AlexNet|20|8|google|affine|No|0.713265|
 |AlexNet|20|4|google|symmetric|Yes|0.579082|
-|AlexNet|20|4|google|symmetric|No||
-|AlexNet|20|4|google|affine|Yes||
-|AlexNet|20|4|google|affine|No||
-|AlexNet|20|2|google|symmetric|Yes||
-|AlexNet|20|2|google|symmetric|No||
-|AlexNet|20|2|google|affine|Yes||
-|AlexNet|20|2|google|affine|No||
+|AlexNet|20|4|google|symmetric|No|0.577551|
+|AlexNet|20|4|google|affine|Yes|0.583673|
+|AlexNet|20|4|google|affine|No|0.634949|
 |AlexNet|20|8|cambricon|symmetric|Yes|0.730867|
 |AlexNet|20|4|cambricon|symmetric|Yes|0.491582|
-|AlexNet|20|2|cambricon|symmetric|Yes|0.091071|
+
+
 
 
