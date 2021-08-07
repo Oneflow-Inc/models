@@ -23,14 +23,16 @@ class OFRecordDataLoader(nn.Module):
             self.devices = ['{}:0-{}'.format(i, num_dataloader_thread - 1) for i in range(FLAGS.num_nodes)]
 
         self.batch_size = batch_size
+        shuffle = mode == "train"
+        # shuffle = False 
         # with flow.scope.placement("cpu", self.devices):
         self.reader = nn.OfrecordReader(
             os.path.join(data_root, mode),
             batch_size=batch_size,
             data_part_num=data_part_num,
             part_name_suffix_length=part_name_suffix_length,
-            random_shuffle=True if mode == "train" else False,
-            shuffle_after_epoch=True if mode == "train" else False,
+            random_shuffle=shuffle,
+            shuffle_after_epoch=shuffle,
         )
 
         def _blob_decoder(bn, shape, dtype=flow.int32):
@@ -55,11 +57,12 @@ if __name__ == '__main__':
 
     FLAGS = get_args()
     
-    dataloader = OFRecordDataLoader(FLAGS, ofrecord_root="/dataset/wdl_ofrecord/ofrecord")
+    dataloader = OFRecordDataLoader(FLAGS, data_root="/dataset/wdl_ofrecord/ofrecord")#, mode='val')
     for i in range(10):
         labels, dense_fields, wide_sparse_fields, deep_sparse_fields = dataloader()
-        print("iter ", i)
-        print("labels.shape =", labels.shape)
-        print("dense_fields.shape =", dense_fields.shape)
-        print("wide_sparse_fields.shape =", wide_sparse_fields.shape)
-        print("deep_sparse_fields.shape =", deep_sparse_fields.shape)
+        # print("iter ", i)
+        # print("labels.shape =", labels.shape)
+        # print("dense_fields.shape =", dense_fields.shape)
+        # print("wide_sparse_fields.shape =", wide_sparse_fields.shape)
+        # print("deep_sparse_fields.shape =", deep_sparse_fields.shape)
+        print(deep_sparse_fields)
