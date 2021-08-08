@@ -2,7 +2,7 @@ rm core.*
 
 # export CUDA_VISIBLE_DEVICES=3
 
-python3 train.py \
+python3 eager_train.py \
     --model_load_dir ./checkpoints/merged_checkpoint \
     --model_save_dir ./checkpoints \
     --print_interval 10 \
