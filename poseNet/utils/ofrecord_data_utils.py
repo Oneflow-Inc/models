@@ -56,7 +56,7 @@ class OFRecordDataLoader(object):
         train_record = self.train_record_reader()
         label = self.record_label_decoder(train_record)
         image_raw_buffer = self.record_image_decoder(train_record)
-        image = self.resize(image_raw_buffer)
+        image = self.resize(image_raw_buffer)[0]
         rng = self.flip() if self.flip != None else None
         image = self.crop_mirror_norm(image, rng)
 
