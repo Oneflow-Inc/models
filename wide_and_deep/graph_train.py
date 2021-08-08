@@ -26,7 +26,7 @@ if __name__ == '__main__':
         path = os.path.join(args.model_save_dir, 'initial_checkpoint')
         if not os.path.isdir(path):
             flow.save(wdl_module.state_dict(), path)
-    save_param_npy(wdl_module)
+    # save_param_npy(wdl_module)
 
     bce_loss = flow.nn.BCELoss(reduction="none")
 
@@ -37,10 +37,10 @@ if __name__ == '__main__':
         wdl_module.parameters(), lr=args.learning_rate
     )
     class WideAndDeepGraph(flow.nn.Graph):
-        def __init__(self):
+        def __init__(self, dataloader):
             super(WideAndDeepGraph, self).__init__()
             self.module = wdl_module
-            self.train_dataloader = train_dataloader
+            self.dataloader = dataloader
             self.bce_loss = bce_loss
 
         def build(self):
@@ -48,7 +48,7 @@ if __name__ == '__main__':
                 return self.graph()
         
         def graph(self):
-            labels, dense_fields, wide_sparse_fields, deep_sparse_fields = self.train_dataloader()
+            labels, dense_fields, wide_sparse_fields, deep_sparse_fields = self.dataloader()
             labels = labels.to("cuda").to(dtype=flow.float32)
             dense_fields = dense_fields.to("cuda")
             wide_sparse_fields = wide_sparse_fields.to("cuda")
@@ -59,24 +59,27 @@ if __name__ == '__main__':
             return predicts, labels, loss
 
     class WideAndDeepTrainGraph(WideAndDeepGraph):
-        def __init__(self):
-            super(WideAndDeepTrainGraph, self).__init__()
+        def __init__(self, dataloader):
+            super(WideAndDeepTrainGraph, self).__init__(dataloader)
             self.add_optimizer("sgd", of_sgd)
         
         def build(self):
-            _, _, loss = self.graph()
+            predicts, labels, loss = self.graph()
             loss.backward()
-            return loss
+            return predicts, labels, loss
 
-    eval_graph = WideAndDeepGraph()
-    train_graph = WideAndDeepTrainGraph()
+    eval_graph = WideAndDeepGraph(val_dataloader)
+    train_graph = WideAndDeepTrainGraph(train_dataloader)
 
     losses = []
     wdl_module.train()
 
     for i in range(args.max_iter):
         print(i)
-        loss = train_graph()
+        predicts, labels, loss = train_graph()
+        dump_to_npy(loss)
+        dump_to_npy(labels)
+        dump_to_npy(predicts)
         losses.append(loss.numpy().mean())
 
         if (i+1) % args.print_interval == 0:

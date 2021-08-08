@@ -7,7 +7,7 @@ python3 graph_train.py \
     --model_save_dir ./checkpoints \
     --print_interval 100 \
     --deep_dropout_rate 0 \
-    --max_iter 10
+    --max_iter 1
     # --save_initial_model \
     # --model_load_dir ./checkpoints/initial_checkpoint \
     # --model_load_dir /home/xiexuan/sandbox/OneFlow-Benchmark/ClickThroughRate/WideDeepLearning/baseline_checkpoint \
