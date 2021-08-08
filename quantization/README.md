@@ -18,14 +18,14 @@
 
 ### 实验
 
-- 比特数为32代表全精度浮点训练
+- 比特数为~代表全精度浮点训练
 - 不是PerLayer的量化就是PerChannel的量化
 - 数据集是ImageNet的一个子集
-- 20个epoch可能模型还没有完全收敛，但能大致看出来伪量化模型会不会严重掉点
+- 20个epoch可能模型还没有完全收敛，但能大致看出来量化感知训练在8Bit时会不会严重掉点
 
 |模型|Epoch|量化比特数|量化规则|量化方法|是否是PerLayer|精度|
 |--|--|--|--|--|--|--|
-|AlexNet|20|32|xx|xx|xx|0.721939|
+|AlexNet|20|~|xx|xx|xx|0.721939|
 |AlexNet|20|8|google|symmetric|Yes|0.717857|
 |AlexNet|20|8|google|symmetric|No|0.732143|
 |AlexNet|20|8|google|affine|Yes|0.737245|
