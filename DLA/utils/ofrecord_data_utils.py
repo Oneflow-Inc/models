@@ -1,5 +1,4 @@
 import oneflow as flow
-
 import os
 
 class OFRecordDataLoader(object):
