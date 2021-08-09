@@ -45,9 +45,9 @@ class BERT(nn.Module):
         mask = (
             (x > 0)
             .unsqueeze(1)
-            .repeat(sizes=(1, x.shape[1], 1))
+            .repeat((1, x.shape[1], 1))
             .unsqueeze(1)
-            .repeat(sizes=(1, 8, 1, 1))
+            .repeat((1, 8, 1, 1))
         )
 
         # embedding the indexed sequence to sequence of vectors

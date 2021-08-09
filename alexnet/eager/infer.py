@@ -4,7 +4,7 @@ import argparse
 import numpy as np
 import time
 
-from models.alexnet import alexnet
+from model.alexnet import alexnet
 from utils.imagenet1000_clsidx_to_labels import clsidx_2_labels
 from utils.numpy_data_utils import load_image
 
