@@ -1,7 +1,7 @@
 from collections import OrderedDict
 
-import oneflow.experimental as flow
-import oneflow.experimental.nn as nn
+import oneflow as flow
+import oneflow.nn as nn
 from typing import Dict
 
 

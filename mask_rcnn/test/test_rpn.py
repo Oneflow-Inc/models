@@ -3,8 +3,8 @@ from time import sleep
 
 from models.rpn import RPNHead, RegionProposalNetwork
 from utils.anchor_utils import AnchorGenerator
-import oneflow.experimental as flow
-from oneflow.experimental import nn
+import oneflow as flow
+from oneflow import nn
 # from ops import lib_path
 # flow.config.load_library_now(lib_path())
 
@@ -72,8 +72,9 @@ def test_rpn():
 
     model = RPNModule()
     model.eval()
-    model(images, features)
-    model(images2, test_features)
+    res1 = model(images, features)
+    res2 = model(images2, test_features)
+    print(res1, res2)
 
     # self.run_model(model, [(images, features), (images2, test_features)], tolerate_small_mismatch=True,
     #                input_names=["input1", "input2", "input3", "input4", "input5", "input6"],

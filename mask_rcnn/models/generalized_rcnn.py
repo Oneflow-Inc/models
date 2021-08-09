@@ -4,8 +4,8 @@ Implements the Generalized R-CNN framework
 """
 
 from collections import OrderedDict
-import oneflow.experimental as flow
-from oneflow.experimental import nn, Tensor
+import oneflow as flow
+from oneflow import nn, Tensor
 import warnings
 from typing import Tuple, List, Dict, Optional, Union
 
@@ -89,7 +89,7 @@ class GeneralizedRCNN(nn.Module):
                     for j in range(degenerate_boxes.shape[1]):
                         if degenerate_boxes[i, j].numpy() > 0:
                             any_flag = True
-                            any_index[i] = 1
+                            any_index[i] = flow.tensor(1, device=degenerate_boxes.device, dtype = any_index.dtype)
 
 
 

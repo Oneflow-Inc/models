@@ -6,8 +6,8 @@ from collections import OrderedDict
 from ops.ms_roi_align import MultiScaleRoIAlign
 # from ._utils import overwrite_eps
 # from ..utils import load_state_dict_from_url
-import oneflow.experimental as flow
-from oneflow.experimental import nn, Tensor
+import oneflow as flow
+from oneflow import nn, Tensor
 
 from utils.download_weights_utils import load_state_dict_from_url
 from .faster_rcnn import FasterRCNN

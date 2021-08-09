@@ -1,6 +1,6 @@
 # from torch import nn
 # from torchvision.ops import MultiScaleRoIAlign
-import oneflow.experimental as flow
+import oneflow as flow
 
 from utils.anchor_utils import AnchorGenerator
 from .generalized_rcnn import GeneralizedRCNN
@@ -8,7 +8,7 @@ from .rpn import RPNHead, RegionProposalNetwork
 from .roi_heads import RoIHeads
 from .transform import GeneralizedRCNNTransform
 from .backbone_utils import resnet_fpn_backbone, _validate_trainable_layers, mobilenet_backbone
-from oneflow.experimental import nn
+from oneflow import nn
 from ops.ms_roi_align import MultiScaleRoIAlign
 
 __all__ = [
@@ -179,7 +179,8 @@ class FasterRCNN(GeneralizedRCNN):
         out_channels = backbone.out_channels
 
         if rpn_anchor_generator is None:
-            anchor_sizes = ((32,), (64,), (128,), (256,), (512,))
+            # anchor_sizes = ((32,), (64,), (128,), (256,), (512,))
+            anchor_sizes = ((8,), (16,), (32,), (64,), (128,))
             aspect_ratios = ((0.5, 1.0, 2.0),) * len(anchor_sizes)
             rpn_anchor_generator = AnchorGenerator(
                 anchor_sizes, aspect_ratios
@@ -274,12 +275,13 @@ class TwoMLPHead(nn.Module):
 
         self.fc6 = nn.Linear(in_channels, representation_size)
         self.fc7 = nn.Linear(representation_size, representation_size)
+        self.relu = nn.ReLU()
 
     def forward(self, x):
         x = x.flatten(start_dim=1)
 
-        x = nn.ReLU(self.fc6(x))
-        x = nn.ReLU(self.fc7(x))
+        x = self.relu(self.fc6(x))
+        x = self.relu(self.fc7(x))
 
         return x
 

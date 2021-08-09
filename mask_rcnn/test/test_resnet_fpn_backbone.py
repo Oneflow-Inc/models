@@ -1,4 +1,4 @@
-import oneflow.experimental as flow
+import oneflow as flow
 from models.backbone_utils import resnet_fpn_backbone
 import numpy as np
 flow.enable_eager_execution()

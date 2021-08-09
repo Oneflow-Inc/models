@@ -1,5 +1,5 @@
-import oneflow.experimental as flow
-from oneflow.experimental import nn, Tensor
+import oneflow as flow
+from oneflow import nn, Tensor
 from .image_list import ImageList
 from models.roi_heads import paste_masks_in_image
 

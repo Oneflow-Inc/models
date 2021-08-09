@@ -4,8 +4,8 @@ from ops import nms
 from ops.box_convert import _box_cxcywh_to_xyxy, _box_xyxy_to_cxcywh, _box_xywh_to_xyxy, _box_xyxy_to_xywh
 # import torchvision
 # from torchvision.extension import _assert_has_ops
-import oneflow.experimental as flow
-from oneflow.experimental import Tensor
+import oneflow as flow
+from oneflow import Tensor
 
 # def nms(boxes: Tensor, scores: Tensor, iou_threshold: float) -> Tensor:
 #     """
@@ -66,7 +66,7 @@ def batched_nms(
             in decreasing order of scores
     """
     if boxes.numel() == 0:
-        return flow.empty((0,), dtype=flow.int64, device=boxes.device)
+        return flow.tensor([], dtype=flow.int64, device=boxes.device)
     # strategy: in order to perform NMS independently per class.
     # we add an offset to all the boxes. The offset is dependent
     # only on the class idx, and is large enough so that boxes
@@ -96,12 +96,12 @@ def remove_small_boxes(boxes: Tensor, min_size: float) -> Tensor:
             larger than min_size
     """
     ws, hs = boxes[:, 2] - boxes[:, 0], boxes[:, 3] - boxes[:, 1]
-    print("ws", ws, "hs", hs)
+    # print("ws", ws, "hs", hs)
     # keep = (ws >= min_size) & (hs >= min_size)
     #TODO: 0-D tensor
     # Check failed: (start) < (stop) (0 vs 0) slice start must be less than stop
     keep = (ws >= min_size).mul(hs >= min_size)
-    print("keep", keep)
+    # print("keep", keep)
     keep = flow.argwhere(keep)
     return keep
 
@@ -215,17 +215,25 @@ def box_area(boxes: Tensor) -> Tensor:
 def _box_inter_union(boxes1: Tensor, boxes2: Tensor) -> Tuple[Tensor, Tensor]:
     area1 = box_area(boxes1)
     area2 = box_area(boxes2)
-    lt = flow.zeros((boxes1.shape[0], boxes2.shape[0], 2), device=boxes1.device, dtype=flow.float32)
-    rb = flow.zeros((boxes1.shape[0], boxes2.shape[0], 2), device=boxes1.device, dtype=flow.float32)
-    tmp = flow.zeros((1, 2), device=boxes1.device, dtype=flow.float32)
-    for i in range(boxes1.shape[0]):
-        for j in range(boxes2.shape[0]):
-            tmp = flow.stack([boxes1[i, :2], boxes2[j, :2]],dim=1)
-            lt[i, j, :] = flow.max(tmp, dim=1)
-            tmp = flow.stack([boxes1[i, 2:], boxes2[j, 2:]], dim=1)
-            rb[i, j, :] = flow.max(tmp, dim=1)
-    # lt = flow.max(boxes1[:, None, :2], boxes2[:, :2])  # [N,M,2]
-    # rb = flow.min(boxes1[:, None, 2:], boxes2[:, 2:])  # [N,M,2]
+    # lt = flow.zeros((boxes1.shape[0], boxes2.shape[0], 2), device=boxes1.device, dtype=flow.float32)
+    # rb = flow.zeros((boxes1.shape[0], boxes2.shape[0], 2), device=boxes1.device, dtype=flow.float32)
+    # tmp = flow.zeros((1, 2), device=boxes1.device, dtype=flow.float32)
+    # for i in range(boxes1.shape[0]):
+    #     for j in range(boxes2.shape[0]):
+    #         tmp = flow.stack([boxes1[i, :2], boxes2[j, :2]],dim=1)
+    #         lt[i, j, :] = flow.max(tmp, dim=1)
+    #         tmp = flow.stack([boxes1[i, 2:], boxes2[j, 2:]], dim=1)
+    #         rb[i, j, :] = flow.max(tmp, dim=1)
+
+    # for i in range(boxes1.shape[0]):
+    #     for j in range(boxes2.shape[0]):
+    #         tmp = flow.stack([boxes1[i, :2], boxes2[j, :2]], dim=1)
+    #         lt[i, j, :] = flow.max(tmp, dim=1)
+    #         tmp = flow.stack([boxes1[i, 2:], boxes2[j, 2:]], dim=1)
+    #         rb[i, j, :] = flow.max(tmp, dim=1)
+
+    lt = flow.maximum(boxes1[:, None, :2], boxes2[:, :2])  # [N,M,2]
+    rb = flow.minimum(boxes1[:, None, 2:], boxes2[:, 2:])  # [N,M,2]
 
 
     wh = _upcast(rb - lt).clamp(min=0)  # [N,M,2]
@@ -250,7 +258,7 @@ def box_iou(boxes1: Tensor, boxes2: Tensor) -> Tensor:
     Returns:
         iou (Tensor[N, M]): the NxM matrix containing the pairwise IoU values for every element in boxes1 and boxes2
     """
-    inter, union = _box_inter_union(boxes1, boxes2)
+    inter, union = _box_inter_union(boxes1.to(flow.float32), boxes2.to(flow.float32))
     iou = inter / union
     return iou
 

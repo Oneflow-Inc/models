@@ -1,7 +1,13 @@
-from oneflow.experimental import nn, Tensor
+import oneflow as flow
+from oneflow import nn, Tensor
 from typing import Optional, List, Dict, Tuple, Union
 # from torchvision.ops import roi_align
 from ops.boxes import box_area
+from ops.roi_align import roi_align
+
+
+
+
 
 # TODO: (eellison) T54974082 https://github.com/pytorch/pytorch/issues/26744/pytorch/issues/26744
 def initLevelMapper(
@@ -49,7 +55,7 @@ class LevelMapper(object):
         s = flow.sqrt(flow.cat([box_area(boxlist) for boxlist in boxlists]))
 
         # Eqn.(1) in FPN paper
-        target_lvls = flow.floor(self.lvl0 + flow.log2(s / self.s0) + flow.Tensor(self.eps, dtype=s.dtype))
+        target_lvls = flow.floor(self.lvl0 + (flow.log(s / self.s0)/flow.log(flow.tensor(2.0, device=s.device))) + flow.Tensor(self.eps, dtype=s.dtype, device=s.device))
         target_lvls = flow.clamp(target_lvls, min=self.k_min, max=self.k_max)
         return (target_lvls.to(flow.int64) - self.k_min).to(flow.int64)
 
@@ -116,16 +122,16 @@ class MultiScaleRoIAlign(nn.Module):
         self.canonical_level = canonical_level
 
     def convert_to_roi_format(self, boxes: List[Tensor]) -> Tensor:
-        concat_boxes = torch.cat(boxes, dim=0)
+        concat_boxes = flow.cat(boxes, dim=0)
         device, dtype = concat_boxes.device, concat_boxes.dtype
-        ids = torch.cat(
+        ids = flow.cat(
             [
-                torch.full_like(b[:, :1], i, dtype=dtype, layout=torch.strided, device=device)
+                flow.ones_like(b[:, :1]) * i
                 for i, b in enumerate(boxes)
             ],
             dim=0,
         )
-        rois = torch.cat([ids, concat_boxes], dim=1)
+        rois = flow.cat([ids, concat_boxes], dim=1)
         return rois
 
     def infer_scale(self, feature: Tensor, original_size: List[int]) -> float:
@@ -134,7 +140,7 @@ class MultiScaleRoIAlign(nn.Module):
         possible_scales: List[float] = []
         for s1, s2 in zip(size, original_size):
             approx_scale = float(s1) / float(s2)
-            scale = 2 ** float(torch.tensor(approx_scale).log2().round())
+            scale = 2 ** (flow.tensor(approx_scale).log()/flow.log(flow.tensor(2.0))).round().numpy().item()
             possible_scales.append(scale)
         assert possible_scales[0] == possible_scales[1]
         return possible_scales[0]
@@ -155,8 +161,8 @@ class MultiScaleRoIAlign(nn.Module):
         scales = [self.infer_scale(feat, original_input_shape) for feat in features]
         # get the levels in the feature map by leveraging the fact that the network always
         # downsamples by a factor of 2 at each level.
-        lvl_min = -torch.log2(torch.tensor(scales[0], dtype=torch.float32)).item()
-        lvl_max = -torch.log2(torch.tensor(scales[-1], dtype=torch.float32)).item()
+        lvl_min = -(flow.log(flow.tensor(scales[0], dtype=flow.float32))/flow.log(flow.tensor(2.0))).numpy().item()
+        lvl_max = -(flow.log(flow.tensor(scales[-1], dtype=flow.float32))/flow.log(flow.tensor(2.0))).numpy().item()
         self.scales = scales
         self.map_levels = initLevelMapper(
             int(lvl_min),
@@ -209,39 +215,40 @@ class MultiScaleRoIAlign(nn.Module):
 
         levels = mapper(boxes)
 
-        num_rois = len(rois)
+        num_rois = rois.shape[0]
         num_channels = x_filtered[0].shape[1]
 
         dtype, device = x_filtered[0].dtype, x_filtered[0].device
-        result = torch.zeros(
+        result = flow.zeros(
             (num_rois, num_channels,) + self.output_size,
             dtype=dtype,
             device=device,
         )
-
-        tracing_results = []
+        idx_in_level = []
         for level, (per_level_feature, scale) in enumerate(zip(x_filtered, scales)):
-            idx_in_level = torch.where(levels == level)[0]
-            rois_per_level = rois[idx_in_level]
+            for idx in range(levels.shape[0]):
+                if levels[idx].numpy().item() == level:
+                    idx_in_level.append(idx)
 
+            rois_per_level = rois[idx_in_level]
             result_idx_in_level = roi_align(
                 per_level_feature, rois_per_level,
                 output_size=self.output_size,
                 spatial_scale=scale, sampling_ratio=self.sampling_ratio)
 
-            if torchvision._is_tracing():
-                tracing_results.append(result_idx_in_level.to(dtype))
-            else:
-                # result and result_idx_in_level's dtypes are based on dtypes of different
-                # elements in x_filtered.  x_filtered contains tensors output by different
-                # layers.  When autocast is active, it may choose different dtypes for
-                # different layers' outputs.  Therefore, we defensively match result's dtype
-                # before copying elements from result_idx_in_level in the following op.
-                # We need to cast manually (can't rely on autocast to cast for us) because
-                # the op acts on result in-place, and autocast only affects out-of-place ops.
-                result[idx_in_level] = result_idx_in_level.to(result.dtype)
 
-        if torchvision._is_tracing():
-            result = _onnx_merge_levels(levels, tracing_results)
+            # result and result_idx_in_level's dtypes are based on dtypes of different
+            # elements in x_filtered.  x_filtered contains tensors output by different
+            # layers.  When autocast is active, it may choose different dtypes for
+            # different layers' outputs.  Therefore, we defensively match result's dtype
+            # before copying elements from result_idx_in_level in the following op.
+            # We need to cast manually (can't rely on autocast to cast for us) because
+            # the op acts on result in-place, and autocast only affects out-of-place ops.
+            if len(idx_in_level) == num_rois:
+                result = result_idx_in_level
+            else:
+                for idx, val in idx_in_level:
+                    result[val] = result_idx_in_level[idx]
+            # result[idx_in_level] = result_idx_in_level.to(result.dtype)
 
         return result

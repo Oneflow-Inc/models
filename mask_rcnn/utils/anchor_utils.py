@@ -1,10 +1,10 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
 # import torch
 # from torch import nn, Tensor
-import oneflow.experimental as flow
-import oneflow.experimental.nn as nn
+import oneflow as flow
+import oneflow.nn as nn
 
-from oneflow.experimental import Tensor
+from oneflow import Tensor
 from typing import List, Optional, Dict
 from .image_list import ImageList
 
@@ -120,10 +120,6 @@ class AnchorGenerator(nn.Module):
             stride_height, stride_width = stride
             device = base_anchors.device
 
-            print(flow.arange(
-                0, grid_width, dtype=flow.float32, device=device
-            ))
-            print(flow.cast(stride_width, dtype=flow.float32))
             # For output anchor, compute [x_center, y_center, x_center, y_center]
             shifts_x = flow.arange(
                 0, grid_width, dtype=flow.float32, device=device
@@ -138,7 +134,7 @@ class AnchorGenerator(nn.Module):
             # For every (base anchor, output anchor) pair,
             # offset each zero-centered base anchor by the center of the output anchor.
             anchors.append(
-                (shifts.view((-1, 1, 4)) + base_anchors.view((1, -1, 4)).reshape((-1, 4)))
+                (shifts.view(-1, 1, 4) + base_anchors.view(1, -1, 4).reshape((-1, 4)))
             )
 
         return anchors
@@ -155,6 +151,7 @@ class AnchorGenerator(nn.Module):
         grid_sizes = list([feature_map.shape[-2:] for feature_map in feature_maps])
         image_size = image_list.tensors.shape[-2:]
         dtype, device = feature_maps[0].dtype, feature_maps[0].device
+        #Padding of image in the batch_images function is to calculate strides conveniently
         strides = [[flow.tensor(image_size[0] // g[0], dtype=flow.int64, device=device),
                     flow.tensor(image_size[1] // g[1], dtype=flow.int64, device=device)] for g in grid_sizes]
         self.set_cell_anchors(dtype, device)

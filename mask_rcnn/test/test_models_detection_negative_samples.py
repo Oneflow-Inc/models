@@ -6,7 +6,7 @@
 # from torchvision.models.detection.roi_heads import RoIHeads
 # from torchvision.models.detection.faster_rcnn import FastRCNNPredictor, TwoMLPHead
 
-import oneflow.experimental as flow
+import oneflow as flow
 from oneflow import nn, Tensor
 import numpy as np
 from models.faster_rcnn import FastRCNNPredictor, TwoMLPHead
@@ -44,22 +44,25 @@ def assertEqual(param, param1):
 
 
 def _make_empty_sample(add_masks=False, add_keypoints=False):
-    images = [flow.Tensor(np.random.rand(3, 100, 100), dtype=flow.float32)]
+    num_images = 2
+    images = [flow.Tensor(np.random.rand(3, 128, 128), dtype=flow.float32, device = flow.device('cuda')) for _ in range(num_images)]
     # boxes = flow.zeros((0, 4), dtype=flow.float32)
-    boxes = flow.Tensor(np.sort(np.random.randint(0, 100, (2, 4))), dtype=flow.float32)
+    boxes_numpy = np.concatenate((np.sort(np.random.randint(0, 128, (4, 4))), np.array([[74.,  86., 57., 63.]]), np.array([[90, 102, 69, 75]])))
+
+    boxes = flow.Tensor(boxes_numpy, dtype=flow.float32, device = flow.device('cuda'))
     negative_target = {"boxes": boxes,
-                       "labels": flow.Tensor(np.random.rand(1), dtype=flow.int64),
+                       "labels": flow.tensor(np.concatenate((np.zeros(1), np.random.randint(1, 4, (5,)))), dtype=flow.int64, device = flow.device('cuda')),
                        "image_id": 4,
                        "area": (boxes[:, 3] - boxes[:, 1]) * (boxes[:, 2] - boxes[:, 0]),
-                       "iscrowd": flow.zeros(1, dtype=flow.int64)}
+                       "iscrowd": flow.zeros(1, dtype=flow.int64,  device = flow.device('cuda'))}
 
     if add_masks:
-        negative_target["masks"] = flow.Tensor(np.random.rand(1, 100, 100), dtype=flow.uint8)
+        negative_target["masks"] = flow.Tensor(np.random.rand(1, 100, 100), dtype=flow.uint8, device = flow.device('cuda'))
 
     if add_keypoints:
         negative_target["keypoints"] = flow.Tensor(np.random.rand(17, 0, 3), dtype=flow.float32)
 
-    targets = [negative_target]
+    targets = [negative_target for _ in range(num_images)]
     return images, targets
 
 
@@ -137,8 +140,9 @@ def test_forward_negative_sample_frcnn():
     #     model = torchvision.models.detection.__dict__[name](
     #         num_classes=2, min_size=100, max_size=100)
     model = fasterrcnn_resnet50_fpn(num_classes=2, min_size=100, max_size=100)
+    model = model.to('cuda')
     images, targets = _make_empty_sample()
-    loss_dict = model(images, targets)
+    loss_dict = model(images.to('cuda'), targets.to('cuda'))
 
     assertEqual(loss_dict["loss_box_reg"], flow.tensor(0.))
     assertEqual(loss_dict["loss_rpn_box_reg"], flow.tensor(0.))
@@ -146,8 +150,8 @@ def test_forward_negative_sample_frcnn():
 
 def test_forward_negative_sample_mrcnn():
     model = maskrcnn_resnet50_fpn(
-        num_classes=2, min_size=100, max_size=100)
-
+        num_classes=5, min_size=128, max_size=128)
+    model = model.to('cuda')
     images, targets = _make_empty_sample(add_masks=True)
     loss_dict = model(images, targets)
 

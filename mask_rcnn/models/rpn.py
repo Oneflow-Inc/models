@@ -1,7 +1,7 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
 
-import oneflow.experimental as flow
-from oneflow.experimental import nn, Tensor
+import oneflow as flow
+from oneflow import nn, Tensor
 
 from ops import boxes as box_ops
 
@@ -63,7 +63,7 @@ class RPNHead(nn.Module):
 
 def permute_and_flatten(layer, N, A, C, H, W):
     # type: (Tensor, int, int, int, int, int) -> Tensor
-    layer = layer.view((N, -1, C, H, W))
+    layer = layer.view(N, -1, C, H, W)
     layer = layer.permute(0, 3, 4, 1, 2)
     layer = layer.reshape((N, -1, C))
     return layer
@@ -187,15 +187,15 @@ class RegionProposalNetwork(nn.Module):
         # type: (List[Tensor], List[Dict[str, Tensor]]) -> Tuple[List[Tensor], List[Tensor]]
         labels = []
         matched_gt_boxes = []
-        for anchors_per_image, targets_per_image in zip(anchors[0], targets):
+        for anchors_per_image, targets_per_image in zip(anchors, targets):
             gt_boxes = targets_per_image["boxes"]
-
             if gt_boxes.numel() == 0:
                 # Background image (negative example)
                 device = anchors_per_image.device
                 matched_gt_boxes_per_image = flow.zeros(anchors_per_image.shape, dtype=flow.float32, device=device)
-                labels_per_image = flow.zeros((anchors_per_image.shape[0],), dtype=flow.float32, device=device)
+                labels_per_image = flow.zeros((anchors_per_image.shape[0],), dtype=flow.int32, device=device)
             else:
+                anchors_per_image = anchors_per_image.view(-1, 4)
                 match_quality_matrix = self.box_similarity(gt_boxes, anchors_per_image)
                 matched_idxs = self.proposal_matcher(match_quality_matrix)
                 # get the targets corresponding GT for each proposal
@@ -203,22 +203,25 @@ class RegionProposalNetwork(nn.Module):
                 # GT in the image, and matched_idxs can be -2, which goes
                 # out of bounds
                 # matched_gt_boxes_per_image = gt_boxes[matched_idxs.clamp(min=0)]
-                matched_gt_boxes_per_image = flow.zeros((matched_idxs.shape[0], 4), device= gt_boxes.device, dtype = gt_boxes.dtype)
+                matched_gt_boxes_per_image = flow.zeros((matched_idxs.shape[0], 4), device=gt_boxes.device,
+                                                        dtype=gt_boxes.dtype)
                 for idx, val in enumerate(matched_idxs.clamp(min=0)):
                     matched_gt_boxes_per_image[idx, :] = gt_boxes[val.numpy().item()]
 
-
-
-                labels_per_image = matched_idxs >= 0
-                labels_per_image = labels_per_image.to(dtype=flow.float32)
+                labels_per_image = (matched_idxs >= 0).to(dtype=flow.int32)
+                for idx in labels_per_image.argwhere():
+                    labels_per_image[idx.numpy().item()] = matched_idxs[idx.numpy().item()]
+                # labels_per_image = labels_per_image.to(dtype=flow.float32)
 
                 # Background (negative examples)
-                bg_indices = matched_idxs == self.proposal_matcher.BELOW_LOW_THRESHOLD
-                labels_per_image[bg_indices] = 0.0
+                bg_indices = flow.eq(matched_idxs, self.proposal_matcher.BELOW_LOW_THRESHOLD).argwhere()
+                for idx in bg_indices:
+                    labels_per_image[idx.numpy().item()] = flow.tensor(0, device = labels_per_image.device, dtype=labels_per_image.dtype)
 
                 # discard indices that are between thresholds
-                inds_to_discard = matched_idxs == self.proposal_matcher.BETWEEN_THRESHOLDS
-                labels_per_image[inds_to_discard] = -1.0
+                inds_to_discard = flow.eq(matched_idxs, self.proposal_matcher.BETWEEN_THRESHOLDS).argwhere()
+                for idx in inds_to_discard:
+                    labels_per_image[idx.numpy().item()] = flow.tensor(-1, device = labels_per_image.device, dtype=labels_per_image.dtype)
 
             labels.append(labels_per_image)
             matched_gt_boxes.append(matched_gt_boxes_per_image)
@@ -290,8 +293,7 @@ class RegionProposalNetwork(nn.Module):
         tmp_levels = flow.zeros_like(levels)
         tmp_proposals = flow.zeros_like(proposals)
         for i in range(num_images):
-            for j in range(top_n_idx[i].shape[0]):
-
+            for j in range(top_n_idx[i].shape[1]):
                 # if j >= self.pre_nms_top_n():
                 #     offset = j // self.pre_nms_top_n()
                 #     offset = offset * objectness.shape[1]
@@ -301,15 +303,14 @@ class RegionProposalNetwork(nn.Module):
                 top_n_idx_numpy = top_n_idx[i].numpy()
                 tmp_levels[i, j] = levels[i, top_n_idx_numpy[0, j].item()]
                 tmp_proposals[i, j] = proposals[i, top_n_idx_numpy[0, j].item()]
-        levels = tmp_levels[:, :top_n_idx[0].shape[0]]
-        proposals = tmp_proposals[:, :top_n_idx[0].shape[0]]
+        levels = tmp_levels[:, :top_n_idx[0].shape[1]]
+        proposals = tmp_proposals[:, :top_n_idx[0].shape[1]]
 
         # print(levels)
         # tmp = flow.zeros_like(proposals)
         # for i in range(num_images):
         #     for j in range(top_n_idx[0].shape[0]):
         #
-
 
         # print(proposals)
         objectness_prob = flow.sigmoid(objectness)
@@ -321,14 +322,15 @@ class RegionProposalNetwork(nn.Module):
 
             # remove small boxes
             keep = box_ops.remove_small_boxes(boxes, self.min_size)
-            #TODO:advance index
+            # TODO:advance index
             # boxes, scores, lvl = boxes[keep], scores[keep], lvl[keep]
             tmp_boxes = flow.zeros_like(boxes)
             tmp_scores = flow.zeros_like(scores)
             tmp_lvl = flow.zeros_like(lvl)
             keep_numpy = keep.numpy()
             for i in range(keep.shape[0]):
-                tmp_boxes[i], tmp_scores[i], tmp_lvl[i] = boxes[keep_numpy[i].item()], scores[keep_numpy[i].item()], lvl[keep_numpy[i].item()]
+                tmp_boxes[i], tmp_scores[i], tmp_lvl[i] = boxes[keep_numpy[i].item()], scores[keep_numpy[i].item()], \
+                                                          lvl[keep_numpy[i].item()]
             boxes = tmp_boxes[:keep.shape[0]]
             scores = tmp_scores[:keep.shape[0]]
             lvl = tmp_lvl[:keep.shape[0]]
@@ -340,11 +342,11 @@ class RegionProposalNetwork(nn.Module):
             # TODO:advance index
             # boxes, scores, lvl = boxes[keep], scores[keep], lvl[keep]
             for i in range(keep.shape[0]):
-                tmp_boxes[i], tmp_scores[i], tmp_lvl[i] = boxes[keep_numpy[i].item()], scores[keep_numpy[i].item()], lvl[keep_numpy[i].item()]
+                tmp_boxes[i], tmp_scores[i], tmp_lvl[i] = boxes[keep_numpy[i].item()], scores[keep_numpy[i].item()], \
+                                                          lvl[keep_numpy[i].item()]
             boxes = tmp_boxes[:keep.shape[0]]
             scores = tmp_scores[:keep.shape[0]]
             lvl = tmp_lvl[:keep.shape[0]]
-
 
             # non-maximum suppression, independently done per level
             boxes = boxes.to('cuda')
@@ -379,8 +381,8 @@ class RegionProposalNetwork(nn.Module):
         """
 
         sampled_pos_inds, sampled_neg_inds = self.fg_bg_sampler(labels)
-        sampled_pos_inds = flow.where(flow.cat(sampled_pos_inds, dim=0))[0]
-        sampled_neg_inds = flow.where(flow.cat(sampled_neg_inds, dim=0))[0]
+        sampled_pos_inds = flow.argwhere(flow.cat(sampled_pos_inds, dim=0))[0]
+        sampled_neg_inds = flow.argwhere(flow.cat(sampled_neg_inds, dim=0))[0]
 
         sampled_inds = flow.cat([sampled_pos_inds, sampled_neg_inds], dim=0)
 
@@ -390,13 +392,14 @@ class RegionProposalNetwork(nn.Module):
         regression_targets = flow.cat(regression_targets, dim=0)
 
         box_loss = det_utils.smooth_l1_loss(
-            pred_bbox_deltas[sampled_pos_inds],
-            regression_targets[sampled_pos_inds],
+            pred_bbox_deltas[sampled_pos_inds.numpy().item()],
+            regression_targets[sampled_pos_inds.numpy().item()],
             beta=1 / 9,
             size_average=False,
         ) / (sampled_inds.numel())
 
-        objectness_loss = nn.sigmod_cross_entropy_with_logits(
+
+        objectness_loss = nn.BCEWithLogitsLoss(
             objectness[sampled_inds], labels[sampled_inds]
         )
 
@@ -428,7 +431,6 @@ class RegionProposalNetwork(nn.Module):
         features = list(features.values())
         objectness, pred_bbox_deltas = self.head(features)
         anchors = self.anchor_generator(images, features)
-
         num_images = len(anchors)
         num_anchors_per_level_shape_tensors = [o[0].shape for o in objectness]
         num_anchors_per_level = [s[0] * s[1] * s[2] for s in num_anchors_per_level_shape_tensors]
@@ -439,7 +441,7 @@ class RegionProposalNetwork(nn.Module):
         # the proposals
 
         proposals = self.box_coder.decode(pred_bbox_deltas.detach(), anchors)
-        proposals = proposals.view((num_images, -1, 4))
+        proposals = proposals.view(num_images, -1, 4)
         boxes, scores = self.filter_proposals(proposals, objectness, images.image_sizes, num_anchors_per_level)
 
         losses = {}

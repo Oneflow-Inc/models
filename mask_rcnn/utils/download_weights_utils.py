@@ -9,8 +9,8 @@ import warnings
 from urllib.parse import urlparse
 import weights
 import torch
-import oneflow.experimental as flow
-from oneflow.experimental import nn
+import oneflow as flow
+from oneflow import nn
 
 # matches bfd8deac from resnet18-bfd8deac.pth
 from urllib.request import Request, urlopen

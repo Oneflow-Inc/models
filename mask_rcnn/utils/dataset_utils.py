@@ -2,8 +2,8 @@ import copy
 import os
 from PIL import Image
 
-import oneflow.experimental as flow
-import oneflow.experimental.nn as nn
+import oneflow as flow
+import oneflow.nn as nn
 
 from pycocotools import mask as coco_mask
 from pycocotools.coco import COCO

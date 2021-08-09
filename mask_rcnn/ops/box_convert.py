@@ -1,7 +1,7 @@
 # import torch
 # from torch import Tensor
-import oneflow.experimental as flow
-from oneflow.experimental import Tensor
+import oneflow as flow
+from oneflow import Tensor
 def _box_cxcywh_to_xyxy(boxes: Tensor) -> Tensor:
     """
     Converts bounding boxes from (cx, cy, w, h) format to (x1, y1, x2, y2) format.

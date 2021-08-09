@@ -1,6 +1,6 @@
 from collections import OrderedDict
 
-import oneflow.experimental.nn as nn
+import oneflow.nn as nn
 # from typing import Type, Any, Callable, Union, List, Optional
 from ops.feature_pyramid_network import LastLevelMaxPool, FeaturePyramidNetwork
 from utils.intermediate_layers import IntermediateLayerGetter
@@ -41,7 +41,7 @@ class BackboneWithFPN(nn.Module):
         # self.layers only save to the last layer of return layers
         self.layers = OrderedDict()
         for name, module in backbone.named_children():
-            self.layers[name] = module
+            self.layers[name] = module.to('cuda')
             if name in return_layers:
                 del return_layers[name]
             if not return_layers:

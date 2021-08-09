@@ -1,7 +1,7 @@
 import warnings
 from typing import List, Optional
-import oneflow.experimental as flow
-from oneflow.experimental import nn, Tensor
+import oneflow as flow
+from oneflow import nn, Tensor
 
 class FrozenBatchNorm2d(nn.Module):
     """

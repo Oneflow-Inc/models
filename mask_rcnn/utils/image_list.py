@@ -1,6 +1,6 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
-import oneflow.experimental as flow
-from oneflow.experimental import Tensor
+import oneflow as flow
+from oneflow import Tensor
 from typing import List, Tuple
 
 

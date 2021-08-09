@@ -1,5 +1,5 @@
 from collections import OrderedDict
-import oneflow.experimental as flow
+import oneflow as flow
 from ops.feature_pyramid_network import FeaturePyramidNetwork
 import numpy as np
 flow.enable_eager_execution()

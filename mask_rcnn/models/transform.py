@@ -3,8 +3,8 @@ import math
 # from torch import nn, Tensor
 # from torch.nn import functional as F
 # import torchvision
-import oneflow.experimental as flow
-from oneflow.experimental import nn, Tensor
+import oneflow as flow
+from oneflow import nn, Tensor
 from typing import List, Tuple, Dict, Optional
 
 from utils.image_list import ImageList

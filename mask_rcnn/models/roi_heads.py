@@ -1,6 +1,7 @@
 
-import oneflow.experimental as flow
-from oneflow.experimental import nn, Tensor
+import oneflow as flow
+from oneflow import nn, Tensor
+import numpy as np
 
 from ops import boxes as box_ops
 # from torchvision.ops import boxes as box_ops
@@ -24,22 +25,23 @@ def fastrcnn_loss(class_logits, box_regression, labels, regression_targets):
         regression_targets (Tensor)
 
     Returns:
+
         classification_loss (Tensor)
         box_loss (Tensor)
     """
 
     labels = flow.cat(labels, dim=0)
     regression_targets = flow.cat(regression_targets, dim=0)
-
-    classification_loss = nn.cross_entropy(class_logits, labels)
+    cross_entropy = nn.CrossEntropyLoss()
+    classification_loss = cross_entropy(class_logits, labels)
 
     # get indices that correspond to the regression targets for
     # the corresponding ground truth labels, to be used with
     # advanced indexing
-    sampled_pos_inds_subset = flow.where(labels > 0)[0]
-    labels_pos = labels[sampled_pos_inds_subset]
+    sampled_pos_inds_subset = flow.argwhere(labels > 0)[0]
+    labels_pos = labels[sampled_pos_inds_subset].to(sampled_pos_inds_subset.dtype)
     N, num_classes = class_logits.shape
-    box_regression = box_regression.reshape(N, box_regression.size(-1) // 4, 4)
+    box_regression = box_regression.reshape((N, box_regression.size(-1) // 4, 4))
 
     box_loss = det_utils.smooth_l1_loss(
         box_regression[sampled_pos_inds_subset, labels_pos],
@@ -559,10 +561,12 @@ class RoIHeads(nn.Module):
             return False
         return True
 
+
     def assign_targets_to_proposals(self, proposals, gt_boxes, gt_labels):
         # type: (List[Tensor], List[Tensor], List[Tensor]) -> Tuple[List[Tensor], List[Tensor]]
         matched_idxs = []
         labels = []
+        # TODO: improve speed
         for proposals_in_image, gt_boxes_in_image, gt_labels_in_image in zip(proposals, gt_boxes, gt_labels):
 
             if gt_boxes_in_image.numel() == 0:
@@ -580,17 +584,30 @@ class RoIHeads(nn.Module):
                 matched_idxs_in_image = self.proposal_matcher(match_quality_matrix)
 
                 clamped_matched_idxs_in_image = matched_idxs_in_image.clamp(min=0)
-
-                labels_in_image = gt_labels_in_image[clamped_matched_idxs_in_image]
+                # TODO:advance index
+                # labels_in_image = gt_labels_in_image[clamped_matched_idxs_in_image]
+                labels_in_image = flow.zeros_like(clamped_matched_idxs_in_image)
+                cnt = 0
+                for it in clamped_matched_idxs_in_image:
+                    labels_in_image[cnt] = gt_labels_in_image[it.numpy().item()]
+                    cnt += 1
                 labels_in_image = labels_in_image.to(dtype=flow.int64)
 
                 # Label background (below the low threshold)
-                bg_inds = matched_idxs_in_image == self.proposal_matcher.BELOW_LOW_THRESHOLD
-                labels_in_image[bg_inds] = 0
+                # TODO:where and advance index and 0-dim tensor
+                # bg_inds = matched_idxs_in_image == self.proposal_matcher.BELOW_LOW_THRESHOLD
+                # labels_in_image[bg_inds] = 0
+                bg_inds = flow.eq(matched_idxs_in_image, self.proposal_matcher.BELOW_LOW_THRESHOLD).argwhere()
+                for bg_idx in bg_inds:
+                    labels_in_image[bg_idx.numpy().item()] = flow.tensor(0).to(device=labels_in_image.device)
+
 
                 # Label ignore proposals (between low and high thresholds)
-                ignore_inds = matched_idxs_in_image == self.proposal_matcher.BETWEEN_THRESHOLDS
-                labels_in_image[ignore_inds] = -1  # -1 is ignored by sampler
+                # ignore_inds = matched_idxs_in_image == self.proposal_matcher.BETWEEN_THRESHOLDS
+                # labels_in_image[ignore_inds] = -1  # -1 is ignored by sampler
+                ignore_inds = flow.eq(matched_idxs_in_image, self.proposal_matcher.BETWEEN_THRESHOLDS).argwhere()
+                for ig_idx in ignore_inds:
+                        labels_in_image[ig_idx.numpy().item()] = flow.tensor(-1).to(device=labels_in_image.device)
 
             matched_idxs.append(clamped_matched_idxs_in_image)
             labels.append(labels_in_image)
@@ -603,7 +620,8 @@ class RoIHeads(nn.Module):
         for img_idx, (pos_inds_img, neg_inds_img) in enumerate(
             zip(sampled_pos_inds, sampled_neg_inds)
         ):
-            img_sampled_inds = flow.where(pos_inds_img | neg_inds_img)[0]
+            # img_sampled_inds = flow.argwhere(pos_inds_img | neg_inds_img)[0]
+            img_sampled_inds = flow.tensor((np.array(pos_inds_img.numpy(),dtype=bool) | np.array(neg_inds_img.numpy(),dtype=bool)).astype(int)).argwhere()
             sampled_inds.append(img_sampled_inds)
         return sampled_inds
 
@@ -634,9 +652,9 @@ class RoIHeads(nn.Module):
         dtype = proposals[0].dtype
         device = proposals[0].device
 
-        gt_boxes = [t["boxes"].to(dtype) for t in targets]
-        gt_labels = [t["labels"] for t in targets]
-
+        gt_boxes = [t["boxes"].to(dtype=dtype, device=device) for t in targets]
+        gt_labels = [t["labels"].to(dtype=flow.int32, device=device) for t in targets]
+        gt_boxes = gt_boxes
         # append ground-truth bboxes to propos
         proposals = self.add_gt_proposals(proposals, gt_boxes)
 
@@ -647,7 +665,7 @@ class RoIHeads(nn.Module):
         matched_gt_boxes = []
         num_images = len(proposals)
         for img_id in range(num_images):
-            img_sampled_inds = sampled_inds[img_id]
+            img_sampled_inds = sampled_inds[img_id].view(-1)
             proposals[img_id] = proposals[img_id][img_sampled_inds]
             labels[img_id] = labels[img_id][img_sampled_inds]
             matched_idxs[img_id] = matched_idxs[img_id][img_sampled_inds]
@@ -783,7 +801,7 @@ class RoIHeads(nn.Module):
                 mask_proposals = []
                 pos_matched_idxs = []
                 for img_id in range(num_images):
-                    pos = flow.where(labels[img_id] > 0)[0]
+                    pos = flow.argwhere(labels[img_id] > 0)[0]
                     mask_proposals.append(proposals[img_id][pos])
                     pos_matched_idxs.append(matched_idxs[img_id][pos])
             else:
