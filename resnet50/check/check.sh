@@ -11,28 +11,19 @@ if [ ! -d "$CHECKPOINT_PATH" ]; then
     mkdir $CHECKPOINT_PATH
 fi
 
-LEARNING_RATE=0.01
+LEARNING_RATE=0.001
 MOM=0.9
-WD=0.0005
-EPOCH=90
-TRAIN_BATCH_SIZE=128
-VAL_BATCH_SIZE=256
+EPOCH=10
+TRAIN_BATCH_SIZE=16
+VAL_BATCH_SIZE=16
 
-# LOAD PREVIOUS CHECKPOINT 
-# LOAD_CHECKPOINT=$CHECKPOINT_PATH/epoch_2_val_acc_0.111168
-
-export CUDA_VISIBLE_DEVICES=1
-# export GLOG_v=2
-
-python3 graph_train.py \
+python3 check/check.py \
     --save_checkpoint_path $CHECKPOINT_PATH \
     --ofrecord_path $OFRECORD_PATH \
     --learning_rate $LEARNING_RATE \
     --mom $MOM \
-    --wd $WD \
     --epochs $EPOCH \
     --train_batch_size $TRAIN_BATCH_SIZE \
     --val_batch_size $VAL_BATCH_SIZE \
-    # --load_checkpoint $LOAD_CHECKPOINT
 
 
