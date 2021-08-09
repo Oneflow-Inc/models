@@ -40,8 +40,6 @@ def main(args):
     train_data_loader = OFRecordDataLoader(
         ofrecord_root=args.ofrecord_path,
         mode="train",
-        #dataset_size=94,
-        #dataset_size=940,
         dataset_size=9469,
         batch_size=args.train_batch_size,
     )
