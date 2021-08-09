@@ -1,14 +1,10 @@
 
 import oneflow as flow
-
 import argparse
 import numpy as np
 import os
 import time
-
 from models.dla import DLA
-
-
 from utils.ofrecord_data_utils import OFRecordDataLoader
 from visdom import Visdom
 viz = Visdom()
