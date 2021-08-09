@@ -4,7 +4,11 @@ from collections import OrderedDict
 import numpy as np
 
 import oneflow as flow
+<<<<<<< HEAD
 from ops.test.test_util import GenArgList
+=======
+from oneflow.test.modules.test_util import GenArgList
+>>>>>>> d571ab5411e840e3946e6021c207ccb49c3c3ab1
 from ops import nms, lib_path
 
 flow.config.load_library_now(lib_path())

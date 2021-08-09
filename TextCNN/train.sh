@@ -12,7 +12,7 @@ TRAIN_BATCH_SIZE=16
 VAL_BATCH_SIZE=16
 CHECKPOINT_PATH="checkpoints"
 
-python3 train_textcnn.py \
+python3 train_of_textcnn.py \
     --save_checkpoint_path $CHECKPOINT_PATH \
     --learning_rate $LEARNING_RATE \
     --epochs $EPOCH \

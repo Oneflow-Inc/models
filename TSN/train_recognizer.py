@@ -95,7 +95,7 @@ def adjust_learning_rate(optimizer, epoch, lr_steps):
 
 
 def main():
-    flow.enable_eager_execution()
+
     flow.InitEagerGlobalSession()
 
     global args
@@ -182,7 +182,7 @@ def main():
             end_t = time.time()
 
             if idx % print_interval == 0:
-                l = loss.numpy()[0]
+                l = loss.numpy()
                 losses.append(l)
                 tmp_lr = optimizer.param_groups[0]["lr"]
                 print(

@@ -80,7 +80,7 @@ def save_obj(obj, name):
 
 
 if __name__ == "__main__":
-    flow.enable_eager_execution()
+
     opt = parser.parse_args()
     os.environ["CUDA_VISIBLE_DEVICES"] = opt.gpu_ids
 
@@ -188,8 +188,8 @@ if __name__ == "__main__":
 
             fake_out = flow.mean(fake_out)
             # loss for current batch before optimization
-            running_results["g_loss"] += g_loss.numpy()[0] * batch_size
-            running_results["d_loss"] += d_loss.numpy()[0] * batch_size
+            running_results["g_loss"] += g_loss.numpy() * batch_size
+            running_results["d_loss"] += d_loss.numpy() * batch_size
             running_results["d_score"] += real_out.numpy()[0] * batch_size
             running_results["g_score"] += fake_out.numpy()[0] * batch_size
 

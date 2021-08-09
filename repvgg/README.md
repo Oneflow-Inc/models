@@ -54,8 +54,8 @@ for key,value in parameters.items():
           val = value.detach().cpu().numpy()
           new_parameters[key] = val
 
-flow.env.init()
-flow.enable_eager_execution()
+
+
 
 repVGGA0 = create_RepVGG_A0()
 repVGGA0.load_state_dict(new_parameters)

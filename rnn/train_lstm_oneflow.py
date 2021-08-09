@@ -26,7 +26,7 @@ def train(category_tensor, line_tensor, rnn, criterion, of_sgd):
     loss.backward()
     of_sgd.step()
     of_sgd.zero_grad()
-    return output, loss.numpy()[0]
+    return output, loss.numpy()
 
 
 # refer to: https://blog.csdn.net/Nin7a/article/details/107631078
@@ -73,8 +73,7 @@ learning_rate = (
 
 
 def main(args):
-    flow.env.init()
-    flow.enable_eager_execution()
+
     random.seed(args.seed)
     dataset_path = "./data/names"
     n_categories = processDataset(dataset_path)

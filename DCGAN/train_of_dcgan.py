@@ -452,7 +452,6 @@ class DCGAN(flow.nn.Module):
 
 
 def main(args):
-    flow.enable_eager_execution()
 
     dcgan = DCGAN(args)
     dcgan.train(args.epoch_num, args.save)

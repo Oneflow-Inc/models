@@ -38,7 +38,7 @@ def _parse_args():
 
 
 def main(args):
-    flow.enable_eager_execution()
+
     flow.InitEagerGlobalSession()
 
     train_data_loader = OFRecordDataLoader(
@@ -93,7 +93,7 @@ def main(args):
             of_sgd.zero_grad()
             end_t = time.time()
             if b % print_interval == 0:
-                l = loss.numpy()[0]
+                l = loss.numpy()
                 of_losses.append(l)
                 print(
                     "epoch {} train iter {} oneflow loss {}, train time : {}".format(
