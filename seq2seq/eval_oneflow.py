@@ -1,7 +1,7 @@
 from models.seq_seq_oneflow import AttnDecoderRNN_oneflow, EncoderRNN_oneflow
 from utils.utils_oneflow import *
 import random
-import oneflow.experimental as flow
+import oneflow as flow
 from utils.dataset import prepareData
 import argparse
 
@@ -101,7 +101,6 @@ def evaluateAndShowAttention(
 
 
 def main(args):
-    flow.enable_eager_execution()
 
     device = args.device
     input_lang, output_lang, pairs = prepareData("eng", "fra", True)

@@ -1,5 +1,5 @@
-import oneflow.experimental as flow
-from oneflow.experimental import nn, Tensor
+import oneflow as flow
+from oneflow import nn, Tensor
 
 __all__ = [
     "create_RepVGG_A0",

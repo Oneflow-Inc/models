@@ -1,7 +1,7 @@
 from models.seq_seq_oneflow import *
 from utils.utils_oneflow import *
-import oneflow.experimental.optim as optim
-import oneflow.experimental.nn as nn
+import oneflow.optim as optim
+import oneflow.nn as nn
 import time
 import random
 import argparse
@@ -168,10 +168,9 @@ def trainIters(
 
 
 def main(args):
-    flow.enable_eager_execution()
 
     device = args.device
-    flow.env.init()
+
     # pre
     input_lang, output_lang, pairs = prepareData("eng", "fra", True)
     # training

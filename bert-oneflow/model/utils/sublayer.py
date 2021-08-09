@@ -1,4 +1,4 @@
-import oneflow.experimental.nn as nn
+import oneflow.nn as nn
 from model.utils.layer_norm import LayerNorm
 
 

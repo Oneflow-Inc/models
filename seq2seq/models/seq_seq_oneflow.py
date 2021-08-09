@@ -1,7 +1,7 @@
 from utils.dataset import *
 from utils.utils_oneflow import *
 from models.GRU_oneflow import *
-import oneflow.experimental.F as F
+import oneflow.F as F
 
 
 class EncoderRNN_oneflow(nn.Module):

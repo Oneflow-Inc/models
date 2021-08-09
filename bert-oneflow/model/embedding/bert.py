@@ -1,5 +1,5 @@
-import oneflow.experimental as flow
-import oneflow.experimental.nn as nn
+import oneflow as flow
+import oneflow.nn as nn
 import numpy as np
 import math
 
@@ -14,7 +14,7 @@ class PositionalEmbedding(nn.Module):
         super().__init__()
 
         # Compute the positional encodings once in log space.
-        pe = flow.zeros(size=(max_len, d_model), requires_grad=False)
+        pe = flow.zeros((max_len, d_model), requires_grad=False)
 
         position = flow.arange(0, max_len, dtype=flow.float).unsqueeze(1)
         div_term = (

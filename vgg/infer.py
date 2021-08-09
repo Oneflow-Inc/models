@@ -1,4 +1,4 @@
-import oneflow.experimental as flow
+import oneflow as flow
 
 import argparse
 import numpy as np
@@ -37,8 +37,7 @@ def _parse_args():
 def main(args):
     assert args.model in model_dict
     print("Predicting using", args.model, "...")
-    flow.env.init()
-    flow.enable_eager_execution()
+
     start_t = time.time()
     vgg_module = model_dict[args.model]()
     end_t = time.time()

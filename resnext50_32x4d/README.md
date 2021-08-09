@@ -50,8 +50,8 @@ for key,value in parameters.items():
           val = value.detach().cpu().numpy()
           new_parameters[key] = val
 
-flow.env.init()
-flow.enable_eager_execution()
+
+
 
 resnext50_32x4d_module = resnext50_32x4d()
 resnext50_32x4d_module.load_state_dict(new_parameters)

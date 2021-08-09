@@ -1,5 +1,5 @@
-import oneflow.experimental as flow
-from oneflow.experimental import nn, Tensor
+import oneflow as flow
+from oneflow import nn, Tensor
 
 from typing import Type, Any, Callable, Union, List, Optional
 

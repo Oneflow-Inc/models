@@ -8,7 +8,7 @@ import matplotlib
 
 matplotlib.use("agg")
 import matplotlib.pyplot as plt
-import oneflow.experimental as flow
+import oneflow as flow
 
 
 def _parse_args():
@@ -452,7 +452,6 @@ class DCGAN(flow.nn.Module):
 
 
 def main(args):
-    flow.enable_eager_execution()
 
     dcgan = DCGAN(args)
     dcgan.train(args.epoch_num, args.save)

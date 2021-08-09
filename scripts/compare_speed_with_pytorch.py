@@ -8,10 +8,9 @@ import argparse
 from typing import Sequence
 
 
-import oneflow.experimental as flow
+import oneflow as flow
 import oneflow._oneflow_internal as oneflow_internal
 
-flow.enable_eager_execution()
 
 DEFAULT_TIMES = 20
 
@@ -68,7 +67,6 @@ def test(
         import torch
     Net = getattr(python_module, module_name)
 
-    times = 20
     warmup_times = 5
 
     m = Net()
@@ -100,15 +98,15 @@ def test(
             optimizer.step()
         sync(y)
     end = time.time()
-    total_time = end - start
-    time_per_run = total_time / times
+    total_time_ms = (end - start) * 1000
+    time_per_run_ms = total_time_ms / times
     if no_verbose:
-        print(f"{framework_name}: {time_per_run}")
+        print(f"{framework_name}: {time_per_run_ms:.1f}ms")
     else:
         print(
-            f"{framework_name} {module_name} time: {time_per_run} (= {total_time} / {times}, input_shape={input_shape}, backward is {'disabled' if disable_backward else 'enabled'})"
+            f"{framework_name} {module_name} time: {time_per_run_ms:.1f}ms (= {total_time_ms:.1f}ms / {times}, input_shape={input_shape}, backward is {'disabled' if disable_backward else 'enabled'})"
         )
-    return time_per_run
+    return time_per_run_ms
 
 
 if __name__ == "__main__":
@@ -144,9 +142,10 @@ if __name__ == "__main__":
         times=args.times,
         no_verbose=args.no_verbose,
     )
+    relative_speed = pytorch_time / oneflow_time
     if args.no_verbose:
-        print(f"Relative speed: {pytorch_time/oneflow_time}")
+        print(f"Relative speed: {relative_speed:.2f}")
     else:
-        print(f"Relative speed: {pytorch_time/oneflow_time} (= {pytorch_time} / {oneflow_time}")
-
-
+        print(
+            f"Relative speed: {relative_speed:.2f} (= {pytorch_time:.1f}ms / {oneflow_time:.1f}ms)"
+        )

@@ -110,6 +110,7 @@ venv.bak/
 
 
 # data
+data/
 images/
 *.tar*
 
@@ -133,6 +134,9 @@ mask_rcnn/*/__pycache__
 # pix2pix
 of_pix2pix
 data
+ofrecord/
+checkpoints/
+of_losses.txt
 
 # resnet50
 imagenet*
@@ -144,4 +148,8 @@ imagenet*
 SRGAN/data*
 SRGAN_netG_epoch_4_99
 vgg_imagenet_pretrain_model
+<<<<<<< HEAD
 
+=======
+result
+>>>>>>> 393c7ca93c1a86c3e9ab6f322057078007eb7c0e
