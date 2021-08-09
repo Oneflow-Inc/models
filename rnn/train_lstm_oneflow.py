@@ -1,6 +1,6 @@
-import oneflow.experimental as flow
-from oneflow.experimental import optim
-import oneflow.experimental.nn as nn
+import oneflow as flow
+from oneflow import optim
+import oneflow.nn as nn
 
 from utils.dataset import *
 from utils.tensor_utils import *
@@ -10,9 +10,6 @@ import argparse
 import time
 import math
 import numpy as np
-
-flow.env.init()
-flow.enable_eager_execution()
 
 
 def _parse_args():
@@ -29,7 +26,7 @@ def train(category_tensor, line_tensor, rnn, criterion, of_sgd):
     loss.backward()
     of_sgd.step()
     of_sgd.zero_grad()
-    return output, loss.numpy()[0]
+    return output, loss.numpy()
 
 
 # refer to: https://blog.csdn.net/Nin7a/article/details/107631078
@@ -76,6 +73,7 @@ learning_rate = (
 
 
 def main(args):
+
     random.seed(args.seed)
     dataset_path = "./data/names"
     n_categories = processDataset(dataset_path)

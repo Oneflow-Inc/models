@@ -1,7 +1,7 @@
-import oneflow.experimental as flow
+import oneflow as flow
 
 from functools import partial
-from oneflow.experimental import nn, Tensor
+from oneflow import nn, Tensor
 from typing import Any, Callable, Dict, List, Optional, Sequence
 
 __all__ = ["MobileNetV3", "mobilenet_v3_large", "mobilenet_v3_small"]

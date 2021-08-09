@@ -1,15 +1,12 @@
 import argparse
 
-import oneflow.experimental as flow
-from oneflow.python.utils.data import DataLoader
+import oneflow as flow
+from oneflow.utils.data import DataLoader
 
 from model.bert import BERT
 from trainer.pretrain import BERTTrainer
 from dataset.dataset import BERTDataset
 from dataset.vocab import WordVocab
-
-# eager mode
-flow.enable_eager_execution()
 
 
 def main():

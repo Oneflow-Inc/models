@@ -2,7 +2,7 @@ import time
 import argparse
 from typing import Generator
 import numpy as np
-import oneflow.experimental as flow
+import oneflow as flow
 from train_of_dcgan import Generator, to_tensor, to_numpy, save_images
 
 
@@ -25,7 +25,6 @@ def _parse_args():
 
 
 def main(args):
-    flow.enable_eager_execution()
 
     device = "cpu" if args.no_cuda else "cuda"
     start_t = time.time()

@@ -1,7 +1,7 @@
 # coding=utf-8
 import numpy as np
-import oneflow.experimental as flow
-import oneflow.experimental.nn as nn
+import oneflow as flow
+import oneflow.nn as nn
 
 # define LeNet module
 class LeNet5(nn.Module):
@@ -32,7 +32,7 @@ class LeNet5(nn.Module):
 
 
 # enable eager mode
-flow.enable_eager_execution()
+
 
 # init model
 model = LeNet5(10)

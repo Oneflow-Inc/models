@@ -9,8 +9,8 @@ import random
 
 import numpy as np
 import utils
-import oneflow.experimental as flow
-from oneflow.experimental.optim import Adam
+import oneflow as flow
+from oneflow.optim import Adam
 
 from utils import load_image, recover_image, normalize_batch, load_image_eval
 from transformer_net import TransformerNet
@@ -317,9 +317,6 @@ def main():
     )
 
     args = main_arg_parser.parse_args()
-
-    flow.env.init()
-    flow.enable_eager_execution()
 
     if args.subcommand is None:
         print("ERROR: specify either train or eval")

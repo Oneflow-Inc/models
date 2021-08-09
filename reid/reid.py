@@ -3,7 +3,7 @@
 import sys
 import argparse
 from data_loader import Market1501, RandomIdentitySampler, ImageDataset
-import oneflow.experimental as flow
+import oneflow as flow
 from bisect import bisect_right
 import os
 import os.path as osp
@@ -96,7 +96,6 @@ def _parse_args():
 
 
 def main(args):
-    flow.enable_eager_execution()
 
     # log setting
     log_name = "log_test.log" if args.evaluate else "log_train.log"
@@ -201,7 +200,7 @@ def train(model, dataset, num_classes, optimizer, scheduler):
             "loss_x:",
             loss_x.numpy()[0],
             "loss:",
-            loss.numpy()[0],
+            loss.numpy(),
             "lr:",
             optimizer.param_groups[0]["lr"],
         )

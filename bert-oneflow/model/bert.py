@@ -1,9 +1,9 @@
-import oneflow.experimental.nn as nn
+import oneflow.nn as nn
 
 from model.transformer import TransformerBlock
 from model.embedding.bert import BERTEmbedding
 import numpy as np
-import oneflow.experimental as flow
+import oneflow as flow
 
 
 class BERT(nn.Module):
@@ -45,9 +45,9 @@ class BERT(nn.Module):
         mask = (
             (x > 0)
             .unsqueeze(1)
-            .repeat(sizes=(1, x.shape[1], 1))
+            .repeat((1, x.shape[1], 1))
             .unsqueeze(1)
-            .repeat(sizes=(1, 8, 1, 1))
+            .repeat((1, 8, 1, 1))
         )
 
         # embedding the indexed sequence to sequence of vectors
