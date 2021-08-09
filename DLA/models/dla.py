@@ -1,19 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
 import math
 from os.path import join
 import oneflow as flow
 import oneflow.nn as nn
 
-
-
-
-
 BatchNorm = nn.BatchNorm2d
-
 WEB_ROOT = 'http://dl.yf.io/dla/models'
-
 
 def get_model_url(data, name):
     return join(WEB_ROOT, data.name,
@@ -296,14 +289,8 @@ class DLA(nn.Module):
         else:
             x = self.avgpool(x)
             x = self.fc(x)
-
             x = x.view(x.size(0), -1)
-
-
-
             return x
-
-
 
 
 def dla34(pretrained=None, **kwargs):  # DLA-34
