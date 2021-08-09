@@ -42,6 +42,7 @@ REGISTER_USER_OP("roi_align")
       user_op::InputArgModifier* feat_modifier = GetInputArgModifierFn("x", 0);
       CHECK(feat_modifier != nullptr);
       feat_modifier->set_requires_grad(true);
+      return Maybe<void>::Ok();
     })
     .SetGetSbpFn([](user_op::SbpContext* ctx) -> Maybe<void> {
       ctx->NewBuilder()
