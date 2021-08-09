@@ -148,8 +148,4 @@ imagenet*
 SRGAN/data*
 SRGAN_netG_epoch_4_99
 vgg_imagenet_pretrain_model
-<<<<<<< HEAD
-
-=======
 result
->>>>>>> 393c7ca93c1a86c3e9ab6f322057078007eb7c0e
