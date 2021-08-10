@@ -1,7 +1,7 @@
 set -aux
 
-TXT_ROOT="results/check_info/"
-SAVE_ROOT="/results/picture/"
+TXT_ROOT="results/default/"
+SAVE_ROOT="results/picture/"
 
 python3 check/draw.py \
     --txt_root $TXT_ROOT \
