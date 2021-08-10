@@ -1,4 +1,3 @@
-import ctypes
 import unittest
 from collections import OrderedDict
 
@@ -9,7 +8,7 @@ import oneflow as flow
 from oneflow.test.modules.test_util import GenArgList
 from ops import RoIAlign, lib_path
 
-p = ctypes.CDLL(lib_path())
+flow.config.load_library_now(lib_path())
 
 input_np = np.array(
     [

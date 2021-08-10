@@ -4,12 +4,12 @@ import numpy as np
 import os
 import time
 
-from models.alexnet import alexnet
+from models.resnet50 import resnet50
 from utils.ofrecord_data_utils import OFRecordDataLoader
 
 
 def _parse_args():
-    parser = argparse.ArgumentParser("flags for train alexnet")
+    parser = argparse.ArgumentParser("flags for train resnet50")
     parser.add_argument(
         "--save_checkpoint_path",
         type=str,
@@ -40,8 +40,6 @@ def main(args):
     train_data_loader = OFRecordDataLoader(
         ofrecord_root=args.ofrecord_path,
         mode="train",
-        #dataset_size=94,
-        #dataset_size=940,
         dataset_size=9469,
         batch_size=args.train_batch_size,
     )
@@ -55,72 +53,79 @@ def main(args):
 
     # oneflow init
     start_t = time.time()
-    alexnet_module = alexnet()
+    resnet50_module = resnet50()
     if args.load_checkpoint != "":
         print("load_checkpoint >>>>>>>>> ", args.load_checkpoint)
-        alexnet_module.load_state_dict(flow.load(args.load_checkpoint))
+        resnet50_module.load_state_dict(flow.load(args.load_checkpoint))
 
     end_t = time.time()
     print("init time : {}".format(end_t - start_t))
 
     of_cross_entropy = flow.nn.CrossEntropyLoss()
 
-    alexnet_module.to("cuda")
+    resnet50_module.to("cuda")
     of_cross_entropy.to("cuda")
 
     of_sgd = flow.optim.SGD(
-        alexnet_module.parameters(), lr=args.learning_rate, momentum=args.mom
+        resnet50_module.parameters(), lr=args.learning_rate, momentum=args.mom
     )
 
-    class AlexNetGraph(flow.nn.Graph):
+    class Resnet50Graph(flow.nn.Graph):
         def __init__(self):
             super().__init__()
-            self.alexnet = alexnet_module
+            self.resnet50 = resnet50_module
             self.cross_entropy = of_cross_entropy
             self.add_optimizer("sgd", of_sgd)
+            self.train_data_loader = train_data_loader
         
         def build(self, image, label):
-            logits = self.alexnet(image)
+            image, label = self.train_data_loader()
+            image = image.to("cuda")
+            label = label.to("cuda")
+            logits = self.resnet50(image)
             loss = self.cross_entropy(logits, label)
             loss.backward()
             return loss
 
-    alexnet_graph = AlexNetGraph()
+    resnet50_graph = Resnet50Graph()
 
-    class AlexNetEvalGraph(flow.nn.Graph):
+    class Resnet50EvalGraph(flow.nn.Graph):
         def __init__(self):
             super().__init__()
-            self.alexnet = alexnet_module
+            self.resnet50 = resnet50_module
+            self.val_data_loader = val_data_loader
         
         def build(self, image):
+            image, label = self.val_data_loader()
+            image = image.to("cuda")
             with flow.no_grad():
-                logits = self.alexnet(image)
+                logits = self.resnet50(image)
                 predictions = logits.softmax()
-            return predictions
+            return predictions, label
 
-    alexnet_eval_graph = AlexNetEvalGraph()
+    resnet50_eval_graph = Resnet50EvalGraph()
 
-    of_losses = []
+    of_losses, of_accuracy = [], []
     all_samples = len(val_data_loader) * args.val_batch_size
     print_interval = 100
 
 
     for epoch in range(args.epochs):
-        alexnet_module.train()
+        resnet50_module.train()
 
         for b in range(len(train_data_loader)):
-            image, label = train_data_loader.get_batch()
+            image, label = train_data_loader()
 
             # oneflow graph train
             start_t = time.time()
             image = image.to("cuda")
             label = label.to("cuda")
 
-            loss = alexnet_graph(image, label)
+            loss = resnet50_graph(image, label)
 
             end_t = time.time()
             if b % print_interval == 0:
-                l = loss.numpy()[0]
+                l = loss.numpy()
                 of_losses.append(l)
                 print(
                     "epoch {} train iter {} oneflow loss {}, train time : {}".format(
@@ -130,14 +135,11 @@ def main(args):
 
         print("epoch %d train done, start validation" % epoch)
 
-        alexnet_module.eval()
+        resnet50_module.eval()
         correct_of = 0.0
         for b in range(len(val_data_loader)):
-            image, label = val_data_loader.get_batch()
-
             start_t = time.time()
-            image = image.to("cuda")
-            predictions = alexnet_eval_graph(image)
+            predictions, label = resnet50_eval_graph(image)
             of_predictions = predictions.numpy()
             clsidxs = np.argmax(of_predictions, axis=1)
 
@@ -147,10 +149,12 @@ def main(args):
                     correct_of += 1
             end_t = time.time()
 
-        print("epoch %d, oneflow top1 val acc: %f" % (epoch, correct_of / all_samples))
+        top1 = correct_of / all_samples
+        of_accuracy.append(top1)
+        print("epoch %d, oneflow top1 val acc: %f" % (epoch, top1))
 
         flow.save(
-            alexnet_module.state_dict(),
+            resnet50_module.state_dict(),
             os.path.join(
                 args.save_checkpoint_path,
                 "epoch_%d_val_acc_%f" % (epoch, correct_of / all_samples),
@@ -162,6 +166,10 @@ def main(args):
         writer.write("%f\n" % o)
     writer.close()
 
+    writer = open("graph/accuracy.txt", "w")
+    for o in of_accuracy:
+        writer.write("%f\n" % o)
+    writer.close()
 
 if __name__ == "__main__":
     args = _parse_args()

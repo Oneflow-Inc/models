@@ -13,17 +13,12 @@ fi
 
 LEARNING_RATE=0.001
 MOM=0.9
-EPOCH=2
+EPOCH=20
 TRAIN_BATCH_SIZE=16
 VAL_BATCH_SIZE=16
+#LOAD_CHECKPOINT="path/to/your_pretrain_model" # LOAD PREVIOUS CHECKPOINT 
 
-# LOAD PREVIOUS CHECKPOINT 
-# LOAD_CHECKPOINT=$CHECKPOINT_PATH/epoch_2_val_acc_0.111168
-
-export CUDA_VISIBLE_DEVICES=1
-export GLOG_v=2
-
-python3 graph_train.py \
+python3 eager/train.py \
     --save_checkpoint_path $CHECKPOINT_PATH \
     --ofrecord_path $OFRECORD_PATH \
     --learning_rate $LEARNING_RATE \
@@ -31,5 +26,6 @@ python3 graph_train.py \
     --epochs $EPOCH \
     --train_batch_size $TRAIN_BATCH_SIZE \
     --val_batch_size $VAL_BATCH_SIZE \
-    # 2>&1 | tee ${CHECKPOINT_PATH}/log.txt
     # --load_checkpoint $LOAD_CHECKPOINT
+
+
