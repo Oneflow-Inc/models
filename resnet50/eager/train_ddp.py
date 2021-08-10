@@ -114,9 +114,10 @@ def train_one_epoch(args, model, criterion, data_loader, optimizer, epoch, lr_sc
         # update model
         loss.backward()
 
-        named_parameters = model.named_parameters()
-        for name, param in named_parameters:
-            print(name, param.shape, param.grad.shape)
+        if rank == 0:
+            named_parameters = model.named_parameters()
+            for name, param in named_parameters:
+                print(name, param.shape, param.grad.shape)
 
         optimizer.step()
         optimizer.zero_grad()
