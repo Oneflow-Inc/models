@@ -11,10 +11,10 @@ from contextlib import contextmanager
 from copy import deepcopy
 from pathlib import Path
 
-import oneflow
-import oneflow.experimental as flow
-import oneflow.experimental.nn as nn
-import oneflow.experimental.nn.functional as F
+import models
+import oneflow as flow
+import oneflow.nn as nn
+import oneflow.nn.functional as F
 
 logger = logging.getLogger(__name__)
 
@@ -36,15 +36,15 @@ def git_describe(path=Path(__file__).parent):  # path must be a directory
 
 def select_device(device='', batch_size=None):
     # device = 'cpu' or '0' or '0,1,2,3'
-    s = f'YOLOv3 🚀 {git_describe() or date_modified()} oneflow {oneflow.__version__} '  # string
+    s = f'YOLOv3 🚀 {git_describe() or date_modified()} oneflow {flow.__version__} '  # string
     cpu = device.lower() == 'cpu'
     if cpu:
         os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
     elif device:  # non-cpu device requested
         os.environ['CUDA_VISIBLE_DEVICES'] = device  # set environment variable
-        assert oneflow.sysconfig.with_cuda(), f'CUDA unavailable, invalid device {device} requested'
+        assert flow.framework.sysconfig.with_cuda(), f'CUDA unavailable, invalid device {device} requested'
 
-    cuda = not cpu and oneflow.sysconfig.with_cuda()
+    cuda = not cpu and flow.framework.sysconfig.with_cuda()
     if cuda:
         devices = device.split(',') if device else range(1)
         n = len(devices)  # device count
@@ -90,6 +90,25 @@ def model_info(model, verbose=False, img_size=640):
     fs = ''
 
     logger.info(f"Model Summary: {len(list(model.modules()))} layers, {n_p} parameters, {n_g} gradients{fs}")
+
+
+def load_classifier(name='resnet101', n=2):
+    # Loads a pretrained model reshaped to n-class output
+    model = models.__dict__[name](pretrained=True)
+
+    # ResNet model properties
+    # input_size = [3, 224, 224]
+    # input_space = 'RGB'
+    # input_range = [0, 1]
+    # mean = [0.485, 0.456, 0.406]
+    # std = [0.229, 0.224, 0.225]
+
+    # Reshape output to n classes
+    filters = model.fc.weight.shape[1]
+    model.fc.bias = nn.Parameter(flow.zeros(n), requires_grad=True)
+    model.fc.weight = nn.Parameter(flow.zeros(n, filters), requires_grad=True)
+    model.fc.out_features = n
+    return model
 
 
 def scale_img(img, ratio=1.0, same_shape=False, gs=32):  # img(16,3,256,416)

@@ -7,9 +7,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import requests
-import oneflow
-import oneflow.experimental as flow
-import oneflow.experimental.nn as nn
+import oneflow as flow
+import oneflow.nn as nn
 
 from utils.general import make_divisible
 
@@ -32,7 +31,7 @@ class Conv(nn.Module):
         super(Conv, self).__init__()
         self.conv = nn.Conv2d(c1, c2, k, s, autopad(k, p), groups=g, bias=False)
         self.bn = nn.BatchNorm2d(c2)
-        self.act = nn.LeakyReLU(0.1, False) if act is True else (act if isinstance(act, nn.Module) else nn.Identity())
+        self.act = nn.LeakyReLU(0.1, inplace=False) if act is True else (act if isinstance(act, nn.Module) else nn.Identity())
 
     def forward(self, x):
         return self.act(self.bn(self.conv(x)))

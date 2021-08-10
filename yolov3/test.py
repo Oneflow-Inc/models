@@ -1,3 +1,4 @@
+import ctypes
 import argparse
 import json
 import os
@@ -5,8 +6,7 @@ from pathlib import Path
 from threading import Thread
 
 import numpy as np
-import oneflow
-import oneflow.experimental as flow
+import oneflow as flow
 import yaml
 from tqdm import tqdm
 
@@ -42,9 +42,7 @@ def test(data,
          is_coco=False,
          opt=None):
     # Initialize/load model and set device
-    flow.config.load_library_now(lib_path())
-    flow.env.init()
-    flow.enable_eager_execution()
+    p = ctypes.CDLL(lib_path())
     training = model is not None
     if training:  # called by train.py
         device = next(model.parameters()).device  # get model device
@@ -116,8 +114,8 @@ def test(data,
 
             # Statistics per image
             for si, pred in enumerate(out):
-                index = flow.argwhere(targets[:, 0].eq(si)).squeeze()
-                labels = oneflow.F.gather(targets, index, 0)[..., 1:]
+                index = flow.argwhere(targets[:, 0].eq(si)).squeeze(1)
+                labels = flow.F.gather(targets, index, 0)[..., 1:]
                 #labels = targets[flow.argwhere(targets[:, 0].eq(si)).squeeze().tolist(), 1:]
                 nl = labels.shape[0]
                 tcls = labels[:, 0].tolist() if nl else []  # target class
@@ -177,12 +175,6 @@ def test(data,
                         # Search for detections
                         if pi.shape[0]:
                             # Prediction to target ious
-                            #index = flow.tensor(pi).to(device)
-                            #pred_ = oneflow.F.gather(predn, index, 0)
-                            #index2 = flow.tensor(ti).to(device)
-                            #iou_matrix = box_iou(pred_[:, :4], oneflow.F.gather(tbox, index2, 0))
-                            #ious = iou_matrix.max(1).numpy()
-                            #i = iou_matrix.argmax(1).numpy()
                             iou_matrix = box_iou_np(predn[pi, :4], tbox_np[ti])  # best ious, indices
                             ious = iou_matrix.max(1, keepdims=False)
                             i = iou_matrix.argmax(1)
@@ -275,7 +267,7 @@ def test(data,
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog="test.py")
     parser.add_argument('--weights', nargs='+', type=str, default='yolov3_ckpt', help='model path(s)')
-    parser.add_argument('--cfg', type=str, default='', help='model.yaml path')
+    parser.add_argument('--cfg', type=str, default='models/yolov3.yaml', help='model.yaml path')
     parser.add_argument('--data', type=str, default='data/coco128.yaml', help='*.data path')
     parser.add_argument('--batch-size', type=int, default=32, help='size of each image batch')
     parser.add_argument('--img-size', type=int, default=640, help='inference size (pixels)')

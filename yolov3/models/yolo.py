@@ -31,9 +31,9 @@ class Detect(nn.Module):
         self.nl = len(anchors)  # number of detection layers
         self.na = len(anchors[0]) // 2  # number of anchors
         self.grid = [flow.zeros(1)] * self.nl  # init grid
-        a = flow.Tensor(flow.tensor(anchors, dtype=flow.float).view([self.nl, -1, 2]))
+        a = flow.Tensor(flow.tensor(anchors, dtype=flow.float).view(self.nl, -1, 2))
         self.register_buffer('anchors', a)  # shape(nl,na,2)
-        self.register_buffer('anchor_grid', flow.Tensor(a.clone().view([self.nl, 1, -1, 1, 1, 2])))  # shape(nl,1,na,1,1,2)
+        self.register_buffer('anchor_grid', flow.Tensor(a.clone().view(self.nl, 1, -1, 1, 1, 2)))  # shape(nl,1,na,1,1,2)
         self.m = nn.ModuleList(nn.Conv2d(x, self.no * self.na, 1) for x in ch)  # output conv
 
     def forward(self, x):
@@ -41,7 +41,7 @@ class Detect(nn.Module):
         for i in range(self.nl):
             x[i] = self.m[i](x[i])  # conv
             bs, _, ny, nx = x[i].shape  # x(bs,255,20,20) to x(bs,3,20,20,85)
-            x[i] = x[i].view((bs, self.na, self.no, ny, nx)).permute(0, 1, 3, 4, 2)
+            x[i] = x[i].view(bs, self.na, self.no, ny, nx).permute(0, 1, 3, 4, 2)
 
             if not self.training:  # inference
                 if self.grid[i].shape[2:4] != x[i].shape[2:4] or self.onnx_dynamic:
@@ -49,16 +49,16 @@ class Detect(nn.Module):
 
                 y = x[i].sigmoid()
                 xy = (y[..., 0:2] * 2. - 0.5 + self.grid[i]) * self.stride[i].to(self.grid[i].device)  # xy
-                wh = (y[..., 2:4] * 2) ** 2 * self.anchor_grid[i].view((1, self.na, 1, 1, 2))  # wh
+                wh = (y[..., 2:4] * 2) ** 2 * self.anchor_grid[i].view(1, self.na, 1, 1, 2)  # wh
                 y = flow.cat((xy, wh, y[..., 4:]), -1)
-                z.append(y.view((bs, -1, self.no)))
+                z.append(y.view(bs, -1, self.no))
 
         return x if self.training else (flow.cat(z, 1), x)
 
     @staticmethod
     def _make_grid(nx=20, ny=20):
         yv, xv = flow.meshgrid(flow.arange(ny, dtype=flow.float), flow.arange(nx, dtype=flow.float))
-        return flow.stack((xv, yv), 2).view((1, 1, ny, nx, 2)).to(dtype=flow.float)
+        return flow.stack((xv, yv), 2).view(1, 1, ny, nx, 2).to(dtype=flow.float)
 
 
 class Model(nn.Module):
@@ -89,7 +89,7 @@ class Model(nn.Module):
         if isinstance(m, Detect):
             s = 256  # 2x min stride
             m.stride = flow.tensor([s / x.shape[-2] for x in self.forward(flow.zeros((1, ch, s, s)))])  # forward
-            m.anchors = flow.Tensor(m.anchors / m.stride.view((-1, 1, 1)))
+            m.anchors = flow.Tensor(m.anchors / m.stride.view(-1, 1, 1))
             #check_anchor_order(m)
             self.stride = m.stride
             #self._initialize_biases()  # only run once

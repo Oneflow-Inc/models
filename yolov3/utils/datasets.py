@@ -16,10 +16,10 @@ from threading import Thread
 
 import cv2
 import numpy as np
-import oneflow.experimental as flow
-import oneflow.experimental.nn.functional as F
+import oneflow as flow
+import oneflow.nn.functional as F
 from PIL import Image, ExifTags
-from oneflow.python.utils.data import Dataset, RandomSampler, DataLoader, SequentialSampler
+from oneflow.utils.data import Dataset, DataLoader, SequentialSampler
 from tqdm import tqdm
 
 from yolov3.utils.general import check_requirements, xyxy2xywh, xywh2xyxy, xywhn2xyxy, xyn2xy, segment2box, segments2boxes, \
@@ -30,6 +30,16 @@ help_url = 'https://github.com/ultralytics/yolov3/wiki/Train-Custom-Data'
 img_formats = ['bmp', 'jpg', 'jpeg', 'png', 'tif', 'tiff', 'dng', 'webp', 'mpo']  # acceptable image suffixess
 vid_formats = ['mov', 'avi', 'mp4', 'mpg', 'mpeg', 'm4v', 'wmv', 'mkv']  # acceptable video suffixes
 logger = logging.getLogger(__name__)
+
+CLASS_NAMES =  ['person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 'truck', 'boat', 'traffic light',
+                'fire hydrant', 'stop sign', 'parking meter', 'bench', 'bird', 'cat', 'dog', 'horse', 'sheep', 'cow',
+                'elephant', 'bear', 'zebra', 'giraffe', 'backpack', 'umbrella', 'handbag', 'tie', 'suitcase', 'frisbee',
+                'skis', 'snowboard', 'sports ball', 'kite', 'baseball bat', 'baseball glove', 'skateboard', 'surfboard',
+                'tennis racket', 'bottle', 'wine glass', 'cup', 'fork', 'knife', 'spoon', 'bowl', 'banana', 'apple',
+                'sandwich', 'orange', 'broccoli', 'carrot', 'hot dog', 'pizza', 'donut', 'cake', 'chair', 'couch',
+                'potted plant', 'bed', 'dining table', 'toilet', 'tv', 'laptop', 'mouse', 'remote', 'keyboard', 'cell phone',
+                'microwave', 'oven', 'toaster', 'sink', 'refrigerator', 'book', 'clock', 'vase', 'scissors', 'teddy bear',
+                'hair drier', 'toothbrush']
 
 # Get orientation exif tag
 for orientation in ExifTags.TAGS.keys():
@@ -75,7 +85,7 @@ def create_dataloader(path, imgsz, batch_size, stride, opt, hyp=None, augment=Fa
 
     batch_size = min(batch_size, len(dataset))
     nw = min([os.cpu_count() // world_size, batch_size if batch_size > 1 else 0, workers])  # number of workers
-    sampler = SequentialSampler(dataset)
+    sampler = None
     loader = DataLoader if image_weights else InfiniteDataLoader
     dataloader = loader(dataset,
                         batch_size=batch_size,

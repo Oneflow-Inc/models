@@ -1,7 +1,7 @@
 # YOLOv3 experimental modules
 
-import oneflow.experimental as flow
-import oneflow.experimental.nn as nn
+import oneflow as flow
+import oneflow.nn as nn
 
 from yolov3.utils.google_utils import attempt_download
 

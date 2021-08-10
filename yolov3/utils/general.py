@@ -13,9 +13,9 @@ from itertools import repeat
 from multiprocessing.pool import ThreadPool
 from pathlib import Path
 
+import cv2
 import numpy as np
-import oneflow
-import oneflow.experimental as flow
+import oneflow as flow
 import ops
 import pkg_resources as pkg
 
@@ -80,6 +80,19 @@ def check_img_size(img_size, s=32):
     if new_size != img_size:
         print('WARNING: --img-size %g must be multiple of max stride %g, updating to %g' % (img_size, s, new_size))
     return new_size
+
+
+def check_imshow():
+    # Check if environment supports image displays
+    try:
+        cv2.imshow('test', np.zeros(1, 1, 3))
+        cv2.waitKey(1)
+        cv2.destroyAllWindows()
+        cv2.waitKey(1)
+        return True
+    except Exception as e:
+        print(f'WARNING: Environment does not support cv2.imshow() or PIL Image.show() image displays\n{e}')
+        return False
 
 
 def check_file(file):
@@ -149,7 +162,7 @@ def coco80_to_coco91_class():  # converts 80-index (val2014) to 91-index (paper)
 
 def xyxy2xywh(x):
     # Convert nx4 boxes from [x1, y1, x2, y2] to [x, y, w, h] where xy1=top-left, xy2=bottom-right
-    y = x.clone() if isinstance(x, (flow.Tensor, oneflow._oneflow_internal.Tensor)) else np.copy(x)
+    y = x.clone() if isinstance(x, (flow.Tensor, flow._oneflow_internal.Tensor)) else np.copy(x)
     y[:, 0] = (x[:, 0] + x[:, 2]) / 2  # x center
     y[:, 1] = (x[:, 1] + x[:, 3]) / 2  # y center
     y[:, 2] = x[:, 2] - x[:, 0]  # width
@@ -159,7 +172,7 @@ def xyxy2xywh(x):
 
 def xywh2xyxy(x):
     # Convert nx4 boxes from [x, y, w, h] to [x1, y1, x2, y2] where xy1=top-left, xy2=bottom-right
-    y = x.clone() if isinstance(x, (flow.Tensor, oneflow._oneflow_internal.Tensor)) else np.copy(x)
+    y = x.clone() if isinstance(x, (flow.Tensor, flow._oneflow_internal.Tensor)) else np.copy(x)
     y[:, 0] = x[:, 0] - x[:, 2] / 2  # top left x
     y[:, 1] = x[:, 1] - x[:, 3] / 2  # top left y
     y[:, 2] = x[:, 0] + x[:, 2] / 2  # bottom right x
@@ -169,7 +182,7 @@ def xywh2xyxy(x):
 
 def xywhn2xyxy(x, w=640, h=640, padw=0, padh=0):
     # Convert nx4 boxes from [x, y, w, h] normalized to [x1, y1, x2, y2] where xy1=top-left, xy2=bottom-right
-    y = x.clone() if isinstance(x, (flow.Tensor, oneflow._oneflow_internal.Tensor)) else np.copy(x)
+    y = x.clone() if isinstance(x, (flow.Tensor, flow._oneflow_internal.Tensor)) else np.copy(x)
     y[:, 0] = w * (x[:, 0] - x[:, 2] / 2) + padw  # top left x
     y[:, 1] = h * (x[:, 1] - x[:, 3] / 2) + padh  # top left y
     y[:, 2] = w * (x[:, 0] + x[:, 2] / 2) + padw  # bottom right x
@@ -179,7 +192,7 @@ def xywhn2xyxy(x, w=640, h=640, padw=0, padh=0):
 
 def xyn2xy(x, w=640, h=640, padw=0, padh=0):
     # Convert normalized segments into pixel segments, shape (n,2)
-    y = x.clone() if isinstance(x, (flow.Tensor, oneflow._oneflow_internal.Tensor)) else np.copy(x)
+    y = x.clone() if isinstance(x, (flow.Tensor, flow._oneflow_internal.Tensor)) else np.copy(x)
     y[:, 0] = w * x[:, 0] + padw  # top left x
     y[:, 1] = h * x[:, 1] + padh  # top left y
     return y
@@ -344,7 +357,7 @@ def non_max_suppression(prediction, conf_thres=0.25, iou_thres=0.45, classes=Non
         if not xc[xi].to(dtype=flow.int32).sum().numpy():
             continue
         index = flow.argwhere(xc[xi]).squeeze()
-        x = oneflow.F.gather(x, index, axis=0)  # confidence
+        x = flow.F.gather(x, index, axis=0)  # confidence
         #x = x[xc[xi]]  # confidence
 
         # Cat apriori labels if autolabelling
@@ -369,12 +382,16 @@ def non_max_suppression(prediction, conf_thres=0.25, iou_thres=0.45, classes=Non
         # Detections matrix nx6 (xyxy, conf, cls)
         if multi_label:
             i, j = (x[:, 5:] > conf_thres).argwhere().permute(1, 0)
-            box_ = oneflow.F.gather(box, i, axis=0)
-            x_ = oneflow.F.gather_nd(x, flow.stack((i, j + 5), 1))[..., None]
+            box_ = flow.F.gather(box, i, axis=0)
+            x_ = flow.F.gather_nd(x, flow.stack((i, j + 5), 1))[..., None]
             x = flow.cat((box_, x_, j[:, None].to(dtype=flow.float)), 1)
+            #x = flow.cat((box[i], x[i, j + 5, None], j[:, None].to(dtype=flow.float)), 1)
         else:  # best class only
-            conf, j = x[:, 5:].max(1, keepdim=True)
-            x = flow.cat((box, conf, j.float()), 1)[conf.view(-1) > conf_thres]
+            conf = x[:, 5:].max(1, keepdim=True)
+            j = x[:, 5:].argmax(1, keepdim=True)
+            x = flow.cat((box, conf, j.to(dtype=flow.float)), 1)
+            index = flow.argwhere(conf.view(-1) > conf_thres).squeeze(1)
+            x = flow.F.gather(x, index, axis=0)
 
         # Filter by class
         if classes is not None:
@@ -395,6 +412,7 @@ def non_max_suppression(prediction, conf_thres=0.25, iou_thres=0.45, classes=Non
         c = x[:, 5:6] * (0 if agnostic else max_wh)  # classes
         boxes, scores = x[:, :4] + c, x[:, 4]  # boxes (offset by class), scores
         i = ops.nms(boxes, scores, iou_thres)  # NMS
+        print(i)
         if i.shape[0] > max_det:  # limit detections
             i = i[:max_det]
         if merge and (1 < n < 3E3):  # Merge NMS (boxes merged using weighted mean)
@@ -405,12 +423,67 @@ def non_max_suppression(prediction, conf_thres=0.25, iou_thres=0.45, classes=Non
             if redundant:
                 i = i[iou.sum(1) > 1]  # require redundancy
 
-        output[xi] = oneflow.F.gather(x, i, axis=0).numpy()
+        output[xi] = flow.F.gather(x, i, axis=0).numpy()
         if (time.time() - t) > time_limit:
             print(f'WARNING: NMS time limit {time_limit}s exceeded')
             break  # time limit exceeded
 
     return output
+
+
+def strip_optimizer(f='best_ckpt', s=''):  # from utils.general import *; strip_optimizer()
+    # Strip optimizer from 'f' to finalize training, optionally save as 's'
+    pass
+
+
+def apply_classifier(x, model, img, im0):
+    # Apply a second stage classifier to yolo outputs
+    im0 = [im0] if isinstance(im0, np.ndarray) else im0
+    for i, d in enumerate(x):  # per image
+        if d is not None and len(d):
+            d = d.clone()
+
+            # Reshape and pad cutouts
+            b = xyxy2xywh(d[:, :4]).unsqueeze(1)  # boxes
+            b[:, 2:] = b[:, 2:].max(1)[0].unsqueeze(1)  # rectangle to square
+            b[:, 2:] = b[:, 2:] * 1.3 + 30  # pad
+            d[:, :4] = xywh2xyxy(b).long()
+
+            # Rescale boxes from img_size to im0 size
+            scale_coords(img.shape[2:], d[:, :4], im0[i].shape)
+
+            # Classes
+            pred_cls1 = d[:, 5].long()
+            ims = []
+            for j, a in enumerate(d):  # per item
+                cutout = im0[i][int(a[1]):int(a[3]), int(a[0]):int(a[2])]
+                im = cv2.resize(cutout, (224, 224))  # BGR
+                # cv2.imwrite('test%i.jpg' % j, cutout)
+
+                im = im[:, :, ::-1].transpose(2, 0, 1)  # BGR to RGB, to 3x416x416
+                im = np.ascontiguousarray(im, dtype=np.float32)  # uint8 to float32
+                im /= 255.0  # 0 - 255 to 0.0 - 1.0
+                ims.append(im)
+
+            pred_cls2 = model(flow.Tensor(ims).to(d.device)).argmax(1)  # classifier prediction
+            x[i] = x[i][pred_cls1 == pred_cls2]  # retain matching class detections
+
+    return x
+
+
+def save_one_box(xyxy, im, file='image.jpg', gain=1.02, pad=10, square=False, BGR=False, save=True):
+    # Save image crop as {file} with crop size multiple {gain} and {pad} pixels. Save and/or return crop
+    xyxy = flow.tensor(xyxy).view(-1, 4)
+    b = xyxy2xywh(xyxy)  # boxes
+    if square:
+        b[:, 2:] = b[:, 2:].max(1)[0].unsqueeze(1)  # attemp rectangle to square
+    b[:, 2:] = b[:, 2:] * gain + pad  # box wh * gain + pad
+    xyxy = xywh2xyxy(b).to(dtype=flow.int64)
+    clip_coords(xyxy, im.shape)
+    crop = im[int(xyxy[0, 1]):int(xyxy[0, 3]), int(xyxy[0, 0]):int(xyxy[0, 2]), ::(1 if BGR else -1)]
+    if save:
+        cv2.imwrite(str(increment_path(file, mkdir=True).with_suffix('.jpg')), crop)
+    return crop
 
 
 def increment_path(path, exist_ok=False, sep='', mkdir=False):
