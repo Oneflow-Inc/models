@@ -361,5 +361,7 @@ if __name__ == "__main__":
     print("init done")
     trainer.compare_eager_graph(compare_dic)
     del compare_dic
+
+    # save results
     trainer.save_result()
     trainer.save_report()
