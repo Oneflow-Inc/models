@@ -4,6 +4,7 @@ from oneflow import nn, Tensor
 import numpy as np
 
 from ops import boxes as box_ops
+from ops.roi_align import roi_align
 # from torchvision.ops import boxes as box_ops
 #
 # from torchvision.ops import roi_align
@@ -126,7 +127,8 @@ def maskrcnn_loss(mask_logits, proposals, gt_masks, gt_labels, mask_matched_idxs
     if mask_targets.numel() == 0:
         return mask_logits.sum() * 0
 
-    mask_loss = nn.binary_cross_entropy_with_logits(
+    binary_cross_entropy_with_logits = nn.BCEWithLogitsLoss()
+    mask_loss = binary_cross_entropy_with_logits(
         mask_logits[flow.arange(labels.shape[0], device=labels.device), labels], mask_targets
     )
     return mask_loss
