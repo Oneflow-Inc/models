@@ -1,5 +1,6 @@
-import oneflow.experimental as flow
-import oneflow.experimental.nn as nn
+import oneflow as flow
+import oneflow.nn as nn
+
 
 class RNN(nn.Module):
     def __init__(self, input_size, hidden_size, output_size):

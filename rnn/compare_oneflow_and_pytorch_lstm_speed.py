@@ -1,4 +1,4 @@
-import oneflow.experimental as flow
+import oneflow as flow
 
 import numpy as np
 import time
@@ -9,26 +9,28 @@ import string
 from models.lstm_oneflow import LSTM
 from models.lstm_pytorch import LSTM_PYTORCH
 
-#shared hyperparameters
+# shared hyperparameters
 n_hidden = 128
 all_letters = string.ascii_letters + " .,;'"
 n_letters = len(all_letters)
 n_categories = 256
 learning_rate = 0.0005
 
+
 def _parse_args():
     parser = argparse.ArgumentParser("flags for compare oneflow and pytorch speed")
     return parser.parse_args()
 
+
 def letterToIndex(letter):
     return all_letters.find(letter)
 
+
 def main(args):
-    flow.env.init()
-    flow.enable_eager_execution()
+
     rnn_module = LSTM(n_letters, n_hidden, n_categories)
     # Fake data, only for speed test purpose
-    test_word = 'Depeng'
+    test_word = "Depeng"
     category_tensor = flow.Tensor([1], dtype=flow.int64)
     line_tensor = flow.Tensor(len(test_word), n_letters)
     flow.nn.init.zeros_(line_tensor)
@@ -36,10 +38,10 @@ def main(args):
         line_tensor[li, letterToIndex(letter)] = 1
     criterion = flow.nn.CrossEntropyLoss()
 
-    category_tensor_gpu = category_tensor.to('cuda')
-    line_tensor_gpu = line_tensor.to('cuda')
-    rnn_module.to('cuda')
-    criterion.to('cuda')
+    category_tensor_gpu = category_tensor.to("cuda")
+    line_tensor_gpu = line_tensor.to("cuda")
+    rnn_module.to("cuda")
+    criterion.to("cuda")
     of_sgd = flow.optim.SGD(rnn_module.parameters(), lr=learning_rate)
 
     bp_iters = 50
@@ -58,7 +60,7 @@ def main(args):
         s_t = time.time()
         loss.backward()
         bp_time += time.time() - s_t
-        
+
         s_t = time.time()
         of_sgd.step()
         of_sgd.zero_grad()
@@ -67,27 +69,27 @@ def main(args):
     of_loss = loss.numpy()
     end_t = time.time()
 
-    print('oneflow traning loop avg time : {}'.format((end_t - start_t) / bp_iters))
-    print('forward avg time : {}'.format(for_time / bp_iters))
-    print('backward avg time : {}'.format(bp_time / bp_iters))
-    print('update parameters avg time : {}'.format(update_time / bp_iters))
+    print("oneflow traning loop avg time : {}".format((end_t - start_t) / bp_iters))
+    print("forward avg time : {}".format(for_time / bp_iters))
+    print("backward avg time : {}".format(bp_time / bp_iters))
+    print("update parameters avg time : {}".format(update_time / bp_iters))
 
     #####################################################################################################
     # # pytorch LSTM
     torch_rnn_module = LSTM_PYTORCH(n_letters, n_hidden, n_categories)
 
-    torch_rnn_module.to('cuda')
+    torch_rnn_module.to("cuda")
 
     category_tensor = torch.tensor([1], dtype=torch.long)
     line_tensor = torch.zeros(len(test_word), 1, n_letters)
     for li, letter in enumerate(test_word):
         line_tensor[li][0][letterToIndex(letter)] = 1
     criterion = torch.nn.CrossEntropyLoss()
-    
-    category_tensor_gpu = category_tensor.to('cuda')
-    line_tensor_gpu = line_tensor.to('cuda')
-    torch_rnn_module.to('cuda')
-    criterion.to('cuda')
+
+    category_tensor_gpu = category_tensor.to("cuda")
+    line_tensor_gpu = line_tensor.to("cuda")
+    torch_rnn_module.to("cuda")
+    criterion.to("cuda")
 
     for_time = 0.0
     bp_time = 0.0
@@ -110,13 +112,14 @@ def main(args):
             p.data.add_(p.grad.data, alpha=-learning_rate)
         torch_rnn_module.zero_grad()
         update_time += time.time() - s_t
-        
+
     torch_loss = loss.cpu().detach().numpy()
     end_t = time.time()
-    print('pytorch traning loop avg time : {}'.format((end_t - start_t) / bp_iters))
-    print('forward avg time : {}'.format(for_time / bp_iters))
-    print('backward avg time : {}'.format(bp_time / bp_iters))
-    print('update parameters avg time : {}'.format(update_time / bp_iters))
+    print("pytorch traning loop avg time : {}".format((end_t - start_t) / bp_iters))
+    print("forward avg time : {}".format(for_time / bp_iters))
+    print("backward avg time : {}".format(bp_time / bp_iters))
+    print("update parameters avg time : {}".format(update_time / bp_iters))
+
 
 if __name__ == "__main__":
     args = _parse_args()

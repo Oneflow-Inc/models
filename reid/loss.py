@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 from __future__ import division
 
-import oneflow.experimental as flow
+import oneflow as flow
 
 import numpy as np
 
@@ -34,20 +34,21 @@ class TripletLoss(flow.nn.Module):
         # Compute pairwise distance, replace by the official when merged
         dist = flow.pow(inputs, 2).sum(dim=1).expand(n, n)
         dist = dist + flow.transpose(dist, dim0=1, dim1=0)
-        temp1 = -2*flow.matmul(inputs, flow.transpose(inputs, dim0=1, dim1=0))
+        temp1 = -2 * flow.matmul(inputs, flow.transpose(inputs, dim0=1, dim1=0))
         dist = flow.add(dist, temp1)
         dist = flow.sqrt(flow.clamp(dist, min=1e-12))
         # For each anchor, find the hardest positive and negative
-        mask = targets.expand(n, n).eq(flow.Tensor(
-            flow.transpose(targets.expand(n, n), dim0=1, dim1=0)))
+        mask = targets.expand(n, n).eq(
+            flow.Tensor(flow.transpose(targets.expand(n, n), dim0=1, dim1=0))
+        )
         dist_ap, dist_an = [], []
-        y1 = flow.zeros((1, n), dtype=flow.float32).to('cuda')
-        y2 = flow.Tensor(np.exp(100*np.ones((1, n)))).to('cuda')
+        y1 = flow.zeros((1, n), dtype=flow.float32).to("cuda")
+        y2 = flow.Tensor(np.exp(100 * np.ones((1, n)))).to("cuda")
 
         for i in range(n):
             temp_dist = flow.slice(dist, [(i, i + 1, 1)])
             temp_mask = flow.slice(mask, [(i, i + 1, 1)])
-            temp_mask_rev = flow.slice(1-mask, [(i, i + 1, 1)])
+            temp_mask_rev = flow.slice(1 - mask, [(i, i + 1, 1)])
             dist_ap.append(temp_mask.where(temp_dist, y1).max())
             dist_an.append(temp_mask_rev.where(temp_dist, y2).min())
 
@@ -97,10 +98,10 @@ class CrossEntropyLossLS(flow.nn.Module):
                 Each position contains the label index.
         """
         log_probs = self.logsoftmax(inputs)
-        targets = flow.tensor(np.eye(self.num_classes)[
-                              targets.numpy()], dtype=flow.float32)
-        targets = targets.to('cuda')
-        targets = (1 - self.epsilon) * targets + \
-            self.epsilon / self.num_classes
-        loss = (- targets * log_probs).mean(0).sum()
+        targets = flow.tensor(
+            np.eye(self.num_classes)[targets.numpy()], dtype=flow.float32
+        )
+        targets = targets.to("cuda")
+        targets = (1 - self.epsilon) * targets + self.epsilon / self.num_classes
+        loss = (-targets * log_probs).mean(0).sum()
         return loss

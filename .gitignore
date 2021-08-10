@@ -110,6 +110,7 @@ venv.bak/
 
 
 # data
+data/
 images/
 *.tar*
 
@@ -120,4 +121,24 @@ mnist
 
 .so
 
+.vscode
+.history
+
+# pix2pix
+of_pix2pix
+data
+ofrecord/
+checkpoints/
+of_losses.txt
+
+# resnet50
+imagenet*
 *.pth
+
+.DS_Store
+
+# SRGAN
+SRGAN/data*
+SRGAN_netG_epoch_4_99
+vgg_imagenet_pretrain_model
+result

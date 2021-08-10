@@ -37,10 +37,10 @@ And then run the code below:
 ```python
 import numpy as np
 import torch
-import oneflow.experimental as flow
+import oneflow as flow
 from models.shufflenetv2 import shufflenetv2_x0dot5, shufflenetv2_x1
 
-flow.enable_eager_execution()
+
 model_dict = {
     "shufflenetv2_x0.5": {"model": shufflenetv2_x0dot5, "url":"https://download.pytorch.org/models/shufflenetv2_x0.5-f707e7126e.pth",
     "file": "shufflenetv2_x0.5-f707e7126e.pth"},
