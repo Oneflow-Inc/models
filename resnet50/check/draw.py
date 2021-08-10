@@ -134,3 +134,10 @@ if __name__ == "__main__":
                     "ylabel": "abs_loss",
                     "do_abs_minus": True
                     })
+    draw_and_save({ "title": "compare_abs_model_param",
+                    "save_path": add_pth(save_root, "compare_abs_model_param.png"),
+                    "txts": [add_pth(txt_root, "eager_graph_model_diff_list.txt")],
+                    "names": ["model_param_abs_diff"],
+                    "xlabel": "iters",
+                    "ylabel": "abs_diff",
+                    })
