@@ -166,7 +166,7 @@ class Trainer(object):
                 # oneflow graph train
                 graph_iter_start_time = time.time()
                 graph_loss = model_train_graph(image, label)
-                graph_loss.numpy()
+                graph_loss.numpy() # for synchronize CPU and GPU, get accurate running time
                 graph_iter_end_time = time.time()
 
                 # oneflow eager train
@@ -176,7 +176,7 @@ class Trainer(object):
                 eager_loss.backward()
                 eager_optimizer.step()
                 eager_optimizer.zero_grad()
-                eager_loss.numpy()
+                eager_loss.numpy()  # for synchronize CPU and GPU, get accurate running time
                 eager_iter_end_time = time.time()
 
                 model_param_diff = compare_model_params(eager_model, model_train_graph)
