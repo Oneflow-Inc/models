@@ -29,7 +29,7 @@ def main(args):
     print("init time : {}".format(end_t - start_t))
 
     start_t = time.time()
-    pretrain_models = flow.load("resnet50_imagenet_pretrain_model")
+    pretrain_models = flow.load(args.model_path)
     res50_module.load_state_dict(pretrain_models)
     end_t = time.time()
     print("load params time : {}".format(end_t - start_t))
