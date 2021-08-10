@@ -161,6 +161,7 @@ class Trainer(object):
                 image = image.to("cuda")
                 label = label.to("cuda")
 
+                # 此处为了获取准确运行时间，加入.numpy()操作，用来进行CPU于GPU的同步
                 # oneflow graph train
                 graph_iter_start_time = time.time()
                 graph_loss = model_train_graph(image, label)
@@ -340,5 +341,7 @@ if __name__ == "__main__":
     print("init done")
     trainer.compare_eager_graph(compare_dic)
     del compare_dic
+
+    # save results
     trainer.save_check_report()
     trainer.save_check_info()
