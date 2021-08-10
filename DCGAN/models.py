@@ -43,10 +43,10 @@ class Discriminator(flow.nn.Module):
         self.model = flow.nn.Sequential(
             flow.nn.Conv2d(1, 64, kernel_size=5, stride=2, padding=2),
             flow.nn.LeakyReLU(0.3),
-            flow.nn.Dropout(0),
+            flow.nn.Dropout(0.3),
             flow.nn.Conv2d(64, 128, kernel_size=5, stride=2, padding=2),
             flow.nn.LeakyReLU(0.3),
-            flow.nn.Dropout(0),
+            flow.nn.Dropout(0.3),
         )
 
         self.fc = flow.nn.Linear(128 * 7 * 7, 1)
@@ -67,7 +67,6 @@ class DiscriminatorTrainGraph(flow.nn.Graph):
             self.of_cross_entropy = loss
         
         def build(self, images, label1, label0, z):
-            z = flow.zeros_like(z)
             g_out = self.generator(z)
 
             cat = flow.cat((images, g_out), dim=0)
@@ -77,16 +76,13 @@ class DiscriminatorTrainGraph(flow.nn.Graph):
             g_logits = result[images.shape[0]:]
 
             d_loss_real = self.of_cross_entropy(d_logits, label1)
-            #d_loss_real.backward(retain_graph=True)
             
             # train D with all-fake batch
             d_loss_fake = self.of_cross_entropy(g_logits, label0)
-            #d_loss_fake.backward()
+
             d_loss = d_loss_fake + d_loss_real
 
             d_loss.backward()
-            # self.optimizerD.step()
-            # self.optimizerD.zero_grad()
             return (
                 d_loss,
                 d_loss_fake,
@@ -105,7 +101,6 @@ class GeneratorTrainGraph(flow.nn.Graph):
         self.of_cross_entropy = loss
 
     def build(self, label1, z):
-        z = flow.zeros_like(z)
         g_out = self.generator(z)
         g_logits = self.discriminator(g_out)
         g_loss = self.of_cross_entropy(g_logits, label1)

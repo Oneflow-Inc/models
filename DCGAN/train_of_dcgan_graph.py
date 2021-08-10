@@ -2,7 +2,6 @@ import os
 import time
 import argparse
 import numpy as np
-import glob
 import imageio
 import matplotlib
 
@@ -80,7 +79,6 @@ class DCGAN(flow.nn.Module):
     
     def train(self, epochs=1, save=True):
         # init dataset
-        np.random.seed(0)
         x, _ = load_mnist(self.data_dir)
         batch_num = len(x) // self.batch_size
         label1 = to_tensor(np.ones(self.batch_size), False, dtype=flow.float32).to(
@@ -95,24 +93,19 @@ class DCGAN(flow.nn.Module):
         # init training include optimizer, model, loss
         self.generator = Generator(self.z_dim).to(self.device)
         self.discriminator = Discriminator().to(self.device)
-        # flow.save(self.generator.state_dict(), "generator_oneflow/")
-        # flow.save(self.discriminator.state_dict(), "discriminator_oneflow/")
-        # self.generator.load_state_dict(flow.load("generator_oneflow/"))
-        # self.discriminator.load_state_dict(flow.load("discriminator_oneflow/"))
 
         if args.load != "":
             self.generator.load_state_dict(flow.load(args.load))
             self.discriminator.load_state_dict(flow.load(args.load))
 
-        self.optimizerG = flow.optim.Adam(self.generator.parameters(), lr=self.lr)
-        self.optimizerD = flow.optim.Adam(self.discriminator.parameters(), lr=self.lr)
+        self.optimizerG = flow.optim.SGD(self.generator.parameters(), lr=self.lr)
+        self.optimizerD = flow.optim.SGD(self.discriminator.parameters(), lr=self.lr)
 
         self.of_cross_entropy = flow.nn.BCELoss().to(self.device)
-        #self.of_cross_entropy = flow.nn.CrossEntropyLoss().to(self.device)
         
         G_train_graph = GeneratorTrainGraph(self.discriminator, self.generator, self.optimizerG, self.of_cross_entropy)
         D_train_graph = DiscriminatorTrainGraph(self.discriminator, self.generator, self.optimizerD, self.of_cross_entropy)
-        G_eval_graph = GeneratorEvalGraph(self.generator, self.generate_noise())
+        self.G_eval_graph = GeneratorEvalGraph(self.generator, self.generate_noise())
 
         for epoch_idx in range(epochs):
             self.generator.train()
@@ -126,7 +119,6 @@ class DCGAN(flow.nn.Module):
                 ).to(self.device)
                 # one-side label smooth
                 if self.label_smooth != 0:
-                    #d_loss = D_train_graph(images, label1_smooth, label0, self.generate_noise())
                     (
                         d_loss,
                         d_loss_fake,
@@ -135,7 +127,6 @@ class DCGAN(flow.nn.Module):
                         D_gz1,
                     ) = D_train_graph(images, label1_smooth, label0, self.generate_noise())
                 else:
-                    #d_loss = D_train_graph(images, label1_smooth, label0, self.generate_noise())
                     (
                         d_loss,
                         d_loss_fake,
@@ -152,10 +143,8 @@ class DCGAN(flow.nn.Module):
                 ) = (to_numpy(d_loss), to_numpy(d_loss_fake), to_numpy(d_loss_real), to_numpy(D_x), to_numpy(D_gz1))
                 g_loss, g_out, D_gz2 = G_train_graph(label1, self.generate_noise())
                 g_loss, g_out, D_gz2 = to_numpy(g_loss), to_numpy(g_out, False), to_numpy(D_gz2)
-                print(d_loss, d_loss_fake, d_loss_real)
-                print(g_loss, D_gz2)
-                return
-                if (batch_idx + 1) % 1 == 0:
+
+                if (batch_idx + 1) % 100 == 0:
                     self.G_loss.append(g_loss)
                     self.D_loss.append(d_loss)
 
@@ -173,13 +162,6 @@ class DCGAN(flow.nn.Module):
                             D_gz2,
                         )
                     )
-                    np.save(
-                        os.path.join(self.path, "g_loss_graph.npy".format(epochs)), self.G_loss
-                    )
-                    np.save(
-                        os.path.join(self.path, "d_loss_graph.npy".format(epochs)), self.D_loss
-                    )
-                    return
 
             # save images based on .train()
             save_images(
@@ -224,19 +206,12 @@ class DCGAN(flow.nn.Module):
         ).to(self.device)
 
     def _eval_generator_and_save_images(self, epoch_idx):
-        results = to_numpy(self._eval_generator(), False)
+        results = to_numpy(self.G_eval_graph(), False)
         save_images(
             results,
             self.eval_size,
             os.path.join(self.val_images_path, "image_{:02d}.png".format(epoch_idx)),
         )
-
-    def _eval_generator(self):
-        self.generator.eval()
-        with flow.no_grad():
-            g_out = self.generator(self.fixed_z)
-        return g_out
-
 
 def main(args):
     np.random.seed(0)
