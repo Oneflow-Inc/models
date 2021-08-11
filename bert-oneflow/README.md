@@ -26,8 +26,6 @@ and I expect many further papers about BERT will be published very soon.
 
 ### 0. Prepare your corpus
 
-example dataset ：[data.zip](https://oneflow-public.oss-cn-beijing.aliyuncs.com/datasets/BERT-pytorch/sampledataset/data.zip)
-
 ```
 Welcome to the \t the jungle\n
 I can stay \t here all night\n
@@ -39,12 +37,18 @@ Wel_ _come _to _the \t _the _jungle\n
 _I _can _stay \t _here _all _night\n
 ```
 
+You can refer to this example dataset: [data.zip](https://oneflow-public.oss-cn-beijing.aliyuncs.com/datasets/BERT-pytorch/sampledataset/data.zip)
+
 ### 1. Building vocab based on your corpus
+
+After you get you corpus dataset, you can run this command to build the vocab
+
 ```shell
 bash  build_vocab.sh
 ```
 
 ### 2. Train your own BERT model
+
 ```shell
 bash train.sh
 ```

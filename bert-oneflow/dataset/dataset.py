@@ -70,6 +70,8 @@ class BERTDataset(nn.Module):
             padding
         )
 
+        return flow.tensor(bert_input),  flow.tensor(segment_label), flow.tensor(is_next_label), flow.tensor(bert_label)
+
         output = {
             "bert_input": bert_input,
             "bert_label": bert_label,

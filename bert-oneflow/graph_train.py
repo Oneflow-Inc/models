@@ -1,16 +1,95 @@
 import argparse
-import tqdm 
-
+import time
 
 import oneflow as flow
-import oneflow.nn as nn
+from oneflow import nn
 from oneflow.utils.data import DataLoader
 
-from model.language_model import BERTLM
-from model.bert import BERT
-from trainer.pretrain import BERTTrainer
 from dataset.dataset import BERTDataset
 from dataset.vocab import WordVocab
+from model.bert import BERT
+from model.language_model import BERTLM
+
+
+def train(epoch, iter_per_epoch, data_iter, graph, print_interval):
+    avg_loss = 0.0
+    total_correct = 0
+    total_element = 0
+    for i in range(iter_per_epoch):
+
+        bert_input, segment_label, is_next, bert_label = next(data_iter)
+        start_t = time.time()
+
+        next_sent_output, is_next, loss = graph(
+            bert_input, segment_label, is_next, bert_label)
+
+        loss = loss.numpy().item()
+        end_t = time.time()
+
+        # flow.save(self.bert.state_dict(), "checkpoints/bert_%d_loss_%f" % (i, loss.numpy().item()))
+
+        # next sentence prediction accuracy
+        correct = (
+            next_sent_output.argmax(dim=-1).eq(is_next).sum().numpy().item()
+        )
+        avg_loss += loss
+        total_correct += correct
+        total_element += is_next.nelement()
+
+        if (i + 1) % print_interval == 0:
+            print(
+                "Epoch {}, train iter {}, loss {}, train time: {}".format(
+                    epoch, (i + 1), avg_loss / (i + 1), end_t - start_t
+                )
+            )
+
+    print("total_correct >>>>>>>>>>>>>> ", total_correct)
+    print("total_element >>>>>>>>>>>>>> ", total_element)
+    print(
+        "Epoch {}, train iter {}, loss {}, total accuracy {}".format(
+            epoch, (i+1), avg_loss / (i + 1), total_correct *
+            100.0 / total_element
+        )
+    )
+    
+    
+def validation(epoch, iter_per_epoch, data_iter, graph, print_interval):
+    total_correct = 0
+    total_element = 0
+    for i in range(iter_per_epoch):
+
+        bert_input, segment_label, is_next, bert_label = next(data_iter)
+        start_t = time.time()
+
+        next_sent_output, is_next = graph(
+            bert_input, segment_label, is_next, bert_label)
+
+        next_sent_output = next_sent_output.numpy()
+        is_next = is_next.numpy()
+        end_t = time.time()
+
+        # flow.save(self.bert.state_dict(), "checkpoints/bert_%d_loss_%f" % (i, loss.numpy().item()))
+
+        # next sentence prediction accuracy
+        correct = (next_sent_output.argmax(axis=-1) == is_next).sum()
+        total_correct += correct
+        total_element += is_next.size
+
+        if (i + 1) % print_interval == 0:
+            print(
+                "Epoch {}, val iter {}, val time: {}".format(
+                    epoch, (i + 1), end_t - start_t
+                )
+            )
+
+    print("total_correct >>>>>>>>>>>>>> ", total_correct)
+    print("total_element >>>>>>>>>>>>>> ", total_element)
+    print(
+        "Epoch {}, val iter {}, total accuracy {}".format(
+            epoch, (i+1), total_correct *
+            100.0 / total_element
+        )
+    )
 
 
 def main():
@@ -56,7 +135,8 @@ def main():
         default=256,
         help="hidden size of transformer model",
     )
-    parser.add_argument("-l", "--layers", type=int, default=8, help="number of layers")
+    parser.add_argument("-l", "--layers", type=int,
+                        default=8, help="number of layers")
     parser.add_argument(
         "-a", "--attn_heads", type=int, default=8, help="number of attention heads"
     )
@@ -67,7 +147,8 @@ def main():
     parser.add_argument(
         "-b", "--batch_size", type=int, default=16, help="number of batch_size"
     )
-    parser.add_argument("-e", "--epochs", type=int, default=10, help="number of epochs")
+    parser.add_argument("-e", "--epochs", type=int,
+                        default=10, help="number of epochs")
     parser.add_argument(
         "-w", "--num_workers", type=int, default=0, help="dataloader worker size"
     )
@@ -88,26 +169,29 @@ def main():
         "--on_memory", type=bool, default=True, help="Loading on memory: true or false"
     )
 
-    parser.add_argument("--lr", type=float, default=1e-3, help="learning rate of adam")
+    parser.add_argument("--lr", type=float, default=1e-3,
+                        help="learning rate of adam")
     parser.add_argument(
-        "--adam_weight_decay", type=float, default=0.01, help="weight_decay of adam"
+        "--adam-weight-decay", type=float, default=0.01, help="weight_decay of adam"
     )
     parser.add_argument(
-        "--adam_beta1", type=float, default=0.9, help="adam first beta value"
+        "--adam-beta1", type=float, default=0.9, help="adam first beta value"
     )
     parser.add_argument(
-        "--adam_beta2", type=float, default=0.999, help="adam first beta value"
+        "--adam-beta2", type=float, default=0.999, help="adam first beta value"
+    )
+    parser.add_argument(
+        "--print-interval", type=int, default=10, help="interval of printing"
     )
 
     args = parser.parse_args()
 
-    if(args.with_cuda): 
-        device = flow.device("cuda:0")
-    else: 
+    if(args.with_cuda):
+        device = flow.device("cuda")
+    else:
         device = flow.device("cpu")
-    
-    print("Device is: ", device)
 
+    print("Device is: ", device)
 
     print("Loading Vocab", args.vocab_path)
     vocab = WordVocab.load_vocab(args.vocab_path)
@@ -148,132 +232,100 @@ def main():
         len(vocab), hidden=args.hidden, n_layers=args.layers, attn_heads=args.attn_heads
     )
     bert_module.to(device)
-    
+
     bert_model = BERTLM(bert_module, len(vocab))
     bert_model.to(device)
 
-    # TODO: Adam optimizer 'generate_conf_for_graph' function
-    # of_adam = flow.optim.Adam(bert_model.parameters(), 
-    #                           lr=args.lr, betas=(args.adam_beta1, args.adam_beta2), 
-    #                           weight_decay=args.adam_weight_decay)
-    of_adam = flow.optim.SGD(bert_model.parameters(), 
-                             lr=args.lr, 
-                             weight_decay=args.adam_weight_decay)
+    optimizer = flow.optim.Adam(bert_model.parameters(),
+                                lr=args.lr,
+                                weight_decay=args.adam_weight_decay,
+                                betas=(args.adam_beta1, args.adam_beta2)
+                                )
 
-
-
-    # TODO：how to add this schedule in
+    # TODO：add lr schedule in graph
     # optim_schedule = ScheduledOptim(
     #         self.optim, self.bert.hidden, n_warmup_steps=warmup_steps
     #     )
 
     # of_nll_loss = nn.NLLLoss(ignore_index=0)
-    of_nll_loss = nn.NLLLoss()
+    criterion = nn.NLLLoss()
+    criterion.to(device)
 
-    of_nll_loss.to(device)
-
-    class BertGraph(flow.nn.Graph):
+    class BertGraph(nn.Graph):
         def __init__(self):
             super().__init__()
             self.bert = bert_model
-            self.nll_loss = of_nll_loss
-            self.add_optimizer("adam", of_adam)
-        
+            self.nll_loss = criterion
+            self.add_optimizer("adam", optimizer)
+            # self._train_data_iter = iter(train_data_loader)
+
         def build(self, bert_input, segment_label, is_next, bert_label):
-            next_sent_output, mask_lm_output = self.bert(bert_input, segment_label)
-            
+            # try:
+            #     bert_input, segment_label, is_next, bert_label = next(self._train_data_iter)
+            # except StopIteration:
+            #     self._train_data_iter = iter(train_data_loader)
+            #     bert_input, segment_label, is_next, bert_label = next(self._train_data_iter)
+            bert_input = bert_input.to(device=device)
+            segment_label = segment_label.to(device=device)
+            is_next = is_next.to(device=device)
+            bert_label = bert_label.to(device=device)
+
+            # 1. forward the next_sentence_prediction and masked_lm model
+            next_sent_output, mask_lm_output = self.bert(
+                bert_input, segment_label)
+
             # 2-1. NLL(negative log likelihood) loss of is_next classification result
             next_loss = self.nll_loss(next_sent_output, is_next)
-            
+
             # 2-2. NLLLoss of predicting masked token word
             mask_loss = self.nll_loss(
                 mask_lm_output.transpose(1, 2), bert_label
             )
-            
+
             # 2-3. Adding next_loss and mask_loss : 3.4 Pre-training Procedure
             loss = next_loss + mask_loss
 
             loss.backward()
-            return next_sent_output, mask_lm_output, loss
+            return next_sent_output, is_next, loss
 
     bert_graph = BertGraph()
 
-    # print("Creating BERT Trainer")
-    # trainer = BERTTrainer(
-    #     bert,
-    #     len(vocab),
-    #     train_dataloader=train_data_loader,
-    #     test_dataloader=test_data_loader,
-    #     lr=args.lr,
-    #     betas=(args.adam_beta1, args.adam_beta2),
-    #     weight_decay=args.adam_weight_decay,
-    #     with_cuda=args.with_cuda,
-    #     cuda_devices=args.cuda_devices,
-    #     log_freq=10,
-    # )
+    class BertEvalGraph(nn.Graph):
+        def __init__(self):
+            super().__init__()
+            self.bert = bert_model
+            # self._val_data_iter = iter(val_data_loader)
 
-    print_interval = 10
+        def build(self, bert_input, segment_label, is_next, bert_label):
+
+            bert_input = bert_input.to(device=device)
+            segment_label = segment_label.to(device=device)
+            is_next = is_next.to(device=device)
+            bert_label = bert_label.to(device=device)
+
+            with flow.no_grad():
+                # 1. forward the next_sentence_prediction and masked_lm model
+                next_sent_output, mask_lm_output = self.bert(
+                    bert_input, segment_label)
+
+            return next_sent_output, is_next
+
+    bert_eval_graph = BertEvalGraph()
 
     for epoch in range(args.epochs):
+        # Train
         bert_model.train()
 
-        data_iter = tqdm.tqdm(
-            enumerate(train_data_loader),
-            desc="EP_%s:%d" % ("train", epoch),
-            total=len(train_data_loader),
-            bar_format="{l_bar}{r_bar}",
-        )
-        avg_loss = 0.0
-        total_correct = 0
-        total_element = 0
+        train_data_iter = iter(train_data_loader)
+        # train(epoch, len(train_data_iter),
+                    #    train_data_iter, bert_graph, args.print_interval)
 
-        for i, data in data_iter:
-            for key, value in data.items():
-                if key == "is_next":
-                    # print("value shape is: ", value.shape)
-                    # value = value.squeeze(1)
-                    value = value.squeeze(0)
+        # Eval
+        bert_model.eval()
 
-                data[str(key)] = flow.Tensor(
-                    value.numpy(), dtype=flow.int64, device=device
-                )
-            # print("Device is: ", device)
-            #     # 0. batch_data will be sent into the device(GPU or cpu)
-            data = {key: value.to(device=device) for key, value in data.items()}
-
-            print("Graph Before ==== ")
-            next_sent_output, mask_lm_output, loss = bert_graph(data["bert_input"], data["segment_label"], data["is_next"], data["bert_label"])
-            print("Graph After !!!! ")
-
-            # flow.save(self.bert.state_dict(), "checkpoints/bert_%d_loss_%f" % (i, loss.numpy().item()))
-
-            # next sentence prediction accuracy
-            correct = (
-                next_sent_output.argmax(dim=-1).eq(data["is_next"]).sum().numpy().item()
-            )
-            avg_loss += loss.numpy().item()
-            total_correct += correct
-            total_element += data["is_next"].nelement()
-
-            # post_fix = {
-            #     "epoch": epoch,
-            #     "iter": i,
-            #     "avg_loss": avg_loss / (i + 1),
-            #     "avg_acc": total_correct / total_element * 100,
-            #     "loss": loss.numpy().item(),
-            # }
-
-            # if i % self.log_freq == 0:
-            #     data_iter.write(str(post_fix))
-
-        print("total_correct >>>>>>>>>>>>>> ", total_correct)
-        print("total_element >>>>>>>>>>>>>> ", total_element)
-        print(
-            "EP%d_%s, avg_loss=" % (epoch, str_code),
-            avg_loss / len(data_iter),
-            "total_acc=",
-            total_correct * 100.0 / total_element,
-        )
+        test_data_iter = iter(test_data_loader)
+        validation(epoch, len(test_data_loader),
+                       test_data_iter, bert_eval_graph, args.print_interval)
 
 
         # trainer.train(epoch)
@@ -282,6 +334,5 @@ def main():
         # if test_data_loader is not None:
         #     print("Running testing...")
         #     trainer.test(epoch)
-
-
-main()
+if __name__ == "__main__":
+    main()
