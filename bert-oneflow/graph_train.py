@@ -51,8 +51,8 @@ def train(epoch, iter_per_epoch, data_iter, graph, print_interval):
             100.0 / total_element
         )
     )
-    
-    
+
+
 def validation(epoch, iter_per_epoch, data_iter, graph, print_interval):
     total_correct = 0
     total_element = 0
@@ -317,16 +317,15 @@ def main():
         bert_model.train()
 
         train_data_iter = iter(train_data_loader)
-        # train(epoch, len(train_data_iter),
-                    #    train_data_iter, bert_graph, args.print_interval)
+        train(epoch, len(train_data_iter),
+              train_data_iter, bert_graph, args.print_interval)
 
         # Eval
         bert_model.eval()
 
         test_data_iter = iter(test_data_loader)
         validation(epoch, len(test_data_loader),
-                       test_data_iter, bert_eval_graph, args.print_interval)
-
+                   test_data_iter, bert_eval_graph, args.print_interval)
 
         # trainer.train(epoch)
         # print("Saving model...")
