@@ -114,11 +114,6 @@ def train_one_epoch(args, model, criterion, data_loader, optimizer, epoch, lr_sc
         # update model
         loss.backward()
 
-        if rank == 0:
-            named_parameters = model.named_parameters()
-            for name, param in named_parameters:
-                print(name, param.shape, param.grad.shape)
-
         optimizer.step()
         optimizer.zero_grad()
 
@@ -238,7 +233,7 @@ def main(args):
         train_loss = train_one_epoch(args, model, criterion, train_data_loader, optimizer, epoch, lr_scheduler, rank)
         if rank == 0:
             print("rank %d ***** Run Validation *****")
-            accuracy = valid(args, model, criterion, val_data_loader, rank)
+            accuracy = valid(args, model, criterion, val_data_loader)
         
         # save model after each epoch
         if rank == 0:
