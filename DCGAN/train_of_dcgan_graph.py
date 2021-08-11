@@ -103,13 +103,12 @@ class DCGAN(flow.nn.Module):
         
         G_train_graph = GeneratorTrainGraph(self.discriminator, self.generator, self.optimizerG, self.of_cross_entropy)
         D_train_graph = DiscriminatorTrainGraph(self.discriminator, self.generator, self.optimizerD, self.of_cross_entropy)
-        self.G_eval_graph = GeneratorEvalGraph(self.generator, self.generate_noise())
-
+        self.G_eval_graph = GeneratorEvalGraph(self.generator)
         for epoch_idx in range(epochs):
             self.generator.train()
             self.discriminator.train()
             start = time.time()
-            for batch_idx in range(batch_num):
+            for batch_idx in range(1):
                 images = to_tensor(
                     x[
                         batch_idx * self.batch_size : (batch_idx + 1) * self.batch_size
@@ -204,7 +203,7 @@ class DCGAN(flow.nn.Module):
         ).to(self.device)
 
     def _eval_generator_and_save_images(self, epoch_idx):
-        results = to_numpy(self.G_eval_graph(), False)
+        results = to_numpy(self.G_eval_graph(self.fixed_z), False)
         save_images(
             results,
             self.eval_size,

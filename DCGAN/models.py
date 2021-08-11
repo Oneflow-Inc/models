@@ -109,11 +109,11 @@ class GeneratorTrainGraph(flow.nn.Graph):
 
 class GeneratorEvalGraph(flow.nn.Graph):
     
-    def __init__(self, g, z):
+    def __init__(self, g):
         super().__init__()
         self.generator = g
-        self.fixed_z = z
 
-    def build(self):
+    def build(self, z):
         with flow.no_grad():
-            return self.generator(self.fixed_z)
+            pred = self.generator(z)
+        return pred
