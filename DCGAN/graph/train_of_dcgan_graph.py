@@ -96,8 +96,8 @@ class DCGAN(flow.nn.Module):
             self.generator.load_state_dict(flow.load(args.load))
             self.discriminator.load_state_dict(flow.load(args.load))
 
-        self.optimizerG = flow.optim.SGD(self.generator.parameters(), lr=self.lr)
-        self.optimizerD = flow.optim.SGD(self.discriminator.parameters(), lr=self.lr)
+        self.optimizerG = flow.optim.Adam(self.generator.parameters(), lr=self.lr)
+        self.optimizerD = flow.optim.Adam(self.discriminator.parameters(), lr=self.lr)
 
         self.of_cross_entropy = flow.nn.BCELoss().to(self.device)
         
@@ -108,7 +108,7 @@ class DCGAN(flow.nn.Module):
             self.generator.train()
             self.discriminator.train()
             start = time.time()
-            for batch_idx in range(1):
+            for batch_idx in range(batch_num):
                 images = to_tensor(
                     x[
                         batch_idx * self.batch_size : (batch_idx + 1) * self.batch_size
