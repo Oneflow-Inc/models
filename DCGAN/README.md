@@ -2,31 +2,32 @@
 
 DCGAN is an unconditional image generation method ([code](https://github.com/Oneflow-Inc/oneflow_vision_model/tree/main/DCGAN) in lazy mode), our code is inspired by [TensorFlow Tutorial](https://tensorflow.google.cn/tutorials/generative/dcgan).
 
+Please make sure your working directory is `models/DCGAN/`.
 
 ## Train on [mnist](http://yann.lecun.com/exdb/mnist/) Dataset
 ### Run Oneflow Training script
 
 ```bash
-bash train_of_dcgan.sh
+bash eager/train_of_dcgan.sh
 ```
 
 ## Inference
 ### Run Oneflow Inference script
 
 ```bash
-bash test_of_dcgan.sh
+bash test/test_of_dcgan.sh
 ```
 
 ### Run Oneflow Training script: Graph
 
 ```bash
-bash train_of_dcgan_graph.sh
+bash graph/train_of_dcgan_graph.sh
 ```
 
 ### Run Oneflow Check script
 
 ```bash
-bash check.sh
+bash check/check.sh
 ```
 Inference results
 
