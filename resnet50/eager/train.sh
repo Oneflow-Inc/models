@@ -13,7 +13,11 @@ fi
 
 LEARNING_RATE=0.001
 MOM=0.9
+<<<<<<< HEAD:resnet50/eager/train.sh
 EPOCH=90
+=======
+EPOCH=20
+>>>>>>> 4ccaac3e4b62b12debe261a9a807df9587cb7b87:resnet50/train_oneflow.sh
 TRAIN_BATCH_SIZE=16
 VAL_BATCH_SIZE=16
 #LOAD_CHECKPOINT="path/to/your_pretrain_model" # LOAD PREVIOUS CHECKPOINT 

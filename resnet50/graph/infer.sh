@@ -2,8 +2,11 @@ set -aux
 
 PRETRAIN_MODEL_PATH="resnet50_imagenet_pretrain_model"
 IMAGE_PATH="data/fish.jpg"
+<<<<<<< HEAD
 # IMAGE_PATH="data/tiger.jpg"
 # IMAGE_PATH="data/ILSVRC2012_val_00020287.JPEG"
+=======
+>>>>>>> 4ccaac3e4b62b12debe261a9a807df9587cb7b87
 
 if [ ! -d "data" ]; then
   wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/cv/data.tar.gz

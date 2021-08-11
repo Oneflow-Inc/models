@@ -52,3 +52,10 @@ Compare Resnet50 model on different training mode (Graph / Eager)
 bash check/check.sh
 ```
 Compare results will be saved to `./results/check_report.txt`
+Compare info txt will be saved to `./results/default`
+
+Compare Results Picture
+```bash
+bash check/draw.sh
+```
+The pictures will be saved to `./results/pictures`
