@@ -17,6 +17,17 @@ bash train_of_dcgan.sh
 bash test_of_dcgan.sh
 ```
 
+### Run Oneflow Training script: Graph
+
+```bash
+bash train_of_dcgan_graph.sh
+```
+
+### Run Oneflow Check script
+
+```bash
+bash check.sh
+```
 Inference results
 
 ![](test_images.png)

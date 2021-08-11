@@ -105,7 +105,6 @@ class DCGAN(flow.nn.Module):
         self.optimizerD = flow.optim.SGD(self.discriminator.parameters(), lr=self.lr)
 
         self.of_cross_entropy = flow.nn.BCELoss().to(self.device)
-        #self.of_cross_entropy = flow.nn.CrossEntropyLoss().to(self.device)
         
         self.generator_graph = Generator(self.z_dim).to(self.device)
         self.discriminator_graph = Discriminator().to(self.device)

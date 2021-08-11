@@ -7,13 +7,11 @@ if [ ! -d "$DATA_PATH" ]; then
     unzip mnist.zip
 fi
 
-
 BASE_PATH='./dcgan'
 LEARNING_RATE=0.0001
 EPOCH=1
 BATCH_SIZE=256
 SAVE=True
-# LOAD_CHECKPOINT=
 
 python3 check.py \
     -lr $LEARNING_RATE \
@@ -22,4 +20,3 @@ python3 check.py \
     --path $BASE_PATH \
     --save $SAVE \
     --data_dir $DATA_PATH \
-    # --load $LOAD_CHECKPOINT

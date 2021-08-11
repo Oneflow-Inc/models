@@ -27,14 +27,8 @@ def plot(root_dir, epoch):
     d_loss = np.load(os.path.join(root_dir, "d_loss.npy".format(epoch)))
     print("last g_loss: {}.".format(g_loss[-10:-1]))
     print("last d_loss: {}.".format(d_loss[-10:-1]))
-    # filtered_g_loss = g_loss[~is_outlier(g_loss)]
-    # filtered_d_loss = d_loss[~is_outlier(d_loss)]
-    # filtered_g_loss_graph = g_loss[~is_outlier(g_loss_graph)]
-    # filtered_d_loss_graph = d_loss[~is_outlier(d_loss_graph)]
     plt.figure(figsize=(15, 5))
     plt.title("Generator and Discriminator Loss During Training")
-    # plt.plot(g_loss,label="G")
-    # plt.plot(d_loss,label="D")
     plt.plot(g_loss, label="G")
     plt.plot(d_loss, label="D")
     plt.plot(g_loss_graph, label="G_graph")

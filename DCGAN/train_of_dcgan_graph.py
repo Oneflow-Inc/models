@@ -2,11 +2,9 @@ import os
 import time
 import argparse
 import numpy as np
-import imageio
 import matplotlib
 
 matplotlib.use("agg")
-import matplotlib.pyplot as plt
 import oneflow as flow
 
 from utils import make_dirs, load_mnist, download_mnist, to_numpy, to_tensor, save_to_gif, save_images
