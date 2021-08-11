@@ -23,7 +23,8 @@ class MultiHeadedAttention(nn.Module):
 
         self.dropout = nn.Dropout(p=dropout)
 
-    def forward(self, query, key, value, mask=None):
+    # def forward(self, query, key, value, mask=None):
+    def forward(self, query, key, value, mask):
         batch_size = query.size(0)  # 16
 
         query, key, value = [

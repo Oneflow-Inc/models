@@ -112,6 +112,15 @@ class BERTTrainer:
 
         for i, data in data_iter:
             for key, value in data.items():
+                if key == "is_next":
+                    # print("key is next, and value shape is: ", value.shape)
+                    # raise Exception
+                    # value = value.squeeze(1)
+                    
+                    # value = value.squeeze(0)
+                    print("hh")
+                    # print("Value shape is: ", value.shape)
+               
                 data[str(key)] = flow.Tensor(
                     value.numpy(), dtype=flow.int64, device=self.device
                 )
