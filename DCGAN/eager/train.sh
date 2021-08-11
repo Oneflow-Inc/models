@@ -15,7 +15,7 @@ BATCH_SIZE=256
 SAVE=True
 # LOAD_CHECKPOINT=
 
-python3 eager/train_of_dcgan.py \
+python3 eager/train.py \
     -lr $LEARNING_RATE \
     -e $EPOCH \
     --batch_size $BATCH_SIZE \

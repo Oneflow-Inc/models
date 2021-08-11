@@ -15,7 +15,7 @@ BATCH_SIZE=256
 SAVE=True
 # LOAD_CHECKPOINT=
 
-python3 graph/train_of_dcgan_graph.py \
+python3 graph/train.py \
     -lr $LEARNING_RATE \
     -e $EPOCH \
     --batch_size $BATCH_SIZE \

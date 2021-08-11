@@ -8,12 +8,12 @@ Please make sure your working directory is `models/DCGAN/`.
 ### Run Oneflow Training script
 Eager Mode
 ```bash
-bash eager/train_of_dcgan.sh
+bash eager/train.sh
 ```
 
 Graph Mode
 ```bash
-bash graph/train_of_dcgan_graph.sh
+bash graph/train.sh
 ```
 
 ## Inference
@@ -30,10 +30,12 @@ bash test/test_of_dcgan.sh
 bash check/check.sh
 ```
 
-Inference results
+### Inference results
 
-Eager Mode
+#### Eager Mode
+
 ![test_images](https://i.loli.net/2021/08/11/tgLG975APOTFual.png)
 
-Graph Mode
+#### Graph Mode
+
 ![image_100](https://i.loli.net/2021/08/11/LZ8BRuTEcNxgHjX.png)
