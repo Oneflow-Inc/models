@@ -4,6 +4,8 @@ import argparse
 import numpy as np
 import time
 
+import sys
+sys.path.append(".")
 from models.resnet50 import resnet50
 from utils.imagenet1000_clsidx_to_labels import clsidx_2_labels
 from utils.numpy_data_utils import load_image
