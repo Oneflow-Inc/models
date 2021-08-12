@@ -1,10 +1,9 @@
 import argparse
 
 import oneflow as flow
-from oneflow.utils.data import DataLoader
 
 from model.bert import BERT
-from trainer.pretrain import BERTTrainer
+from utils.trainer import BERTTrainer
 from dataset.dataset import BERTDataset
 from dataset.vocab import WordVocab
 
@@ -52,7 +51,8 @@ def main():
         default=256,
         help="hidden size of transformer model",
     )
-    parser.add_argument("-l", "--layers", type=int, default=8, help="number of layers")
+    parser.add_argument("-l", "--layers", type=int,
+                        default=8, help="number of layers")
     parser.add_argument(
         "-a", "--attn_heads", type=int, default=8, help="number of attention heads"
     )
@@ -63,7 +63,8 @@ def main():
     parser.add_argument(
         "-b", "--batch_size", type=int, default=16, help="number of batch_size"
     )
-    parser.add_argument("-e", "--epochs", type=int, default=10, help="number of epochs")
+    parser.add_argument("-e", "--epochs", type=int,
+                        default=10, help="number of epochs")
     parser.add_argument(
         "-w", "--num_workers", type=int, default=0, help="dataloader worker size"
     )
@@ -84,7 +85,8 @@ def main():
         "--on_memory", type=bool, default=True, help="Loading on memory: true or false"
     )
 
-    parser.add_argument("--lr", type=float, default=1e-3, help="learning rate of adam")
+    parser.add_argument("--lr", type=float, default=1e-3,
+                        help="learning rate of adam")
     parser.add_argument(
         "--adam_weight_decay", type=float, default=0.01, help="weight_decay of adam"
     )
@@ -120,11 +122,11 @@ def main():
     )
 
     print("Creating Dataloader")
-    train_data_loader = DataLoader(
+    train_data_loader = flow.utils.data.DataLoader(
         train_dataset, batch_size=args.batch_size, num_workers=args.num_workers
     )
     test_data_loader = (
-        DataLoader(
+        flow.utils.data.DataLoader(
             test_dataset, batch_size=args.batch_size, num_workers=args.num_workers
         )
         if test_dataset is not None

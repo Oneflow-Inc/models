@@ -5,7 +5,7 @@ import oneflow.nn as nn
 
 from model.language_model import BERTLM
 from model.bert import BERT
-from trainer.optim_schedule import ScheduledOptim
+from utils.optim_schedule import ScheduledOptim
 
 
 class BERTTrainer:
@@ -77,7 +77,8 @@ class BERTTrainer:
         self.criterion = self.criterion.to(self.device)
 
         self.log_freq = log_freq
-        print("Total Parameters:", sum([p.nelement() for p in self.model.parameters()]))
+        print("Total Parameters:", sum([p.nelement()
+              for p in self.model.parameters()]))
 
     def train(self, epoch):
         self.iteration(epoch, self.train_data)
@@ -111,33 +112,31 @@ class BERTTrainer:
         total_element = 0
 
         for i, data in data_iter:
-            for key, value in data.items():
-                if key == "is_next":
-                    # print("key is next, and value shape is: ", value.shape)
-                    # raise Exception
-                    # value = value.squeeze(1)
-                    
-                    # value = value.squeeze(0)
-                    print("hh")
-                    # print("Value shape is: ", value.shape)
-               
-                data[str(key)] = flow.Tensor(
-                    value.numpy(), dtype=flow.int64, device=self.device
-                )
-            #     # 0. batch_data will be sent into the device(GPU or cpu)
-            data = {key: value.to(device=self.device) for key, value in data.items()}
+            # for key, value in data.items():
+
+            #     data[str(key)] = flow.Tensor(
+            #         value.numpy(), dtype=flow.int64, device=self.device
+            #     )
+            # #     # 0. batch_data will be sent into the device(GPU or cpu)
+            # data = {key: value.to(device=self.device) for key, value in data.items()}
+
+            bert_input, segment_label, is_next, bert_label = data
+            bert_input = bert_input.to(device=self.device)
+            segment_label = segment_label.to(device=self.device)
+            is_next = is_next.to(device=self.device)
+            bert_label = bert_label.to(device=self.device)
 
             # 1. forward the next_sentence_prediction and masked_lm model
             next_sent_output, mask_lm_output = self.model.forward(
-                data["bert_input"], data["segment_label"]
+                bert_input, segment_label
             )
 
             # 2-1. NLL(negative log likelihood) loss of is_next classification result
-            next_loss = self.criterion(next_sent_output, data["is_next"])
+            next_loss = self.criterion(next_sent_output, is_next)
 
             # 2-2. NLLLoss of predicting masked token word
             mask_loss = self.criterion(
-                mask_lm_output.transpose(1, 2), data["bert_label"]
+                mask_lm_output.transpose(1, 2), bert_label
             )
 
             # 2-3. Adding next_loss and mask_loss : 3.4 Pre-training Procedure
@@ -153,11 +152,12 @@ class BERTTrainer:
 
             # next sentence prediction accuracy
             correct = (
-                next_sent_output.argmax(dim=-1).eq(data["is_next"]).sum().numpy().item()
+                next_sent_output.argmax(
+                    dim=-1).eq(is_next).sum().numpy().item()
             )
             avg_loss += loss.numpy().item()
             total_correct += correct
-            total_element += data["is_next"].nelement()
+            total_element += is_next.nelement()
 
             post_fix = {
                 "epoch": epoch,
