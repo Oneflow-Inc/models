@@ -10,6 +10,7 @@ class OFRecordDataLoader(nn.Module):
         mode: str = "train",  # "val"
         dataset_size: int = 9469,
         batch_size: int = 1,
+        ofrecord_part_num: int = 1
     ):
         super().__init__()
         channel_last = False
@@ -17,7 +18,7 @@ class OFRecordDataLoader(nn.Module):
         self.train_record_reader = flow.nn.OfrecordReader(
             os.path.join(ofrecord_root, mode),
             batch_size=batch_size,
-            data_part_num=1,
+            data_part_num=ofrecord_part_num,
             part_name_suffix_length=5,
             random_shuffle=True if mode == "train" else False,
             shuffle_after_epoch=True if mode == "train" else False,

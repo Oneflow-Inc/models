@@ -72,6 +72,9 @@ def _parse_args():
     parser.add_argument(
         "--ofrecord_path", type=str, default="./ofrecord", help="dataset path"
     )
+    parser.add_argument(
+        "--ofrecord_part_num", type=int, default=1, help="ofrecord data part number"
+    )
     # training hyper-parameters
     parser.add_argument(
         "--learning_rate", type=float, default=0.001, help="learning rate"
@@ -130,7 +133,7 @@ def train_one_epoch(args, model, criterion, data_loader, optimizer, epoch, lr_sc
     lr_scheduler.step()
     return loss_meter.avg
 
-def valid(args, model, criterion, data_loader):
+def valid(args, model, criterion, data_loader, rank):
     # Validation
     eval_losses = AverageMeter()
 
@@ -167,9 +170,9 @@ def valid(args, model, criterion, data_loader):
     all_preds, all_label = all_preds[0], all_label[0]
     accuracy = simple_accuracy(all_preds, all_label)
 
-    print("Validation Results")
-    print("Valid Loss: %2.5f" % eval_losses.avg)
-    print("Valid Accuracy: %2.5f" % accuracy)
+    print("rank %d Validation Results" % rank)
+    print("rank %d Valid Loss: %2.5f" % (rank, eval_losses.avg))
+    print("rank %d Valid Accuracy: %2.5f" % (rank, accuracy))
     return accuracy       
 
 def simple_accuracy(preds, labels):
@@ -194,6 +197,7 @@ def main(args):
         mode="train",
         dataset_size=9469,
         batch_size=args.train_batch_size,
+        ofrecord_part_num=args.ofrecord_part_num
     )
 
     val_data_loader = OFRecordDataLoader(
@@ -201,6 +205,7 @@ def main(args):
         mode="val",
         dataset_size=3925,
         batch_size=args.val_batch_size,
+        ofrecord_part_num=args.ofrecord_part_num
     )
 
     # Model Setup
@@ -231,9 +236,9 @@ def main(args):
     for epoch in range(args.epochs):
         print("rank %d ***** Runing Training *****" % rank)
         train_loss = train_one_epoch(args, model, criterion, train_data_loader, optimizer, epoch, lr_scheduler, rank)
-        if rank == 0:
-            print("rank %d ***** Run Validation *****")
-            accuracy = valid(args, model, criterion, val_data_loader)
+
+        print("rank %d ***** Run Validation *****")
+        accuracy = valid(args, model, criterion, val_data_loader, rank)
         
         # save model after each epoch
         if rank == 0:
