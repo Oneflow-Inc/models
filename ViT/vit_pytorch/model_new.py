@@ -1,27 +1,13 @@
-import oneflow as flow
-import oneflow.nn as nn
-import oneflow.nn.functional as F
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
 import numpy as np
 
-class LayerNorm(nn.Module):
-    "Construct a layernorm module (See citation for details)."
-
-    def __init__(self, features, eps=1e-6):
-        super(LayerNorm, self).__init__()
-        self.eps = eps
-        self.weight = nn.Parameter(flow.Tensor(flow.ones(features, dtype=flow.float32)))
-        self.bias = nn.Parameter(flow.Tensor(flow.zeros(features, dtype=flow.float32)))
-
-    def forward(self, x):
-        mean = x.mean(-1, keepdim=True)
-
-        std = x.std(dim=-1, keepdim=True)
-        return self.weight * (x - mean) / (std + self.eps) + self.bias
 
 class PositionEmbs(nn.Module):
     def __init__(self, num_patches, emb_dim, dropout_rate=0.1):
         super(PositionEmbs, self).__init__()
-        self.pos_embedding = nn.Parameter(flow.tensor(np.random.randn(1, num_patches + 1, emb_dim), dtype=flow.float32))
+        self.pos_embedding = nn.Parameter(torch.randn(1, num_patches + 1, emb_dim))
         if dropout_rate > 0:
             self.dropout = nn.Dropout(dropout_rate)
         else:
@@ -34,6 +20,7 @@ class PositionEmbs(nn.Module):
             out = self.dropout(out)
 
         return out
+
 
 class MlpBlock(nn.Module):
     """ Transformer Feed-Forward Block """
@@ -59,9 +46,10 @@ class MlpBlock(nn.Module):
             out = self.dropout1(out)
 
         out = self.fc2(out)
-        if self.dropout2:
-            out = self.dropout2(out)
+        out = self.dropout2(out)
         return out
+
+
 
 class SelfAttention(nn.Module):
     def __init__(self, in_dim, heads=8, dropout_rate=0.1):
@@ -80,11 +68,12 @@ class SelfAttention(nn.Module):
             self.dropout = nn.Dropout(dropout_rate)
         else:
             self.dropout = None
-    
+
     def transpose_for_scores(self, x):
-        x = x.reshape(shape=tuple(x.size()[:-1]) + (self.heads, self.head_dim))
+        new_x_shape = x.size()[:-1] + (self.heads, self.head_dim)
+        x = x.view(*new_x_shape)
         return x.permute(0, 2, 1, 3)
-    
+
     def forward(self, x):
         b, n, _ = x.shape
         q = self.query(x)
@@ -95,11 +84,11 @@ class SelfAttention(nn.Module):
         k = self.transpose_for_scores(k)
         v = self.transpose_for_scores(v)
 
-        attn_weights = flow.matmul(q, k.transpose(-2, -1)) / self.scale
-        attn_weights = nn.Softmax(dim=-1)(attn_weights)
-        out = flow.matmul(attn_weights, v)
-        out = out.permute(0, 2, 1, 3)
-        new_out_shape = tuple(out.size()[:-2]) + (self.heads * self.head_dim, )
+        attn_weights = torch.matmul(q, k.transpose(-2, -1)) / self.scale
+        attn_weights = F.softmax(attn_weights, dim=-1)
+        out = torch.matmul(attn_weights, v)
+        out = out.permute(0, 2, 1, 3).contiguous()
+        new_out_shape = out.size()[:-2] + (self.heads * self.head_dim, )
         out = out.view(*new_out_shape)
         out = self.out(out)
 
@@ -110,15 +99,15 @@ class EncoderBlock(nn.Module):
     def __init__(self, in_dim, mlp_dim, num_heads, dropout_rate=0.1, attn_dropout_rate=0.1):
         super(EncoderBlock, self).__init__()
 
-        self.norm1 = LayerNorm(in_dim)
+        self.norm1 = nn.LayerNorm(in_dim)
         self.attn = SelfAttention(in_dim, heads=num_heads, dropout_rate=attn_dropout_rate)
         if dropout_rate > 0:
             self.dropout = nn.Dropout(dropout_rate)
         else:
             self.dropout = None
-        self.norm2 = LayerNorm(in_dim)
+        self.norm2 = nn.LayerNorm(in_dim)
         self.mlp = MlpBlock(in_dim, mlp_dim, in_dim, dropout_rate)
-    
+
     def forward(self, x):
         residual = x
         out = self.norm1(x)
@@ -133,6 +122,7 @@ class EncoderBlock(nn.Module):
         out += residual
         return out
 
+
 class Encoder(nn.Module):
     def __init__(self, num_patches, emb_dim, mlp_dim, num_layers=12, num_heads=12, dropout_rate=0.1, attn_dropout_rate=0.0):
         super(Encoder, self).__init__()
@@ -146,7 +136,7 @@ class Encoder(nn.Module):
         for i in range(num_layers):
             layer = EncoderBlock(in_dim, mlp_dim, num_heads, dropout_rate, attn_dropout_rate)
             self.encoder_layers.append(layer)
-        self.norm = LayerNorm(in_dim)
+        self.norm = nn.LayerNorm(in_dim)
 
     def forward(self, x):
 
@@ -157,6 +147,7 @@ class Encoder(nn.Module):
 
         out = self.norm(out)
         return out
+
 
 class VisionTransformer(nn.Module):
     """ Vision Transformer """
@@ -173,13 +164,14 @@ class VisionTransformer(nn.Module):
                  feat_dim=None):
         super(VisionTransformer, self).__init__()
         h, w = image_size
+
         # embedding layer
         fh, fw = patch_size
         gh, gw = h // fh, w // fw
         num_patches = gh * gw
         self.embedding = nn.Conv2d(3, emb_dim, kernel_size=(fh, fw), stride=(fh, fw))
         # class token
-        self.cls_token = nn.Parameter(flow.zeros(1, 1, emb_dim))
+        self.cls_token = nn.Parameter(torch.zeros(1, 1, emb_dim))
 
         # transformer
         self.transformer = Encoder(
@@ -198,11 +190,11 @@ class VisionTransformer(nn.Module):
         emb = self.embedding(x)     # (n, c, gh, gw)
         emb = emb.permute(0, 2, 3, 1)  # (n, gh, hw, c)
         b, h, w, c = emb.shape
-        emb = emb.reshape(shape=(b, h * w, c))
+        emb = emb.reshape(b, h * w, c)
 
         # prepend class token
         cls_token = self.cls_token.repeat(b, 1, 1)
-        emb = flow.cat([cls_token, emb], dim=1)
+        emb = torch.cat([cls_token, emb], dim=1)
 
         # transformer
         feat = self.transformer(emb)
@@ -211,9 +203,10 @@ class VisionTransformer(nn.Module):
         logits = self.classifier(feat[:, 0])
         return logits
 
+
 if __name__ == '__main__':
     model = VisionTransformer(num_layers=2)
-    x = flow.tensor(np.random.randn(2, 3, 256, 256), dtype=flow.float32)
+    x = torch.randn((2, 3, 256, 256))
     out = model(x)
 
     state_dict = model.state_dict()
