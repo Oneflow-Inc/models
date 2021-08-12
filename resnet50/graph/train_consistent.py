@@ -1,0 +1,190 @@
+import oneflow as flow
+import argparse
+import numpy as np
+import os
+import time
+
+from models.resnet50 import resnet50
+from utils.ofrecord_data_utils import OFRecordDataLoader
+
+
+def _parse_args():
+    parser = argparse.ArgumentParser("flags for train resnet50")
+    parser.add_argument(
+        "--save_checkpoint_path",
+        type=str,
+        default="./checkpoints",
+        help="save checkpoint root dir",
+    )
+    parser.add_argument(
+        "--load_checkpoint", type=str, default="", help="load checkpoint"
+    )
+    parser.add_argument(
+        "--ofrecord_path", type=str, default="./ofrecord", help="dataset path"
+    )
+    # training hyper-parameters
+    parser.add_argument(
+        "--learning_rate", type=float, default=0.001, help="learning rate"
+    )
+    parser.add_argument("--mom", type=float, default=0.9, help="momentum")
+    parser.add_argument("--epochs", type=int, default=100, help="training epochs")
+    parser.add_argument(
+        "--train_batch_size", type=int, default=32, help="train batch size"
+    )
+    parser.add_argument("--val_batch_size", type=int, default=32, help="val batch size")
+
+    return parser.parse_args()
+
+
+def main(args):
+
+    rank = flow.distributed.get_rank()
+
+    # placement = flow.placement("cpu", {0: [0, 1]})
+    placement = flow.placement("cpu", {0: [0]})
+    sbp = [flow.sbp.split(0)]
+
+    train_data_loader = OFRecordDataLoader(
+        ofrecord_root=args.ofrecord_path,
+        mode="train",
+        dataset_size=9469,
+        batch_size=args.train_batch_size,
+        placement=placement,
+        sbp=sbp,
+    )
+
+    val_data_loader = OFRecordDataLoader(
+        ofrecord_root=args.ofrecord_path,
+        mode="val",
+        dataset_size=3925,
+        batch_size=args.val_batch_size,
+        placement=placement,
+        sbp=sbp,
+    )
+
+    # oneflow init
+    start_t = time.time()
+    resnet50_module = resnet50()
+    if args.load_checkpoint != "":
+        print("load_checkpoint >>>>>>>>> ", args.load_checkpoint)
+        resnet50_module.load_state_dict(flow.load(args.load_checkpoint))
+
+    end_t = time.time()
+    print("init time : {}".format(end_t - start_t))
+
+    of_cross_entropy = flow.nn.CrossEntropyLoss()
+
+    placement = flow.placement("cuda", {0: [0]})
+    resnet50_module.to_consistent(placement=placement, sbp=sbp)
+    of_cross_entropy.to_consistent(placement=placement, sbp=sbp)
+
+    of_sgd = flow.optim.SGD(
+        resnet50_module.parameters(), lr=args.learning_rate, momentum=args.mom
+    )
+
+    class Resnet50Graph(flow.nn.Graph):
+        def __init__(self):
+            super().__init__()
+            self.resnet50 = resnet50_module
+            self.cross_entropy = of_cross_entropy
+            self.add_optimizer("sgd", of_sgd)
+            self.train_data_loader = train_data_loader
+        
+        def build(self):
+            image, label = self.train_data_loader()
+            
+            # image = image.to_consistent(placement=placement, sbp=sbp)
+            # label = image.to_consistent(placement=placement, sbp=sbp)
+            image = image.to("cuda")
+            label = image.to("cuda")
+
+            logits = self.resnet50(image)
+            loss = self.cross_entropy(logits, label)
+            loss.backward()
+            return loss
+
+    resnet50_graph = Resnet50Graph()
+
+    class Resnet50EvalGraph(flow.nn.Graph):
+        def __init__(self):
+            super().__init__()
+            self.resnet50 = resnet50_module
+            self.val_data_loader = val_data_loader
+        
+        def build(self):
+            image, label = self.val_data_loader()
+
+            with flow.no_grad():
+                logits = self.resnet50(image)
+                predictions = logits.softmax()
+            return predictions, label
+
+    resnet50_eval_graph = Resnet50EvalGraph()
+
+    of_losses, of_accuracy = [], []
+    all_samples = len(val_data_loader) * args.val_batch_size
+    print_interval = 100
+
+
+    for epoch in range(args.epochs):
+        resnet50_module.train()
+
+        for b in range(len(train_data_loader)):
+
+            # oneflow graph train
+            start_t = time.time()
+            loss = resnet50_graph()
+
+            end_t = time.time()
+            if b % print_interval == 0:
+                l = loss.numpy()
+                of_losses.append(l)
+                print(
+                    "rank %d epoch {} train iter {} oneflow loss {}, train time : {}".format(
+                        rank, epoch, b, l, end_t - start_t
+                    )
+                )
+
+        print("rank %d epoch %d train done, start validation" % (rank, epoch))
+
+        resnet50_module.eval()
+        correct_of = 0.0
+        for b in range(len(val_data_loader)):
+            start_t = time.time()
+            predictions, label = resnet50_eval_graph()
+            of_predictions = predictions.numpy()
+            clsidxs = np.argmax(of_predictions, axis=1)
+
+            label_nd = label.numpy()
+            for i in range(args.val_batch_size):
+                if clsidxs[i] == label_nd[i]:
+                    correct_of += 1
+            end_t = time.time()
+
+        top1 = correct_of / all_samples
+        of_accuracy.append(top1)
+        print("rank %d epoch %d, oneflow top1 val acc: %f" % (rank, epoch, top1))
+
+        if rank == 0:
+            flow.save(
+                resnet50_module.state_dict(),
+                os.path.join(
+                    args.save_checkpoint_path,
+                    "epoch_%d_val_acc_%f" % (epoch, correct_of / all_samples),
+                ),
+            )
+
+    if rank == 0:
+        writer = open("graph_of_losses.txt", "w")
+        for o in of_losses:
+            writer.write("%f\n" % o)
+        writer.close()
+
+        writer = open("graph/accuracy.txt", "w")
+        for o in of_accuracy:
+            writer.write("%f\n" % o)
+        writer.close()
+
+if __name__ == "__main__":
+    args = _parse_args()
+    main(args)

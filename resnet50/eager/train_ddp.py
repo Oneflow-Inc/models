@@ -1,33 +1,3 @@
-# import oneflow as flow
-# from oneflow.nn.parallel import DistributedDataParallel as ddp
-# import numpy as np
-
-# class Mul(flow.nn.Module):
-#     def __init__(self):
-#         super().__init__()
-#         self.w = flow.nn.Parameter(flow.Tensor([1]))
-
-#     def forward(self, x):
-#         return x * self.w
-
-# rank = flow.framework.distribute.get_rank()
-# print("get rank %d\n" % rank)
-# if rank == 0:
-#     x = flow.Tensor([1])
-# elif rank == 1:
-#     x = flow.Tensor([2])
-# else:
-#     raise ValueError()
-
-# x = x.to("cuda")
-# m = Mul().to("cuda")
-# m = ddp(m)
-# y = m(x)
-# y.backward()
-
-# if rank == 0:
-#     print(np.allclose(m.w.grad.numpy(), np.array([1.5])))
-
 import argparse
 import numpy as np
 import os
