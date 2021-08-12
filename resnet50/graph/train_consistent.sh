@@ -1,6 +1,6 @@
 # set -aux
 
-TOTAL_DEVICE_NUM=1
+TOTAL_DEVICE_NUM=2
 MASTER_ADDR=127.0.0.1
 NUM_NODES=1
 NODE_RANK=0
@@ -16,7 +16,7 @@ if [ ! -d "$CHECKPOINT_PATH" ]; then
     mkdir $CHECKPOINT_PATH
 fi
 
-OFRECORD_PART_NUM=1
+OFRECORD_PART_NUM=2
 LEARNING_RATE=0.001
 MOM=0.9
 EPOCH=20
@@ -31,6 +31,7 @@ python3 -m oneflow.distributed.launch \
     graph/train_consistent.py \
     --save_checkpoint_path $CHECKPOINT_PATH \
     --ofrecord_path $OFRECORD_PATH \
+    --ofrecord_part_num $OFRECORD_PART_NUM \
     --learning_rate $LEARNING_RATE \
     --mom $MOM \
     --epochs $EPOCH \

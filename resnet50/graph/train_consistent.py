@@ -22,6 +22,9 @@ def _parse_args():
     parser.add_argument(
         "--ofrecord_path", type=str, default="./ofrecord", help="dataset path"
     )
+    parser.add_argument(
+        "--ofrecord_part_num", type=int, default=1, help="ofrecord data part number"
+    )
     # training hyper-parameters
     parser.add_argument(
         "--learning_rate", type=float, default=0.001, help="learning rate"
@@ -40,8 +43,7 @@ def main(args):
 
     rank = flow.distributed.get_rank()
 
-    # placement = flow.placement("cpu", {0: [0, 1]})
-    placement = flow.placement("cpu", {0: [0]})
+    placement = flow.placement("cpu", {0: [0, 1]})
     sbp = [flow.sbp.split(0)]
 
     train_data_loader = OFRecordDataLoader(
@@ -49,6 +51,7 @@ def main(args):
         mode="train",
         dataset_size=9469,
         batch_size=args.train_batch_size,
+        ofrecord_part_num=args.ofrecord_part_num,
         placement=placement,
         sbp=sbp,
     )
@@ -58,6 +61,7 @@ def main(args):
         mode="val",
         dataset_size=3925,
         batch_size=args.val_batch_size,
+        ofrecord_part_num=args.ofrecord_part_num,
         placement=placement,
         sbp=sbp,
     )
@@ -74,7 +78,8 @@ def main(args):
 
     of_cross_entropy = flow.nn.CrossEntropyLoss()
 
-    placement = flow.placement("cuda", {0: [0]})
+    placement = flow.placement("cuda", {0: [0, 1]})
+    sbp = [flow.sbp.broadcast]
     resnet50_module.to_consistent(placement=placement, sbp=sbp)
     of_cross_entropy.to_consistent(placement=placement, sbp=sbp)
 
@@ -92,12 +97,8 @@ def main(args):
         
         def build(self):
             image, label = self.train_data_loader()
-            
-            # image = image.to_consistent(placement=placement, sbp=sbp)
-            # label = image.to_consistent(placement=placement, sbp=sbp)
             image = image.to("cuda")
-            label = image.to("cuda")
-
+            label = label.to("cuda")
             logits = self.resnet50(image)
             loss = self.cross_entropy(logits, label)
             loss.backward()
@@ -113,7 +114,8 @@ def main(args):
         
         def build(self):
             image, label = self.val_data_loader()
-
+            image = image.to("cuda")
+            label = label.to("cuda")
             with flow.no_grad():
                 logits = self.resnet50(image)
                 predictions = logits.softmax()
@@ -133,14 +135,16 @@ def main(args):
 
             # oneflow graph train
             start_t = time.time()
+
             loss = resnet50_graph()
 
             end_t = time.time()
             if b % print_interval == 0:
+                loss = loss.to_local()
                 l = loss.numpy()
                 of_losses.append(l)
                 print(
-                    "rank %d epoch {} train iter {} oneflow loss {}, train time : {}".format(
+                    "rank {} epoch {} train iter {} oneflow loss {}, train time : {}".format(
                         rank, epoch, b, l, end_t - start_t
                     )
                 )
@@ -152,10 +156,19 @@ def main(args):
         for b in range(len(val_data_loader)):
             start_t = time.time()
             predictions, label = resnet50_eval_graph()
+            
+            predictions = predictions.to_consistent(sbp=[flow.sbp.broadcast])
+            predictions = predictions.to_local()
+
             of_predictions = predictions.numpy()
+            
             clsidxs = np.argmax(of_predictions, axis=1)
 
+            label = label.to_consistent(sbp=[flow.sbp.broadcast])
+            label = label.to_local()
+
             label_nd = label.numpy()
+
             for i in range(args.val_batch_size):
                 if clsidxs[i] == label_nd[i]:
                     correct_of += 1
@@ -166,6 +179,30 @@ def main(args):
         print("rank %d epoch %d, oneflow top1 val acc: %f" % (rank, epoch, top1))
 
         if rank == 0:
+            # get error
+            # Traceback (most recent call last):
+            # File "graph/train_consistent.py", line 203, in <module>
+            #     main(args)
+            # File "graph/train_consistent.py", line 182, in main
+            #     flow.save(
+            # File "/home/ldpe2g/oneFlow/oneflow/python/oneflow/framework/check_point_v2.py", line 292, in save
+            #     return _SaveVarDict(save_dir, obj)
+            # File "/home/ldpe2g/oneFlow/oneflow/python/oneflow/framework/check_point_v2.py", line 269, in _SaveVarDict
+            #     for (_, _, slice) in _ReadSlice(var):
+            # File "/home/ldpe2g/oneFlow/oneflow/python/oneflow/framework/check_point_v2.py", line 200, in _ReadSlice
+            #     yield from _ForEachSlice(container, ReadFromTensor)
+            # File "/home/ldpe2g/oneFlow/oneflow/python/oneflow/framework/check_point_v2.py", line 508, in _ForEachSlice
+            #     yield (start_nd_idx, stop_nd_idx, f(container, start_nd_idx, stop_nd_idx))
+            # File "/home/ldpe2g/oneFlow/oneflow/python/oneflow/framework/check_point_v2.py", line 191, in ReadFromTensor
+            #     return tensor[
+            # File "/home/ldpe2g/oneFlow/oneflow/python/oneflow/framework/tensor.py", line 91, in _getitem
+            #     return flow.F.tensor_getitem(self, key)
+            # File "/home/ldpe2g/oneFlow/oneflow/python/oneflow/framework/functional.py", line 26, in __call__
+            #     return self.handle(*args, **kwargs)
+            # oneflow._oneflow_internal.exception.UnimplementedException: 
+            # File "/home/ldpe2g/oneFlow/oneflow/oneflow/core/functional/impl/array_functor.cpp", line 1152, in operator()
+            #     x->device()
+            # File "/home/ldpe2g/oneFlow/oneflow/oneflow/core/framework/tensor.h", line 448, in device
             flow.save(
                 resnet50_module.state_dict(),
                 os.path.join(

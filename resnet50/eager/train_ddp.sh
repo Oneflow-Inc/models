@@ -31,6 +31,7 @@ python3 -m oneflow.distributed.launch \
     eager/train_ddp.py \
     --save_checkpoint_path $CHECKPOINT_PATH \
     --ofrecord_path $OFRECORD_PATH \
+    --ofrecord_part_num $OFRECORD_PART_NUM \
     --learning_rate $LEARNING_RATE \
     --mom $MOM \
     --epochs $EPOCH \
