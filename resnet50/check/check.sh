@@ -13,11 +13,7 @@ fi
 
 LEARNING_RATE=0.001
 MOM=0.9
-<<<<<<< HEAD
-EPOCH=10
-=======
 EPOCH=20
->>>>>>> 4ccaac3e4b62b12debe261a9a807df9587cb7b87
 TRAIN_BATCH_SIZE=16
 VAL_BATCH_SIZE=16
 
@@ -29,5 +25,3 @@ python3 check/check.py \
     --epochs $EPOCH \
     --train_batch_size $TRAIN_BATCH_SIZE \
     --val_batch_size $VAL_BATCH_SIZE \
-
-
