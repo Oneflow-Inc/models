@@ -39,9 +39,9 @@ def main():
         "-o",
         "--output_path",
         required=False,
-        default="output/bert.model",
+        default="ckpt/bert.model",
         type=str,
-        help="ex)output/bert.model",
+        help="checkpoint path for bert model",
     )
 
     parser.add_argument(
