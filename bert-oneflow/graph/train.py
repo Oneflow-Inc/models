@@ -9,6 +9,7 @@ from dataset.dataset import BERTDataset
 from dataset.vocab import WordVocab
 from model.bert import BERT
 from model.language_model import BERTLM
+from utils.ofrecord_data_utils import BertDecoder
 
 
 def train(epoch, iter_per_epoch, data_iter, graph, print_interval):
@@ -141,7 +142,7 @@ def main():
         "-a", "--attn_heads", type=int, default=8, help="number of attention heads"
     )
     parser.add_argument(
-        "-s", "--seq_len", type=int, default=20, help="maximum sequence len"
+        "-s", "--seq-len", type=int, default=128, help="maximum sequence len"
     )
 
     parser.add_argument(
@@ -216,16 +217,32 @@ def main():
     )
 
     print("Creating Dataloader")
-    train_data_loader = DataLoader(
-        train_dataset, batch_size=args.batch_size, num_workers=args.num_workers
+    train_data_loader = BertDecoder(
+        ofrecord_dir="wiki_ofrecord_seq_len_128_example",
+        mode='train', dataset_size=1024, batch_size=args.batch_size, data_part_num=1, seq_length=args.seq_len,
+        max_predictions_per_seq=20,
     )
-    test_data_loader = (
-        DataLoader(
-            test_dataset, batch_size=args.batch_size, num_workers=args.num_workers
-        )
-        if test_dataset is not None
-        else None
+
+    test_data_loader = BertDecoder(
+        ofrecord_dir="wiki_ofrecord_seq_len_128_example",
+        mode='test', dataset_size=1024, batch_size=args.batch_size, data_part_num=1, seq_length=args.seq_len,
+        max_predictions_per_seq=20,
     )
+
+    # bert_input, segment_label, is_next, bert_label = train_dataset[0]
+    # input_ids, next_sent_labels, input_mask, segment_ids, masked_lm_ids, masked_lm_positions, masked_lm_weights = train_data_loader()
+
+
+    # train_data_loader = DataLoader(
+    #     train_dataset, batch_size=args.batch_size, num_workers=args.num_workers
+    # )
+    # test_data_loader = (
+    #     DataLoader(
+    #         test_dataset, batch_size=args.batch_size, num_workers=args.num_workers
+    #     )
+    #     if test_dataset is not None
+    #     else None
+    # )
 
     print("Building BERT model")
     bert_module = BERT(

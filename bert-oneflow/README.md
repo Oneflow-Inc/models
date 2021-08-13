@@ -39,6 +39,8 @@ _I _can _stay \t _here _all _night\n
 
 You can refer to this example dataset: [data.zip](https://oneflow-public.oss-cn-beijing.aliyuncs.com/datasets/BERT-pytorch/sampledataset/data.zip)
 
+Get a sample ofRecord dataset: https://oneflow-public.oss-cn-beijing.aliyuncs.com/datasets/wiki_ofrecord_seq_len_128_example.tgz 
+
 ### 1. Building vocab based on your corpus
 
 After you get you corpus dataset, you can run this command to build the vocab
