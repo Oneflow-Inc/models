@@ -103,6 +103,9 @@ def _parser_args():
     parser.add_argument(
         "--print-interval", type=int, default=10, help="interval of printing"
     )
+    parser.add_argument(
+        "--check-dir", type=str, default="bert_check_info", help="path to image and check report save"
+    )
 
     return parser.parse_args()
 
@@ -115,11 +118,12 @@ def train(epoch, iter_per_epoch, data_iter, graph_model, eager_model,
           criterion, eager_optim, print_interval, device):
     eager_losses = []
     graph_losses = []
-    eager_acc = []
-    graph_acc = []
     eager_times = []
     graph_times = []
 
+    eager_correct = 0
+    graph_correct = 0
+    total_element = 0
     for i in range(iter_per_epoch):
 
         # Get input data
@@ -156,19 +160,17 @@ def train(epoch, iter_per_epoch, data_iter, graph_model, eager_model,
         graph_loss = graph_loss.numpy().item()
         graph_end_time = time.time()
 
-        batch_num = is_next.nelement()
+        total_element += is_next.nelement()
         # next sentence prediction accuracy
-        eager_correct = (
+        eager_correct += (
             eager_sent_output.argmax(dim=-1).eq(is_next).sum().numpy().item()
         )
         eager_losses.append(eager_loss)
-        eager_acc.append(eager_correct / batch_num)
 
-        graph_correct = (
+        graph_correct += (
             graph_sent_output.argmax(dim=-1).eq(is_next).sum().numpy().item()
         )
         graph_losses.append(graph_loss)
-        graph_acc.append(graph_correct / batch_num)
 
         eager_times.append(eager_end_time-eager_start_time)
         graph_times.append(graph_end_time-graph_start_time)
@@ -185,26 +187,28 @@ def train(epoch, iter_per_epoch, data_iter, graph_model, eager_model,
     print(
         "Epoch {}, train iter {}, loss(eager/graph) {:.3f}/{:.3f}, "
         "total accuracy(eager/graph) {:.2f}/{:.2f}".format(
-            epoch, (i + 1), np.mean(eager_losses), np.mean(graph_losses), np.mean(eager_acc) *
-            100.0, np.mean(graph_acc) * 100
+            epoch, (i + 1), np.mean(eager_losses), np.mean(graph_losses), eager_correct *
+            100.0 / total_element, graph_correct * 100 / total_element
         )
     )
     return {
         "eager_losses": eager_losses,
         "graph_losses": graph_losses,
-        "eager_acc": eager_acc,
-        "graph_acc": graph_acc,
+        "eager_acc": eager_correct * 100.0 / total_element,
+        "graph_acc": graph_correct * 100 / total_element,
         "eager_times": eager_times,
         "graph_times": graph_times,
     }
 
 
 def validation(epoch, iter_per_epoch, data_iter, graph_model, eager_model, print_interval, device):
-    eager_acc = []
-    graph_acc = []
+
     eager_times = []
     graph_times = []
 
+    eager_correct = 0
+    graph_correct = 0
+    total_element = 0
     for i in range(iter_per_epoch):
 
         # Get input data
@@ -233,12 +237,10 @@ def validation(epoch, iter_per_epoch, data_iter, graph_model, eager_model, print
 
         is_next = is_next.numpy()
 
-        batch_num = is_next.size
+        total_element += is_next.size
         # next sentence prediction accuracy
-        eager_correct = (eager_sent_output.argmax(axis=-1) == is_next).sum()
-        eager_acc.append(eager_correct / batch_num)
-        graph_correct = (graph_sent_output.argmax(axis=-1) == is_next).sum()
-        graph_acc.append(graph_correct / batch_num)
+        eager_correct += (eager_sent_output.argmax(axis=-1) == is_next).sum()
+        graph_correct += (graph_sent_output.argmax(axis=-1) == is_next).sum()
 
         eager_times.append(eager_end_time - eager_start_time)
         graph_times.append(graph_end_time - graph_start_time)
@@ -252,13 +254,13 @@ def validation(epoch, iter_per_epoch, data_iter, graph_model, eager_model, print
 
     print(
         "Epoch: {}, val iter: {}, total accuracy(eager/graph) {:.2f}/{:.2f}".format(
-            epoch, (i+1), np.mean(eager_acc) *
-            100.0, np.mean(graph_acc) * 100
+            epoch, (i+1), eager_correct *
+            100.0 / total_element, graph_correct * 100 / total_element
         )
     )
     return {
-        "eager_acc": eager_acc,
-        "graph_acc": graph_acc,
+        "eager_acc": eager_correct * 100.0 / total_element,
+        "graph_acc": graph_correct * 100 / total_element,
         "eager_times": eager_times,
         "graph_times": graph_times,
     }
@@ -415,8 +417,8 @@ def check(args):
 
         total_eager_losses.extend(train_metrics["eager_losses"])
         total_graph_losses.extend(train_metrics["graph_losses"])
-        train_eager_acc.extend(train_metrics["eager_acc"])
-        train_graph_acc.extend(train_metrics["graph_acc"])
+        train_eager_acc.append(train_metrics["eager_acc"])
+        train_graph_acc.append(train_metrics["graph_acc"])
         train_eager_times.extend(train_metrics["eager_times"])
         train_graph_times.extend(train_metrics["graph_times"])
 
@@ -428,21 +430,48 @@ def check(args):
         valid_metrics = validation(epoch, len(test_data_loader),
                                    test_data_iter, bert_eval_graph, bert_eager, args.print_interval, device)
 
-        val_eager_acc.extend(valid_metrics["eager_acc"])
-        val_graph_acc.extend(valid_metrics["graph_acc"])
+        val_eager_acc.append(valid_metrics["eager_acc"])
+        val_graph_acc.append(valid_metrics["graph_acc"])
         val_eager_times.extend(valid_metrics["eager_times"])
         val_graph_times.extend(valid_metrics["graph_times"])
 
         save_model()
 
     Reporter.save_report(
-        "Bert",
+        "Bert", args.check_dir,
         total_eager_losses, total_graph_losses,
         train_eager_acc, train_graph_acc,
         val_eager_acc, val_graph_acc,
         train_eager_times, train_graph_times,
         val_eager_times, val_graph_times
     )
+
+    Reporter.save_check_info(
+        args.check_dir,
+        {
+            "eager_losses": total_eager_losses,
+            "graph_losses": total_graph_losses,
+        },
+        {
+            "eager_trainAcc": train_eager_acc,
+            "graph_trainAcc": train_graph_acc,
+        },
+        {
+            "eager_valAcc": val_eager_acc,
+            "graph_valAcc": val_graph_acc,
+        },
+        {
+            "eager_trainStepTime": train_eager_times[1:],
+            # Remove graph compile time
+            "graph_trainStepTime": train_graph_times[1:],
+        },
+        {
+            "eager_valStepTime": val_eager_times[1:],
+            "graph_valStepTime": val_graph_times[1:],
+        }
+    )
+
+    Reporter.draw_check_info(args.check_dir)
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-Oneflow version of bert implementation, origin form:https://github.com/codertimo/BERT-pytorch
+Oneflow version of bert implementation, origin form: https://github.com/codertimo/BERT-pytorch
 
 # BERT-oneflow
 
