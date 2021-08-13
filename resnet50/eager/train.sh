@@ -27,5 +27,3 @@ python3 eager/train.py \
     --train_batch_size $TRAIN_BATCH_SIZE \
     --val_batch_size $VAL_BATCH_SIZE \
     # --load_checkpoint $LOAD_CHECKPOINT
-
-

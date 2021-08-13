@@ -5,6 +5,8 @@ import os
 import time
 from tqdm import tqdm
 
+import sys
+sys.path.append(".")
 from models.resnet50 import resnet50
 from utils.ofrecord_data_utils import OFRecordDataLoader
 
