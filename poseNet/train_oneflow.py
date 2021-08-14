@@ -54,7 +54,7 @@ def _parse_args():
 
 def main(args):
     flow.enable_eager_execution()
-    flow.InitEagerGlobalSession()
+    
 
     train_data_loader = OFRecordDataLoader(
         ofrecord_root=args.ofrecord_path,
