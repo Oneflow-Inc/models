@@ -10,6 +10,8 @@ matplotlib.use("agg")
 import matplotlib.pyplot as plt
 import oneflow as flow
 
+from utils import make_dirs, load_mnist, download_mnist, to_numpy, to_tensor, save_to_gif, save_images
+from models import Generator, Discriminator, GeneratorTrainGraph, DiscriminatorTrainGraph, GeneratorEvalGraph
 
 def _parse_args():
     parser = argparse.ArgumentParser(description="oneflow DCGAN")
@@ -45,217 +47,6 @@ def _parse_args():
         "--no_cuda", action="store_true", default=False, help="disables CUDA training"
     )
     return parser.parse_args()
-
-
-def make_dirs(*pathes):
-    for path in pathes:
-        # dir path
-        if not os.path.exists(path):
-            os.makedirs(path)
-
-
-def load_mnist(data_dir, transpose=True):
-    if os.path.exists(data_dir):
-        print("Found MNIST - skip download")
-    else:
-        print("not Found MNIST - start download")
-        download_mnist(data_dir)
-
-    fd = open(os.path.join(data_dir, "train-images-idx3-ubyte"))
-    loaded = np.fromfile(file=fd, dtype=np.uint8)
-    trX = loaded[16:].reshape((60000, 28, 28, 1)).astype(np.float)
-
-    fd = open(os.path.join(data_dir, "train-labels-idx1-ubyte"))
-    loaded = np.fromfile(file=fd, dtype=np.uint8)
-    trY = loaded[8:].reshape((60000)).astype(np.float)
-
-    fd = open(os.path.join(data_dir, "t10k-images-idx3-ubyte"))
-    loaded = np.fromfile(file=fd, dtype=np.uint8)
-    teX = loaded[16:].reshape((10000, 28, 28, 1)).astype(np.float)
-
-    fd = open(os.path.join(data_dir, "t10k-labels-idx1-ubyte"))
-    loaded = np.fromfile(file=fd, dtype=np.uint8)
-    teY = loaded[8:].reshape((10000)).astype(np.float)
-
-    X = trX
-    y = trY.astype(np.int)
-
-    seed = 547
-    np.random.seed(seed)
-    np.random.shuffle(X)
-    np.random.seed(seed)
-    np.random.shuffle(y)
-
-    y_vec = np.zeros((len(y), 10), dtype=np.float)
-    for i, label in enumerate(y):
-        y_vec[i, y[i]] = 1.0
-
-    if transpose:
-        X = np.transpose(X, (0, 3, 1, 2))
-
-    return (X - 127.5) / 127.5, y_vec
-
-
-def download_mnist(data_dir):
-    import subprocess
-
-    os.mkdir(data_dir)
-    url_base = "http://yann.lecun.com/exdb/mnist/"
-    file_names = [
-        "train-images-idx3-ubyte.gz",
-        "train-labels-idx1-ubyte.gz",
-        "t10k-images-idx3-ubyte.gz",
-        "t10k-labels-idx1-ubyte.gz",
-    ]
-    for file_name in file_names:
-        url = (url_base + file_name).format(**locals())
-        print(url)
-        out_path = os.path.join(data_dir, file_name)
-        cmd = ["curl", url, "-o", out_path]
-        print("Downloading ", file_name)
-        subprocess.call(cmd)
-        cmd = ["gzip", "-d", out_path]
-        print("Decompressing ", file_name)
-        subprocess.call(cmd)
-
-
-def to_numpy(x, mean=True):
-    if mean:
-        x = flow.mean(x)
-
-    return x.numpy()
-
-
-def to_tensor(x, grad=True, dtype=flow.float32):
-    if not isinstance(x, np.ndarray):
-        x = np.array(x)
-    return flow.Tensor(x, requires_grad=grad, dtype=dtype)
-
-
-def save_to_gif(path):
-    anim_file = os.path.join(path, "dcgan.gif")
-    with imageio.get_writer(anim_file, mode="I") as writer:
-        filenames = glob.glob(os.path.join(path, "*image*.png"))
-        filenames = sorted(filenames)
-        last = -1
-        for i, filename in enumerate(filenames):
-            frame = 2 * (i ** 0.5)
-            if round(frame) > round(last):
-                last = frame
-            else:
-                continue
-            image = imageio.imread(filename)
-            writer.append_data(image)
-        image = imageio.imread(filename)
-        writer.append_data(image)
-    print("Save images gif to {} done.".format(anim_file))
-
-
-def save_images(x, size, path):
-    x = x.astype(np.float)
-    fig = plt.figure(figsize=(4, 4))
-    for i in range(size):
-        plt.subplot(4, 4, i + 1)
-        plt.imshow(x[i, 0, :, :] * 127.5 + 127.5, cmap="gray")
-        plt.axis("off")
-    plt.savefig(path)
-    print("Save image to {} done.".format(path))
-
-
-class BCELoss(flow.nn.Module):
-    def __init__(self, reduction: str = "mean", reduce=True) -> None:
-        super().__init__()
-        if reduce is not None and not reduce:
-            raise ValueError("Argument reduce is not supported yet")
-        assert reduction in [
-            "none",
-            "mean",
-            "sum",
-            None,
-        ], "only 'sum', 'mean' and 'none' supported by now"
-
-        self.reduction = reduction
-
-    def forward(self, input, target, weight=None):
-        assert (
-            input.shape == target.shape
-        ), "The Input shape must be the same as Target shape"
-
-        _cross_entropy_loss = flow.negative(
-            target * flow.log(input) + (1 - target) * flow.log(1 - input)
-        )
-
-        if weight is not None:
-            assert (
-                weight.shape == input.shape
-            ), "The weight shape must be the same as Input shape"
-            _weighted_loss = weight * _cross_entropy_loss
-        else:
-            _weighted_loss = _cross_entropy_loss
-
-        if self.reduction == "mean":
-            return flow.mean(_weighted_loss)
-        elif self.reduction == "sum":
-            return flow.sum(_weighted_loss)
-        else:
-            return _weighted_loss
-
-
-class Generator(flow.nn.Module):
-    def __init__(self, z_dim=100, dim=256) -> None:
-        super().__init__()
-        self.dim = dim
-        self.input_fc = flow.nn.Sequential(
-            flow.nn.Linear(z_dim, 7 * 7 * dim),
-            flow.nn.BatchNorm1d(7 * 7 * dim),
-            flow.nn.LeakyReLU(0.3),
-        )
-        self.model = flow.nn.Sequential(
-            # (n, 128, 7, 7)
-            flow.nn.ConvTranspose2d(dim, dim // 2, kernel_size=5, stride=1, padding=2),
-            flow.nn.BatchNorm2d(dim // 2),
-            flow.nn.LeakyReLU(0.3),
-            # (n, 64, 14, 14)
-            flow.nn.ConvTranspose2d(
-                dim // 2, dim // 4, kernel_size=5, stride=2, padding=2, output_padding=1
-            ),
-            flow.nn.BatchNorm2d(dim // 4),
-            flow.nn.LeakyReLU(0.3),
-            # (n, 1, 28, 28)
-            flow.nn.ConvTranspose2d(
-                dim // 4, 1, kernel_size=5, stride=2, padding=2, output_padding=1
-            ),
-            flow.nn.Tanh(),
-        )
-
-    def forward(self, x):
-        # (n, 256, 7, 7)
-        x1 = self.input_fc(x).reshape((-1, self.dim, 7, 7))
-        y = self.model(x1)
-
-        return y
-
-
-class Discriminator(flow.nn.Module):
-    def __init__(self) -> None:
-        super().__init__()
-        self.model = flow.nn.Sequential(
-            flow.nn.Conv2d(1, 64, kernel_size=5, stride=2, padding=2),
-            flow.nn.LeakyReLU(0.3),
-            flow.nn.Dropout(0.3),
-            flow.nn.Conv2d(64, 128, kernel_size=5, stride=2, padding=2),
-            flow.nn.LeakyReLU(0.3),
-            flow.nn.Dropout(0.3),
-        )
-
-        self.fc = flow.nn.Linear(128 * 7 * 7, 1)
-
-    def forward(self, x):
-        b = x.shape[0]
-        x1 = self.model(x).reshape((b, -1))
-        y = flow.sigmoid(self.fc(x1))
-        return y.flatten()
-
 
 class DCGAN(flow.nn.Module):
     def __init__(self, args):
@@ -300,15 +91,16 @@ class DCGAN(flow.nn.Module):
         # init training include optimizer, model, loss
         self.generator = Generator(self.z_dim).to(self.device)
         self.discriminator = Discriminator().to(self.device)
-
+        self.generator.load_state_dict(flow.load("generator_oneflow/"))
+        self.discriminator.load_state_dict(flow.load("discriminator_oneflow/"))
         if args.load != "":
             self.generator.load_state_dict(flow.load(args.load))
             self.discriminator.load_state_dict(flow.load(args.load))
 
-        self.optimizerG = flow.optim.Adam(self.generator.parameters(), lr=self.lr)
-        self.optimizerD = flow.optim.Adam(self.discriminator.parameters(), lr=self.lr)
+        self.optimizerG = flow.optim.SGD(self.generator.parameters(), lr=self.lr)
+        self.optimizerD = flow.optim.SGD(self.discriminator.parameters(), lr=self.lr)
 
-        self.of_cross_entropy = BCELoss().to(self.device)
+        self.of_cross_entropy = flow.nn.BCELoss().to(self.device)
 
         for epoch_idx in range(epochs):
             self.generator.train()
@@ -339,7 +131,7 @@ class DCGAN(flow.nn.Module):
                     ) = self.train_discriminator(images, label1, label0)
                 g_loss, g_out, D_gz2 = self.train_generator(label1)
 
-                if (batch_idx + 1) % 10 == 0:
+                if (batch_idx + 1) % 100 == 0:
                     self.G_loss.append(g_loss)
                     self.D_loss.append(d_loss)
 
@@ -348,13 +140,13 @@ class DCGAN(flow.nn.Module):
                         "{}th epoch, {}th batch, d_fakeloss:{:>8.10f}, d_realloss:{:>8.10f}, d_loss:{:>8.10f}, g_loss:{:>8.10f}, D_x:{:>8.10f}, D_Gz:{:>8.10f} / {:>8.10f}".format(
                             epoch_idx + 1,
                             batch_idx + 1,
-                            d_loss_fake[0],
-                            d_loss_real[0],
-                            d_loss[0],
-                            g_loss[0],
-                            D_x[0],
-                            D_gz1[0],
-                            D_gz2[0],
+                            d_loss_fake,
+                            d_loss_real,
+                            d_loss,
+                            g_loss,
+                            D_x,
+                            D_gz1,
+                            D_gz2,
                         )
                     )
 
@@ -396,19 +188,22 @@ class DCGAN(flow.nn.Module):
             )
 
     def train_discriminator(self, images, label1, label0):
-        # train D with all-real batch
-        d_logits = self.discriminator(images)
-        d_loss_real = self.of_cross_entropy(d_logits, label1)
-        d_loss_real.backward(retain_graph=True)
-
-        # train D with all-fake batch
         z = self.generate_noise()
         g_out = self.generator(z)
-        g_logits = self.discriminator(g_out.detach())
+
+        cat = flow.cat((images, g_out), dim=0)
+
+        result = self.discriminator(cat)
+        d_logits = result[:images.shape[0]]
+        g_logits = result[images.shape[0]:]
+
+        d_loss_real = self.of_cross_entropy(d_logits, label1)
+
         d_loss_fake = self.of_cross_entropy(g_logits, label0)
-        d_loss_fake.backward()
 
         d_loss = d_loss_fake + d_loss_real
+
+        d_loss.backward()
         self.optimizerD.step()
         self.optimizerD.zero_grad()
 
@@ -452,7 +247,6 @@ class DCGAN(flow.nn.Module):
 
 
 def main(args):
-
     dcgan = DCGAN(args)
     dcgan.train(args.epoch_num, args.save)
 

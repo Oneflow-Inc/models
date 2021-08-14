@@ -151,7 +151,7 @@ def train(opt):
                 iter + 1,
                 opt.num_iters,
                 action,
-                loss.numpy()[0],
+                loss.numpy(),
                 epsilon,
                 reward,
                 flow.max(prediction).numpy()[0],

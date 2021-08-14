@@ -21,23 +21,23 @@ def is_outlier(points, thresh=3):
 
 
 def plot(root_dir, epoch):
-    g_loss = np.load(os.path.join(root_dir, "g_loss_{}.npy".format(epoch)))
-    d_loss = np.load(os.path.join(root_dir, "d_loss_{}.npy".format(epoch)))
+    g_loss_graph = np.load(os.path.join(root_dir, "g_loss_graph.npy".format(epoch)))
+    d_loss_graph = np.load(os.path.join(root_dir, "d_loss_graph.npy".format(epoch)))
+    g_loss = np.load(os.path.join(root_dir, "g_loss.npy".format(epoch)))
+    d_loss = np.load(os.path.join(root_dir, "d_loss.npy".format(epoch)))
     print("last g_loss: {}.".format(g_loss[-10:-1]))
     print("last d_loss: {}.".format(d_loss[-10:-1]))
-    filtered_g_loss = g_loss[~is_outlier(g_loss)]
-    filtered_d_loss = d_loss[~is_outlier(d_loss)]
     plt.figure(figsize=(15, 5))
     plt.title("Generator and Discriminator Loss During Training")
-    # plt.plot(g_loss,label="G")
-    # plt.plot(d_loss,label="D")
-    plt.plot(filtered_g_loss, label="G")
-    plt.plot(filtered_d_loss, label="D")
+    plt.plot(g_loss, label="G")
+    plt.plot(d_loss, label="D")
+    plt.plot(g_loss_graph, label="G_graph")
+    plt.plot(d_loss_graph, label="D_graph")
     plt.xlabel("iterations")
     plt.ylabel("Loss")
     plt.legend()
     # plt.show()
-    plt.savefig(os.path.join(root_dir, "loss_{}.png".format(epoch)))
+    plt.savefig(os.path.join(root_dir, "loss_parallel.png".format(epoch)))
 
 
 if __name__ == "__main__":
