@@ -132,7 +132,7 @@ checkpoints/
 of_losses.txt
 
 # resnet50
-imagenet*
+imagenet
 *.pth
 ofrecord
 .DS_Store
