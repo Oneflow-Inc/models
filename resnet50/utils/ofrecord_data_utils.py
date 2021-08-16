@@ -12,6 +12,7 @@ class OFRecordDataLoader(nn.Module):
         mode: str = "train",  # "val"
         dataset_size: int = 9469,
         batch_size: int = 1,
+        total_batch_size: int = 1,
         ofrecord_part_num: int = 1,
         placement: flow.placement = None,
         sbp: Union[flow.sbp.sbp, List[flow.sbp.sbp]] = None,
@@ -78,10 +79,11 @@ class OFRecordDataLoader(nn.Module):
         )
 
         self.batch_size = batch_size
+        self.total_batch_size = total_batch_size
         self.dataset_size = dataset_size
 
     def __len__(self):
-        return self.dataset_size // self.batch_size
+        return self.dataset_size // self.total_batch_size
 
     def forward(self):
         train_record = self.train_record_reader()

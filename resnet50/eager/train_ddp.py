@@ -1,9 +1,12 @@
 import argparse
 import numpy as np
 import os
+import sys
 import time
 import shutil
 from tqdm import tqdm
+
+sys.path.append('./')
 
 import oneflow as flow
 from oneflow.nn.parallel import DistributedDataParallel as ddp
@@ -160,21 +163,24 @@ def save_logs(training_info, file_path):
 
 def main(args):
     rank = flow.framework.distribute.get_rank()
+    world_size = flow.framework.distribute.get_world_size()
 
     # Data Setup
     train_data_loader = OFRecordDataLoader(
         ofrecord_root=args.ofrecord_path,
         mode="train",
-        dataset_size=9469,
+        dataset_size=1281167,
         batch_size=args.train_batch_size,
+        total_batch_size=args.train_batch_size * world_size,
         ofrecord_part_num=args.ofrecord_part_num
     )
 
     val_data_loader = OFRecordDataLoader(
         ofrecord_root=args.ofrecord_path,
-        mode="val",
-        dataset_size=3925,
+        mode="validation",
+        dataset_size=50000,
         batch_size=args.val_batch_size,
+        total_batch_size=args.val_batch_size * world_size,
         ofrecord_part_num=args.ofrecord_part_num
     )
 
