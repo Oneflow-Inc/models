@@ -4,6 +4,9 @@ import numpy as np
 import os
 import time
 
+import sys
+sys.path.append(".")
+
 from models.resnet50 import resnet50
 from utils.ofrecord_data_utils import OFRecordDataLoader
 
@@ -35,6 +38,9 @@ def _parse_args():
         "--train_batch_size", type=int, default=32, help="train batch size"
     )
     parser.add_argument("--val_batch_size", type=int, default=32, help="val batch size")
+    parser.add_argument(
+        "--device_num", type=int, default=1, help=""
+    )
 
     return parser.parse_args()
 
@@ -42,15 +48,18 @@ def _parse_args():
 def main(args):
 
     rank = flow.distributed.get_rank()
+    world_size = flow.distributed.get_world_size()
 
-    placement = flow.placement("cpu", {0: [0, 1]})
+    device_list = [i for i in range(args.device_num)]
+
+    placement = flow.placement("cpu", {0: device_list})
     sbp = [flow.sbp.split(0)]
 
     train_data_loader = OFRecordDataLoader(
         ofrecord_root=args.ofrecord_path,
         mode="train",
-        dataset_size=9469,
-        batch_size=args.train_batch_size,
+        dataset_size=1281167,
+        batch_size=args.train_batch_size * world_size,
         ofrecord_part_num=args.ofrecord_part_num,
         placement=placement,
         sbp=sbp,
@@ -58,9 +67,9 @@ def main(args):
 
     val_data_loader = OFRecordDataLoader(
         ofrecord_root=args.ofrecord_path,
-        mode="val",
-        dataset_size=3925,
-        batch_size=args.val_batch_size,
+        mode="validation",
+        dataset_size=50000,
+        batch_size=args.val_batch_size * world_size,
         ofrecord_part_num=args.ofrecord_part_num,
         placement=placement,
         sbp=sbp,
@@ -78,7 +87,7 @@ def main(args):
 
     of_cross_entropy = flow.nn.CrossEntropyLoss()
 
-    placement = flow.placement("cuda", {0: [0, 1]})
+    placement = flow.placement("cuda", {0: device_list})
     sbp = [flow.sbp.broadcast]
     resnet50_module.to_consistent(placement=placement, sbp=sbp)
     of_cross_entropy.to_consistent(placement=placement, sbp=sbp)
@@ -124,7 +133,7 @@ def main(args):
     resnet50_eval_graph = Resnet50EvalGraph()
 
     of_losses, of_accuracy = [], []
-    all_samples = len(val_data_loader) * args.val_batch_size
+    all_samples = len(val_data_loader) * (args.val_batch_size * world_size)
     print_interval = 100
 
 
@@ -168,8 +177,8 @@ def main(args):
             label = label.to_local()
 
             label_nd = label.numpy()
-
-            for i in range(args.val_batch_size):
+            
+            for i in range(args.val_batch_size * world_size):
                 if clsidxs[i] == label_nd[i]:
                     correct_of += 1
             end_t = time.time()
@@ -178,7 +187,7 @@ def main(args):
         of_accuracy.append(top1)
         print("rank %d epoch %d, oneflow top1 val acc: %f" % (rank, epoch, top1))
 
-        if rank == 0:
+        # if rank == 0:
             # get error
             # Traceback (most recent call last):
             # File "graph/train_consistent.py", line 203, in <module>
@@ -203,13 +212,13 @@ def main(args):
             # File "/home/ldpe2g/oneFlow/oneflow/oneflow/core/functional/impl/array_functor.cpp", line 1152, in operator()
             #     x->device()
             # File "/home/ldpe2g/oneFlow/oneflow/oneflow/core/framework/tensor.h", line 448, in device
-            flow.save(
-                resnet50_module.state_dict(),
-                os.path.join(
-                    args.save_checkpoint_path,
-                    "epoch_%d_val_acc_%f" % (epoch, correct_of / all_samples),
-                ),
-            )
+            # flow.save(
+            #     resnet50_module.state_dict(),
+            #     os.path.join(
+            #         args.save_checkpoint_path,
+            #         "epoch_%d_val_acc_%f" % (epoch, correct_of / all_samples),
+            #     ),
+            # )
 
     if rank == 0:
         writer = open("graph_of_losses.txt", "w")
