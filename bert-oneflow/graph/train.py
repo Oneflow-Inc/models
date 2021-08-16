@@ -9,20 +9,18 @@ from dataset.dataset import BERTDataset
 from dataset.vocab import WordVocab
 from model.bert import BERT
 from model.language_model import BERTLM
-from utils.ofrecord_data_utils import BertDecoder
+from utils.ofrecord_data_utils import OfRecordDataLoader
 
 
-def train(epoch, iter_per_epoch, data_iter, graph, print_interval):
+def train(epoch, iter_per_epoch, graph, print_interval):
     avg_loss = 0.0
     total_correct = 0
     total_element = 0
     for i in range(iter_per_epoch):
 
-        bert_input, segment_label, is_next, bert_label = next(data_iter)
         start_t = time.time()
 
-        next_sent_output, is_next, loss = graph(
-            bert_input, segment_label, is_next, bert_label)
+        next_sent_output, is_next, loss = graph()
 
         loss = loss.numpy().item()
         end_t = time.time()
@@ -54,16 +52,14 @@ def train(epoch, iter_per_epoch, data_iter, graph, print_interval):
     )
 
 
-def validation(epoch, iter_per_epoch, data_iter, graph, print_interval):
+def validation(epoch, iter_per_epoch, graph, print_interval):
     total_correct = 0
     total_element = 0
     for i in range(iter_per_epoch):
 
-        bert_input, segment_label, is_next, bert_label = next(data_iter)
         start_t = time.time()
 
-        next_sent_output, is_next = graph(
-            bert_input, segment_label, is_next, bert_label)
+        next_sent_output, is_next = graph()
 
         next_sent_output = next_sent_output.numpy()
         is_next = is_next.numpy()
@@ -144,7 +140,9 @@ def main():
     parser.add_argument(
         "-s", "--seq-len", type=int, default=128, help="maximum sequence len"
     )
-
+    parser.add_argument(
+        "--vocab-size", type=int, default=30522, help="total number of vocab"
+    )
     parser.add_argument(
         "-b", "--batch_size", type=int, default=16, help="number of batch_size"
     )
@@ -194,64 +192,71 @@ def main():
 
     print("Device is: ", device)
 
-    print("Loading Vocab", args.vocab_path)
-    vocab = WordVocab.load_vocab(args.vocab_path)
-    print("Vocab Size: ", len(vocab))
+    # print("Loading Vocab", args.vocab_path)
+    # vocab = WordVocab.load_vocab(args.vocab_path)
+    # print("Vocab Size: ", len(vocab))
 
-    print("Loading Train Dataset", args.train_dataset)
-    train_dataset = BERTDataset(
-        args.train_dataset,
-        vocab,
-        seq_len=args.seq_len,
-        corpus_lines=args.corpus_lines,
-        on_memory=args.on_memory,
-    )
+    # print("Loading Train Dataset", args.train_dataset)
+    # train_dataset = BERTDataset(
+    #     args.train_dataset,
+    #     vocab,
+    #     seq_len=args.seq_len,
+    #     corpus_lines=args.corpus_lines,
+    #     on_memory=args.on_memory,
+    # )
 
-    print("Loading Test Dataset", args.test_dataset)
-    test_dataset = (
-        BERTDataset(
-            args.test_dataset, vocab, seq_len=args.seq_len, on_memory=args.on_memory
-        )
-        if args.test_dataset is not None
-        else None
-    )
+    # print("Loading Test Dataset", args.test_dataset)
+    # test_dataset = (
+    #     BERTDataset(
+    #         args.test_dataset, vocab, seq_len=args.seq_len, on_memory=args.on_memory
+    #     )
+    #     if args.test_dataset is not None
+    #     else None
+    # )
 
     print("Creating Dataloader")
-    train_data_loader = BertDecoder(
+    train_data_loader = OfRecordDataLoader(
         ofrecord_dir="wiki_ofrecord_seq_len_128_example",
         mode='train', dataset_size=1024, batch_size=args.batch_size, data_part_num=1, seq_length=args.seq_len,
         max_predictions_per_seq=20,
     )
 
-    test_data_loader = BertDecoder(
+    test_data_loader = OfRecordDataLoader(
         ofrecord_dir="wiki_ofrecord_seq_len_128_example",
         mode='test', dataset_size=1024, batch_size=args.batch_size, data_part_num=1, seq_length=args.seq_len,
         max_predictions_per_seq=20,
     )
 
     # bert_input, segment_label, is_next, bert_label = train_dataset[0]
-    # input_ids, next_sent_labels, input_mask, segment_ids, masked_lm_ids, masked_lm_positions, masked_lm_weights = train_data_loader()
-
-
-    # train_data_loader = DataLoader(
-    #     train_dataset, batch_size=args.batch_size, num_workers=args.num_workers
-    # )
-    # test_data_loader = (
-    #     DataLoader(
-    #         test_dataset, batch_size=args.batch_size, num_workers=args.num_workers
-    #     )
-    #     if test_dataset is not None
-    #     else None
-    # )
+    # input_ids, next_sent_labels, input_masks, segment_ids, masked_lm_ids, masked_lm_positions, masked_lm_weights = train_data_loader()
 
     print("Building BERT model")
     bert_module = BERT(
-        len(vocab), hidden=args.hidden, n_layers=args.layers, attn_heads=args.attn_heads
+        args.vocab_size, hidden=args.hidden, n_layers=args.layers, attn_heads=args.attn_heads
     )
     bert_module.to(device)
 
-    bert_model = BERTLM(bert_module, len(vocab))
+    bert_model = BERTLM(bert_module, args.vocab_size)
     bert_model.to(device)
+
+    # input_ids = input_ids.to(device=device)
+    # input_masks = input_masks.to(device=device)
+    # segment_ids = segment_ids.to(device=device)
+    # next_sent_labels = next_sent_labels.to(device=device)
+    # masked_lm_ids = masked_lm_ids.to(device=device)
+    # masked_lm_positions = masked_lm_positions.to(device)
+
+    # next_sent_output, mask_lm_output = bert_model(
+    # input_ids, input_masks, segment_ids)
+
+    # ns_loss = nn.NLLLoss()(next_sent_output, next_sent_labels.squeeze(1))
+
+    # mask_lm_output = flow.gather(mask_lm_output, index=masked_lm_positions.unsqueeze(2).repeat(1, 1, len(vocab)), dim=1)
+    # mask_lm_output = flow.reshape(mask_lm_output, [-1, len(vocab)])
+
+    # label_id_blob = flow.reshape(masked_lm_ids, [-1])
+
+    # lm_loss = nn.NLLLoss()(mask_lm_output, label_id_blob)
 
     optimizer = flow.optim.Adam(bert_model.parameters(),
                                 lr=args.lr,
@@ -274,36 +279,42 @@ def main():
             self.bert = bert_model
             self.nll_loss = criterion
             self.add_optimizer("adam", optimizer)
-            # self._train_data_iter = iter(train_data_loader)
+            self._train_data_loader = train_data_loader
 
-        def build(self, bert_input, segment_label, is_next, bert_label):
-            # try:
-            #     bert_input, segment_label, is_next, bert_label = next(self._train_data_iter)
-            # except StopIteration:
-            #     self._train_data_iter = iter(train_data_loader)
-            #     bert_input, segment_label, is_next, bert_label = next(self._train_data_iter)
-            bert_input = bert_input.to(device=device)
-            segment_label = segment_label.to(device=device)
-            is_next = is_next.to(device=device)
-            bert_label = bert_label.to(device=device)
+        def build(self):
+
+            input_ids, next_sent_labels, input_masks, segment_ids, masked_lm_ids, \
+                masked_lm_positions, masked_lm_weights = self._train_data_loader()
+            input_ids = input_ids.to(device=device)
+            input_masks = input_masks.to(device=device)
+            segment_ids = segment_ids.to(device=device)
+            next_sent_labels = next_sent_labels.to(device=device)
+            masked_lm_ids = masked_lm_ids.to(device=device)
+            masked_lm_positions = masked_lm_positions.to(device=device)
 
             # 1. forward the next_sentence_prediction and masked_lm model
             next_sent_output, mask_lm_output = self.bert(
-                bert_input, segment_label)
+                input_ids, input_masks, segment_ids)
 
             # 2-1. NLL(negative log likelihood) loss of is_next classification result
-            next_loss = self.nll_loss(next_sent_output, is_next)
+            ns_loss = self.nll_loss(
+                next_sent_output, next_sent_labels.squeeze(1))
+
+            mask_lm_output = flow.gather(mask_lm_output, index=masked_lm_positions.unsqueeze(
+                2).repeat(1, 1, args.vocab_size), dim=1)
+            mask_lm_output = flow.reshape(
+                mask_lm_output, [-1, args.vocab_size])
+
+            label_id_blob = flow.reshape(masked_lm_ids, [-1])
 
             # 2-2. NLLLoss of predicting masked token word
-            mask_loss = self.nll_loss(
-                mask_lm_output.transpose(1, 2), bert_label
-            )
+            lm_loss = self.nll_loss(mask_lm_output, label_id_blob)
 
             # 2-3. Adding next_loss and mask_loss : 3.4 Pre-training Procedure
-            loss = next_loss + mask_loss
+            loss = ns_loss + lm_loss
 
             loss.backward()
-            return next_sent_output, is_next, loss
+            return next_sent_output, next_sent_labels, loss
 
     bert_graph = BertGraph()
 
@@ -311,21 +322,24 @@ def main():
         def __init__(self):
             super().__init__()
             self.bert = bert_model
-            # self._val_data_iter = iter(val_data_loader)
+            self._test_data_loader = test_data_loader
 
-        def build(self, bert_input, segment_label, is_next, bert_label):
-
-            bert_input = bert_input.to(device=device)
-            segment_label = segment_label.to(device=device)
-            is_next = is_next.to(device=device)
-            bert_label = bert_label.to(device=device)
+        def build(self):
+            input_ids, next_sent_labels, input_masks, segment_ids, masked_lm_ids, \
+                masked_lm_positions, masked_lm_weights = self._test_data_loader()
+            input_ids = input_ids.to(device=device)
+            input_masks = input_masks.to(device=device)
+            segment_ids = segment_ids.to(device=device)
+            next_sent_labels = next_sent_labels.to(device=device)
+            masked_lm_ids = masked_lm_ids.to(device=device)
+            masked_lm_positions = masked_lm_positions.to(device)
 
             with flow.no_grad():
                 # 1. forward the next_sentence_prediction and masked_lm model
-                next_sent_output, mask_lm_output = self.bert(
-                    bert_input, segment_label)
+                next_sent_output, _ = self.bert(
+                    input_ids, input_masks, segment_ids)
 
-            return next_sent_output, is_next
+            return next_sent_output, next_sent_labels
 
     bert_eval_graph = BertEvalGraph()
 
@@ -333,16 +347,14 @@ def main():
         # Train
         bert_model.train()
 
-        train_data_iter = iter(train_data_loader)
-        train(epoch, len(train_data_iter),
-              train_data_iter, bert_graph, args.print_interval)
+        train(epoch, len(train_data_loader), bert_graph, args.print_interval)
 
         # Eval
         bert_model.eval()
 
-        test_data_iter = iter(test_data_loader)
         validation(epoch, len(test_data_loader),
-                   test_data_iter, bert_eval_graph, args.print_interval)
+                   bert_eval_graph, args.print_interval)
+
 
         # trainer.train(epoch)
         # print("Saving model...")

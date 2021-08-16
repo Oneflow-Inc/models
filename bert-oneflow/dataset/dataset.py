@@ -72,15 +72,6 @@ class BERTDataset(nn.Module):
 
         return flow.tensor(bert_input),  flow.tensor(segment_label), flow.tensor(is_next_label), flow.tensor(bert_label)
 
-        output = {
-            "bert_input": bert_input,
-            "bert_label": bert_label,
-            "segment_label": segment_label,
-            "is_next": is_next_label,
-        }
-
-        return {key: flow.tensor(value) for key, value in output.items()}
-
     def random_word(self, sentence):
         tokens = sentence.split()
         output_label = []

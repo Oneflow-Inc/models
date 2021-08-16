@@ -3,7 +3,7 @@ import oneflow as flow
 from oneflow import nn
 
 
-class BertDecoder(nn.Module):
+class OfRecordDataLoader(nn.Module):
     def __init__(
         self,
         ofrecord_dir: str,
@@ -56,4 +56,5 @@ class BertDecoder(nn.Module):
             data_record)
         masked_lm_weights = self.blob_confs["masked_lm_weights"](data_record)
 
-        return input_ids, next_sent_labels, input_mask, segment_ids, masked_lm_ids, masked_lm_positions, masked_lm_weights
+        return input_ids, next_sent_labels, input_mask, segment_ids, \
+            masked_lm_ids, masked_lm_positions, masked_lm_weights
