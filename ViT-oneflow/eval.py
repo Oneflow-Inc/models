@@ -27,7 +27,6 @@ def accuracy(output, target, topk=(1,)):
 def main():
 
     config = get_eval_config()
-    # config.checkpoint_path = "/data/rentianhe/code/ViT-OneFlow/models/ViT/weights/oneflow/ViT-B_16_oneflow"
 
     # create model
     model = VisionTransformer(
