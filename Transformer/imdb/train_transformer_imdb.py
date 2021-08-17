@@ -108,10 +108,10 @@ def train():
             loss.backward()
             of_adam.step()
             of_adam.zero_grad()
-            epoch_loss += loss.numpy()[0]
+            epoch_loss += loss.numpy()
             if i % 50 == 0 or i == data.shape[0] - 1:
                 print("{0:d}/{1:d}, loss:{2:.4f}".format(i +
-                      1, data.shape[0], loss.numpy()[0]))
+                      1, data.shape[0], loss.numpy()))
         epoch_loss /= data.shape[0]
         e_t = time.time() - s_t
         training_time += e_t

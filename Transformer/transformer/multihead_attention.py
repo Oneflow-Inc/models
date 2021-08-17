@@ -216,9 +216,9 @@ def multi_head_attention_forward(
     # reshape q, k, v for multihead attention and make em batch first
     #
     # replace torch.contiguous with reshape
-    q = q.reshape((tgt_len, bsz * num_heads, head_dim)).transpose(0, 1)
+    q = q.reshape(tgt_len, bsz * num_heads, head_dim).transpose(0, 1)
     if static_k is None:
-        k = k.reshape((-1, bsz * num_heads, head_dim)).transpose(0, 1)
+        k = k.reshape(-1, bsz * num_heads, head_dim).transpose(0, 1)
     else:
         assert static_k.size(0) == bsz * num_heads, \
             f"expecting static_k.size(0) of {bsz * num_heads}, but got {static_k.size(0)}"
@@ -226,7 +226,7 @@ def multi_head_attention_forward(
             f"expecting static_k.size(2) of {head_dim}, but got {static_k.size(2)}"
         k = static_k
     if static_v is None:
-        v = v.reshape((-1, bsz * num_heads, head_dim)).transpose(0, 1)
+        v = v.reshape(-1, bsz * num_heads, head_dim).transpose(0, 1)
     else:
         assert static_v.size(0) == bsz * num_heads, \
             f"expecting static_v.size(0) of {bsz * num_heads}, but got {static_v.size(0)}"
@@ -253,8 +253,8 @@ def multi_head_attention_forward(
     if key_padding_mask is not None:
         assert key_padding_mask.shape == (bsz, src_len), \
             f"expecting key_padding_mask shape of {(bsz, src_len)}, but got {key_padding_mask.shape}"
-        key_padding_mask = key_padding_mask.reshape((bsz, 1, 1, src_len)).expand(
-            -1, num_heads, tgt_len, -1).reshape((bsz * num_heads, tgt_len, src_len))
+        key_padding_mask = key_padding_mask.reshape(bsz, 1, 1, src_len).expand(
+            -1, num_heads, tgt_len, -1).reshape(bsz * num_heads, tgt_len, src_len)
         if attn_mask is not None:
             attn_mask = attn_mask.expand(bsz * num_heads, -1, -1)
         if attn_mask is None:
@@ -280,13 +280,12 @@ def multi_head_attention_forward(
     attn_output, attn_output_weights = _scaled_dot_product_attention(
         q, k, v, attn_mask, dropout_p)
     attn_output = attn_output.transpose(
-        0, 1).reshape((tgt_len, bsz, embed_dim))
+        0, 1).reshape(tgt_len, bsz, embed_dim)
     attn_output = linear(attn_output, out_proj_weight, out_proj_bias)
 
     if need_weights:
         # average attention weights over heads
-        attn_output_weights = attn_output_weights.reshape(
-            (bsz, num_heads, tgt_len, src_len))
+        attn_output_weights = attn_output_weights.reshape(bsz, num_heads, tgt_len, src_len)
         return attn_output, attn_output_weights.sum(dim=1) / num_heads
     else:
         return attn_output, None

@@ -81,7 +81,7 @@ def train(model, criterion, optimizer, train_x, train_y):
         loss.backward()
 
         optimizer.step()
-        epoch_loss += loss.numpy()[0]
+        epoch_loss += loss.numpy()
         optimizer.zero_grad()
     return epoch_loss / train_x.shape[0]
 
@@ -99,7 +99,7 @@ def validation(model, criterion, val_x, val_y):
             output = model(src, tgt[:last - 1, :])
             n = output.shape[-1]
             loss = criterion(output.permute(1, 2, 0), tgt[1:, :].permute(1, 0))
-            epoch_loss += loss.numpy()[0]
+            epoch_loss += loss.numpy()
     return epoch_loss / val_x.shape[0]
 
 
