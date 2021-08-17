@@ -119,9 +119,6 @@ def main():
     parser.add_argument(
         "--vocab-size", type=int, default=30522, help="Total number of vocab"
     )
-    parser.add_argument(
-        "-b", "--batch_size", type=int, default=16, help="Number of batch_size"
-    )
     parser.add_argument("-e", "--epochs", type=int,
                         default=10, help="Number of epochs")
 

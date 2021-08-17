@@ -1,10 +1,10 @@
-import tqdm
+import os
 
 import oneflow as flow
 import oneflow.nn as nn
-
-from model.language_model import BERTLM
 from model.bert import BERT
+from model.language_model import BERTLM
+
 from utils.optim_schedule import ScheduledOptim
 
 
@@ -47,6 +47,7 @@ class BERTTrainer:
 
         # Setup cuda device for BERT training, argument -c, --cuda should be true
         # cuda_condition = flow.cuda.is_available() and with_cuda
+        self.vocab_size = vocab_size
         cuda_condition = with_cuda
         self.device = flow.device("cuda:0" if cuda_condition else "cpu")
 
@@ -86,7 +87,7 @@ class BERTTrainer:
     def test(self, epoch):
         self.iteration(epoch, self.test_data, train=False)
 
-    def iteration(self, epoch, data_loader, train=True):
+    def iteration(self, epoch, iter_per_epoch, train=True):
         """
         loop over the data_loader for training or testing
         if on train status, backward operation is activated
@@ -100,47 +101,49 @@ class BERTTrainer:
         str_code = "train" if train else "test"
 
         # Setting the tqdm progress bar
-        data_iter = tqdm.tqdm(
-            enumerate(data_loader),
-            desc="EP_%s:%d" % (str_code, epoch),
-            total=len(data_loader),
-            bar_format="{l_bar}{r_bar}",
-        )
+        # data_iter = tqdm.tqdm(
+        #     range(len(iter_per_epoch)),
+        #     desc="EP_%s:%d" % (str_code, epoch),
+        #     total=iter_per_epoch,
+        #     bar_format="{l_bar}{r_bar}",
+        # )
 
-        avg_loss = 0.0
+        total_loss = 0.0
         total_correct = 0
         total_element = 0
 
-        for i, data in data_iter:
-            # for key, value in data.items():
+        for i in range(len(iter_per_epoch)):
+            input_ids, next_sent_labels, input_masks, segment_ids, masked_lm_ids, \
+                masked_lm_positions, masked_lm_weights = self.train_data()
 
-            #     data[str(key)] = flow.Tensor(
-            #         value.numpy(), dtype=flow.int64, device=self.device
-            #     )
-            # #     # 0. batch_data will be sent into the device(GPU or cpu)
-            # data = {key: value.to(device=self.device) for key, value in data.items()}
-
-            bert_input, segment_label, is_next, bert_label = data
-            bert_input = bert_input.to(device=self.device)
-            segment_label = segment_label.to(device=self.device)
-            is_next = is_next.to(device=self.device)
-            bert_label = bert_label.to(device=self.device)
+            input_ids = input_ids.to(device=self.device)
+            input_masks = input_masks.to(device=self.device)
+            segment_ids = segment_ids.to(device=self.device)
+            next_sent_labels = next_sent_labels.to(device=self.device)
+            masked_lm_ids = masked_lm_ids.to(device=self.device)
+            masked_lm_positions = masked_lm_positions.to(device=self.device)
 
             # 1. forward the next_sentence_prediction and masked_lm model
             next_sent_output, mask_lm_output = self.model.forward(
-                bert_input, segment_label
+                input_ids, input_masks, segment_ids
             )
 
             # 2-1. NLL(negative log likelihood) loss of is_next classification result
-            next_loss = self.criterion(next_sent_output, is_next)
+            ns_loss = self.criterion(next_sent_output, next_sent_labels.squeeze(1))
 
             # 2-2. NLLLoss of predicting masked token word
-            mask_loss = self.criterion(
-                mask_lm_output.transpose(1, 2), bert_label
-            )
+            mask_lm_output = flow.gather(mask_lm_output, index=masked_lm_positions.unsqueeze(
+                2).repeat(1, 1, self.vocab_size), dim=1)
+            mask_lm_output = flow.reshape(
+                mask_lm_output, [-1, self.vocab_size])
+
+            label_id_blob = flow.reshape(masked_lm_ids, [-1])
+
+            # 2-2. NLLLoss of predicting masked token word
+            lm_loss = self.criterion(mask_lm_output, label_id_blob)
 
             # 2-3. Adding next_loss and mask_loss : 3.4 Pre-training Procedure
-            loss = next_loss + mask_loss
+            loss = ns_loss + lm_loss
 
             # 3. backward and optimization only in train
             if train:
@@ -148,35 +151,26 @@ class BERTTrainer:
                 self.optim_schedule.step_and_update_lr()
                 self.optim_schedule.zero_grad()
 
-            # flow.save(self.bert.state_dict(), "checkpoints/bert_%d_loss_%f" % (i, loss.numpy().item()))
-
             # next sentence prediction accuracy
             correct = (
                 next_sent_output.argmax(
-                    dim=-1).eq(is_next).sum().numpy().item()
+                    dim=-1).eq(next_sent_labels.squeeze(1)).sum().numpy().item()
             )
-            avg_loss += loss.numpy().item()
+            total_loss += loss.numpy().item()
             total_correct += correct
-            total_element += is_next.nelement()
+            total_element += next_sent_labels.nelement()
 
-            post_fix = {
-                "epoch": epoch,
-                "iter": i,
-                "avg_loss": avg_loss / (i + 1),
-                "avg_acc": total_correct / total_element * 100,
-                "loss": loss.numpy().item(),
-            }
+            if (i + 1) % self.log_freq == 0:
+                print(
+                    "Epoch {}, iter {}, avg_loss {:.3f}, total_acc {:.2f}".format(
+                        epoch, (i+1), total_loss / (i + 1), total_correct *
+                        100.0 / total_element))
 
-            if i % self.log_freq == 0:
-                data_iter.write(str(post_fix))
-
-        print("total_correct >>>>>>>>>>>>>> ", total_correct)
-        print("total_element >>>>>>>>>>>>>> ", total_element)
         print(
-            "EP%d_%s, avg_loss=" % (epoch, str_code),
-            avg_loss / len(data_iter),
-            "total_acc=",
-            total_correct * 100.0 / total_element,
+            "Epoch {}, iter {}, loss {:.3f}, total_acc {:.2f}".format(
+                epoch, (i+1), total_loss / (i + 1), total_correct *
+                100.0 / total_element
+            )
         )
 
     def save(self, epoch, file_path="checkpoints"):
@@ -187,7 +181,7 @@ class BERTTrainer:
         :param file_path: model output path which gonna be file_path+"ep%d" % epoch
         :return: final_output_path
         """
-        output_path = file_path + "epoch%d" % epoch
+        output_path = os.path.join(file_path, "epoch_%d" % epoch)
         flow.save(self.bert.state_dict(), output_path)
-        print("EP:%d Model Saved on:" % epoch, output_path)
+        print("Epoch :%d Model Saved on:" % epoch, output_path)
         return output_path

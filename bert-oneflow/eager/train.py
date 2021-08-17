@@ -1,11 +1,14 @@
 import argparse
+import os
 
 import oneflow as flow
+from oneflow import nn
 
 from model.bert import BERT
 from utils.trainer import BERTTrainer
 from dataset.dataset import BERTDataset
 from dataset.vocab import WordVocab
+from utils.ofrecord_data_utils import OfRecordDataLoader
 
 
 def main():
@@ -13,33 +16,19 @@ def main():
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
-        "-c",
-        "--train_dataset",
-        required=False,
-        type=str,
-        default="data/corpus.small",
-        help="train dataset for train bert",
+        "--ofrecord-path", type=str, default="ofrecord", help="Path to ofrecord dataset"
     )
     parser.add_argument(
-        "-t",
-        "--test_dataset",
-        type=str,
-        default="data/corpus.small",
-        help="test set for evaluate train set",
+        "--train-batch-size", type=int, default=16, help="Training batch size"
     )
     parser.add_argument(
-        "-v",
-        "--vocab_path",
-        required=False,
-        default="data/vocab.small",
-        type=str,
-        help="built vocab model path with bert-vocab",
+        "--val-batch-size", type=int, default=16, help="Validation batch size"
     )
     parser.add_argument(
         "-o",
-        "--output_path",
+        "--output-path",
         required=False,
-        default="ckpt/bert.model",
+        default="checkpoints",
         type=str,
         help="checkpoint path for bert model",
     )
@@ -57,9 +46,11 @@ def main():
         "-a", "--attn_heads", type=int, default=8, help="number of attention heads"
     )
     parser.add_argument(
-        "-s", "--seq_len", type=int, default=20, help="maximum sequence len"
+        "-s", "--seq_len", type=int, default=128, help="maximum sequence len"
     )
-
+    parser.add_argument(
+        "--vocab-size", type=int, default=30522, help="Total number of vocab"
+    )
     parser.add_argument(
         "-b", "--batch_size", type=int, default=16, help="number of batch_size"
     )
@@ -99,49 +90,28 @@ def main():
 
     args = parser.parse_args()
 
-    print("Loading Vocab", args.vocab_path)
-    vocab = WordVocab.load_vocab(args.vocab_path)
-    print("Vocab Size: ", len(vocab))
-
-    print("Loading Train Dataset", args.train_dataset)
-    train_dataset = BERTDataset(
-        args.train_dataset,
-        vocab,
-        seq_len=args.seq_len,
-        corpus_lines=args.corpus_lines,
-        on_memory=args.on_memory,
-    )
-
-    print("Loading Test Dataset", args.test_dataset)
-    test_dataset = (
-        BERTDataset(
-            args.test_dataset, vocab, seq_len=args.seq_len, on_memory=args.on_memory
-        )
-        if args.test_dataset is not None
-        else None
-    )
-
     print("Creating Dataloader")
-    train_data_loader = flow.utils.data.DataLoader(
-        train_dataset, batch_size=args.batch_size, num_workers=args.num_workers
-    )
-    test_data_loader = (
-        flow.utils.data.DataLoader(
-            test_dataset, batch_size=args.batch_size, num_workers=args.num_workers
-        )
-        if test_dataset is not None
-        else None
+    train_data_loader = OfRecordDataLoader(
+        ofrecord_dir=args.ofrecord_path,
+        mode='train', dataset_size=1024, batch_size=args.train_batch_size, data_part_num=1, seq_length=args.seq_len,
+        max_predictions_per_seq=20,
     )
 
+    test_data_loader = OfRecordDataLoader(
+        ofrecord_dir=args.ofrecord_path,
+        mode='test', dataset_size=1024, batch_size=args.val_batch_size, data_part_num=1, seq_length=args.seq_len,
+        max_predictions_per_seq=20,
+    )
+    
     print("Building BERT model")
     bert = BERT(
-        len(vocab), hidden=args.hidden, n_layers=args.layers, attn_heads=args.attn_heads
+        args.vocab_size, hidden=args.hidden, n_layers=args.layers, attn_heads=args.attn_heads
     )
 
     print("Creating BERT Trainer")
     trainer = BERTTrainer(
         bert,
-        len(vocab),
+        args.vocab_size,
         train_dataloader=train_data_loader,
         test_dataloader=test_data_loader,
         lr=args.lr,
