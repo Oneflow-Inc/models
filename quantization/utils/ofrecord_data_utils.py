@@ -1,9 +1,9 @@
 import oneflow as flow
-import oneflow.nn as nn
+
 import os
 
 
-class OFRecordDataLoader(nn.Module):
+class OFRecordDataLoader(object):
     def __init__(
         self,
         ofrecord_root: str = "./ofrecord",
@@ -11,7 +11,6 @@ class OFRecordDataLoader(nn.Module):
         dataset_size: int = 9469,
         batch_size: int = 1,
     ):
-        super().__init__()
         channel_last = False
         output_layout = "NHWC" if channel_last else "NCHW"
         self.train_record_reader = flow.nn.OfrecordReader(
@@ -31,7 +30,8 @@ class OFRecordDataLoader(nn.Module):
         width = 224
 
         self.record_image_decoder = (
-            flow.nn.OFRecordImageDecoderRandomCrop("encoded", color_space=color_space)
+            flow.nn.OFRecordImageDecoderRandomCrop(
+                "encoded", color_space=color_space)
             if mode == "train"
             else flow.nn.OFRecordImageDecoder("encoded", color_space=color_space)
         )
@@ -44,7 +44,8 @@ class OFRecordDataLoader(nn.Module):
             )
         )
 
-        self.flip = flow.nn.CoinFlip(batch_size=batch_size) if mode == "train" else None
+        self.flip = flow.nn.CoinFlip(
+            batch_size=batch_size) if mode == "train" else None
 
         rgb_mean = [123.68, 116.779, 103.939]
         rgb_std = [58.393, 57.12, 57.375]
@@ -76,7 +77,7 @@ class OFRecordDataLoader(nn.Module):
     def __len__(self):
         return self.dataset_size // self.batch_size
 
-    def forward(self):
+    def get_batch(self):
         train_record = self.train_record_reader()
         label = self.record_label_decoder(train_record)
         image_raw_buffer = self.record_image_decoder(train_record)

@@ -81,7 +81,7 @@ def main(args):
             super().__init__()
             self.alexnet = alexnet_module
             self.cross_entropy = of_cross_entropy
-            self.add_optimizer("sgd", of_sgd)
+            self.add_optimizer(of_sgd)
             self.train_data_loader = train_data_loader
         
         def build(self):
