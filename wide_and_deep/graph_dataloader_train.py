@@ -36,19 +36,18 @@ if __name__ == '__main__':
     of_sgd = flow.optim.SGD(
         wdl_module.parameters(), lr=args.learning_rate
     )
+
     class WideAndDeepGraph(flow.nn.Graph):
-        def __init__(self, dataloader):
+        def __init__(self):
             super(WideAndDeepGraph, self).__init__()
             self.module = wdl_module
-            self.dataloader = dataloader
             self.bce_loss = bce_loss
 
-        def build(self):
+        def build(self,labels, dense_fields, wide_sparse_fields, deep_sparse_fields):
             with flow.no_grad():
-                return self.graph()
-        
-        def graph(self):
-            labels, dense_fields, wide_sparse_fields, deep_sparse_fields = self.dataloader()
+                return self.graph(labels, dense_fields, wide_sparse_fields, deep_sparse_fields)
+
+        def graph(self,labels, dense_fields, wide_sparse_fields, deep_sparse_fields):
             labels = labels.to("cuda").to(dtype=flow.float32)
             dense_fields = dense_fields.to("cuda")
             wide_sparse_fields = wide_sparse_fields.to("cuda")
@@ -59,29 +58,31 @@ if __name__ == '__main__':
             return predicts, labels, loss
 
     class WideAndDeepTrainGraph(WideAndDeepGraph):
-        def __init__(self, dataloader):
-            super(WideAndDeepTrainGraph, self).__init__(dataloader)
+        def __init__(self):
+            super(WideAndDeepTrainGraph, self).__init__()
             self.add_optimizer("sgd", of_sgd)
-        
-        def build(self):
-            predicts, labels, loss = self.graph()
+
+        def build(self,labels, dense_fields, wide_sparse_fields, deep_sparse_fields):
+            predicts, labels, loss = self.graph(labels, dense_fields, wide_sparse_fields, deep_sparse_fields)
             loss.backward()
             return predicts, labels, loss
 
-    eval_graph = WideAndDeepGraph(val_dataloader)
-    train_graph = WideAndDeepTrainGraph(train_dataloader)
+    eval_graph = WideAndDeepGraph()
+    train_graph = WideAndDeepTrainGraph()
 
     losses = []
     wdl_module.train()
 
     for i in range(args.max_iter):
-        print(i)
-        predicts, labels, loss = train_graph()
+        labels, dense_fields, wide_sparse_fields, deep_sparse_fields = train_dataloader()
+        predicts, labels, loss = train_graph(labels, dense_fields, wide_sparse_fields, deep_sparse_fields)
         losses.append(loss.numpy().mean())
 
         if (i+1) % args.print_interval == 0:
             l = sum(losses) / len(losses)
             print(f"iter {i} train_loss {l} time {time.time()}")
+            losses = []
+
             if args.eval_batchs <= 0:
                 continue
 
@@ -90,7 +91,8 @@ if __name__ == '__main__':
             predicts_list = []
             wdl_module.eval()
             for j in range(args.eval_batchs):
-                predicts, labels, loss = eval_graph()
+                labels, dense_fields, wide_sparse_fields, deep_sparse_fields = val_dataloader()
+                predicts, labels, loss = eval_graph(labels, dense_fields, wide_sparse_fields, deep_sparse_fields)
 
                 eval_loss += loss.numpy().mean()
                 lables_list.append(labels.numpy())
@@ -101,6 +103,5 @@ if __name__ == '__main__':
             ) else roc_auc_score(all_labels, all_predicts)
             print(f"iter {i} eval_loss {eval_loss/args.eval_batchs} auc {auc}")
 
-            losses = []
-            wdl_module.train()
 
+            wdl_module.train()

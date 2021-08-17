@@ -6,7 +6,6 @@ class OFRecordDataLoader(nn.Module):
     def __init__(
         self,
         FLAGS,
-        batch_size: int = 32,  
         data_root: str = "./ofrecord",
         data_part_num: int = 256,
         part_name_suffix_length: int = 5,
@@ -22,13 +21,13 @@ class OFRecordDataLoader(nn.Module):
             num_dataloader_thread = FLAGS.num_dataloader_thread_per_gpu * FLAGS.gpu_num_per_node
             self.devices = ['{}:0-{}'.format(i, num_dataloader_thread - 1) for i in range(FLAGS.num_nodes)]
 
-        self.batch_size = batch_size
+        self.batch_size = FLAGS.batch_size
         shuffle = mode == "train"
         # shuffle = False 
         # with flow.scope.placement("cpu", self.devices):
         self.reader = nn.OfrecordReader(
             os.path.join(data_root, mode),
-            batch_size=batch_size,
+            batch_size=FLAGS.batch_size,
             data_part_num=data_part_num,
             part_name_suffix_length=part_name_suffix_length,
             random_shuffle=shuffle,

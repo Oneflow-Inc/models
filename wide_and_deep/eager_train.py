@@ -12,7 +12,6 @@ from util import dump_to_npy, save_param_npy
 
 
 if __name__ == '__main__':
-    flow.InitEagerGlobalSession()
 
     args = get_args()
 
@@ -43,10 +42,10 @@ if __name__ == '__main__':
     wdl_module.train()
     for i in range(args.max_iter):
         labels, dense_fields, wide_sparse_fields, deep_sparse_fields = train_dataloader()
-        dump_to_npy(labels, sub=i)
-        dump_to_npy(dense_fields, sub=i)
-        dump_to_npy(wide_sparse_fields, sub=i)
-        dump_to_npy(deep_sparse_fields, sub=i)
+        #dump_to_npy(labels, sub=i)
+        #dump_to_npy(dense_fields, sub=i)
+        #dump_to_npy(wide_sparse_fields, sub=i)
+        #dump_to_npy(deep_sparse_fields, sub=i)
         labels = labels.to("cuda").to(dtype=flow.float32)
         dense_fields = dense_fields.to("cuda")
         wide_sparse_fields = wide_sparse_fields.to("cuda")
@@ -54,8 +53,8 @@ if __name__ == '__main__':
         predicts = wdl_module(
             dense_fields, wide_sparse_fields, deep_sparse_fields)
         loss = bce_loss(predicts, labels)
-        dump_to_npy(predicts, sub=i)
-        dump_to_npy(loss, sub=i)
+        #dump_to_npy(predicts, sub=i)
+        #dump_to_npy(loss, sub=i)
         losses.append(loss.numpy().mean())
         loss.backward(flow.ones_like(loss))
         of_sgd.step()
@@ -65,6 +64,8 @@ if __name__ == '__main__':
         if (i+1) % args.print_interval == 0:
             l = sum(losses) / len(losses)
             print(f"iter {i} train_loss {l} time {time.time()}")
+            #dump_to_npy(predicts, sub=i)
+            losses = []
             if args.eval_batchs <= 0:
                 continue
 
@@ -88,12 +89,11 @@ if __name__ == '__main__':
                 predicts_list.append(predicts.numpy())
             all_labels = np.concatenate(lables_list, axis=0)
             all_predicts = np.concatenate(predicts_list, axis=0)
-            print(all_labels.shape, all_predicts.shape)
-            print(np.isnan(all_predicts).any())
-            print(all_labels.flatten())
+            #print(all_labels.shape, all_predicts.shape)
+            #print(np.isnan(all_predicts).any())
+            #print(all_labels.flatten())
             auc = "NaN" if np.isnan(all_predicts).any(
             ) else roc_auc_score(all_labels, all_predicts)
             print(f"iter {i} eval_loss {eval_loss/args.eval_batchs} auc {auc}")
 
-            losses = []
             wdl_module.train()
