@@ -48,9 +48,6 @@ class LabelSmoothLoss(Module):
         self.smooth_rate = smooth_rate
     
     def forward(self, input, label):
-        print(input.shape, input.dtype)
-        print(label.shape, label.dtype)
-        print("===================")
         onehot_label = flow.F.one_hot(label, num_classes= self.num_classes, 
                                                 on_value=1-self.smooth_rate, 
                                                 off_value=self.smooth_rate/(self.num_classes-1))
