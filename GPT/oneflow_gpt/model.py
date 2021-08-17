@@ -63,7 +63,7 @@ class Embedding(flow.nn.Module):
         # word token embedding shape (vocab_size, hidden_size)
         # sbp: [B, S(0)]
         self.wte = flow.nn.Parameter(
-            flow.Tensor(
+            flow.empty(
                 (self.vocab_size, self.hidden_size),
                 dtype=dtype,
                 placement=dist.get_layer_placement(0),
@@ -74,7 +74,7 @@ class Embedding(flow.nn.Module):
         # word position embedding shape (seq_len, hidden_size)
         # sbp: [B, B]
         self.wpe = flow.nn.Parameter(
-            flow.Tensor(
+            flow.empty(
                 (self.seq_length, self.hidden_size),
                 dtype=dtype,
                 placement=dist.get_layer_placement(0),
@@ -421,7 +421,7 @@ class LayerNorm(flow.nn.Module):
         self.epsilon = eps
 
         self.beta = flow.nn.Parameter(
-            flow.Tensor(
+            flow.empty(
                 normalized_shape,
                 dtype=dtype,
                 placement=dist.get_layer_placement(layer_idx),
@@ -431,7 +431,7 @@ class LayerNorm(flow.nn.Module):
         flow.nn.init.zeros_(self.beta)
 
         self.gamma = flow.nn.Parameter(
-            flow.Tensor(
+            flow.empty(
                 normalized_shape,
                 dtype=dtype,
                 placement=dist.get_layer_placement(layer_idx),
@@ -455,7 +455,7 @@ class LayerNorm(flow.nn.Module):
         return y
 
 
-class ColumnParallelLinear(flow.nn.module):
+class ColumnParallelLinear(flow.nn.Module):
     def __init__(
         self, layer_idx, input_size, output_size, dtype, init_method, need_gelu=False
     ):
@@ -467,7 +467,7 @@ class ColumnParallelLinear(flow.nn.module):
 
         # col parallel linear weight sbp: [B, S(1)]
         self.weight = flow.nn.Parameter(
-            flow.Tensor(
+            flow.empty(
                 (input_size, output_size),
                 dtype=dtype,
                 placement=dist.get_layer_placement(layer_idx),
@@ -478,7 +478,7 @@ class ColumnParallelLinear(flow.nn.module):
 
         # col parallel linear bias sbp: [B, S(0)]
         self.bias = flow.nn.Parameter(
-            flow.Tensor(
+            flow.empty(
                 (output_size,),
                 dtype=dtype,
                 placement=dist.get_layer_placement(layer_idx),
@@ -523,7 +523,7 @@ class RowParallelLinear(flow.nn.Module):
 
         # col parallel linear weight sbp: [B, S(0)]
         self.weight = flow.nn.Parameter(
-            flow.Tensor(
+            flow.empty(
                 (input_size, output_size),
                 dtype=dtype,
                 placement=dist.get_layer_placement(layer_idx),
@@ -534,7 +534,7 @@ class RowParallelLinear(flow.nn.Module):
 
         # col parallel linear bias sbp: [B, B]
         self.bias = flow.nn.Parameter(
-            flow.Tensor(
+            flow.empty(
                 (output_size,),
                 dtype=dtype,
                 placement=dist.get_layer_placement(layer_idx),
