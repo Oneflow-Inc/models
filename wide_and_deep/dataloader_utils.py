@@ -2,6 +2,7 @@ import os
 import oneflow as flow
 import oneflow.nn as nn
 
+
 class OFRecordDataLoader(nn.Module):
     def __init__(
         self,
@@ -16,14 +17,19 @@ class OFRecordDataLoader(nn.Module):
         self.num_dataloader_thread_per_gpu = FLAGS.num_dataloader_thread_per_gpu
 
         if FLAGS.use_single_dataloader_thread:
-            self.devices = ['{}:0'.format(i) for i in range(FLAGS.num_nodes)]
+            self.devices = ["{}:0".format(i) for i in range(FLAGS.num_nodes)]
         else:
-            num_dataloader_thread = FLAGS.num_dataloader_thread_per_gpu * FLAGS.gpu_num_per_node
-            self.devices = ['{}:0-{}'.format(i, num_dataloader_thread - 1) for i in range(FLAGS.num_nodes)]
+            num_dataloader_thread = (
+                FLAGS.num_dataloader_thread_per_gpu * FLAGS.gpu_num_per_node
+            )
+            self.devices = [
+                "{}:0-{}".format(i, num_dataloader_thread - 1)
+                for i in range(FLAGS.num_nodes)
+            ]
 
         self.batch_size = FLAGS.batch_size
         shuffle = mode == "train"
-        # shuffle = False 
+        # shuffle = False
         # with flow.scope.placement("cpu", self.devices):
         self.reader = nn.OfrecordReader(
             os.path.join(data_root, mode),
@@ -36,10 +42,17 @@ class OFRecordDataLoader(nn.Module):
 
         def _blob_decoder(bn, shape, dtype=flow.int32):
             return nn.OfrecordRawDecoder(bn, shape=shape, dtype=dtype)
+
         self.labels = _blob_decoder("labels", (1,))
-        self.dense_fields = _blob_decoder("dense_fields", (FLAGS.num_dense_fields,), flow.float)
-        self.wide_sparse_fields = _blob_decoder("wide_sparse_fields", (FLAGS.num_wide_sparse_fields,))
-        self.deep_sparse_fields = _blob_decoder("deep_sparse_fields", (FLAGS.num_deep_sparse_fields,))
+        self.dense_fields = _blob_decoder(
+            "dense_fields", (FLAGS.num_dense_fields,), flow.float
+        )
+        self.wide_sparse_fields = _blob_decoder(
+            "wide_sparse_fields", (FLAGS.num_wide_sparse_fields,)
+        )
+        self.deep_sparse_fields = _blob_decoder(
+            "deep_sparse_fields", (FLAGS.num_deep_sparse_fields,)
+        )
 
     def forward(self):
         reader = self.reader()
@@ -51,12 +64,14 @@ class OFRecordDataLoader(nn.Module):
         # return flow.identity_n([labels, dense_fields, wide_sparse_fields, deep_sparse_fields])
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     from config import get_args
 
     FLAGS = get_args()
-    
-    dataloader = OFRecordDataLoader(FLAGS, data_root="/dataset/wdl_ofrecord/ofrecord")#, mode='val')
+
+    dataloader = OFRecordDataLoader(
+        FLAGS, data_root="/dataset/wdl_ofrecord/ofrecord"
+    )  # , mode='val')
     for i in range(10):
         labels, dense_fields, wide_sparse_fields, deep_sparse_fields = dataloader()
         # print("iter ", i)
