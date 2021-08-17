@@ -63,7 +63,7 @@ class DiscriminatorTrainGraph(flow.nn.Graph):
             super().__init__()
             self.discriminator = d
             self.generator = g
-            self.add_optimizer("Adam_D", optimizer)
+            self.add_optimizer(optimizer)
             self.of_cross_entropy = loss
         
         def build(self, images, label1, label0, z):
@@ -97,7 +97,7 @@ class GeneratorTrainGraph(flow.nn.Graph):
         super().__init__()
         self.discriminator = d
         self.generator = g
-        self.add_optimizer("Adam_D", optimizer)
+        self.add_optimizer(optimizer)
         self.of_cross_entropy = loss
 
     def build(self, label1, z):
