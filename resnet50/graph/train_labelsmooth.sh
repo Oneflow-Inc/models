@@ -16,6 +16,8 @@ MOM=0.9
 EPOCH=20
 TRAIN_BATCH_SIZE=16
 VAL_BATCH_SIZE=16
+NUM_CLASSES=1000
+LABEL_SMOOTH_RATE=0.1
 #LOAD_CHECKPOINT="path/to/your_pretrain_model" # LOAD PREVIOUS CHECKPOINT 
 
 python3 graph/train_labelsmooth.py \
@@ -26,4 +28,6 @@ python3 graph/train_labelsmooth.py \
     --epochs $EPOCH \
     --train_batch_size $TRAIN_BATCH_SIZE \
     --val_batch_size $VAL_BATCH_SIZE \
+    --num_classes $NUM_CLASSES \
+    --label_smooth_rate $LABEL_SMOOTH_RATE
     #--load_checkpoint $LOAD_CHECKPOINT

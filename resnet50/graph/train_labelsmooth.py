@@ -10,7 +10,6 @@ sys.path.append(".")
 from models.resnet50 import resnet50
 from utils.ofrecord_data_utils import OFRecordDataLoader
 
-
 def _parse_args():
     parser = argparse.ArgumentParser("flags for train resnet50")
     parser.add_argument(
@@ -36,22 +35,28 @@ def _parse_args():
     )
     parser.add_argument("--val_batch_size", type=int, default=32, help="val batch size")
 
+    parser.add_argument("--num_classes", type=int, default=1000, help="number of class")
+    parser.add_argument("--label_smooth_rate", type=float, default=0.0, help="val batch size")
+
+
     return parser.parse_args()
 
-def one_hot(target, classes=1000, smooth_rate=0.1):
-    label = np.zeros((target.numpy().shape[0], classes)).astype("float32") + smooth_rate / (classes - 1.)
-    for k,class_idx in enumerate(target):
-        label[k, class_idx.numpy()] = 1 - smooth_rate
-    return flow.tensor(label)
-
 class LabelSmoothLoss(Module):
-    def __init__(self,) -> None:
+    def __init__(self, num_classes=-1, smooth_rate=0.0) -> None:
         super().__init__()
+        self.num_classes = num_classes
+        self.smooth_rate = smooth_rate
     
     def forward(self, input, label):
-        assert label.size() == input.size()
+        print(input.shape, input.dtype)
+        print(label.shape, label.dtype)
+        print("===================")
+        onehot_label = flow.F.one_hot(label, num_classes= self.num_classes, 
+                                                on_value=1-self.smooth_rate, 
+                                                off_value=self.smooth_rate/(self.num_classes-1))
         log_prob = input.softmax(dim=-1).log()
-        loss = flow.mul(log_prob * -1, label).sum(dim=-1).mean()
+        onehot_label = onehot_label.to(log_prob.dtype).to("cuda")
+        loss = flow.mul(log_prob * -1, onehot_label).sum(dim=-1).mean()
         return loss
 
 def main(args):
@@ -80,10 +85,10 @@ def main(args):
     print("init time : {}".format(end_t - start_t))
 
     # of_cross_entropy = flow.nn.CrossEntropyLoss()
-    of_cross_entropy = LabelSmoothLoss()
+    of_loss = LabelSmoothLoss(num_classes=args.num_classes, smooth_rate=args.label_smooth_rate)
 
     resnet50_module.to("cuda")
-    of_cross_entropy.to("cuda")
+    of_loss.to("cuda")
 
     of_sgd = flow.optim.SGD(
         resnet50_module.parameters(), lr=args.learning_rate, momentum=args.mom
@@ -93,16 +98,16 @@ def main(args):
         def __init__(self):
             super().__init__()
             self.resnet50 = resnet50_module
-            self.cross_entropy = of_cross_entropy
-            self.add_optimizer("sgd", of_sgd)
-            # self.train_data_loader = train_data_loader
+            self.of_loss = of_loss
+            # self.add_optimizer("sgd", of_sgd)
+            self.add_optimizer(of_sgd)
+            self.train_data_loader = train_data_loader
         
-        def build(self, image, label):
-            # image, label = self.train_data_loader()
+        def build(self):
+            image, label = self.train_data_loader()
             image = image.to("cuda")
-            label = label.to("cuda")
             logits = self.resnet50(image)
-            loss = self.cross_entropy(logits, label)
+            loss = self.of_loss(logits, label)
             loss.backward()
             return loss
 
@@ -112,10 +117,10 @@ def main(args):
         def __init__(self):
             super().__init__()
             self.resnet50 = resnet50_module
-            # self.val_data_loader = val_data_loader
+            self.val_data_loader = val_data_loader
         
-        def build(self, image, label):
-            # image, label = self.val_data_loader()
+        def build(self,):
+            image, label = self.val_data_loader()
             image = image.to("cuda")
             label = label.to("cuda")
             with flow.no_grad():
@@ -135,11 +140,9 @@ def main(args):
 
         for b in range(len(train_data_loader)):
             # oneflow graph train
-            image, label = train_data_loader()
-            one_hot_label = one_hot(label, classes=1000, smooth_rate=0.1)
             start_t = time.time()
 
-            loss = resnet50_graph(image, one_hot_label)
+            loss = resnet50_graph()
 
             end_t = time.time()
             if b % print_interval == 0:
@@ -156,9 +159,8 @@ def main(args):
         resnet50_module.eval()
         correct_of = 0.0
         for b in range(len(val_data_loader)):
-            image, label = val_data_loader()
             start_t = time.time()
-            predictions, label = resnet50_eval_graph(image, label)
+            predictions, label = resnet50_eval_graph()
             of_predictions = predictions.numpy()
             clsidxs = np.argmax(of_predictions, axis=1)
 
