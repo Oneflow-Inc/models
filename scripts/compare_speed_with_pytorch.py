@@ -36,6 +36,7 @@ def test(
     disable_backward=False,
     times=DEFAULT_TIMES,
     no_verbose=False,
+    ddp=False,
 ):
     framework_name = "OneFlow" if test_oneflow else "PyTorch"
     if test_oneflow:
@@ -65,12 +66,28 @@ def test(
             python_module = import_file(f.name)
 
         import torch
+
+        if ddp:
+            import torch.distributed as dist
+            local_rank_env_var = os.getenv("LOCAL_RANK")
+            assert local_rank_env_var is not None
+            rank = int(local_rank_env_var)
+            torch.cuda.set_device(rank)
+
+            dist.init_process_group(backend="nccl", init_method="env://")
+
     Net = getattr(python_module, module_name)
 
     warmup_times = 5
 
     m = Net()
     m = m.to("cuda")
+
+    if ddp:
+        if test_oneflow:
+            m = torch.nn.parallel.DistributedDataParallel(m)
+        else:
+            m = torch.nn.parallel.DistributedDataParallel(m, device_ids=[rank])
 
     def run_model(m, x):
         if disable_backward:
@@ -106,6 +123,10 @@ def test(
         print(
             f"{framework_name} {module_name} time: {time_per_run_ms:.1f}ms (= {total_time_ms:.1f}ms / {times}, input_shape={input_shape}, backward is {'disabled' if disable_backward else 'enabled'})"
         )
+    if ddp and not test_oneflow:
+        import torch.distributed as dist
+        dist.destroy_process_group()
+
     return time_per_run_ms
 
 
@@ -117,6 +138,7 @@ if __name__ == "__main__":
     parser.add_argument("--times", type=int, default=DEFAULT_TIMES)
     parser.add_argument("--disable-backward", action="store_true")
     parser.add_argument("--no-verbose", action="store_true")
+    parser.add_argument("--ddp", action="store_true")
 
     args = parser.parse_args()
     input_shape = list(map(int, args.input_shape.split("x")))
@@ -131,6 +153,7 @@ if __name__ == "__main__":
         disable_backward=args.disable_backward,
         times=args.times,
         no_verbose=args.no_verbose,
+        ddp=args.ddp,
     )
 
     test_oneflow = True
@@ -141,6 +164,7 @@ if __name__ == "__main__":
         disable_backward=args.disable_backward,
         times=args.times,
         no_verbose=args.no_verbose,
+        ddp=args.ddp,
     )
     relative_speed = pytorch_time / oneflow_time
     if args.no_verbose:
