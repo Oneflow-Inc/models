@@ -7,77 +7,52 @@ from oneflow_gpt.config import get_args
 
 
 class GPTModel(flow.nn.Module):
-    def __init__(self, name):
-        self.name = name
-
+    def __init__(self):
+        super().__init__()
         args = get_args()
         self.batch_size = args.global_batch_size // args.num_accumulation_steps
         self.seq_length = args.seq_length
         self.hidden_size = args.hidden_size
-        self.vocab_size = args.padded_vocab_size
+
+        if args.fp16:
+            dtype = flow.float16
+        else:
+            dtype = flow.float32
 
         self.embedding = Embedding(
-            self.batch_size, self.seq_length, self.hidden_size, self.vocab_size
+            self.seq_length, self.hidden_size, args.padded_vocab_size, dtype
         )
-        self.transformer = Transformer(
-            self.batch_size, self.seq_length, self.hidden_size
-        )
+        self.transformer = Transformer(self.hidden_size, dtype)
 
     def forward(self, tokens):
-        """
-        tokens shape: (batch_size, seq_length), sbp: [S(0), B]
-        """
-        assert len(tokens.shape) == 2
+        # tokens shape: (batch_size, seq_length)
+        # sbp: [S(0), B]
+        assert tokens.ndim == 2
         assert tokens.shape[0] == self.batch_size
         assert tokens.shape[1] == self.seq_length
 
-        hidden_states, token_embeddings = self.embedding(tokens)
+        hidden_states = self.embedding(tokens)
         h = self.transformer(hidden_states)
-        lgs = self.logits(h, token_embeddings)
+        return self.logits(h)
 
-        return lgs
-
-    def logits(self, hidden_states, token_embeddings):
-        """
-        shape sig: (batch_size * seq_length, hidden_size) x (hidden_size, vocab_size)(transposed)
-            -> (batch_size * seq_length, vocab_size)
-        dp sbp sig: S(0) x B -> S(0)
-        2d sbp sig: [S(0), B] x [B, S(1)](transposed) -> [S(0), S(1)]
-        """
-        assert len(hidden_states.shape) == 3
+    def logits(self, hidden_states):
+        assert hidden_states.ndim == 3
         assert np.prod(hidden_states.shape[0:2]) == self.batch_size * self.seq_length
         assert hidden_states.shape[-1] == self.hidden_size
-        assert len(token_embeddings.shape) == 2
-        assert token_embeddings.shape[0] == self.vocab_size
-        assert token_embeddings.shape[1] == self.hidden_size
 
-        if (
-            hidden_states.shape[0] == self.seq_length
-            and hidden_states.shape[1] == self.batch_size
-        ):
-            # [s, b, H] -> [b, s, H]
-            h = flow.transpose(hidden_states, [1, 0, 2])
-        elif (
-            hidden_states.shape[0] == self.batch_size
-            and hidden_states.shape[1] == self.seq_length
-        ):
-            h = hidden_states
-        else:
-            raise ValueError(f"invalid hidden states shape {hidden_states.shape}")
-
-        # [s, b, H] or [b, s, H] -> [b * s, H]
-        h = flow.flatten(h, start_dim=0, end_dim=1)
-        # 2d sbp sig: [S(0), B] x [B, S(1)](transposed) -> [S(0), S(1)]
-        # grad 2d sbp sig: [S(0), S(1)] x [B, S(0)] -> [S(0), P] -> [S(0), B]
-        h = distribute.backward_p2b_parallel_cast(h)
-        lgs = flow.matmul(h, token_embeddings, transpose_b=True)
-
+        h = hidden_states.flatten(0, 1)
+        # h.grad.sbp: [S(0), P] -> [S(0), B]
+        h = h.to_consistent(grad_sbp=h.sbp)
+        # shape sign: (B * S, H) x (H, V) -> (B * S, V)
+        # matmul fwd sbp sign: [S(0), B] x [B, S(1)] (wte.T) -> [S(0), S(1)]
+        # bwd h.grad sbp sign: [S(0), S(1)] (lgs.grad) x [B, S(0)] (wte) -> [S(0), P] (h.grad)
+        lgs = flow.F.matmul(h, self.embedding.wte, transpose_b=True)
         return lgs
 
 
 class Embedding(flow.nn.Module):
-    def __init__(self, batch_size, seq_length, hidden_size, vocab_size):
-        self.batch_size = batch_size
+    def __init__(self, seq_length, hidden_size, vocab_size, dtype):
+        super().__init__()
         self.seq_length = seq_length
         self.hidden_size = hidden_size
         self.vocab_size = vocab_size
@@ -90,8 +65,9 @@ class Embedding(flow.nn.Module):
         self.wte = flow.nn.Parameter(
             flow.Tensor(
                 (self.vocab_size, self.hidden_size),
-                placement=dist.get_wte_placement(),
-                sbp=dist.get_nd_sbp(),
+                dtype=dtype,
+                placement=dist.get_layer_placement(0),
+                sbp=dist.get_nd_sbp([flow.sbp.broadcast, flow.sbp.split(0)]),
             )
         )
 
@@ -100,142 +76,156 @@ class Embedding(flow.nn.Module):
         self.wpe = flow.nn.Parameter(
             flow.Tensor(
                 (self.seq_length, self.hidden_size),
-                placement=dist.get_wpe_placement(),
-                sbp=dist.get_nd_sbp(["S(0)", "B"]),
+                dtype=dtype,
+                placement=dist.get_layer_placement(0),
+                sbp=dist.get_nd_sbp([flow.sbp.broadcast, flow.sbp.broadcast]),
             )
         )
 
         flow.nn.init.normal_(self.wte)
         flow.nn.init.normal_(self.wpe)
 
-        self.use_fp16 = args.fp16
-
     def forward(self, tokens):
-        # tokens shape: (batch_size, seq_len), sbp: [S(0), B]
+        # tokens shape: (batch_size, seq_len)
+        # sbp: [S(0), B]
         assert tokens.ndim == 2
-        assert tokens.shape[0] == self.batch_size
-        assert tokens.shape[1] == self.seq_length
+        assert tokens.shape[-1] == self.seq_length
 
-        # [P, S(0)] (wte.grad) -> [B, (0)] (wte.grad)
+        # wte.grad: [P, S(0)]  -> [B, S(0)]
         wte = self.wte.to_consistent(grad_sbp=self.wte.sbp)
-        # gather forward sbp signature: [B, S(0)] x [S(0), B] -> [S(0), P]
-        # backward sbp signature:
+        # gather forward sbp sign: [B, S(0)] x [S(0), B] -> [S(0), P]
+        # backward sbp sign:
         # [S(0), B] (h.grad) x [S(0), B] (tokens) x [B, S(0)] (wte) -> [P, S(0)] (wte.grad)
         h = flow.F.gather(wte, tokens)
         # hidden_states shape: (batch_size, sel_len, hidden_size)
-        # [S(0), P] (hidden_states) -> [S(0), B] (hidden_states)
-        h = h.to_consistent(sbp=dist.get_activation_sbp())
+        # hidden_states: [S(0), P] -> [S(0), B]
+        h = h.to_consistent(sbp=dist.get_hidden_sbp())
         # (h + self.wpe) will apply broadcast_add,
-        # shape: (batch_size, sel_len, hidden_size) + (sel_len, hidden_size)
+        # shape sign: (batch_size, sel_len, hidden_size) + (sel_len, hidden_size)
         #         -> (batch_size, sel_len, hidden_size)
-        # sbp: [S(0), B] + [B, B] -> [S(0), B]
-        return self.dropout(h + self.wpe), self.wte
+        # sbp sign: [S(0), B] + [B, B] -> [S(0), B]
+        return self.dropout(h + self.wpe)
+
+
+def init_method_normal(sigma):
+    """Init method based on N(0, sigma)."""
+
+    def init_(tensor):
+        return flow.nn.init.normal_(tensor, mean=0.0, std=sigma)
+
+    return init_
+
+
+def scaled_init_method_normal(sigma, num_layers):
+    """Init method based on N(0, sigma/sqrt(2*num_layers)."""
+    std = sigma / math.sqrt(2.0 * num_layers)
+
+    def init_(tensor):
+        return flow.nn.init.normal_(tensor, mean=0.0, std=std)
+
+    return init_
 
 
 class Transformer(object):
-    def __init__(self, batch_size, seq_length, hidden_size):
-        self.batch_size = batch_size
-        self.seq_length = seq_length
+    def __init__(self, hidden_size, dtype):
+        super().__init__()
         self.hidden_size = hidden_size
 
         args = get_args()
-        self.multihead_attention_fusion = args.multihead_attention_fusion
+        self.is_seq_len_dim_leading = True if args.multihead_attention_fusion else False
         self.num_layers = args.num_layers
         self.layers = []
         for i in range(self.num_layers):
-            self.layers.append(
-                TransformerLayer(
-                    f"h{i}",
-                    i + 1,
-                    batch_size,
-                    seq_length,
-                    hidden_size,
-                    initializer=flow.random_normal_initializer(
-                        stddev=args.init_method_std
-                    ),
-                    output_layer_initializer=flow.random_normal_initializer(
-                        stddev=(args.init_method_std / math.sqrt(2.0 * self.num_layers))
-                    ),
-                )
+            t_layer = TransformerLayer(
+                i,
+                hidden_size,
+                self.is_seq_len_dim_leading,
+                dtype,
+                init_method=init_method_normal(args.init_method_std),
+                output_layer_init_method=scaled_init_method_normal(
+                    args.init_method_std
+                ),
             )
+            self.layers.append(t_layer)
+
+        self.layernorm_f = LayerNorm(-1, (self.hidden_size,), dtype)
 
     def forward(self, hidden_states):
         # hidden_states shape: (batch_size, seq_length, hidden_size)
         # sbp: [S(0), B]
         assert hidden_states.ndim == 3
-        assert hidden_states.shape[0] == self.batch_size
-        assert hidden_states.shape[1] == self.seq_length
-        assert hidden_states.shape[2] == self.hidden_size
+        assert hidden_states.shape[-1] == self.hidden_size
 
-        h = hidden_states
+        if self.is_seq_len_dim_leading:
+            h = hidden_states.transpose(0, 1)
+        else:
+            h = hidden_states
+
         for i in range(self.num_layers):
             h = self.layers[i](h)
 
-        h = layernorm("layernorm_f", h)
+        h = self.layernorm_f(h)
 
-        return layernorm("layernorm_f", h)
+        assert h.ndim == 3
+        if self.is_seq_len_dim_leading:
+            h = h.transpose(0, 1)
+
+        return h
 
 
-class TransformerLayer(object):
+class TransformerLayer(flow.nn.Module):
     def __init__(
         self,
-        name,
-        layer_id,
-        batch_size,
-        seq_length,
+        layer_idx,
         hidden_size,
-        initializer=None,
-        output_layer_initializer=None,
+        is_seq_len_dim_leading,
+        dtype,
+        init_method,
+        output_layer_init_method,
     ):
-        self.name = name
-        self.layer_id = layer_id
-        self.batch_size = batch_size
-        self.seq_length = seq_length
+        super().__init__()
+        self.layer_idx = layer_idx
         self.hidden_size = hidden_size
 
         args = get_args()
         self.attn = SelfAttention(
-            layer_id,
-            batch_size,
-            seq_length,
+            layer_idx,
             hidden_size,
+            is_seq_len_dim_leading,
+            dtype,
             args.hidden_dropout,
-            initializer,
-            output_layer_initializer,
+            init_method,
+            output_layer_init_method,
         )
         self.mlp = MLP(
-            batch_size,
-            seq_length,
+            layer_idx,
             hidden_size,
+            dtype,
             args.hidden_dropout,
-            initializer,
-            output_layer_initializer,
+            init_method,
+            output_layer_init_method,
         )
 
         self.checkpoint_activations = args.checkpoint_activations
 
+        self.layernorm_1 = LayerNorm(layer_idx, (self.hidden_size,), dtype)
+        self.layernorm_2 = LayerNorm(layer_idx, (self.hidden_size,), dtype)
+
     def forward(self, hidden_states):
         # hidden_states shape: (batch_size, seq_length, hidden_size)
-        # nd_sbp: [S(0), B]
+        # sbp: [S(0), B]
         assert hidden_states.ndim == 3
         assert hidden_states.shape[-1] == self.hidden_size
-        assert np.prod(hidden_states.shape[:-1]) == self.batch_size * self.seq_length
 
-        h = hidden_states
-        with flow.scope.namespace(self.name):
+        h = hidden_states.to_consistent(
+            placement=dist.get_layer_placement(self.layer_idx)
+        )
 
-            h = flow.identity(h)
-            with flow.experimental.scope.config(
-                checkpointing=self.checkpoint_activations
-            ):
-                # input layernorm
-                norm1 = layernorm("layernorm_1", h)
-                # attention
-                h = h + self.attn(norm1)
-                # output layernorm
-                norm2 = layernorm("layernorm_2", h)
-                # mlp
-                h = h + self.mlp(norm2)
+        norm1 = self.lyernorm_1(h)
+        h = h + self.attn(norm1)
+
+        norm2 = self.layernorm_2(h)
+        h = h + self.mlp(norm2)
 
         return h
 
@@ -268,7 +258,7 @@ class SelfAttention(flow.nn.Module):
         self.norm_factor = math.sqrt(float(self.head_size))
         self.coeff = 1.0
         if args.apply_query_key_layer_scaling:
-            self.coeff = float(layer_idx)
+            self.coeff = float(layer_idx + 1)
             self.norm_factor *= self.coeff
 
         self.c_attn = ColumnParallelLinear(
@@ -315,7 +305,7 @@ class SelfAttention(flow.nn.Module):
         h = h.view(*new_shape)
         q, k, v = (
             flow.F.transpose(
-                h[:, :, :, (i * self.head_size):((i + 1) * self.head_size)],
+                h[:, :, :, (i * self.head_size) : ((i + 1) * self.head_size)],
                 perm=perm,
             )
             for i in range(3)
@@ -327,12 +317,12 @@ class SelfAttention(flow.nn.Module):
         # q * k: batch_matmul
         # shape sign: (b, n, s, h) x (b, n, h, s) (k.T) -> (b, n, s, s)
         # sbp sign: [S(0), S(1)] x [S(0), S(1)] -> [S(0), S(1)]
-        qmk = flow.matmul(q, k, transpose_b=True, alpha=(1.0 / self.norm_factor))
+        qmk = flow.F.matmul(q, k, transpose_b=True, alpha=(1.0 / self.norm_factor))
         qmk = self.tril_softmax_dropout(qmk)
         # w * v: batch_matmul
         # shape sign: (b, n, s, s) x (b, n, s, h) -> (b, n, s, h)
         # sbp sign: [S(0), S(1)] x [S(0), S(1)] -> [S(0), S(1)]
-        return flow.matmul(qmk, v)
+        return flow.F.matmul(qmk, v)
 
     def tril_softmax_dropout(self, x):
         if self.scale_tril_softmax_dropout_fusion:
@@ -344,9 +334,7 @@ class SelfAttention(flow.nn.Module):
                 rate=self.attention_dropout_rate,
             )
         else:
-            x = flow.F.fused_scale_tril(
-                x, fill_value=float("-inf"), scale=self.coeff,
-            )
+            x = flow.F.fused_scale_tril(x, fill_value=float("-inf"), scale=self.coeff,)
             x = flow.F.softmax(x)
             x = self.multihead_attn_dropout(x)
 
@@ -357,7 +345,7 @@ class SelfAttention(flow.nn.Module):
             h, head_size=self.head_size, alpha=(1.0 / self.norm_factor)
         )
         qmk = self.tril_softmax_dropout(qmk)
-        return flow.matmul(qmk, v)
+        return flow.F.matmul(qmk, v)
 
     def forward(self, hidden_states):
         # hidden_states shape: (batch_size, seq_len, hidden_size)
@@ -570,54 +558,25 @@ class RowParallelLinear(flow.nn.Module):
         return x
 
 
-class ParallelSparseSoftmaxCrossEntropyLoss(object):
-    def __init__(self, name="loss"):
-        self.name = name
-
+class ParallelSparseSoftmaxCrossEntropyLoss(flow.nn.Module):
+    def __init__(self):
+        super().__init__()
         args = get_args()
         self.batch_size = args.global_batch_size // args.num_accumulation_steps
-        self.seq_length = args.seq_length
-        self.vocab_size = args.padded_vocab_size
 
     def __call__(self, logits, labels):
-        """
-        logits shape: (batch_size * seq_length, vocab_size)
-        logits dp sbp: S(0)
-        logits 2d sbp: [S(0), S(1)]
-        labels shape: (batch_size, seq_length)
-        labels dp sbp: S(0)
-        labels 2d sbp: [S(0), B]
-        """
-        assert len(logits.shape) == 3 or len(logits.shape) == 2
-        if len(logits.shape) == 3:
-            assert logits.shape[0] == self.batch_size
-            assert logits.shape[1] == self.seq_length
-            assert logits.shape[2] == self.vocab_size
-        elif len(logits.shape) == 2:
-            assert logits.shape[0] == self.batch_size * self.seq_length
-            assert logits.shape[1] == self.vocab_size
-        else:
-            raise ValueError(f"invalid logits shape {logits.shape}")
+        # logits shape: (batch_size, seq_length, vocab_size)
+        # sbp: [S(0), S(2)]
+        # labels shape: (batch_size, seq_length)
+        # sbp: [S(0), B]
+        assert logits.ndim == 3
+        assert labels.ndim == 2
+        assert logits.shape[0] == self.batch_size
+        assert logits.shape[1:] == labels.shape
 
-        assert len(labels.shape) == 2
-        assert labels.shape[0] == self.batch_size
-        assert labels.shape[1] == self.seq_length
+        loss = flow.F.sparse_softmax_cross_entropy_with_logits(labels, logits)
 
-        with flow.scope.namespace(self.name):
-            with distribute.layer_placement_scope(-1):
-                if len(logits.shape) == 2:
-                    labels = flow.flatten(labels)
+        # if not logits.has_s1_sbp and logits.is_half_dtype:
+        #     loss = flow.amp_white_identity(loss)
 
-                if distribute.get_dist_util().tensor_model_parallel_size > 1:
-                    loss = flow.nn.distributed_sparse_softmax_cross_entropy_with_logits(
-                        labels, logits
-                    )
-                else:
-                    loss = flow.nn.sparse_softmax_cross_entropy_with_logits(
-                        labels, logits
-                    )
-                    loss = flow.amp_white_identity(loss)
-
-                loss = flow.math.reduce_mean(loss)
-
-        return loss
+        return loss.reduce_mean()
