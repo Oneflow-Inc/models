@@ -382,6 +382,7 @@ class MLP(flow.nn.Module):
         init_method,
         output_layer_init_method,
     ):
+        super().__init__()
         self.hidden_size = hidden_size
 
         self.c_fc = ColumnParallelLinear(
