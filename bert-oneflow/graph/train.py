@@ -179,8 +179,6 @@ def main():
     bert_module = BERT(
         args.vocab_size, hidden=args.hidden, n_layers=args.layers, attn_heads=args.attn_heads
     )
-    bert_module.to(device)
-
     bert_model = BERTLM(bert_module, args.vocab_size)
     bert_model.to(device)
 

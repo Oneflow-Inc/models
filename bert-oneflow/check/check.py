@@ -1,51 +1,26 @@
 import argparse
 import time
+
 import numpy as np
-
 import oneflow as flow
-from oneflow import nn
-from oneflow.utils.data import DataLoader
-
-from utils.reporter import Reporter
-from dataset.dataset import BERTDataset
-from dataset.vocab import WordVocab
 from model.bert import BERT
 from model.language_model import BERTLM
+from oneflow import nn
+from utils.ofrecord_data_utils import OfRecordDataLoader
+from utils.reporter import Reporter
 
 
 def _parser_args():
     parser = argparse.ArgumentParser("Flags for bert training")
 
     parser.add_argument(
-        "-c",
-        "--train_dataset",
-        required=False,
-        type=str,
-        default="data/corpus.small",
-        help="train dataset for train bert",
+        "--ofrecord-path", type=str, default="ofrecord", help="Path to ofrecord dataset"
     )
     parser.add_argument(
-        "-t",
-        "--test_dataset",
-        type=str,
-        default="data/corpus.small",
-        help="test set for evaluate train set",
+        "--train-batch-size", type=int, default=16, help="Training batch size"
     )
     parser.add_argument(
-        "-v",
-        "--vocab_path",
-        required=False,
-        default="data/vocab.small",
-        type=str,
-        help="built vocab model path with bert-vocab",
-    )
-    parser.add_argument(
-        "-o",
-        "--output_path",
-        required=False,
-        default="output/bert.model",
-        type=str,
-        help="ex)output/bert.model",
+        "--val-batch-size", type=int, default=16, help="Validation batch size"
     )
 
     parser.add_argument(
@@ -61,9 +36,11 @@ def _parser_args():
         "-a", "--attn_heads", type=int, default=8, help="number of attention heads"
     )
     parser.add_argument(
-        "-s", "--seq_len", type=int, default=20, help="maximum sequence len"
+        "-s", "--seq_len", type=int, default=128, help="maximum sequence len"
     )
-
+    parser.add_argument(
+        "--vocab-size", type=int, default=30522, help="Total number of vocab"
+    )
     parser.add_argument(
         "-b", "--batch_size", type=int, default=16, help="number of batch_size"
     )
@@ -110,11 +87,7 @@ def _parser_args():
     return parser.parse_args()
 
 
-def save_model():
-    pass
-
-
-def train(epoch, iter_per_epoch, data_iter, graph_model, eager_model,
+def train(epoch, iter_per_epoch, data_loader, graph_model, eager_model,
           criterion, eager_optim, print_interval, device):
     eager_losses = []
     graph_losses = []
@@ -127,22 +100,33 @@ def train(epoch, iter_per_epoch, data_iter, graph_model, eager_model,
     for i in range(iter_per_epoch):
 
         # Get input data
-        bert_input, segment_label, is_next, bert_label = next(data_iter)
-
+        input_ids, next_sent_labels, input_masks, segment_ids, masked_lm_ids, \
+            masked_lm_positions, masked_lm_weights = data_loader()
         # Move data to specified device
-        bert_input = bert_input.to(device=device)
-        segment_label = segment_label.to(device=device)
-        is_next = is_next.to(device=device)
-        bert_label = bert_label.to(device=device)
+        input_ids = input_ids.to(device=device)
+        input_masks = input_masks.to(device=device)
+        segment_ids = segment_ids.to(device=device)
+        next_sent_labels = next_sent_labels.to(device=device)
+        masked_lm_ids = masked_lm_ids.to(device=device)
+        masked_lm_positions = masked_lm_positions.to(device=device)
 
         eager_start_time = time.time()
         # Eager forward + backward
         eager_sent_output, mask_lm_output = eager_model(
-            bert_input, segment_label)
+            input_ids, input_masks, segment_ids)
 
-        next_loss = criterion(eager_sent_output, is_next)
-        mask_loss = criterion(mask_lm_output.transpose(1, 2), bert_label)
-        eager_loss = next_loss + mask_loss
+        ns_loss = criterion(eager_sent_output, next_sent_labels.squeeze(1))
+
+        mask_lm_output = flow.gather(mask_lm_output, index=masked_lm_positions.unsqueeze(
+            2).repeat(1, 1, args.vocab_size), dim=1)
+        mask_lm_output = flow.reshape(
+            mask_lm_output, [-1, args.vocab_size])
+
+        label_id_blob = flow.reshape(masked_lm_ids, [-1])
+
+        # 2-2. NLLLoss of predicting masked token word
+        lm_loss = criterion(mask_lm_output, label_id_blob)
+        eager_loss = ns_loss + lm_loss
 
         eager_loss.backward()
         eager_optim.step()
@@ -155,20 +139,22 @@ def train(epoch, iter_per_epoch, data_iter, graph_model, eager_model,
         graph_start_time = time.time()
         # Graph forward + backward
         graph_sent_output, graph_loss = graph_model(
-            bert_input, segment_label, is_next, bert_label)
+            input_ids, next_sent_labels, input_masks, segment_ids, masked_lm_ids, masked_lm_positions)
 
         graph_loss = graph_loss.numpy().item()
         graph_end_time = time.time()
 
-        total_element += is_next.nelement()
+        total_element += next_sent_labels.nelement()
         # next sentence prediction accuracy
         eager_correct += (
-            eager_sent_output.argmax(dim=-1).eq(is_next).sum().numpy().item()
+            eager_sent_output.argmax(
+                dim=-1).eq(next_sent_labels.squeeze(1)).sum().numpy().item()
         )
         eager_losses.append(eager_loss)
 
         graph_correct += (
-            graph_sent_output.argmax(dim=-1).eq(is_next).sum().numpy().item()
+            graph_sent_output.argmax(
+                dim=-1).eq(next_sent_labels.squeeze(1)).sum().numpy().item()
         )
         graph_losses.append(graph_loss)
 
@@ -201,7 +187,7 @@ def train(epoch, iter_per_epoch, data_iter, graph_model, eager_model,
     }
 
 
-def validation(epoch, iter_per_epoch, data_iter, graph_model, eager_model, print_interval, device):
+def validation(epoch, iter_per_epoch, data_loader, graph_model, eager_model, print_interval, device):
 
     eager_times = []
     graph_times = []
@@ -212,15 +198,16 @@ def validation(epoch, iter_per_epoch, data_iter, graph_model, eager_model, print
     for i in range(iter_per_epoch):
 
         # Get input data
-        bert_input, segment_label, is_next, bert_label = next(data_iter)
-        start_t = time.time()
+        input_ids, next_sent_labels, input_masks, segment_ids, masked_lm_ids, \
+            masked_lm_positions, masked_lm_weights = data_loader()
 
-        bert_input = bert_input.to(device=device)
-        segment_label = segment_label.to(device=device)
+        input_ids = input_ids.to(device=device)
+        input_masks = input_masks.to(device=device)
+        segment_ids = segment_ids.to(device=device)
 
         eager_start_time = time.time()
         # Eager forward
-        eager_sent_output, _ = eager_model(bert_input, segment_label)
+        eager_sent_output, _ = eager_model(input_ids, input_masks, segment_ids)
 
         # Waiting for sync
         eager_sent_output = eager_sent_output.numpy()
@@ -228,19 +215,19 @@ def validation(epoch, iter_per_epoch, data_iter, graph_model, eager_model, print
 
         graph_start_time = time.time()
         # Graph forward
-        graph_sent_output = graph_model(
-            bert_input, segment_label)
+        graph_sent_output = graph_model(input_ids, input_masks, segment_ids)
 
         # Waiting for sync
         graph_sent_output = graph_sent_output.numpy()
         graph_end_time = time.time()
 
-        is_next = is_next.numpy()
-
-        total_element += is_next.size
+        total_element += next_sent_labels.nelement()
+        next_sent_labels = next_sent_labels.numpy()
         # next sentence prediction accuracy
-        eager_correct += (eager_sent_output.argmax(axis=-1) == is_next).sum()
-        graph_correct += (graph_sent_output.argmax(axis=-1) == is_next).sum()
+        eager_correct += (eager_sent_output.argmax(axis=-1)
+                          == next_sent_labels.squeeze(1)).sum()
+        graph_correct += (graph_sent_output.argmax(axis=-1)
+                          == next_sent_labels.squeeze(1)).sum()
 
         eager_times.append(eager_end_time - eager_start_time)
         graph_times.append(graph_end_time - graph_start_time)
@@ -259,7 +246,7 @@ def validation(epoch, iter_per_epoch, data_iter, graph_model, eager_model, print
         )
     )
     return {
-        "eager_acc": eager_correct * 100.0 / total_element,
+        "eager_acc": eager_correct * 100 / total_element,
         "graph_acc": graph_correct * 100 / total_element,
         "eager_times": eager_times,
         "graph_times": graph_times,
@@ -275,45 +262,24 @@ def check(args):
 
     print("Device is: ", device)
 
-    print("Loading Vocab", args.vocab_path)
-    vocab = WordVocab.load_vocab(args.vocab_path)
-    print("Vocab Size: ", len(vocab))
-
-    print("Loading Train Dataset", args.train_dataset)
-    train_dataset = BERTDataset(
-        args.train_dataset,
-        vocab,
-        seq_len=args.seq_len,
-        corpus_lines=args.corpus_lines,
-        on_memory=args.on_memory,
-    )
-
-    print("Loading Test Dataset", args.test_dataset)
-    test_dataset = (
-        BERTDataset(
-            args.test_dataset, vocab, seq_len=args.seq_len, on_memory=args.on_memory
-        )
-        if args.test_dataset is not None
-        else None
-    )
-
     print("Creating Dataloader")
-    train_data_loader = DataLoader(
-        train_dataset, batch_size=args.batch_size, num_workers=args.num_workers
+    train_data_loader = OfRecordDataLoader(
+        ofrecord_dir=args.ofrecord_path,
+        mode='train', dataset_size=1024, batch_size=args.train_batch_size, data_part_num=1, seq_length=args.seq_len,
+        max_predictions_per_seq=20,
     )
-    test_data_loader = (
-        DataLoader(
-            test_dataset, batch_size=args.batch_size, num_workers=args.num_workers
-        )
-        if test_dataset is not None
-        else None
+
+    test_data_loader = OfRecordDataLoader(
+        ofrecord_dir=args.ofrecord_path,
+        mode='test', dataset_size=1024, batch_size=args.val_batch_size, data_part_num=1, seq_length=args.seq_len,
+        max_predictions_per_seq=20,
     )
 
     print("Building BERT eager model")
     eager_module = BERT(
-        len(vocab), hidden=args.hidden, n_layers=args.layers, attn_heads=args.attn_heads
+        args.vocab_size, hidden=args.hidden, n_layers=args.layers, attn_heads=args.attn_heads
     )
-    bert_eager = BERTLM(eager_module, len(vocab))
+    bert_eager = BERTLM(eager_module, args.vocab_size)
     bert_eager.to(device)
 
     eager_optimizer = flow.optim.Adam(bert_eager.parameters(),
@@ -324,9 +290,9 @@ def check(args):
 
     print("Building BERT graph model")
     graph_module = BERT(
-        len(vocab), hidden=args.hidden, n_layers=args.layers, attn_heads=args.attn_heads
+        args.vocab_size, hidden=args.hidden, n_layers=args.layers, attn_heads=args.attn_heads
     )
-    bert_graph = BERTLM(graph_module, len(vocab))
+    bert_graph = BERTLM(graph_module, args.vocab_size)
     bert_graph.to(device)
 
     # Make sure graph module and eager module have the same initial parameters
@@ -353,24 +319,29 @@ def check(args):
             self.bert = bert_graph
             self.nll_loss = criterion
             self.add_optimizer("adam", graph_optimizer)
-            # self._train_data_iter = iter(train_data_loader)
 
-        def build(self, bert_input, segment_label, is_next, bert_label):
+        def build(self, input_ids, next_sent_labels, input_masks, segment_ids, masked_lm_ids, masked_lm_positions):
 
             # 1. forward the next_sentence_prediction and masked_lm model
             next_sent_output, mask_lm_output = self.bert(
-                bert_input, segment_label)
+                input_ids, input_masks, segment_ids)
 
             # 2-1. NLL(negative log likelihood) loss of is_next classification result
-            next_loss = self.nll_loss(next_sent_output, is_next)
+            ns_loss = self.nll_loss(
+                next_sent_output, next_sent_labels.squeeze(1))
+
+            mask_lm_output = flow.gather(mask_lm_output, index=masked_lm_positions.unsqueeze(
+                2).repeat(1, 1, args.vocab_size), dim=1)
+            mask_lm_output = flow.reshape(
+                mask_lm_output, [-1, args.vocab_size])
+
+            label_id_blob = flow.reshape(masked_lm_ids, [-1])
 
             # 2-2. NLLLoss of predicting masked token word
-            mask_loss = self.nll_loss(
-                mask_lm_output.transpose(1, 2), bert_label
-            )
+            lm_loss = self.nll_loss(mask_lm_output, label_id_blob)
 
             # 2-3. Adding next_loss and mask_loss : 3.4 Pre-training Procedure
-            loss = next_loss + mask_loss
+            loss = ns_loss + lm_loss
 
             loss.backward()
             return next_sent_output, loss
@@ -381,14 +352,13 @@ def check(args):
         def __init__(self):
             super().__init__()
             self.bert = bert_graph
-            # self._val_data_iter = iter(val_data_loader)
 
-        def build(self, bert_input, segment_label):
+        def build(self, input_ids, input_masks, segment_ids):
 
             with flow.no_grad():
                 # 1. forward the next_sentence_prediction and masked_lm model
-                next_sent_output, mask_lm_output = self.bert(
-                    bert_input, segment_label)
+                next_sent_output, _ = self.bert(
+                    input_ids, input_masks, segment_ids)
 
             return next_sent_output
 
@@ -410,9 +380,8 @@ def check(args):
         bert_eager.train()
         bert_graph.train()
 
-        train_data_iter = iter(train_data_loader)
-        train_metrics = train(epoch, len(train_data_iter),
-                              train_data_iter, bert_train_graph, bert_eager, criterion,
+        train_metrics = train(epoch, len(train_data_loader),
+                              train_data_loader, bert_train_graph, bert_eager, criterion,
                               eager_optimizer, args.print_interval, device)
 
         total_eager_losses.extend(train_metrics["eager_losses"])
@@ -426,16 +395,13 @@ def check(args):
         bert_eager.eval()
         bert_graph.eval()
 
-        test_data_iter = iter(test_data_loader)
         valid_metrics = validation(epoch, len(test_data_loader),
-                                   test_data_iter, bert_eval_graph, bert_eager, args.print_interval, device)
+                                   test_data_loader, bert_eval_graph, bert_eager, args.print_interval, device)
 
         val_eager_acc.append(valid_metrics["eager_acc"])
         val_graph_acc.append(valid_metrics["graph_acc"])
         val_eager_times.extend(valid_metrics["eager_times"])
         val_graph_times.extend(valid_metrics["graph_times"])
-
-        save_model()
 
     Reporter.save_report(
         "Bert", args.check_dir,
