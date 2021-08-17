@@ -23,7 +23,7 @@ class LSTMText(nn.Module):
         data = self.bilstm(data)
         datalist = []
         for t in range(self.batch_size):
-            data_t = data[:, t, :].reshape((1, -1))
+            data_t = data[:, t, :].reshape(1, -1)
             datalist.append(data_t.unsqueeze(0))
         data = flow.cat(datalist, dim=0)
         logits = self.linear(data)
@@ -72,7 +72,7 @@ class CustomLSTM(nn.Module):
             h_t, c_t = init_states
         HS = self.hidden_size
         for t in range(seq_sz):
-            x_t = x[:, t, :].reshape((x.shape[0], x.shape[2]))
+            x_t = x[:, t, :].reshape(x.shape[0], x.shape[2])
             gates = flow.matmul(x_t, self.W) + flow.matmul(h_t, self.U) + self.bias
             i_t, f_t, g_t, o_t = (
                 flow.sigmoid(gates[:, :HS]),

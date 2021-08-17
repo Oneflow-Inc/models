@@ -82,8 +82,8 @@ def train_eager(args):
             texts = data[i]
             labels = label[i]
             output = model_eager(texts)
-            loss = criterion(output, labels.reshape([args.batch_size]))
-            losses += loss.numpy()[0]
+            loss = criterion(output, labels.reshape(args.batch_size))
+            losses += loss.numpy()
             loss.backward()
             of_adam.step()
             of_adam.zero_grad()
