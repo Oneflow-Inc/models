@@ -318,7 +318,7 @@ def check(args):
             super().__init__()
             self.bert = bert_graph
             self.nll_loss = criterion
-            self.add_optimizer("adam", graph_optimizer)
+            self.add_optimizer(graph_optimizer)
 
         def build(self, input_ids, next_sent_labels, input_masks, segment_ids, masked_lm_ids, masked_lm_positions):
 

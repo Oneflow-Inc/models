@@ -194,7 +194,7 @@ def main():
     #     )
 
     # of_nll_loss = nn.NLLLoss(ignore_index=0)
-    criterion = nn.NLLLoss()
+    criterion = nn.NLLLoss(ignore_index=0)
     criterion.to(device)
 
     class BertGraph(nn.Graph):
@@ -202,7 +202,7 @@ def main():
             super().__init__()
             self.bert = bert_model
             self.nll_loss = criterion
-            self.add_optimizer("adam", optimizer)
+            self.add_optimizer(optimizer)
             self._train_data_loader = train_data_loader
 
         def build(self):
