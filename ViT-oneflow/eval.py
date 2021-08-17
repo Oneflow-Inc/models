@@ -27,7 +27,7 @@ def accuracy(output, target, topk=(1,)):
 def main():
 
     config = get_eval_config()
-    config.checkpoint_path = "/data/rentianhe/code/ViT-OneFlow/models/ViT/weights/oneflow/ViT-B_16_oneflow"
+    # config.checkpoint_path = "/data/rentianhe/code/ViT-OneFlow/models/ViT/weights/oneflow/ViT-B_16_oneflow"
 
     # create model
     model = VisionTransformer(
@@ -51,7 +51,7 @@ def main():
     # create dataloader
     data_loader = eval("{}DataLoader".format(config.dataset))(
                     # data_dir=os.path.join(config.data_dir, config.dataset),
-                    data_dir = "/data/imagenet/extract",
+                    data_dir = config.data_dir,
                     image_size=config.image_size,
                     batch_size=config.batch_size,
                     num_workers=config.num_workers,
