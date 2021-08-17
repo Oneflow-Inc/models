@@ -1,9 +1,7 @@
 import uuid
-from typing import Any, Dict, List, Optional, Union
+from typing import List, Optional
 
 from .utils import logging
-
-
 
 logger = logging.get_logger(__name__)
 
@@ -41,9 +39,9 @@ class Conversation:
         conversation.append_response("The Big lebowski.")
         conversation.add_user_input("Is it good?")
     """
-
+    
     def __init__(
-        self, text: str = None, conversation_id: uuid.UUID = None, past_user_inputs=None, generated_responses=None
+            self, text: str = None, conversation_id: uuid.UUID = None, past_user_inputs=None, generated_responses=None
     ):
         if not conversation_id:
             conversation_id = uuid.uuid4()
@@ -51,23 +49,23 @@ class Conversation:
             past_user_inputs = []
         if generated_responses is None:
             generated_responses = []
-
+        
         self.uuid: uuid.UUID = conversation_id
         self.past_user_inputs: List[str] = past_user_inputs
         self.generated_responses: List[str] = generated_responses
         self.new_user_input: Optional[str] = text
-
+    
     def __eq__(self, other):
         if not isinstance(other, Conversation):
             return False
         if self.uuid == other.uuid:
             return True
         return (
-            self.new_user_input == other.new_user_input
-            and self.past_user_inputs == other.past_user_inputs
-            and self.generated_responses == other.generated_responses
+                self.new_user_input == other.new_user_input
+                and self.past_user_inputs == other.past_user_inputs
+                and self.generated_responses == other.generated_responses
         )
-
+    
     def add_user_input(self, text: str, overwrite: bool = False):
         """
         Add a user input to the conversation for the next round. This populates the internal :obj:`new_user_input`
@@ -91,7 +89,7 @@ class Conversation:
                 )
         else:
             self.new_user_input = text
-
+    
     def mark_processed(self):
         """
         Mark the conversation as processed (moves the content of :obj:`new_user_input` to :obj:`past_user_inputs`) and
@@ -100,7 +98,7 @@ class Conversation:
         if self.new_user_input:
             self.past_user_inputs.append(self.new_user_input)
         self.new_user_input = None
-
+    
     def append_response(self, response: str):
         """
         Append a response to the list of generated responses.
@@ -108,7 +106,7 @@ class Conversation:
             response (:obj:`str`): The model generated response.
         """
         self.generated_responses.append(response)
-
+    
     def iter_texts(self):
         """
         Iterates over all blobs of the conversation.
@@ -120,7 +118,7 @@ class Conversation:
             yield False, generated_response
         if self.new_user_input:
             yield True, self.new_user_input
-
+    
     def __repr__(self):
         """
         Generates a string representation of the conversation.
@@ -134,4 +132,3 @@ class Conversation:
             name = "user" if is_user else "bot"
             output += f"{name} >> {text} \n"
         return output
-

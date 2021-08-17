@@ -12,6 +12,7 @@
 |   |-- models
 |   |-- myDataset_flow.py
 |   |-- pretrain_model_SST-2        # please download from aliyun
+|   |-- random_test.py              # to test different roberta model
 |   |-- read_data.py
 |   |-- requirements.txt
 |   |-- roberta_pretrain_oneflow    # please download from aliyun
@@ -24,8 +25,8 @@
     |-- README.md
     |-- RobertaTokenizer.py
     |-- __init__.py
-    |-- __pycache__
     |-- file_utils.py
+    |-- requirements.txt
     |-- tokenization_utils.py
     |-- tokenization_utils_base.py
     `-- utils

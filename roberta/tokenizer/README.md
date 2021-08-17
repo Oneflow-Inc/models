@@ -1,6 +1,13 @@
 # RoBERTA
 ## Reference
-- This repo is based on RobertaTokenizer from transformers, including https://github.com/huggingface/transformers/blob/master/src/transformers/models/roberta/tokenization_roberta.py, https://github.com/huggingface/transformers/blob/master/src/transformers/tokenization_utils.py, etc.
+
+This repo is based on RobertaTokenizer from transformers, including https://github.com/huggingface/transformers/blob/master/src/transformers/models/roberta/tokenization_roberta.py, https://github.com/huggingface/transformers/blob/master/src/transformers/tokenization_utils.py, etc.
+
+## requirement
+
+```
+pip install -r requirements.txt
+```
 
 ## How to use
 Example:

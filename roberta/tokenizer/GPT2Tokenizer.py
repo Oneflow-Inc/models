@@ -95,7 +95,7 @@ class GPT2Tokenizer(PreTrainedTokenizer):
 
     ::
 
-        >>> from transformers import GPT2Tokenizer
+        >>> from roberta.tokenizer import GPT2Tokenizer
         >>> tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
         >>> tokenizer("Hello world")['input_ids']
         [15496, 995]

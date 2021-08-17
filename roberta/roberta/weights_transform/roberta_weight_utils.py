@@ -336,6 +336,7 @@ def RobertaPooler_trans(model_flow, model_torch):
 
 
 def Roberta_trans(model_flow, model_torch):
+    print(" Roberta:")
     enter()
     assert isinstance(model_flow, roberta_flow.Roberta)
     assert isinstance(model_torch, transformers.RobertaModel)
@@ -349,6 +350,56 @@ def Roberta_trans(model_flow, model_torch):
     indent_msg("pooler:")
     model_flow.pooler = RobertaPooler_trans(
         model_flow.pooler, model_torch.pooler)
+
+    quit()
+    return model_flow
+
+def RobertaForCausalLM_trans(model_flow, model_torch):
+    print(" RobertaForCausalLM")
+    enter()
+
+    assert isinstance(model_flow, roberta_flow.RobertaForCausalLM)
+    assert isinstance(model_torch, transformers.RobertaForCausalLM)
+
+    quit()
+    return model_flow
+
+def RobertaForMaskedLM_trans(model_flow, model_torch):
+    print(" RobertaForMaskedLM")
+    enter()
+
+    assert isinstance(model_flow, roberta_flow.RobertaForMaskedLM)
+    assert isinstance(model_torch, transformers.RobertaForMaskedLM)
+
+    quit()
+    return model_flow
+
+def RobertaForSequenceClassification_trans(model_flow, model_torch):
+    print(" RobertaForSequenceClassification")
+    enter()
+
+    assert isinstance(model_flow, roberta_flow.RobertaForSequenceClassification)
+    assert isinstance(model_torch, transformers.RobertaForSequenceClassification)
+
+    quit()
+    return model_flow
+
+def RobertaForTokenClassification_trans(model_flow, model_torch):
+    print(" RobertaForTokenClassification")
+    enter()
+
+    assert isinstance(model_flow, roberta_flow.RobertaForTokenClassification)
+    assert isinstance(model_torch, transformers.RobertaForTokenClassification)
+
+    quit()
+    return model_flow
+
+def RobertaForQuestionAnswering_trans(model_flow, model_torch):
+    print(" RobertaForQuestionAnswering")
+    enter()
+
+    assert isinstance(model_flow, roberta_flow.RobertaForQuestionAnswering)
+    assert isinstance(model_torch, transformers.RobertaForQuestionAnswering)
 
     quit()
     return model_flow

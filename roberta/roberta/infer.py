@@ -3,8 +3,8 @@ import sys
 
 import oneflow as flow
 from classifier_flow import GlueRoBERTa
-sys.path.append("../tokenizer")
-from RobertaTokenizer import RobertaTokenizer
+sys.path.append("../")
+from tokenizer.RobertaTokenizer import RobertaTokenizer
 sys.path.append("../roberta")
 
 
@@ -12,8 +12,8 @@ def inference(args):
     tokenizer = RobertaTokenizer.from_pretrained("roberta-base")
     input_ids = tokenizer(args.text)['input_ids']
     attention_mask = tokenizer(args.text)['attention_mask']
-    input_ids = flow.tensor(input_ids, dtype=flow.int32).reshape([1,-1]).to('cuda')
-    attention_mask = flow.tensor(attention_mask, dtype=flow.int32).reshape([1,-1]).to('cuda')
+    input_ids = flow.tensor(input_ids, dtype=flow.int32).reshape(1,-1).to('cuda')
+    attention_mask = flow.tensor(attention_mask, dtype=flow.int32).reshape(1,-1).to('cuda')
     model = GlueRoBERTa(args.pretrain_dir, args.kwargs_path,
                         args.roberta_hidden_size, args.n_classes, args.is_train).to('cuda')
     model.load_state_dict(flow.load(args.model_load_dir))
