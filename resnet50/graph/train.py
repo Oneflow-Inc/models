@@ -39,6 +39,7 @@ def _parse_args():
 
 
 def main(args):
+    
     train_data_loader = OFRecordDataLoader(
         ofrecord_root=args.ofrecord_path,
         mode="train",
@@ -77,7 +78,7 @@ def main(args):
             super().__init__()
             self.resnet50 = resnet50_module
             self.cross_entropy = of_cross_entropy
-            self.add_optimizer("sgd", of_sgd)
+            self.add_optimizer(of_sgd)
             self.train_data_loader = train_data_loader
         
         def build(self):
