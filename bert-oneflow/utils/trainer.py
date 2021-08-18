@@ -74,12 +74,11 @@ class BERTTrainer:
             self.optim, self.bert.hidden, n_warmup_steps=warmup_steps
         )
 
-        self.criterion = nn.NLLLoss(ignore_index=0)
-        self.criterion = self.criterion.to(self.device)
+        self.ns_criterion = nn.NLLLoss()
+        self.lm_criterion = nn.NLLLoss(ignore_index=0)
 
         self.log_freq = log_freq
-        print("Total Parameters:", sum([p.nelement()
-              for p in self.model.parameters()]))
+        print("Total Parameters:", sum([p.nelement() for p in self.model.parameters()]))
 
     def train(self, epoch):
         self.iteration(epoch, self.train_data)
@@ -113,8 +112,15 @@ class BERTTrainer:
         total_element = 0
 
         for i in range(len(iter_per_epoch)):
-            input_ids, next_sent_labels, input_masks, segment_ids, masked_lm_ids, \
-                masked_lm_positions, masked_lm_weights = self.train_data()
+            (
+                input_ids,
+                next_sent_labels,
+                input_masks,
+                segment_ids,
+                masked_lm_ids,
+                masked_lm_positions,
+                masked_lm_weights,
+            ) = self.train_data()
 
             input_ids = input_ids.to(device=self.device)
             input_masks = input_masks.to(device=self.device)
@@ -129,18 +135,20 @@ class BERTTrainer:
             )
 
             # 2-1. NLL(negative log likelihood) loss of is_next classification result
-            ns_loss = self.criterion(next_sent_output, next_sent_labels.squeeze(1))
+            ns_loss = self.ns_criterion(next_sent_output, next_sent_labels.squeeze(1))
 
             # 2-2. NLLLoss of predicting masked token word
-            mask_lm_output = flow.gather(mask_lm_output, index=masked_lm_positions.unsqueeze(
-                2).repeat(1, 1, self.vocab_size), dim=1)
-            mask_lm_output = flow.reshape(
-                mask_lm_output, [-1, self.vocab_size])
+            mask_lm_output = flow.gather(
+                mask_lm_output,
+                index=masked_lm_positions.unsqueeze(2).repeat(1, 1, self.vocab_size),
+                dim=1,
+            )
+            mask_lm_output = flow.reshape(mask_lm_output, [-1, self.vocab_size])
 
             label_id_blob = flow.reshape(masked_lm_ids, [-1])
 
             # 2-2. NLLLoss of predicting masked token word
-            lm_loss = self.criterion(mask_lm_output, label_id_blob)
+            lm_loss = self.lm_criterion(mask_lm_output, label_id_blob)
 
             # 2-3. Adding next_loss and mask_loss : 3.4 Pre-training Procedure
             loss = ns_loss + lm_loss
@@ -153,8 +161,11 @@ class BERTTrainer:
 
             # next sentence prediction accuracy
             correct = (
-                next_sent_output.argmax(
-                    dim=-1).eq(next_sent_labels.squeeze(1)).sum().numpy().item()
+                next_sent_output.argmax(dim=-1)
+                .eq(next_sent_labels.squeeze(1))
+                .sum()
+                .numpy()
+                .item()
             )
             total_loss += loss.numpy().item()
             total_correct += correct
@@ -163,13 +174,19 @@ class BERTTrainer:
             if (i + 1) % self.log_freq == 0:
                 print(
                     "Epoch {}, iter {}, avg_loss {:.3f}, total_acc {:.2f}".format(
-                        epoch, (i+1), total_loss / (i + 1), total_correct *
-                        100.0 / total_element))
+                        epoch,
+                        (i + 1),
+                        total_loss / (i + 1),
+                        total_correct * 100.0 / total_element,
+                    )
+                )
 
         print(
             "Epoch {}, iter {}, loss {:.3f}, total_acc {:.2f}".format(
-                epoch, (i+1), total_loss / (i + 1), total_correct *
-                100.0 / total_element
+                epoch,
+                (i + 1),
+                total_loss / (i + 1),
+                total_correct * 100.0 / total_element,
             )
         )
 
@@ -183,5 +200,5 @@ class BERTTrainer:
         """
         output_path = os.path.join(file_path, "epoch_%d" % epoch)
         flow.save(self.bert.state_dict(), output_path)
-        print("Epoch :%d Model Saved on:" % epoch, output_path)
+        print("Epoch:%d Model Saved on:" % epoch, output_path)
         return output_path
