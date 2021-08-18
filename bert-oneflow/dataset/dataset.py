@@ -70,14 +70,7 @@ class BERTDataset(nn.Module):
             padding
         )
 
-        output = {
-            "bert_input": bert_input,
-            "bert_label": bert_label,
-            "segment_label": segment_label,
-            "is_next": is_next_label,
-        }
-
-        return {key: flow.tensor(value) for key, value in output.items()}
+        return flow.tensor(bert_input),  flow.tensor(segment_label), flow.tensor(is_next_label), flow.tensor(bert_label)
 
     def random_word(self, sentence):
         tokens = sentence.split()

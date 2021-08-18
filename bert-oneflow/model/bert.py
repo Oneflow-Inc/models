@@ -29,7 +29,8 @@ class BERT(nn.Module):
         self.feed_forward_hidden = hidden * 4
 
         # embedding for BERT, sum of positional, segment, token embeddings
-        self.embedding = BERTEmbedding(vocab_size=vocab_size, embed_size=hidden)
+        self.embedding = BERTEmbedding(
+            vocab_size=vocab_size, embed_size=hidden)
 
         # multi-layers transformer blocks, deep network
         self.transformer_blocks = nn.ModuleList(
@@ -39,22 +40,32 @@ class BERT(nn.Module):
             ]
         )
 
-    def forward(self, x, segment_info):  # x.shape >> flow.Size([16, 20])
-        # attention masking for padded token
+    # x.shape >> flow.Size([16, 20])
+    def forward(self, x: flow.Tensor, mask: flow.Tensor, segment_info: flow.Tensor) -> flow.Tensor:
+        """[summary]
 
-        mask = (
-            (x > 0)
-            .unsqueeze(1)
-            .repeat((1, x.shape[1], 1))
-            .unsqueeze(1)
-            .repeat((1, 8, 1, 1))
-        )
+        Args:
+            x (flow.Tensor): sentence input with shape [batchsize, seq]
+            mask (flow.Tensor): mask input with shape [batchsize, seq]
+            segment_info (flow.Tensor): token type with shape [batchsize, seq]
+        """
+        # mask = (
+        #     (x > 0)
+        #     .unsqueeze(1)
+        #     .repeat((1, x.shape[1], 1))
+        #     .unsqueeze(1)
+        #     .repeat((1, 8, 1, 1))
+        # )
+
+        # attention masking for padded token
+        mask = mask.unsqueeze(1).repeat(
+            (1, x.shape[1], 1)).unsqueeze(1).repeat((1, 8, 1, 1))
 
         # embedding the indexed sequence to sequence of vectors
         x = self.embedding(x, segment_info)
 
         # running over multiple transformer blocks
         for transformer in self.transformer_blocks:
-            x = transformer.forward(x, mask)
+            x = transformer(x, mask)
 
         return x

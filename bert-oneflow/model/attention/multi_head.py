@@ -1,5 +1,4 @@
 import oneflow.nn as nn
-import oneflow as flow
 from model.attention.single import Attention
 
 
@@ -23,11 +22,12 @@ class MultiHeadedAttention(nn.Module):
 
         self.dropout = nn.Dropout(p=dropout)
 
-    def forward(self, query, key, value, mask=None):
+    # def forward(self, query, key, value, mask=None):
+    def forward(self, query, key, value, mask):
         batch_size = query.size(0)  # 16
 
         query, key, value = [
-            l(x).reshape(shape=[batch_size, -1, self.h, self.d_k]).permute(0, 2, 1, 3)
+            l(x).reshape(batch_size, -1, self.h, self.d_k).permute(0, 2, 1, 3)
             for l, x in zip(self.linear_layers, (query, key, value))
         ]
 
@@ -35,6 +35,6 @@ class MultiHeadedAttention(nn.Module):
         x, attn = self.attention(query, key, value, mask, self.dropout)
 
         # 3) "Concat" using a view and apply a final linear.
-        res = x.transpose(1, 2).reshape(shape=[batch_size, -1, self.h * self.d_k])
+        res = x.transpose(1, 2).reshape(batch_size, -1, self.h * self.d_k)
         res = self.output_linear(res)
         return res
