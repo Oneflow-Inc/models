@@ -214,15 +214,15 @@ def main():
     #         self.optim, self.bert.hidden, n_warmup_steps=warmup_steps
     #     )
 
-    # of_nll_loss = nn.NLLLoss(ignore_index=0)
-    criterion = nn.NLLLoss()
-    criterion.to(device)
+    ns_criterion = nn.NLLLoss()
+    lm_criterion = nn.NLLLoss(ignore_index=0, reduction="sum")
 
     class BertGraph(nn.Graph):
         def __init__(self):
             super().__init__()
             self.bert = bert_model
-            self.nll_loss = criterion
+            self.ns_criterion = ns_criterion
+            self.lm_criterion = lm_criterion
             self.add_optimizer(optimizer, lr_sch=cosine_annealing_lr)
             self._train_data_loader = train_data_loader
 
@@ -249,7 +249,7 @@ def main():
             )
 
             # 2-1. NLL(negative log likelihood) loss of is_next classification result
-            ns_loss = self.nll_loss(next_sent_output, next_sent_labels.squeeze(1))
+            ns_loss = self.ns_criterion(next_sent_output, next_sent_labels.squeeze(1))
 
             mask_lm_output = flow.gather(
                 mask_lm_output,
@@ -261,7 +261,17 @@ def main():
             label_id_blob = flow.reshape(masked_lm_ids, [-1])
 
             # 2-2. NLLLoss of predicting masked token word
-            lm_loss = self.nll_loss(mask_lm_output, label_id_blob)
+            lm_loss = self.lm_criterion(mask_lm_output, label_id_blob)
+
+            condition = flow.eq(label_id_blob, 0)
+            ones = flow.ones(
+                condition.shape, dtype=condition.dtype, device=condition.device
+            )
+            condition = ones.sub(condition)
+            condition = flow.cast(condition, dtype=lm_loss.dtype)
+            reduce_count = condition.sum()
+
+            lm_loss = lm_loss / reduce_count 
 
             # 2-3. Adding next_loss and mask_loss : 3.4 Pre-training Procedure
             loss = ns_loss + lm_loss

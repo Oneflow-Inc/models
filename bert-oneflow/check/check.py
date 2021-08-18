@@ -93,7 +93,8 @@ def train(
     data_loader,
     graph_model,
     eager_model,
-    criterion,
+    ns_criterion,
+    lm_criterion,
     eager_optim,
     eager_lr_sched,
     print_interval,
@@ -133,7 +134,7 @@ def train(
             input_ids, input_masks, segment_ids
         )
 
-        ns_loss = criterion(eager_sent_output, next_sent_labels.squeeze(1))
+        ns_loss = ns_criterion(eager_sent_output, next_sent_labels.squeeze(1))
 
         mask_lm_output = flow.gather(
             mask_lm_output,
@@ -145,7 +146,7 @@ def train(
         label_id_blob = flow.reshape(masked_lm_ids, [-1])
 
         # 2-2. NLLLoss of predicting masked token word
-        lm_loss = criterion(mask_lm_output, label_id_blob)
+        lm_loss = lm_criterion(mask_lm_output, label_id_blob)
         eager_loss = ns_loss + lm_loss
 
         eager_loss.backward()
@@ -358,6 +359,9 @@ def check(args):
         eager_optimizer, steps=steps
     )
 
+    eager_ns_criterion = nn.NLLLoss()
+    eager_lm_criterion = nn.NLLLoss(ignore_index=0)
+
     print("Building BERT graph model")
     graph_module = BERT(
         args.vocab_size,
@@ -386,14 +390,15 @@ def check(args):
     #     )
 
     # of_nll_loss = nn.NLLLoss(ignore_index=0)
-    criterion = nn.NLLLoss()
-    criterion.to(device)
+    graph_ns_criterion = nn.NLLLoss()
+    graph_lm_criterion = nn.NLLLoss(ignore_index=0, reduction="sum")
 
     class BertGraph(nn.Graph):
         def __init__(self):
             super().__init__()
             self.bert = bert_graph
-            self.nll_loss = criterion
+            self.ns_criterion = graph_ns_criterion
+            self.lm_criterion = graph_lm_criterion
             self.add_optimizer(graph_optimizer, lr_sch=graph_cos_lr)
 
         def build(
@@ -412,7 +417,7 @@ def check(args):
             )
 
             # 2-1. NLL(negative log likelihood) loss of is_next classification result
-            ns_loss = self.nll_loss(next_sent_output, next_sent_labels.squeeze(1))
+            ns_loss = self.ns_criterion(next_sent_output, next_sent_labels.squeeze(1))
 
             mask_lm_output = flow.gather(
                 mask_lm_output,
@@ -424,7 +429,17 @@ def check(args):
             label_id_blob = flow.reshape(masked_lm_ids, [-1])
 
             # 2-2. NLLLoss of predicting masked token word
-            lm_loss = self.nll_loss(mask_lm_output, label_id_blob)
+            lm_loss = self.lm_criterion(mask_lm_output, label_id_blob)
+
+            condition = flow.eq(label_id_blob, 0)
+            ones = flow.ones(
+                condition.shape, dtype=condition.dtype, device=condition.device
+            )
+            condition = ones.sub(condition)
+            condition = flow.cast(condition, dtype=lm_loss.dtype)
+            reduce_count = condition.sum()
+
+            lm_loss = lm_loss / reduce_count
 
             # 2-3. Adding next_loss and mask_loss : 3.4 Pre-training Procedure
             loss = ns_loss + lm_loss
@@ -471,7 +486,8 @@ def check(args):
             train_data_loader,
             bert_train_graph,
             bert_eager,
-            criterion,
+            eager_ns_criterion,
+            eager_lm_criterion,
             eager_optimizer,
             eager_cos_lr,
             args.print_interval,
