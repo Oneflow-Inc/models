@@ -141,3 +141,19 @@ if __name__ == "__main__":
                     "xlabel": "iters",
                     "ylabel": "abs_diff",
                     })
+    draw_and_save({ "title": "compare_ce_ls_acc",
+                    "save_path": add_pth(save_root, "compare_ce_ls_acc.png"),
+                    "txts": [add_pth(txt_root, "graph_acc.txt"), 
+                            add_pth(txt_root, "eager_acc.txt")],
+                    "names": ["ce_acc", "ls_acc"],
+                    "xlabel": "epochs",
+                    "ylabel": "time(s)",
+                    })
+    draw_and_save({ "title": "compare_ce_ls_loss",
+                    "save_path": add_pth(save_root, "compare_ce_ls_loss.png"),
+                    "txts": [add_pth(txt_root, "graph_losses.txt"), 
+                            add_pth(txt_root, "eager_losses.txt")],
+                    "names": ["ce_loss", "ls_loss"],
+                    "xlabel": "epochs",
+                    "ylabel": "time(s)",
+                    })
