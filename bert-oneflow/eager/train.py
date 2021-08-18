@@ -1,14 +1,8 @@
 import argparse
-import os
-
-import oneflow as flow
-from oneflow import nn
 
 from model.bert import BERT
-from utils.trainer import BERTTrainer
-from dataset.dataset import BERTDataset
-from dataset.vocab import WordVocab
 from utils.ofrecord_data_utils import OfRecordDataLoader
+from utils.trainer import BERTTrainer
 
 
 def main():
@@ -40,8 +34,7 @@ def main():
         default=256,
         help="hidden size of transformer model",
     )
-    parser.add_argument("-l", "--layers", type=int,
-                        default=8, help="number of layers")
+    parser.add_argument("-l", "--layers", type=int, default=8, help="number of layers")
     parser.add_argument(
         "-a", "--attn_heads", type=int, default=8, help="number of attention heads"
     )
@@ -54,8 +47,7 @@ def main():
     parser.add_argument(
         "-b", "--batch_size", type=int, default=16, help="number of batch_size"
     )
-    parser.add_argument("-e", "--epochs", type=int,
-                        default=10, help="number of epochs")
+    parser.add_argument("-e", "--epochs", type=int, default=10, help="number of epochs")
     parser.add_argument(
         "-w", "--num_workers", type=int, default=0, help="dataloader worker size"
     )
@@ -76,8 +68,7 @@ def main():
         "--on_memory", type=bool, default=True, help="Loading on memory: true or false"
     )
 
-    parser.add_argument("--lr", type=float, default=1e-3,
-                        help="learning rate of adam")
+    parser.add_argument("--lr", type=float, default=1e-3, help="learning rate of adam")
     parser.add_argument(
         "--adam_weight_decay", type=float, default=0.01, help="weight_decay of adam"
     )
@@ -93,19 +84,30 @@ def main():
     print("Creating Dataloader")
     train_data_loader = OfRecordDataLoader(
         ofrecord_dir=args.ofrecord_path,
-        mode='train', dataset_size=1024, batch_size=args.train_batch_size, data_part_num=1, seq_length=args.seq_len,
+        mode='train',
+        dataset_size=1024,
+        batch_size=args.train_batch_size,
+        data_part_num=1,
+        seq_length=args.seq_len,
         max_predictions_per_seq=20,
     )
 
     test_data_loader = OfRecordDataLoader(
         ofrecord_dir=args.ofrecord_path,
-        mode='test', dataset_size=1024, batch_size=args.val_batch_size, data_part_num=1, seq_length=args.seq_len,
+        mode='test',
+        dataset_size=1024,
+        batch_size=args.val_batch_size,
+        data_part_num=1,
+        seq_length=args.seq_len,
         max_predictions_per_seq=20,
     )
-    
+
     print("Building BERT model")
     bert = BERT(
-        args.vocab_size, hidden=args.hidden, n_layers=args.layers, attn_heads=args.attn_heads
+        args.vocab_size,
+        hidden=args.hidden,
+        n_layers=args.layers,
+        attn_heads=args.attn_heads,
     )
 
     print("Creating BERT Trainer")
