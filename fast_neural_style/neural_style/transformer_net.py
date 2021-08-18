@@ -1,4 +1,4 @@
-import oneflow.experimental as flow
+import oneflow as flow
 
 
 class TransformerNet(flow.nn.Module):

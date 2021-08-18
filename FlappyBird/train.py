@@ -7,7 +7,7 @@ import os
 from random import random, randint, sample
 
 import numpy as np
-import oneflow.experimental as flow
+import oneflow as flow
 
 from model.deep_q_network import DeepQNetwork
 from game.wrapped_flappy_bird import GameState
@@ -48,7 +48,6 @@ def get_args():
 
 
 def train(opt):
-    flow.enable_eager_execution()
 
     # Step 1: init BrainDQN
     model = DeepQNetwork()
@@ -152,7 +151,7 @@ def train(opt):
                 iter + 1,
                 opt.num_iters,
                 action,
-                loss.numpy()[0],
+                loss.numpy(),
                 epsilon,
                 reward,
                 flow.max(prediction).numpy()[0],

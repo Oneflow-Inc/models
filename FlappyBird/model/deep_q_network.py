@@ -2,7 +2,7 @@
 @author: Chenhao Lu <luchenhao@zhejianglab.com>
 @author: Yizhang Wang <1739601638@qq.com>
 """
-import oneflow.experimental as flow
+import oneflow as flow
 
 
 class DeepQNetwork(flow.nn.Module):
