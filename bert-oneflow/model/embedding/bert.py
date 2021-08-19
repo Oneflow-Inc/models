@@ -1,7 +1,8 @@
+import math
+
+import numpy as np
 import oneflow as flow
 import oneflow.nn as nn
-import numpy as np
-import math
 
 
 class TokenEmbedding(nn.Embedding):
@@ -35,7 +36,7 @@ class PositionalEmbedding(nn.Module):
 
 class SegmentEmbedding(nn.Embedding):
     def __init__(self, embed_size=512):
-        super().__init__(3, embed_size, padding_idx=0)
+        super().__init__(2, embed_size)
 
 
 class BERTEmbedding(nn.Module):

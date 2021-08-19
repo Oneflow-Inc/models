@@ -1,9 +1,9 @@
-import oneflow.nn as nn
-
-from model.transformer import TransformerBlock
-from model.embedding.bert import BERTEmbedding
 import numpy as np
 import oneflow as flow
+import oneflow.nn as nn
+
+from model.embedding.bert import BERTEmbedding
+from model.transformer import TransformerBlock
 
 
 class BERT(nn.Module):
@@ -29,8 +29,7 @@ class BERT(nn.Module):
         self.feed_forward_hidden = hidden * 4
 
         # embedding for BERT, sum of positional, segment, token embeddings
-        self.embedding = BERTEmbedding(
-            vocab_size=vocab_size, embed_size=hidden)
+        self.embedding = BERTEmbedding(vocab_size=vocab_size, embed_size=hidden)
 
         # multi-layers transformer blocks, deep network
         self.transformer_blocks = nn.ModuleList(
@@ -41,7 +40,9 @@ class BERT(nn.Module):
         )
 
     # x.shape >> flow.Size([16, 20])
-    def forward(self, x: flow.Tensor, mask: flow.Tensor, segment_info: flow.Tensor) -> flow.Tensor:
+    def forward(
+        self, x: flow.Tensor, mask: flow.Tensor, segment_info: flow.Tensor
+    ) -> flow.Tensor:
         """[summary]
 
         Args:
@@ -58,8 +59,13 @@ class BERT(nn.Module):
         # )
 
         # attention masking for padded token
-        mask = mask.unsqueeze(1).repeat(
-            (1, x.shape[1], 1)).unsqueeze(1).repeat((1, 8, 1, 1))
+
+        mask = (
+            mask.unsqueeze(1)
+            .repeat((1, x.shape[1], 1))
+            .unsqueeze(1)
+            .repeat((1, 8, 1, 1))
+        )
 
         # embedding the indexed sequence to sequence of vectors
         x = self.embedding(x, segment_info)
