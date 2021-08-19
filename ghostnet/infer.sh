@@ -18,7 +18,7 @@ fi
 
 if [ ! -d "${PRETRAIN_MODEL_PATH}${MODEL}_oneflow_model" ]; then
   wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/cv/classification/ghostnet/ghostnet_oneflow_model.tar.gz
-  tar zxf ${MODEL}_oneflow_model.tar.gz --directory ${PRETRAIN_MODEL_PATH}
+  tar zxf ghostnet_oneflow_model.tar.gz --directory ${PRETRAIN_MODEL_PATH}
 fi
 
 python3 infer.py --model_path ${PRETRAIN_MODEL_PATH}${MODEL}_oneflow_model --image_path $IMAGE_PATH --model $MODEL
