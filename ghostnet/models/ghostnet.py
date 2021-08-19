@@ -23,12 +23,10 @@ def _make_divisible(v, divisor, min_value=None):
     return new_v
 
 def hard_sigmoid(x, inplace: bool = False):
-    # 实际上就是如果<=-1输出为0，>=1输出为1，中间为一个线性
     relu6 = flow.nn.ReLU6()
     if inplace:
         return x.add_(3.).clamp_(0., 6.).div_(6.)
     else:
-        #return F.relu6(x + 3.) / 6.
         return relu6(x + 3.) / 6.
 
 class SqueezeExcite(nn.Module):
