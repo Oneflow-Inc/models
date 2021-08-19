@@ -4,6 +4,8 @@ import numpy as np
 import os
 import time
 
+import sys
+sys.path.append(".")
 from models.resnet50 import resnet50
 from utils.ofrecord_data_utils import OFRecordDataLoader
 
@@ -37,6 +39,7 @@ def _parse_args():
 
 
 def main(args):
+    
     train_data_loader = OFRecordDataLoader(
         ofrecord_root=args.ofrecord_path,
         mode="train",
@@ -75,10 +78,10 @@ def main(args):
             super().__init__()
             self.resnet50 = resnet50_module
             self.cross_entropy = of_cross_entropy
-            self.add_optimizer("sgd", of_sgd)
+            self.add_optimizer(of_sgd)
             self.train_data_loader = train_data_loader
         
-        def build(self, image, label):
+        def build(self):
             image, label = self.train_data_loader()
             image = image.to("cuda")
             label = label.to("cuda")
@@ -95,9 +98,10 @@ def main(args):
             self.resnet50 = resnet50_module
             self.val_data_loader = val_data_loader
         
-        def build(self, image):
+        def build(self):
             image, label = self.val_data_loader()
             image = image.to("cuda")
+            label = label.to("cuda")
             with flow.no_grad():
                 logits = self.resnet50(image)
                 predictions = logits.softmax()
@@ -114,14 +118,10 @@ def main(args):
         resnet50_module.train()
 
         for b in range(len(train_data_loader)):
-            image, label = train_data_loader()
-
             # oneflow graph train
             start_t = time.time()
-            image = image.to("cuda")
-            label = label.to("cuda")
 
-            loss = resnet50_graph(image, label)
+            loss = resnet50_graph()
 
             end_t = time.time()
             if b % print_interval == 0:
@@ -139,7 +139,7 @@ def main(args):
         correct_of = 0.0
         for b in range(len(val_data_loader)):
             start_t = time.time()
-            predictions, label = resnet50_eval_graph(image)
+            predictions, label = resnet50_eval_graph()
             of_predictions = predictions.numpy()
             clsidxs = np.argmax(of_predictions, axis=1)
 

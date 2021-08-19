@@ -5,6 +5,8 @@ import os
 import time
 from tqdm import tqdm
 
+import sys
+sys.path.append(".")
 from models.resnet50 import resnet50
 from utils.ofrecord_data_utils import OFRecordDataLoader
 
@@ -81,7 +83,7 @@ def setup(args):
                 super().__init__()
                 self.graph_model = graph_model
                 self.criterion = criterion
-                self.add_optimizer("sgd", graph_optimizer)
+                self.add_optimizer(graph_optimizer)
 
             def build(self, image, label):
                 logits = self.graph_model(image)
