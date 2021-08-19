@@ -33,9 +33,13 @@ if __name__ == '__main__':
     wdl_module.to("cuda")
     bce_loss.to("cuda")
 
-    of_sgd = flow.optim.SGD(
-        wdl_module.parameters(), lr=args.learning_rate
+    # opt = flow.optim.Adam(
+    #     wdl_module.parameters(), lr=args.learning_rate, betas=(0.9, 0.999)
+    # )
+    opt = flow.optim.SGD(
+        wdl_module.parameters(), lr=args.learning_rate, momentum=0.0,
     )
+
     class WideAndDeepGraph(flow.nn.Graph):
         def __init__(self, dataloader):
             super(WideAndDeepGraph, self).__init__()
@@ -46,7 +50,7 @@ if __name__ == '__main__':
         def build(self):
             with flow.no_grad():
                 return self.graph()
-        
+
         def graph(self):
             labels, dense_fields, wide_sparse_fields, deep_sparse_fields = self.dataloader()
             labels = labels.to("cuda").to(dtype=flow.float32)
@@ -54,15 +58,17 @@ if __name__ == '__main__':
             wide_sparse_fields = wide_sparse_fields.to("cuda")
             deep_sparse_fields = deep_sparse_fields.to("cuda")
 
-            predicts = self.module(dense_fields, wide_sparse_fields, deep_sparse_fields)
+            predicts, _ = self.module(
+                dense_fields, wide_sparse_fields, deep_sparse_fields)
             loss = self.bce_loss(predicts, labels)
             return predicts, labels, loss
 
     class WideAndDeepTrainGraph(WideAndDeepGraph):
         def __init__(self, dataloader):
             super(WideAndDeepTrainGraph, self).__init__(dataloader)
-            self.add_optimizer("sgd", of_sgd)
-        
+            # self.add_optimizer("adam", opt)
+            self.add_optimizer(opt)
+
         def build(self):
             predicts, labels, loss = self.graph()
             loss.backward()
@@ -75,15 +81,16 @@ if __name__ == '__main__':
     wdl_module.train()
 
     for i in range(args.max_iter):
-        print(i)
+        # print(i)
         predicts, labels, loss = train_graph()
-        dump_to_npy(loss)
-        dump_to_npy(labels)
-        dump_to_npy(predicts)
+        # dump_to_npy(loss)
+        # dump_to_npy(labels)
+        # dump_to_npy(predicts)
         losses.append(loss.numpy().mean())
 
         if (i+1) % args.print_interval == 0:
             l = sum(losses) / len(losses)
+            losses = []
             print(f"iter {i} train_loss {l} time {time.time()}")
             if args.eval_batchs <= 0:
                 continue
@@ -107,6 +114,4 @@ if __name__ == '__main__':
             ) else roc_auc_score(all_labels, all_predicts)
             print(f"iter {i} eval_loss {eval_loss/args.eval_batchs} auc {auc}")
 
-            losses = []
             wdl_module.train()
-

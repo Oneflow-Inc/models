@@ -24,7 +24,7 @@ class OFRecordDataLoader(nn.Module):
 
         self.batch_size = batch_size
         shuffle = mode == "train"
-        # shuffle = False 
+        shuffle = False 
         # with flow.scope.placement("cpu", self.devices):
         self.reader = nn.OfrecordReader(
             os.path.join(data_root, mode),

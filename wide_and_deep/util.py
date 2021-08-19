@@ -4,11 +4,33 @@ from shutil import copy
 import numpy as np
 import matplotlib.pyplot as plt
 from numpy.core.fromnumeric import var
+from oneflow.core.framework.variable_meta_info_pb2 import VariableMetaInfo
+from google.protobuf import text_format
 
 
 def npy_compare(lhs_path, rhs_path):
     lhs = np.load(lhs_path)
     rhs = np.load(rhs_path)
+    return np.allclose(lhs, rhs)
+
+
+def load_meta_info(path):
+    with open(os.path.join(path, 'meta'), 'r') as f:
+        meta_info = VariableMetaInfo()
+        text_format.Parse(f.read(), meta_info)
+    assert meta_info.data_type == 2, 'float only'
+    return np.float32, list(meta_info.shape.dim)
+
+
+def var_to_npy(path, dtype, shape):
+    with open(os.path.join(path, 'out'), 'r') as f:
+        return np.fromfile(f, dtype=dtype).reshape(shape)
+
+
+def weight_compare(lhs_path, rhs_path):
+    dtype, shape = load_meta_info(lhs_path)
+    lhs = var_to_npy(lhs_path, dtype, shape)
+    rhs = var_to_npy(rhs_path, dtype, shape)
     return np.allclose(lhs, rhs)
 
 
@@ -20,7 +42,7 @@ def walk_compare_npy(lhs, rhs):
     diff = 0
     ignore = 0
     for root, dirs, files in os.walk(lhs):
-        for name in filter(lambda f : f.endswith('.npy'), files):
+        for name in filter(lambda f: f.endswith('.npy'), files):
             lhs_path = os.path.join(root, name)
             rhs_path = os.path.join(rhs, os.path.relpath(lhs_path, lhs))
             if os.path.exists(rhs_path) and os.path.isfile(rhs_path):
@@ -46,7 +68,9 @@ def get_varible_name(var_org):
         if (var_org is item[1]):
             return item[0]
 
+
 def dump_to_npy(tensor, root='./output', sub='', name=''):
+    return
     if sub != '':
         root = os.path.join(root, str(sub))
     if not os.path.isdir(root):
@@ -90,7 +114,7 @@ def save_param_hist_pngs(module, root='output'):
 
 def merge_param_from_old_version(
     src='/home/xiexuan/sandbox/OneFlow-Benchmark/ClickThroughRate/WideDeepLearning/baseline_checkpoint',
-    dst='./checkpoints/merged_checkpoint', 
+    dst='./checkpoints/merged_checkpoint',
 ):
     param_list = [
         ['deep_embedding.weight', 'deep_embedding'],
@@ -117,6 +141,7 @@ def merge_param_from_old_version(
         dst_file = os.path.join(dst, new_name, 'out')
         copy(src_file, dst_file)
         print(src_file, dst_file)
+
 
 if __name__ == '__main__':
     walk_compare_npy('output/old_0', 'output/0')

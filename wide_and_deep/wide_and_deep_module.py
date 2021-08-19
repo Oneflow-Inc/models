@@ -19,7 +19,7 @@ class Embedding(nn.Embedding):
     def forward(self, indices):
         # indices = flow.parallel_cast(indices, distribute=flow.distribute.broadcast())
         embedding = flow.F.gather(self.weight, indices, axis=0)
-        return embedding.reshape(shape=(-1, embedding.shape[-1] * embedding.shape[-2]))
+        return embedding.view(-1, embedding.shape[-1] * embedding.shape[-2]), self.weight
 
 
 class Dense(nn.Module):
@@ -59,14 +59,17 @@ class WideAndDeep(nn.Module):
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, dense_fields, wide_sparse_fields, deep_sparse_fields) -> flow.Tensor:
-        wide_embedding = self.wide_embedding(wide_sparse_fields)
+        wide_embedding, _ = self.wide_embedding(wide_sparse_fields)
         wide_scores = flow.sum(wide_embedding, dim=1, keepdim=True)
 
-        deep_embedding = self.deep_embedding(deep_sparse_fields)
+        deep_embedding, deep_weight = self.deep_embedding(deep_sparse_fields)
         deep_features = flow.cat([deep_embedding, dense_fields], dim=1)
         deep_features = self.linear_layers(deep_features)
         deep_scores = self.deep_scores(deep_features)
-        return self.sigmoid(wide_scores + deep_scores)
+        logits = wide_scores + deep_scores
+        predicts = self.sigmoid(logits)
+        return predicts, deep_weight
+        # return self.sigmoid(wide_scores + deep_scores)
 
 
 def wide_and_deep(pretrained: bool = False, progress: bool = True, **kwargs: Any) -> WideAndDeep:

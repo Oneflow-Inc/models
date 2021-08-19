@@ -12,7 +12,7 @@ from util import dump_to_npy, save_param_npy
 
 
 if __name__ == '__main__':
-    flow.InitEagerGlobalSession()
+    # flow.InitEagerGlobalSession()
 
     args = get_args()
 
@@ -28,17 +28,20 @@ if __name__ == '__main__':
         path = os.path.join(args.model_save_dir, 'initial_checkpoint')
         if not os.path.isdir(path):
             flow.save(wdl_module.state_dict(), path)
-    save_param_npy(wdl_module)
+    # save_param_npy(wdl_module)
 
     bce_loss = flow.nn.BCELoss(reduction="none")
 
     wdl_module.to("cuda")
     bce_loss.to("cuda")
 
-    of_sgd = flow.optim.SGD(
-        wdl_module.parameters(), lr=args.learning_rate
+    opt = flow.optim.Adam(
+        wdl_module.parameters(), lr=args.learning_rate, betas=(0.9, 0.999),
+        # do_bias_correction=True
     )
-
+    # opt = flow.optim.SGD(
+    #     wdl_module.parameters(), lr=args.learning_rate, momentum=0.9,
+    # )
     losses = []
     wdl_module.train()
     for i in range(args.max_iter):
@@ -51,19 +54,32 @@ if __name__ == '__main__':
         dense_fields = dense_fields.to("cuda")
         wide_sparse_fields = wide_sparse_fields.to("cuda")
         deep_sparse_fields = deep_sparse_fields.to("cuda")
-        predicts = wdl_module(
+        predicts, deep_weight = wdl_module(
             dense_fields, wide_sparse_fields, deep_sparse_fields)
+        predicts.retain_grad()
+        deep_weight.retain_grad()
         loss = bce_loss(predicts, labels)
+        loss.retain_grad()
+
         dump_to_npy(predicts, sub=i)
         dump_to_npy(loss, sub=i)
         losses.append(loss.numpy().mean())
-        loss.backward(flow.ones_like(loss))
-        of_sgd.step()
-        of_sgd.zero_grad()
+        # loss.backward(flow.ones_like(loss))
+        loss.backward()
+        # print(predicts.grad)
+        # print(loss.grad)
+        dump_to_npy(deep_weight, name=f'{i}/deep_weight')
+        dump_to_npy(deep_weight.grad, name=f'{i}/deep_weight_grad')
+        dump_to_npy(predicts.grad, name=f'{i}/predicts_grad')
+        dump_to_npy(loss.grad, name=f'{i}/loss_grad')
+        opt.step()
+        opt.zero_grad()
+        time.sleep(0.1)
         # print(deep_sparse_fields)
         # print(loss)
         if (i+1) % args.print_interval == 0:
             l = sum(losses) / len(losses)
+            losses = []
             print(f"iter {i} train_loss {l} time {time.time()}")
             if args.eval_batchs <= 0:
                 continue
@@ -88,12 +104,12 @@ if __name__ == '__main__':
                 predicts_list.append(predicts.numpy())
             all_labels = np.concatenate(lables_list, axis=0)
             all_predicts = np.concatenate(predicts_list, axis=0)
-            print(all_labels.shape, all_predicts.shape)
-            print(np.isnan(all_predicts).any())
-            print(all_labels.flatten())
+            # print(all_labels.shape, all_predicts.shape)
+            # print(np.isnan(all_predicts).any())
+            # print(all_labels.flatten())
             auc = "NaN" if np.isnan(all_predicts).any(
             ) else roc_auc_score(all_labels, all_predicts)
             print(f"iter {i} eval_loss {eval_loss/args.eval_batchs} auc {auc}")
 
-            losses = []
             wdl_module.train()
+    # flow.save(wdl_module.state_dict(), "output/iter0_checkpoint")
