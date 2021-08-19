@@ -28,7 +28,7 @@ class AverageMeter:
         self.avg = self.sum / self.count
 
 def _parse_args():
-    parser = argparse.ArgumentParser("flags for train alexnet")
+    parser = argparse.ArgumentParser("flags for train mnasnet")
     parser.add_argument(
         "--model", 
         choices=['mnasnet0_5', 'mnasnet0_75', 'mnasnet1_0', 'mnasnet1_3'], 
