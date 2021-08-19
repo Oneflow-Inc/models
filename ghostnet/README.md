@@ -12,7 +12,7 @@ tar zxf imagenette_ofrecord.tar.gz
 
 ### Pre-trained Model
 
-![Baidu Netdisk](https://pan.baidu.com/s/1Sez9d5ezvGLa6DTeptRdMw)(Code：ifpe)
+[Baidu Netdisk](https://pan.baidu.com/s/1Sez9d5ezvGLa6DTeptRdMw)(Code：ifpe)
 
 ### Run Oneflow Training script
 
