@@ -105,5 +105,5 @@ def main(model, checkpoint_path):
 if __name__ == "__main__":
     wide_resnet50_2_weight_path = "/data/rentianhe/code/new_models/models/wide_resnet/weight/torch/wide_resnet50_2-95faca4d.pth"
     wide_resnet101_2_weight_path = "/data/rentianhe/code/new_models/models/wide_resnet/weight/torch/wide_resnet101_2-32ee1156.pth"
-    model = wide_resnet50_2()
-    main(model, wide_resnet50_2_weight_path)
+    model = wide_resnet101_2()
+    main(model, wide_resnet101_2_weight_path)
