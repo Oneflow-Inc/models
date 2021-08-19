@@ -143,9 +143,9 @@ def main(args):
     total_val_batch_size = args.val_batch_size_per_device * world_size
 
     batches_per_epoch = args.train_examples_num // total_train_batch_size
-    # warmup_batches = batches_per_epoch * args.warmup_epochs
+    warmup_batches = batches_per_epoch * args.warmup_epochs
     num_train_batches = batches_per_epoch * args.num_epochs
-    decay_batches = num_train_batches# - warmup_batches
+    decay_batches = num_train_batches - warmup_batches
 
     train_data_loader = OFRecordDataLoader(
         ofrecord_root=args.ofrecord_path,
@@ -193,15 +193,28 @@ def main(args):
     cosine_annealing_lr = flow.optim.lr_scheduler.CosineAnnealingLR(
         of_sgd, steps=decay_batches
     )
+    if args.warmup_epochs > 0:
+        cosine_annealing_lr = flow.optim.lr_scheduler.LinearWarmupLR(
+            cosine_annealing_lr, steps=warmup_batches, start_multiplier=0
+        )
+
+    flow.backends.nccl.boxing_fusion_threshold_mb(args.nccl_fusion_threshold_mb)
+    flow.backends.nccl.boxing_fusion_max_ops_num(args.nccl_fusion_max_ops)
+    if args.use_fp16 and args.num_nodes * args.process_num_per_node > 1:
+        flow.backends.nccl.boxing_fusion_all_reduce_use_buffer(False)
 
     class Resnet50Graph(flow.nn.Graph):
         def __init__(self):
             super().__init__()
+            self.train_data_loader = train_data_loader
             self.resnet50 = resnet50_module
             self.cross_entropy = of_cross_entropy
             self.add_optimizer(of_sgd, lr_sch=cosine_annealing_lr)
-            self.train_data_loader = train_data_loader
-            # self.config.enable_auto_mixed_precision(True)
+
+            if args.use_fp16:
+                self.config.enable_amp(True)
+                loss_scale = flow.nn.graph.amp.DynamicLossScalePolicy(increment_period=2000)
+                self.config.amp_add_loss_scale_policy(loss_scale)
 
             self.config.enable_fuse_add_to_output(True)
             self.config.cudnn_conv_heuristic_search_algo(False)
@@ -227,8 +240,12 @@ def main(args):
     class Resnet50EvalGraph(flow.nn.Graph):
         def __init__(self):
             super().__init__()
-            self.resnet50 = resnet50_module
             self.val_data_loader = val_data_loader
+            self.resnet50 = resnet50_module
+            
+            if args.use_fp16:
+                self.config.enable_amp(True)
+            self.config.enable_fuse_add_to_output(True)
         
         def build(self):
             image, label = self.val_data_loader()

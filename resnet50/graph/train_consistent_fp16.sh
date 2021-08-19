@@ -17,16 +17,18 @@ OFRECORD_PATH="/DATA/disk1/ImageNet/ofrecord/"
 #     tar zxf imagenette_ofrecord.tar.gz
 # fi
 
-CHECKPOINT_PATH="graph_checkpoints"
+CHECKPOINT_PATH="graph_amp_checkpoints"
 if [ ! -d "$CHECKPOINT_PATH" ]; then
     mkdir $CHECKPOINT_PATH
 fi
 
 OFRECORD_PART_NUM=256
-LEARNING_RATE=0.768
+# LEARNING_RATE=1.536
+LEARNING_RATE=1.024
 MOM=0.875
 EPOCH=90
-TRAIN_BATCH_SIZE_PER_DEVICE=96
+# TRAIN_BATCH_SIZE_PER_DEVICE=192
+TRAIN_BATCH_SIZE_PER_DEVICE=128
 VAL_BATCH_SIZE_PER_DEVICE=50
 
 python3 -m oneflow.distributed.launch \
@@ -44,5 +46,7 @@ python3 -m oneflow.distributed.launch \
     --num_epochs $EPOCH \
     --train_batch_size_per_device $TRAIN_BATCH_SIZE_PER_DEVICE \
     --val_batch_size_per_device $VAL_BATCH_SIZE_PER_DEVICE \
+    --warmup_epochs 5 \
+    --use_fp16 \
     --nccl_fusion_threshold_mb=16 \
     --nccl_fusion_max_ops=24
