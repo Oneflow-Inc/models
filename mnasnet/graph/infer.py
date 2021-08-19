@@ -10,7 +10,7 @@ from utils.numpy_data_utils import load_image
 
 
 def _parse_args():
-    parser = argparse.ArgumentParser("flags for test mnasnet")
+    parser = argparse.ArgumentParser("flags for test alexnet")
     parser.add_argument(
         "--model_path", type=str, default="./weight/mnasnet0_5", help="model path"
     )
@@ -33,10 +33,22 @@ def main(args):
     model.eval()
     model.to("cuda")
 
+    class MNASNetEvalGraph(flow.nn.Graph):
+        def __init__(self):
+            super().__init__()
+            self.model = model
+        
+        def build(self, image):
+            with flow.no_grad():
+                predictions = self.model(image)
+            return predictions
+
+    mnasnet_eval_graph = MNASNetEvalGraph()
+
     start_t = time.time()
     image = load_image(args.image_path)
     image = flow.Tensor(image, device=flow.device("cuda"))
-    predictions = model(image).softmax()
+    predictions = mnasnet_eval_graph(image).softmax()
     predictions = predictions.numpy()
     end_t = time.time()
     print("infer time : {}".format(end_t - start_t))
