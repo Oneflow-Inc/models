@@ -17,7 +17,7 @@ if [ ! -d "$PRETRAIN_MODEL_PATH" ]; then
 fi
 
 if [ ! -d "${PRETRAIN_MODEL_PATH}${MODEL}_oneflow_model" ]; then
-  wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/cv/classification/vgg_models/${MODEL}_oneflow_model.tar.gz
+  wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/cv/classification/ghostnet_models/${MODEL}_oneflow_model.tar.gz
   tar zxf ${MODEL}_oneflow_model.tar.gz --directory ${PRETRAIN_MODEL_PATH}
 fi
 
