@@ -3,7 +3,7 @@ import numpy as np
 import os
 import time
 
-import oneflow.experimental as flow
+import oneflow as flow
 from models.densenet import densenet121
 from utils.ofrecord_data_utils import OFRecordDataLoader
 
@@ -13,7 +13,7 @@ def _parse_args():
         "--save_checkpoint_path", type=str, default="./checkpoints", help="save checkpoint root dir"
     )
     parser.add_argument(
-        "--load_checkpoint", type=str, default="", help="load checkpoint"
+        "--load_checkpoint", type=str, default="./densenet_121_oneflow_model", help="load checkpoint"
     )
     parser.add_argument(
         "--ofrecord_path", type=str, default="./ofrecord", help="dataset path"
@@ -38,8 +38,6 @@ def _parse_args():
     return parser.parse_args()
 
 def main(args):
-    flow.enable_eager_execution()
-    flow.InitEagerGlobalSession()
 
     train_data_loader = OFRecordDataLoader(
                             ofrecord_root = args.ofrecord_path,
@@ -58,7 +56,8 @@ def main(args):
     densenet121_module = densenet121()
     if args.load_checkpoint != "":
         print("load_checkpoint >>>>>>>>> ", args.load_checkpoint)
-        densenet121_module.load_state_dict(flow.load(args.load_checkpoint))
+        checkpoint = flow.load(args.load_checkpoint)
+        densenet121_module.load_state_dict(checkpoint)
 
     end_t = time.time()
     print('init time : {}'.format(end_t - start_t))
@@ -75,43 +74,11 @@ def main(args):
     print_interval = 100
 
 
-    # import re
-    # import torch
-    # parameters = torch.load("./densenet121-a639ec97.pth")
-    # pattern = re.compile(
-    #     r'^(.*denselayer\d+\.(?:norm|relu|conv))\.((?:[12])\.(?:weight|bias|running_mean|running_var))$')
-
-    # for key in list(parameters.keys()):
-    #     res = pattern.match(key)
-    #     if res:
-    #         print("res >>>>>>>>>>> ", res)
-    #         new_key = res.group(1) + res.group(2)
-    #         parameters[new_key] = parameters[key].detach().cpu().numpy()
-    #         del parameters[key]
-    #     else:
-    #         parameters[key] = parameters[key].detach().cpu().numpy()
-
-    # new_parameters = dict()
-    # for key,value in parameters.items():
-    #     res = pattern.match(key)
-    #     if res:
-    #         new_key = res.group(1) + res.group(2)
-    #         val = value.detach().cpu().numpy()
-    #         new_parameters[new_key] = val
-    #     else:
-    #         val = value.detach().cpu().numpy()
-    #         new_parameters[key] = val
-
-    # densenet121_module.load_state_dict(new_parameters)
-    # flow.save(densenet121_module.state_dict(), "densenet_121_oneflow_model")
-    # print("model weight convert success!!!!!!!")
-
-
     for epoch in range(args.epochs):
         densenet121_module.train()
 
         for b in range(len(train_data_loader)):
-            image, label = train_data_loader.get_batch()
+            image, label = train_data_loader()
         
             # oneflow train 
             start_t = time.time()
@@ -124,7 +91,7 @@ def main(args):
             of_sgd.zero_grad()
             end_t = time.time()
             if b % print_interval == 0:
-                l = loss.numpy()[0]
+                l = loss.numpy()
                 of_losses.append(l)
                 print('epoch {} train iter {} oneflow loss {}, train time : {}'.format(epoch, b, l, end_t - start_t))
 
@@ -133,7 +100,7 @@ def main(args):
         densenet121_module.eval()
         correct_of = 0.0
         for b in range(len(val_data_loader)):
-            image, label = val_data_loader.get_batch()
+            image, label = val_data_loader()
 
             start_t = time.time()
             image = image.to('cuda')

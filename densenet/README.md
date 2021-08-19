@@ -25,29 +25,32 @@ bash infer.sh
 ```
 
 #### Model
-We provide a converted pretrained model(from pytroch), you can get [here](https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/cv/classification/densenet/densenet121_oneflow_model.zip)
+We provide a converted pretrained model(from pytroch), you can get [here](https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/cv/classification/densenet/densenet_121_oneflow_model.zip)
 Also, you can use following steps to convert it on your own:
 
 ```sh
-wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/cv/classification/densenet/densenet121-a639ec97.pth 
+wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/cv/classification/densenet/densenet121-a639ec97.pth
 ```
 
 ```python
-# import re
-pattern = re.compile(r'^(.*denselayer\d+\.(?:norm|relu|conv))\.((?:[12])\.(?:weight|bias|running_mean|running_var))$')
-parameters = torch.load("./densenet121-a639ec97.pth")
+import torch
+import re
+state_dict = torch.load("./densenet121-a639ec97.pth")
+pattern = re.compile(
+    r'^(.*denselayer\d+\.(?:norm|relu|conv))\.((?:[12])\.(?:weight|bias|running_mean|running_var))$')
 
 new_parameters = dict()
-for key,value in parameters.items():
+for key in list(state_dict.keys()):
     res = pattern.match(key)
     if res:
         new_key = res.group(1) + res.group(2)
-        val = value.detach().cpu().numpy()
-        new_parameters[new_key] = val
-    else:
-        val = value.detach().cpu().numpy()
-        new_parameters[key] = val
+        state_dict[new_key] = state_dict[key]
+        del state_dict[key]
 
-densenet_121_module.load_state_dict(new_parameters)
-flow.save(densenet_121_module.state_dict(), "densenet_121_oneflow_model")
+new_parameters = dict()
+for key,value in state_dict.items():
+    new_parameters[key] = value.detach().cpu().numpy()
+densenet121_module.load_state_dict(new_parameters)
+flow.save(densenet121_module.state_dict(), "densenet_121_oneflow_model")
+print("model weight convert success!")
 ```

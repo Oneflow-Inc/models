@@ -1,6 +1,6 @@
 import re
-import oneflow.experimental as flow
-from oneflow.experimental import nn, Tensor
+import oneflow as flow
+import oneflow.nn as nn
 import oneflow.F as F
 from collections import OrderedDict
 from typing import Any, List, Tuple
@@ -43,21 +43,26 @@ class _DenseLayer(nn.Module):
                                            bias=False))
         self.drop_rate = float(drop_rate)
 
-    def bn_function(self, inputs: List[Tensor]) -> Tensor:
+    def bn_function(self, inputs: List[flow.Tensor]) -> flow.Tensor:
         concated_features = flow.cat(inputs, 1)
         bottleneck_output = self.conv1(self.relu1(self.norm1(concated_features)))  # noqa: T484
         return bottleneck_output
 
     # todo: rewrite when torchscript supports any
-    def any_requires_grad(self, input: List[Tensor]) -> bool:
+    def any_requires_grad(self, input: List[flow.Tensor]) -> bool:
         for tensor in input:
             if tensor.requires_grad:
                 return True
         return False
+    
+    def forward(self, input: List[flow.Tensor]) -> flow.Tensor:
+        pass
 
+    def forward(self, input: flow.Tensor) -> flow.Tensor:
+        pass
 
-    def forward(self, input: Tensor) -> Tensor:  # noqa: F811
-        if isinstance(input, Tensor):
+    def forward(self, input) -> flow.Tensor:  # noqa: F811
+        if isinstance(input, flow.Tensor):
             prev_features = [input]
         else:
             prev_features = input
@@ -92,19 +97,19 @@ class _DenseBlock(nn.ModuleDict):
             )
             self.add_module('denselayer%d' % (i + 1), layer)
 
-    def forward(self, init_features: Tensor) -> Tensor:
+    def forward(self, init_features):
         features = [init_features]
         for name, layer in self.items():
             new_features = layer(features)
             features.append(new_features)
-        return flow.cat(features, 1)
+        return flow.cat(features, dim=1)
 
 
 class _Transition(nn.Sequential):
     def __init__(self, num_input_features: int, num_output_features: int) -> None:
         super(_Transition, self).__init__()
         self.add_module('norm', nn.BatchNorm2d(num_input_features))
-        self.add_module('relu', nn.ReLU(inplace=False))
+        self.add_module('relu', nn.ReLU(inplace=True))
         self.add_module('conv', nn.Conv2d(num_input_features, num_output_features,
                                           kernel_size=1, stride=1, bias=False))
         self.add_module('pool', nn.AvgPool2d(kernel_size=2, stride=2))
@@ -140,7 +145,7 @@ class DenseNet(nn.Module):
             ('conv0', nn.Conv2d(3, num_init_features, kernel_size=7, stride=2,
                                 padding=3, bias=False)),
             ('norm0', nn.BatchNorm2d(num_init_features)),
-            ('relu0', nn.ReLU(inplace = False)),
+            ('relu0', nn.ReLU(inplace=True)),
             ('pool0', nn.MaxPool2d(kernel_size=3, stride=2, padding=1)),
         ]))
 
@@ -178,9 +183,9 @@ class DenseNet(nn.Module):
             elif isinstance(m, nn.Linear):
                 nn.init.constant_(m.bias, 0)
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x: flow.Tensor) -> flow.Tensor:
         features = self.features(x)
-        out = F.relu(features)
+        out = F.relu(features, inplace=True)
         out = F.adaptive_avg_pool2d(out, (1, 1))
         out = flow.flatten(out, 1)
         out = self.classifier(out)
