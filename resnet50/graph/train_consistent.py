@@ -12,6 +12,23 @@ from utils.ofrecord_data_utils import OFRecordDataLoader
 
 
 def _parse_args():
+    def str_list(x):
+        return [i.strip() for i in x.split(",")]
+
+    def int_list(x):
+        return list(map(int, x.split(",")))
+
+    def float_list(x):
+        return list(map(float, x.split(",")))
+
+    def str2bool(v):
+        if v.lower() in ("yes", "true", "t", "y", "1"):
+            return True
+        elif v.lower() in ("no", "false", "f", "n", "0"):
+            return False
+        else:
+            raise argparse.ArgumentTypeError("Unsupported value encountered.")
+
     parser = argparse.ArgumentParser("flags for train resnet50")
     parser.add_argument(
         "--save_checkpoint_path",
@@ -30,18 +47,85 @@ def _parse_args():
     )
     # training hyper-parameters
     parser.add_argument(
-        "--learning_rate", type=float, default=0.001, help="learning rate"
+        "--train_batch_size_per_device", type=int, default=32, help="train batch size"
     )
-    parser.add_argument("--mom", type=float, default=0.9, help="momentum")
-    parser.add_argument("--epochs", type=int, default=100, help="training epochs")
+    parser.add_argument("--val_batch_size_per_device", type=int, default=32, help="val batch size")
     parser.add_argument(
-        "--train_batch_size", type=int, default=32, help="train batch size"
+        "--process_num_per_node", type=int, default=1, help=""
     )
-    parser.add_argument("--val_batch_size", type=int, default=32, help="val batch size")
     parser.add_argument(
-        "--device_num", type=int, default=1, help=""
+        "--num_nodes", type=int, default=1, help="node/machine number for training"
+    )
+    parser.add_argument("--learning_rate", type=float, default=0.256)
+    parser.add_argument("--wd", type=float, default=1.0 / 32768, help="weight decay")
+    parser.add_argument("--momentum", type=float, default=0.875, help="momentum")
+    parser.add_argument(
+        "--lr_decay",
+        type=str,
+        default="cosine",
+        help="cosine, step, polynomial, exponential, None",
+    )
+    parser.add_argument(
+        "--warmup_epochs",
+        type=int,
+        default=5,
+        help="the epochs to warmp-up lr to scaled large-batch value",
+    )
+    parser.add_argument(
+        "--use_fp16",
+        type=str2bool,
+        nargs="?",
+        const=True,
+        help="Whether to use use fp16",
+    )
+    parser.add_argument("--num_epochs", type=int, default=90, help="number of epochs")
+
+    parser.add_argument(
+        "--nccl_fusion_threshold_mb",
+        type=int,
+        default=0,
+        help="NCCL fusion threshold megabytes, set to 0 to compatible with previous version of OneFlow.",
+    )
+    parser.add_argument(
+        "--nccl_fusion_max_ops",
+        type=int,
+        default=0,
+        help="Maximum number of ops of NCCL fusion, set to 0 to compatible with previous version of OneFlow.",
     )
 
+    # for data process
+    parser.add_argument(
+        "--num_classes", type=int, default=1000, help="num of pic classes"
+    )
+    parser.add_argument(
+        "--train_examples_num", type=int, default=1281167, help="train pic number"
+    )
+    parser.add_argument(
+        "--val_examples_num", type=int, default=50000, help="validation pic number"
+    )
+    parser.add_argument(
+        "--rgb-mean",
+        type=float_list,
+        default=[123.68, 116.779, 103.939],
+        help="a tuple of size 3 for the mean rgb",
+    )
+    parser.add_argument(
+        "--rgb-std",
+        type=float_list,
+        default=[58.393, 57.12, 57.375],
+        help="a tuple of size 3 for the std rgb",
+    )
+    parser.add_argument(
+        "--label_smoothing", type=float, default=0.1, help="label smoothing factor"
+    )
+
+    # log and loss print
+    parser.add_argument(
+        "--loss_print_every_n_iter",
+        type=int,
+        default=100,
+        help="print loss every n iteration",
+    )
     return parser.parse_args()
 
 
@@ -50,17 +134,25 @@ def main(args):
     rank = flow.distributed.get_rank()
     world_size = flow.distributed.get_world_size()
 
-    device_list = [i for i in range(args.device_num)]
-
+    device_list = [i for i in range(args.process_num_per_node)]
     placement = flow.placement("cpu", {0: device_list})
     sbp = [flow.sbp.split(0)]
+
+
+    total_train_batch_size = args.train_batch_size_per_device * world_size
+    total_val_batch_size = args.val_batch_size_per_device * world_size
+
+    batches_per_epoch = args.train_examples_num // total_train_batch_size
+    # warmup_batches = batches_per_epoch * args.warmup_epochs
+    num_train_batches = batches_per_epoch * args.num_epochs
+    decay_batches = num_train_batches# - warmup_batches
 
     train_data_loader = OFRecordDataLoader(
         ofrecord_root=args.ofrecord_path,
         mode="train",
-        dataset_size=1281167,
-        batch_size=args.train_batch_size * world_size,
-        total_batch_size=args.train_batch_size * world_size,
+        dataset_size=args.train_examples_num,
+        batch_size=total_train_batch_size,
+        total_batch_size=total_train_batch_size,
         ofrecord_part_num=args.ofrecord_part_num,
         placement=placement,
         sbp=sbp,
@@ -69,13 +161,14 @@ def main(args):
     val_data_loader = OFRecordDataLoader(
         ofrecord_root=args.ofrecord_path,
         mode="validation",
-        dataset_size=50000,
-        batch_size=args.val_batch_size * world_size,
-        total_batch_size=args.train_batch_size * world_size,
+        dataset_size=args.val_examples_num,
+        batch_size=total_val_batch_size,
+        total_batch_size=total_val_batch_size,
         ofrecord_part_num=args.ofrecord_part_num,
         placement=placement,
         sbp=sbp,
     )
+    all_val_samples = len(val_data_loader) * total_val_batch_size
 
     # oneflow init
     start_t = time.time()
@@ -95,7 +188,10 @@ def main(args):
     of_cross_entropy.to_consistent(placement=placement, sbp=sbp)
 
     of_sgd = flow.optim.SGD(
-        resnet50_module.parameters(), lr=args.learning_rate, momentum=args.mom
+        resnet50_module.parameters(), lr=args.learning_rate, momentum=args.momentum
+    )
+    cosine_annealing_lr = flow.optim.lr_scheduler.CosineAnnealingLR(
+        of_sgd, steps=decay_batches
     )
 
     class Resnet50Graph(flow.nn.Graph):
@@ -103,8 +199,19 @@ def main(args):
             super().__init__()
             self.resnet50 = resnet50_module
             self.cross_entropy = of_cross_entropy
-            self.add_optimizer("sgd", of_sgd)
+            self.add_optimizer(of_sgd, lr_sch=cosine_annealing_lr)
             self.train_data_loader = train_data_loader
+            # self.config.enable_auto_mixed_precision(True)
+
+            self.config.enable_fuse_add_to_output(True)
+            self.config.cudnn_conv_heuristic_search_algo(False)
+            self.config.prune_parallel_cast_ops(True)
+            self.config.enable_inplace(True)
+            if args.num_nodes > 1:
+                self.config.cudnn_conv_heuristic_search_algo(True)
+            else:
+                self.config.cudnn_conv_heuristic_search_algo(False)
+            self.config.enable_fuse_model_update_ops(True)
         
         def build(self):
             image, label = self.train_data_loader()
@@ -135,11 +242,7 @@ def main(args):
     resnet50_eval_graph = Resnet50EvalGraph()
 
     of_losses, of_accuracy = [], []
-    all_samples = len(val_data_loader) * (args.val_batch_size * world_size)
-    print_interval = 100
-
-
-    for epoch in range(args.epochs):
+    for epoch in range(args.num_epochs):
         resnet50_module.train()
 
         for b in range(len(train_data_loader)):
@@ -150,7 +253,7 @@ def main(args):
             loss = resnet50_graph()
 
             end_t = time.time()
-            if b % print_interval == 0:
+            if b % args.loss_print_every_n_iter == 0:
                 loss = loss.to_local()
                 l = loss.numpy()
                 of_losses.append(l)
@@ -180,47 +283,25 @@ def main(args):
 
             label_nd = label.numpy()
             
-            for i in range(args.val_batch_size * world_size):
+            for i in range(total_val_batch_size):
                 if clsidxs[i] == label_nd[i]:
                     correct_of += 1
             end_t = time.time()
 
-        top1 = correct_of / all_samples
+        top1 = correct_of / all_val_samples
         of_accuracy.append(top1)
         print("rank %d epoch %d, oneflow top1 val acc: %f" % (rank, epoch, top1))
 
-        # if rank == 0:
-            # get error
-            # Traceback (most recent call last):
-            # File "graph/train_consistent.py", line 203, in <module>
-            #     main(args)
-            # File "graph/train_consistent.py", line 182, in main
-            #     flow.save(
-            # File "/home/ldpe2g/oneFlow/oneflow/python/oneflow/framework/check_point_v2.py", line 292, in save
-            #     return _SaveVarDict(save_dir, obj)
-            # File "/home/ldpe2g/oneFlow/oneflow/python/oneflow/framework/check_point_v2.py", line 269, in _SaveVarDict
-            #     for (_, _, slice) in _ReadSlice(var):
-            # File "/home/ldpe2g/oneFlow/oneflow/python/oneflow/framework/check_point_v2.py", line 200, in _ReadSlice
-            #     yield from _ForEachSlice(container, ReadFromTensor)
-            # File "/home/ldpe2g/oneFlow/oneflow/python/oneflow/framework/check_point_v2.py", line 508, in _ForEachSlice
-            #     yield (start_nd_idx, stop_nd_idx, f(container, start_nd_idx, stop_nd_idx))
-            # File "/home/ldpe2g/oneFlow/oneflow/python/oneflow/framework/check_point_v2.py", line 191, in ReadFromTensor
-            #     return tensor[
-            # File "/home/ldpe2g/oneFlow/oneflow/python/oneflow/framework/tensor.py", line 91, in _getitem
-            #     return flow.F.tensor_getitem(self, key)
-            # File "/home/ldpe2g/oneFlow/oneflow/python/oneflow/framework/functional.py", line 26, in __call__
-            #     return self.handle(*args, **kwargs)
-            # oneflow._oneflow_internal.exception.UnimplementedException: 
-            # File "/home/ldpe2g/oneFlow/oneflow/oneflow/core/functional/impl/array_functor.cpp", line 1152, in operator()
-            #     x->device()
-            # File "/home/ldpe2g/oneFlow/oneflow/oneflow/core/framework/tensor.h", line 448, in device
-            # flow.save(
-            #     resnet50_module.state_dict(),
-            #     os.path.join(
-            #         args.save_checkpoint_path,
-            #         "epoch_%d_val_acc_%f" % (epoch, correct_of / all_samples),
-            #     ),
-            # )
+        if rank == 0:
+            consistent_src_dst_rank = 0
+            flow.save(
+                resnet50_module.state_dict(),
+                os.path.join(
+                    args.save_checkpoint_path,
+                    "epoch_%d_val_acc_%f" % (epoch, top1),
+                ),
+                consistent_dst_rank=consistent_src_dst_rank
+            )
 
     if rank == 0:
         writer = open("graph_of_losses.txt", "w")

@@ -1,9 +1,11 @@
 # set -aux
 
-TOTAL_DEVICE_NUM=4
+DEVICE_NUM_PER_NODE=4
 MASTER_ADDR=127.0.0.1
 NUM_NODES=1
 NODE_RANK=0
+
+export CUDA_VISIBLE_DEVICES=4,5,6,7
 
 OFRECORD_PATH="/DATA/disk1/ImageNet/ofrecord/"
 # if [ ! -d "$OFRECORD_PATH" ]; then
@@ -17,15 +19,14 @@ if [ ! -d "$CHECKPOINT_PATH" ]; then
 fi
 
 OFRECORD_PART_NUM=256
-# LEARNING_RATE=0.768
-LEARNING_RATE=0.384
+LEARNING_RATE=0.768
 MOM=0.875
-EPOCH=2000
-TRAIN_BATCH_SIZE_PER_DEVICE=80
-VAL_BATCH_SIZE=50
+EPOCH=90
+TRAIN_BATCH_SIZE_PER_DEVICE=96
+VAL_BATCH_SIZE_PER_DEVICE=50
 
 NCCL_DEBUG=INFO python3 -m oneflow.distributed.launch \
-    --nproc_per_node $TOTAL_DEVICE_NUM \
+    --nproc_per_node $DEVICE_NUM_PER_NODE \
     --nnodes $NUM_NODES \
     --node_rank $NODE_RANK \
     --master_addr $MASTER_ADDR \
@@ -33,9 +34,9 @@ NCCL_DEBUG=INFO python3 -m oneflow.distributed.launch \
     --save_checkpoint_path $CHECKPOINT_PATH \
     --ofrecord_path $OFRECORD_PATH \
     --ofrecord_part_num $OFRECORD_PART_NUM \
-    --device_num $TOTAL_DEVICE_NUM \
+    --process_num_per_node $DEVICE_NUM_PER_NODE \
     --learning_rate $LEARNING_RATE \
-    --mom $MOM \
-    --epochs $EPOCH \
-    --train_batch_size $TRAIN_BATCH_SIZE_PER_DEVICE \
-    --val_batch_size $VAL_BATCH_SIZE
+    --momentum $MOM \
+    --num_epochs $EPOCH \
+    --train_batch_size_per_device $TRAIN_BATCH_SIZE_PER_DEVICE \
+    --val_batch_size_per_device $VAL_BATCH_SIZE_PER_DEVICE
