@@ -30,6 +30,22 @@ class AverageMeter:
 def _parse_args():
     parser = argparse.ArgumentParser("flags for train alexnet")
     parser.add_argument(
+        "--model", 
+        choices=['mnasnet0_5', 'mnasnet0_75', 'mnasnet1_0', 'mnasnet1_3'], 
+        type=str, default="mnasnet0_5", 
+        help='mnasnet0_5'
+             'mnasnet0_75'
+             'mnasnet1_0'
+             'mnasnet1_3'
+    )
+    parser.add_argument(
+        "--dataset", 
+        choices=['imagenette', 'imagenet2012'], 
+        type=str, default="imagenette", 
+        help='imagenette'
+             'imagenet2012'
+    )
+    parser.add_argument(
         "--save_checkpoint_path",
         type=str,
         default="./checkpoints",
@@ -58,6 +74,20 @@ def _parse_args():
 
     return parser.parse_args()
 
+def build_model(args):
+    if args.dataset == 'imagenette':
+        num_classes = 10
+    elif args.dataset == 'imagenet2012':
+        num_classes = 1000
+    
+    if args.model == 'mnasnet0_5':
+        return mnasnet0_5(num_classes = num_classes)
+    elif args.model == 'mnasnet0_75':
+        return mnasnet0_75(num_classes = num_classes)
+    elif args.model == 'mnasnet1_0':
+        return mnasnet1_0(num_classes = num_classes)
+    elif args.model == 'mnasnet1_3':
+        return mnasnet1_3(num_classes = num_classes)
 
 def train_one_epoch(args, model, criterion, data_loader, optimizer, epoch, lr_scheduler):
     model.train()
@@ -172,7 +202,7 @@ def main(args):
     # Model Setup
     print("***** Initialization *****")
     start_t = time.time()
-    model = alexnet()
+    model = build_model(args)
     if args.load_checkpoint != "":
         print("load_checkpoint >>>>>>>>> ", args.load_checkpoint)
         model.load_state_dict(flow.load(args.load_checkpoint))
