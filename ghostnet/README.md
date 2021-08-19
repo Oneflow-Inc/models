@@ -10,9 +10,11 @@ wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/datasets/imagenette_ofre
 tar zxf imagenette_ofrecord.tar.gz
 ```
 
+
 ### Pre-trained Model
 
 [Baidu Netdisk](https://pan.baidu.com/s/1Sez9d5ezvGLa6DTeptRdMw)(Code：ifpe)
+
 
 ### Run Oneflow Training script
 
@@ -20,11 +22,13 @@ tar zxf imagenette_ofrecord.tar.gz
 bash train_oneflow.sh
 ```
 
+
 ## Inference on Single Image
 
 ```bash
 bash infer.sh
 ```
+
 
 ## Compare with pytorch_ghostnet
 
