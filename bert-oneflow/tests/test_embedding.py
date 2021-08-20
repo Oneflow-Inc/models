@@ -37,7 +37,6 @@ def compare_with_lazy_embedding():
 
     input_blobs = np.array([[0, 1, 1, 3, 2, 4, 7, 10, 11, 8]], dtype=np.int32)
     lazy_res, lazy_embedding = embedding_job(input_blobs).get()
-    # print(f"result is {lazy_res.numpy()}, embedding is {lazy_embedding.numpy()}")
 
     # eager embedding table
     eager_embedding_table = nn.Embedding(1000, 128)
