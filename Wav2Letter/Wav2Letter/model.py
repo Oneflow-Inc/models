@@ -2,7 +2,6 @@ import oneflow.nn as nn
 
 
 class Wav2Letter(nn.Module):
-
     def __init__(self, num_features, num_classes):
         super(Wav2Letter, self).__init__()
 

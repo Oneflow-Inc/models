@@ -17,14 +17,8 @@ class IntegerEncode:
 
     def __init__(self, labels):
         # reserve 0 for blank label
-        self.char2index = {
-            "-": 0,
-            "pad":1
-        }
-        self.index2char = {
-            0: "-",
-            1: "pad"
-        }
+        self.char2index = {"-": 0, "pad": 1}
+        self.index2char = {0: "-", 1: "pad"}
         self.grapheme_count = 2
         self.process(labels)
         self.max_label_seq = 6
@@ -67,7 +61,7 @@ class IntegerEncode:
             file_path (str): path to save pickle object
         """
         file_name = os.path.join(file_path, "int_encoder.pkl")
-        with open(file_name, 'wb') as f:
+        with open(file_name, "wb") as f:
             pickle.dump(self.__dict__, f)
 
 
@@ -83,7 +77,7 @@ def normalize(values):
     return (values - np.mean(values)) / np.std(values)
 
 
-class GoogleSpeechCommand():
+class GoogleSpeechCommand:
     """Data set can be found here 
         https://www.kaggle.com/c/tensorflow-speech-recognition-challenge/data
     """
@@ -91,10 +85,36 @@ class GoogleSpeechCommand():
     def __init__(self, data_path="speech_data/speech_commands_v0.01", sr=16000):
         self.data_path = data_path
         self.labels = [
-            'right', 'eight', 'cat', 'tree', 'bed', 'happy', 'go', 'dog', 'no', 
-            'wow', 'nine', 'left', 'stop', 'three', 'sheila', 'one', 'bird', 'zero',
-            'seven', 'up', 'marvin', 'two', 'house', 'down', 'six', 'yes', 'on', 
-            'five', 'off', 'four'
+            "right",
+            "eight",
+            "cat",
+            "tree",
+            "bed",
+            "happy",
+            "go",
+            "dog",
+            "no",
+            "wow",
+            "nine",
+            "left",
+            "stop",
+            "three",
+            "sheila",
+            "one",
+            "bird",
+            "zero",
+            "seven",
+            "up",
+            "marvin",
+            "two",
+            "house",
+            "down",
+            "six",
+            "yes",
+            "on",
+            "five",
+            "off",
+            "four",
         ]
         self.intencode = IntegerEncode(self.labels)
         self.sr = sr
@@ -117,7 +137,7 @@ class GoogleSpeechCommand():
             for audio in path:
                 audio_path = os.path.join(self.data_path, labels, audio)
                 meta_data.append((audio_path, labels))
-        
+
         random.shuffle(meta_data)
 
         for md in pg(meta_data):
@@ -125,8 +145,12 @@ class GoogleSpeechCommand():
             labels = md[1]
             _, audio = read(audio_path)
             mfccs = mfcc_spec(
-                audio, self.sr, window_stride=(160, 80),
-                fft_size=512, num_filt=20, num_coeffs=13
+                audio,
+                self.sr,
+                window_stride=(160, 80),
+                fft_size=512,
+                num_filt=20,
+                num_coeffs=13,
             )
             mfccs = normalize(mfccs)
             diff = self.max_frame_len - mfccs.shape[0]

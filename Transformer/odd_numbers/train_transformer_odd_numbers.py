@@ -15,20 +15,20 @@ TO_CUDA = True
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument('--batch_size', type=int, default=32)
-parser.add_argument('--n_epochs', type=int, default=15)
-parser.add_argument('--lr', type=float, default=1e-4)
+parser.add_argument("--batch_size", type=int, default=32)
+parser.add_argument("--n_epochs", type=int, default=15)
+parser.add_argument("--lr", type=float, default=1e-4)
 
-parser.add_argument('--vocab_sz', type=int, default=50000)
-parser.add_argument('--d_model', type=int, default=512)
-parser.add_argument('--dropout', type=float, default=0.1)
-parser.add_argument('--n_head', type=int, default=8)
-parser.add_argument('--n_encoder_layers', type=int, default=6)
-parser.add_argument('--n_decoder_layers', type=int, default=6)
-parser.add_argument('--dim_feedforward', type=int, default=1024)
+parser.add_argument("--vocab_sz", type=int, default=50000)
+parser.add_argument("--d_model", type=int, default=512)
+parser.add_argument("--dropout", type=float, default=0.1)
+parser.add_argument("--n_head", type=int, default=8)
+parser.add_argument("--n_encoder_layers", type=int, default=6)
+parser.add_argument("--n_decoder_layers", type=int, default=6)
+parser.add_argument("--dim_feedforward", type=int, default=1024)
 
-parser.add_argument('--load_dir', type=str, default='.')
-parser.add_argument('--save_dir', type=str, default='./best_model')
+parser.add_argument("--load_dir", type=str, default=".")
+parser.add_argument("--save_dir", type=str, default="./best_model")
 
 args = parser.parse_args()
 
@@ -41,10 +41,12 @@ def to_cuda(tensor, flag=TO_CUDA, where="cuda"):
 
 
 def get_numbers(x, y, inp_len=3, out_len=3):
-    data_x = np.array([[x[i + j] for j in range(inp_len)]
-                       for i in range(len(x) - inp_len + 1)])
-    data_y = np.array([[0] + [y[i + j] for j in range(out_len)]
-                       for i in range(len(y) - out_len + 1)])  # 4997 * 3
+    data_x = np.array(
+        [[x[i + j] for j in range(inp_len)] for i in range(len(x) - inp_len + 1)]
+    )
+    data_y = np.array(
+        [[0] + [y[i + j] for j in range(out_len)] for i in range(len(y) - out_len + 1)]
+    )  # 4997 * 3
 
     idx = np.arange(len(data_x))
     np.random.shuffle(idx)
@@ -57,12 +59,19 @@ def shuffle_batch(data, label, batch_size):
     data, label = data[permu], label[permu]
     batch_n = len(data) // batch_size
 
-    x_batch = np.array([data[i * batch_size:i * batch_size + batch_size]
-                       for i in range(batch_n)], dtype=np.int32)
-    y_batch = np.array([label[i * batch_size:i * batch_size + batch_size]
-                       for i in range(batch_n)], dtype=np.int32)
+    x_batch = np.array(
+        [data[i * batch_size : i * batch_size + batch_size] for i in range(batch_n)],
+        dtype=np.int32,
+    )
+    y_batch = np.array(
+        [label[i * batch_size : i * batch_size + batch_size] for i in range(batch_n)],
+        dtype=np.int32,
+    )
 
-    return flow.tensor(x_batch, dtype=flow.int64), flow.tensor(y_batch, dtype=flow.int64)
+    return (
+        flow.tensor(x_batch, dtype=flow.int64),
+        flow.tensor(y_batch, dtype=flow.int64),
+    )
 
 
 def train(model, criterion, optimizer, train_x, train_y):
@@ -74,7 +83,7 @@ def train(model, criterion, optimizer, train_x, train_y):
         src, tgt = src.transpose(1, 0), tgt.transpose(1, 0)
         src, tgt = to_cuda(src), to_cuda(tgt)
         last = tgt.shape[0]
-        output = model(src, tgt[:last - 1, :])
+        output = model(src, tgt[: last - 1, :])
         n = output.shape[-1]
 
         loss = criterion(output.permute(1, 2, 0), tgt[1:, :].permute(1, 0))
@@ -96,7 +105,7 @@ def validation(model, criterion, val_x, val_y):
             src, tgt = src.transpose(1, 0), tgt.transpose(1, 0)
             src, tgt = to_cuda(src), to_cuda(tgt)
             last = tgt.shape[0]
-            output = model(src, tgt[:last - 1, :])
+            output = model(src, tgt[: last - 1, :])
             n = output.shape[-1]
             loss = criterion(output.permute(1, 2, 0), tgt[1:, :].permute(1, 0))
             epoch_loss += loss.numpy()
@@ -141,9 +150,17 @@ def main():
     print("Done")
 
     print("Setting model...", end="")
-    model = TransformerModel(input_sz=voc_size, output_sz=voc_size, d_model=args.d_model, nhead=args.n_head,
-                             num_encoder_layers=args.n_encoder_layers, num_decoder_layers=args.n_decoder_layers, dim_feedforward=args.dim_feedforward, dropout=args.dropout)
-    if args.load_dir != '.':
+    model = TransformerModel(
+        input_sz=voc_size,
+        output_sz=voc_size,
+        d_model=args.d_model,
+        nhead=args.n_head,
+        num_encoder_layers=args.n_encoder_layers,
+        num_decoder_layers=args.n_decoder_layers,
+        dim_feedforward=args.dim_feedforward,
+        dropout=args.dropout,
+    )
+    if args.load_dir != ".":
         model.load_state_dict(flow.load(args.load_dir))
     model = to_cuda(model)
     criterion = to_cuda(nn.CrossEntropyLoss())

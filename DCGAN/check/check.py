@@ -10,8 +10,23 @@ matplotlib.use("agg")
 import matplotlib.pyplot as plt
 import oneflow as flow
 
-from utils import make_dirs, load_mnist, download_mnist, to_numpy, to_tensor, save_to_gif, save_images
-from models import Generator, Discriminator, GeneratorTrainGraph, DiscriminatorTrainGraph, GeneratorEvalGraph
+from utils import (
+    make_dirs,
+    load_mnist,
+    download_mnist,
+    to_numpy,
+    to_tensor,
+    save_to_gif,
+    save_images,
+)
+from models import (
+    Generator,
+    Discriminator,
+    GeneratorTrainGraph,
+    DiscriminatorTrainGraph,
+    GeneratorEvalGraph,
+)
+
 
 def _parse_args():
     parser = argparse.ArgumentParser(description="oneflow DCGAN")
@@ -49,7 +64,6 @@ def _parse_args():
     return parser.parse_args()
 
 
-
 class DCGAN(flow.nn.Module):
     def __init__(self, args):
         super().__init__()
@@ -78,8 +92,6 @@ class DCGAN(flow.nn.Module):
         self.val_images_path = os.path.join(self.images_path, "val_images")
         make_dirs(self.checkpoint_path, self.train_images_path, self.val_images_path)
 
-    
-    
     def train(self, epochs=1, save=True):
         # init dataset
         np.random.seed(0)
@@ -105,14 +117,28 @@ class DCGAN(flow.nn.Module):
         self.optimizerD = flow.optim.SGD(self.discriminator.parameters(), lr=self.lr)
 
         self.of_cross_entropy = flow.nn.BCELoss().to(self.device)
-        
+
         self.generator_graph = Generator(self.z_dim).to(self.device)
         self.discriminator_graph = Discriminator().to(self.device)
-        self.optimizerG_graph = flow.optim.SGD(self.generator_graph.parameters(), lr=self.lr)
-        self.optimizerD_graph = flow.optim.SGD(self.discriminator_graph.parameters(), lr=self.lr)
+        self.optimizerG_graph = flow.optim.SGD(
+            self.generator_graph.parameters(), lr=self.lr
+        )
+        self.optimizerD_graph = flow.optim.SGD(
+            self.discriminator_graph.parameters(), lr=self.lr
+        )
 
-        G_train_graph = GeneratorTrainGraph(self.discriminator_graph, self.generator_graph, self.optimizerG_graph, self.of_cross_entropy)
-        D_train_graph = DiscriminatorTrainGraph(self.discriminator_graph, self.generator_graph, self.optimizerD_graph, self.of_cross_entropy)
+        G_train_graph = GeneratorTrainGraph(
+            self.discriminator_graph,
+            self.generator_graph,
+            self.optimizerG_graph,
+            self.of_cross_entropy,
+        )
+        D_train_graph = DiscriminatorTrainGraph(
+            self.discriminator_graph,
+            self.generator_graph,
+            self.optimizerD_graph,
+            self.of_cross_entropy,
+        )
 
         for epoch_idx in range(epochs):
             self.generator.train()
@@ -128,22 +154,22 @@ class DCGAN(flow.nn.Module):
                 ).to(self.device)
                 # one-side label smooth
                 start = time.time()
-                (
-                    d_loss,
-                    d_loss_fake,
-                    d_loss_real,
-                    D_x,
-                    D_gz1,
-                ) = D_train_graph(images, label1_smooth, label0, self.generate_noise())
-                (
-                    d_loss,
-                    d_loss_fake,
-                    d_loss_real,
-                    D_x,
-                    D_gz1,
-                ) = (to_numpy(d_loss), to_numpy(d_loss_fake), to_numpy(d_loss_real), to_numpy(D_x), to_numpy(D_gz1))
+                (d_loss, d_loss_fake, d_loss_real, D_x, D_gz1,) = D_train_graph(
+                    images, label1_smooth, label0, self.generate_noise()
+                )
+                (d_loss, d_loss_fake, d_loss_real, D_x, D_gz1,) = (
+                    to_numpy(d_loss),
+                    to_numpy(d_loss_fake),
+                    to_numpy(d_loss_real),
+                    to_numpy(D_x),
+                    to_numpy(D_gz1),
+                )
                 g_loss, g_out, D_gz2 = G_train_graph(label1, self.generate_noise())
-                g_loss, g_out, D_gz2 = to_numpy(g_loss), to_numpy(g_out, False), to_numpy(D_gz2)
+                g_loss, g_out, D_gz2 = (
+                    to_numpy(g_loss),
+                    to_numpy(g_out, False),
+                    to_numpy(D_gz2),
+                )
                 graph_time += time.time() - start
                 self.D_loss_graph.append(d_loss)
                 self.G_loss_graph.append(g_loss)
@@ -166,19 +192,22 @@ class DCGAN(flow.nn.Module):
                     graph_time = 0
                     normal_time = 0
                     np.save(
-                        os.path.join(self.path, "g_loss.npy".format(epochs)), self.G_loss
+                        os.path.join(self.path, "g_loss.npy".format(epochs)),
+                        self.G_loss,
                     )
                     np.save(
-                        os.path.join(self.path, "d_loss.npy".format(epochs)), self.D_loss
+                        os.path.join(self.path, "d_loss.npy".format(epochs)),
+                        self.D_loss,
                     )
                     np.save(
-                        os.path.join(self.path, "g_loss_graph.npy".format(epochs)), self.G_loss_graph
+                        os.path.join(self.path, "g_loss_graph.npy".format(epochs)),
+                        self.G_loss_graph,
                     )
                     np.save(
-                        os.path.join(self.path, "d_loss_graph.npy".format(epochs)), self.D_loss_graph
+                        os.path.join(self.path, "d_loss_graph.npy".format(epochs)),
+                        self.D_loss_graph,
                     )
                     return
-
 
     def train_discriminator(self, images, label1, label0):
         z = self.generate_noise()
@@ -188,8 +217,8 @@ class DCGAN(flow.nn.Module):
         cat = flow.cat((images, g_out), dim=0)
 
         result = self.discriminator(cat)
-        d_logits = result[:images.shape[0]]
-        g_logits = result[images.shape[0]:]
+        d_logits = result[: images.shape[0]]
+        g_logits = result[images.shape[0] :]
 
         d_loss_real = self.of_cross_entropy(d_logits, label1)
 

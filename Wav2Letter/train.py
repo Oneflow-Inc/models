@@ -15,10 +15,10 @@ from Wav2Letter.decoder import GreedyDecoder
 
 
 def get_args():
-    parser = argparse.ArgumentParser(
-        """Wav2Letter train"""
+    parser = argparse.ArgumentParser("""Wav2Letter train""")
+    parser.add_argument(
+        "--batch_size", type=int, default=32, help="The number of images per batch"
     )
-    parser.add_argument("--batch_size", type=int, default=32, help="The number of images per batch")
     parser.add_argument("--mfcc_features", type=int, default=13)
     parser.add_argument("--epochs", type=int, default=1000)
     parser.add_argument("--rate", type=float, default=0.9)
@@ -50,19 +50,19 @@ def train(opt):
     print("num_mfcc_features", mfcc_features)
     print("grapheme_count", grapheme_count)
 
-    inputs = flow.Tensor(_inputs).to('cuda')
-    targets = flow.Tensor(_targets, dtype=flow.int).to('cuda')
+    inputs = flow.Tensor(_inputs).to("cuda")
+    targets = flow.Tensor(_targets, dtype=flow.int).to("cuda")
 
     # split train, eval, test
     data_size = len(_inputs)
-    train_inputs = inputs[0: int(rate * data_size)]
-    train_targets = targets[0: int(rate * data_size)]
-    eval_inputs = inputs[int(rate * data_size): -1000]
-    eval_targets = targets[int(rate * data_size): -1000]
+    train_inputs = inputs[0 : int(rate * data_size)]
+    train_targets = targets[0 : int(rate * data_size)]
+    eval_inputs = inputs[int(rate * data_size) : -1000]
+    eval_targets = targets[int(rate * data_size) : -1000]
 
     # Initialize model, loss, optimizer
     model = Wav2Letter(mfcc_features, grapheme_count)
-    model.to('cuda')
+    model.to("cuda")
 
     ctc_loss = nn.CTCLoss()
     optimizer = optim.Adam(model.parameters(), lr=opt.lr)
@@ -79,15 +79,21 @@ def train(opt):
         avg_epoch_loss = 0
 
         for step in range(train_total_steps):
-            train_data_batch = train_inputs[samples_processed : batch_size + samples_processed].transpose(1, 2)
+            train_data_batch = train_inputs[
+                samples_processed : batch_size + samples_processed
+            ].transpose(1, 2)
 
             log_probs = model(train_data_batch)
             log_probs = log_probs.transpose(1, 2).transpose(0, 1)
 
-            targets = train_targets[samples_processed: batch_size + samples_processed]
+            targets = train_targets[samples_processed : batch_size + samples_processed]
 
-            input_lengths = flow.Tensor(np.full((batch_size,), log_probs.shape[0]), dtype=flow.int).to('cuda')
-            target_lengths = flow.Tensor([target.shape[0] for target in targets], dtype=flow.int).to('cuda')
+            input_lengths = flow.Tensor(
+                np.full((batch_size,), log_probs.shape[0]), dtype=flow.int
+            ).to("cuda")
+            target_lengths = flow.Tensor(
+                [target.shape[0] for target in targets], dtype=flow.int
+            ).to("cuda")
 
             loss = ctc_loss(log_probs, targets, input_lengths, target_lengths)
 
@@ -104,21 +110,35 @@ def train(opt):
         wer = 0
         start_index = 0
         for step in range(eval_total_steps):
-            eval_data_batch = eval_inputs[start_index : batch_size + start_index].transpose(1, 2)
+            eval_data_batch = eval_inputs[
+                start_index : batch_size + start_index
+            ].transpose(1, 2)
             eval_targets_batch = eval_targets[start_index : batch_size + start_index]
             eval_log_props = model(eval_data_batch)
 
             output = decoder.decode(eval_log_props)
             pred_strings, output = decoder.convert_to_strings(output)
-            eval_target_strings = decoder.convert_to_strings(eval_targets_batch, remove_repetitions=False, return_offsets=False)
+            eval_target_strings = decoder.convert_to_strings(
+                eval_targets_batch, remove_repetitions=False, return_offsets=False
+            )
             wer += decoder.wer(eval_target_strings, pred_strings)
             start_index += batch_size
-        
-        print("epoch", epoch + 1, "average epoch loss", avg_epoch_loss / train_total_steps, "wer", wer/eval_total_steps)
+
+        print(
+            "epoch",
+            epoch + 1,
+            "average epoch loss",
+            avg_epoch_loss / train_total_steps,
+            "wer",
+            wer / eval_total_steps,
+        )
 
         # save models
         if (epoch + 1) % 100 == 0:
-            flow.save(model.state_dict(), os.path.join(opt.output_path, "model_{}.pth".format(epoch+1)))
+            flow.save(
+                model.state_dict(),
+                os.path.join(opt.output_path, "model_{}.pth".format(epoch + 1)),
+            )
 
 
 if __name__ == "__main__":

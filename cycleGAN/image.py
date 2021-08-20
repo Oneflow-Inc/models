@@ -2,7 +2,8 @@ import random
 import numpy as np
 import cv2
 
-class ImagePool():
+
+class ImagePool:
     """This class implements an image buffer that stores previously generated images.
 
     This buffer enables us to update discriminators using a history of generated images
@@ -35,13 +36,19 @@ class ImagePool():
         if self.pool_size == 0:  # if the buffer size is 0, do nothing
             return image
         return_image = image
-        if self.num_imgs < self.pool_size:   # if the buffer is not full; keep inserting current images to the buffer
+        if (
+            self.num_imgs < self.pool_size
+        ):  # if the buffer is not full; keep inserting current images to the buffer
             self.num_imgs = self.num_imgs + 1
             self.images.append(image)
         else:
             p = random.uniform(0, 1)
-            if p > 0.5:  # by 50% chance, the buffer will return a previously stored image, and insert the current image into the buffer
-                random_id = random.randint(0, self.pool_size - 1)  # randint is inclusive
+            if (
+                p > 0.5
+            ):  # by 50% chance, the buffer will return a previously stored image, and insert the current image into the buffer
+                random_id = random.randint(
+                    0, self.pool_size - 1
+                )  # randint is inclusive
                 tmp = self.images[random_id]
                 self.images[random_id] = image
                 return_image = tmp
@@ -56,26 +63,25 @@ def random_crop(image, crop_height, crop_width):
     x = np.random.randint(0, max_x)
     y = np.random.randint(0, max_y)
 
-    crop = image[y: y + crop_height, x: x + crop_width]
+    crop = image[y : y + crop_height, x : x + crop_width]
 
     return crop
 
-def load_image2ndarray(image_path, 
-                       resize_and_crop = True,
-                       load_size = 286,
-                       crop_size = 256):
+
+def load_image2ndarray(image_path, resize_and_crop=True, load_size=286, crop_size=256):
     im = cv2.imread(image_path)
     if resize_and_crop:
-        im = cv2.resize(im, (load_size, load_size), interpolation = cv2.INTER_CUBIC)
+        im = cv2.resize(im, (load_size, load_size), interpolation=cv2.INTER_CUBIC)
         im = random_crop(im, crop_size, crop_size)
     else:
-        im = cv2.resize(im, (crop_size, crop_size), interpolation = cv2.INTER_CUBIC)
-    
+        im = cv2.resize(im, (crop_size, crop_size), interpolation=cv2.INTER_CUBIC)
+
     im = cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
     im = np.transpose(im, (2, 0, 1))
     im = ((im.astype(np.float32) / 255.0) - 0.5) / 0.5
     im = np.expand_dims(im, axis=0)
-    return np.ascontiguousarray(im, 'float32')
+    return np.ascontiguousarray(im, "float32")
+
 
 def ndarray2image(im):
     im = np.squeeze(im)
