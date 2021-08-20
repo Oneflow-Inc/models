@@ -4,6 +4,8 @@ import argparse
 import numpy as np
 import time
 
+import sys
+sys.path.append(".")
 from models.resnet50 import resnet50
 from utils.imagenet1000_clsidx_to_labels import clsidx_2_labels
 from utils.numpy_data_utils import load_image
@@ -29,7 +31,7 @@ def main(args):
     print("init time : {}".format(end_t - start_t))
 
     start_t = time.time()
-    pretrain_models = flow.load("resnet50_imagenet_pretrain_model")
+    pretrain_models = flow.load(args.model_path)
     res50_module.load_state_dict(pretrain_models)
     end_t = time.time()
     print("load params time : {}".format(end_t - start_t))
