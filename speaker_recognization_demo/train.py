@@ -12,13 +12,9 @@ from model.dataloader import create_batches_rnd
 
 
 def get_args():
-    parser = argparse.ArgumentParser(
-        """Speaker Recognization Demo Train"""
-    )
+    parser = argparse.ArgumentParser("""Speaker Recognization Demo Train""")
     parser.add_argument(
-        "--label_dict",
-        type=str,
-        default="data_preprocessed/label_dict.json"
+        "--label_dict", type=str, default="data_preprocessed/label_dict.json"
     )
     parser.add_argument(
         "--batch_size", type=int, default=32, help="The number of images per batch"
@@ -37,19 +33,16 @@ def get_args():
 
 
 def train(opt):
-    with open(opt.label_dict,'r') as f:
+    with open(opt.label_dict, "r") as f:
         lab_dict = json.load(f)
 
     cnn = simple_CNN()
-    cnn.to('cuda')
+    cnn.to("cuda")
 
     cost = nn.CrossEntropyLoss()
-    cost.to('cuda')
+    cost.to("cuda")
 
-    optimizer = optim.RMSprop(cnn.parameters(),
-                            lr=opt.lr,
-                            alpha=opt.alpha,
-                            eps=opt.eps)
+    optimizer = optim.RMSprop(cnn.parameters(), lr=opt.lr, alpha=opt.alpha, eps=opt.eps)
 
     output_folder = opt.output_path
     N_batches = opt.N_batches
@@ -63,15 +56,20 @@ def train(opt):
 
         for i in range(N_batches):
 
-            inp, lab = create_batches_rnd(lab_dict, batch_size=opt.batch_size, wlen=opt.wlen,
-                                          fact_amp=opt.fact_amp, train=True)
+            inp, lab = create_batches_rnd(
+                lab_dict,
+                batch_size=opt.batch_size,
+                wlen=opt.wlen,
+                fact_amp=opt.fact_amp,
+                train=True,
+            )
             inp = inp.unsqueeze(1)
             lab -= 1
 
             pout = cnn(inp)
             pred = flow.argmax(pout, dim=1)
             loss = cost(pout, lab.long())
-            err = np.mean(pred.numpy()!=lab.long().numpy())
+            err = np.mean(pred.numpy() != lab.long().numpy())
 
             loss.backward()
             optimizer.step()
@@ -89,7 +87,6 @@ def train(opt):
     flow.save(cnn.state_dict(), os.path.join(output_folder, "CNN_model"))
 
 
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     opt = get_args()
     train(opt)

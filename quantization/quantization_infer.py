@@ -14,24 +14,40 @@ def _parse_args():
     parser.add_argument(
         "--model_path", type=str, default="./alexnet_oneflow_model", help="model path"
     )
-    parser.add_argument("--image_path", type=str,
-                        default="", help="input image path")
-    parser.add_argument("--quantization_bit", type=int,
-                        default=8, help="quantization bit")
-    parser.add_argument("--quantization_scheme", type=str,
-                        default="symmetric", help="quantization scheme")
-    parser.add_argument("--quantization_formula", type=str,
-                        default="google", help="quantization formula")
-    parser.add_argument("--per_layer_quantization", type=bool,
-                        default=True, help="per_layer_quantization")
+    parser.add_argument("--image_path", type=str, default="", help="input image path")
+    parser.add_argument(
+        "--quantization_bit", type=int, default=8, help="quantization bit"
+    )
+    parser.add_argument(
+        "--quantization_scheme",
+        type=str,
+        default="symmetric",
+        help="quantization scheme",
+    )
+    parser.add_argument(
+        "--quantization_formula",
+        type=str,
+        default="google",
+        help="quantization formula",
+    )
+    parser.add_argument(
+        "--per_layer_quantization",
+        type=bool,
+        default=True,
+        help="per_layer_quantization",
+    )
     return parser.parse_args()
 
 
 def main(args):
     start_t = time.time()
     quantization_module = QuantizationAlexNet()
-    quantization_module.quantize(quantization_bit=args.quantization_bit, quantization_scheme=args.quantization_scheme,
-                                 quantization_formula=args.quantization_formula, per_layer_quantization=args.per_layer_quantization)
+    quantization_module.quantize(
+        quantization_bit=args.quantization_bit,
+        quantization_scheme=args.quantization_scheme,
+        quantization_formula=args.quantization_formula,
+        per_layer_quantization=args.per_layer_quantization,
+    )
     end_t = time.time()
     print("init time : {}".format(end_t - start_t))
 

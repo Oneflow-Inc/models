@@ -17,7 +17,7 @@ class LSTMText(nn.Module):
         self.embedding = nn.Embedding(self.emb_sz, self.emb_dim)
         self.linear = nn.Linear(hidden_size * 2 * nfc, n_classes)
         self.softmax = nn.Softmax(dim=1)
-    
+
     def forward(self, inputs, is_train=1):
         data = self.embedding(inputs)
         data = self.bilstm(data)
@@ -40,7 +40,7 @@ def reverse(inputs, dim=0):
         temp = temp[:, ::-1, :]
     elif dim == 2:
         temp = temp[:, :, ::-1]
-    reserve_inputs = flow.Tensor(temp).to('cuda')
+    reserve_inputs = flow.Tensor(temp).to("cuda")
     return reserve_inputs
 
 
@@ -53,20 +53,20 @@ class CustomLSTM(nn.Module):
         self.U = nn.Parameter(flow.Tensor(hidden_sz, hidden_sz * 4))
         self.bias = nn.Parameter(flow.Tensor(hidden_sz * 4))
         self.init_weights()
-    
+
     def init_weights(self):
         stdv = 1.0 / math.sqrt(self.hidden_size)
         for weight in self.parameters():
             weight.data.uniform_(-stdv, stdv)
-    
+
     def forward(self, x, init_states=None):
         """Assumes x is of shape (batch, sequence, feature)"""
         bs, seq_sz, _ = x.size()
         hidden_seq = []
         if init_states is None:
             h_t, c_t = (
-                flow.zeros((bs, self.hidden_size)).to('cuda'),
-                flow.zeros((bs, self.hidden_size)).to('cuda'),
+                flow.zeros((bs, self.hidden_size)).to("cuda"),
+                flow.zeros((bs, self.hidden_size)).to("cuda"),
             )
         else:
             h_t, c_t = init_states
@@ -76,9 +76,9 @@ class CustomLSTM(nn.Module):
             gates = flow.matmul(x_t, self.W) + flow.matmul(h_t, self.U) + self.bias
             i_t, f_t, g_t, o_t = (
                 flow.sigmoid(gates[:, :HS]),
-                flow.sigmoid(gates[:, HS: HS * 2]),
-                flow.tanh(gates[:, HS * 2: HS * 3]),
-                flow.sigmoid(gates[:, HS * 3:]),
+                flow.sigmoid(gates[:, HS : HS * 2]),
+                flow.tanh(gates[:, HS * 2 : HS * 3]),
+                flow.sigmoid(gates[:, HS * 3 :]),
             )
             c_t = f_t * c_t + i_t * g_t
             h_t = o_t * flow.tanh(c_t)
@@ -100,15 +100,25 @@ class BiLSTM(nn.Module):
             self.bi_num = 1
         self.biFlag = bi_flag
         self.layer1 = nn.ModuleList()
-        self.layer1.append(CustomLSTM(input_dim, hidden_dim, num_layers=num_layers, batch_size=batch_size))
+        self.layer1.append(
+            CustomLSTM(
+                input_dim, hidden_dim, num_layers=num_layers, batch_size=batch_size
+            )
+        )
         if bi_flag:
             # add reverse layer.
-            self.layer1.append(CustomLSTM(input_dim, hidden_dim, num_layers=num_layers, batch_size=batch_size))
-    
+            self.layer1.append(
+                CustomLSTM(
+                    input_dim, hidden_dim, num_layers=num_layers, batch_size=batch_size
+                )
+            )
+
     def init_hidden(self, batch_size):
-        return (flow.zeros((batch_size, self.hidden_dim)).to('cuda'),
-                flow.zeros((batch_size, self.hidden_dim)).to('cuda'))
-    
+        return (
+            flow.zeros((batch_size, self.hidden_dim)).to("cuda"),
+            flow.zeros((batch_size, self.hidden_dim)).to("cuda"),
+        )
+
     def forward(self, data):  # data: B*L*F  B = batch_size,L为seq定长，F为feature
         batch_size = data.shape[0]
         max_length = data.shape[1]

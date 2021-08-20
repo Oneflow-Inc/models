@@ -5,6 +5,7 @@ import numpy as np
 import time
 
 import sys
+
 sys.path.append(".")
 from models.resnet50 import resnet50
 from utils.imagenet1000_clsidx_to_labels import clsidx_2_labels
@@ -39,7 +40,7 @@ def main(args):
         def __init__(self):
             super().__init__()
             self.resnet50 = resnet50_module
-        
+
         def build(self, image):
             with flow.no_grad():
                 predictions = self.resnet50(image)
