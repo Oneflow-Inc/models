@@ -19,7 +19,7 @@ class Embedding(nn.Embedding):
     def forward(self, indices):
         # indices = flow.parallel_cast(indices, distribute=flow.distribute.broadcast())
         embedding = flow.F.gather(self.weight, indices, axis=0)
-        return embedding.reshape(shape=(-1, embedding.shape[-1] * embedding.shape[-2]))
+        return embedding.view(-1, embedding.shape[-1] * embedding.shape[-2])
 
 
 class Dense(nn.Module):
