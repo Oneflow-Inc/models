@@ -1,6 +1,6 @@
 # Wav2Letter Speech Recognition with oneflow
 
-A oneflow implementation of Wav2Letter, a speech recognition model from Facebooks AI Research (FAIR) [paper](https://arxiv.org/pdf/1609.03193.pdf). 
+Implementation of [Wav2Letter](https://arxiv.org/pdf/1609.03193.pdf) (a speech recognition model from Facebooks AI Research (FAIR)) with Oneflow.
 
 
 ## Requirements
