@@ -30,11 +30,13 @@ def compare_with_lazy_embedding():
     func_config.default_data_type(flow.float)
 
     @flow.global_function("predict", func_config)
-    def fc_job(input_blob: flow.typing.Numpy.Placeholder((1, 10,), dtype=flow.int32)):
+    def embedding_job(
+        input_blob: flow.typing.Numpy.Placeholder((1, 10,), dtype=flow.int32)
+    ):
         return _EmbeddingLookup(input_blob, vocab_size=1000)
 
     input_blobs = np.array([[0, 1, 1, 3, 2, 4, 7, 10, 11, 8]], dtype=np.int32)
-    lazy_res, lazy_embedding = fc_job(input_blobs).get()
+    lazy_res, lazy_embedding = embedding_job(input_blobs).get()
     # print(f"result is {lazy_res.numpy()}, embedding is {lazy_embedding.numpy()}")
 
     # eager embedding table
