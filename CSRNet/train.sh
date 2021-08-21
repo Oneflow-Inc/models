@@ -26,4 +26,4 @@ if [ ! -d "${Data_PATH}" ]; then
 
 fi
 
-python3 train.py part_A_train.json part_A_val.json 0 0 ##python part_B_train.json part_B_val.json 0 0
+python3 train.py part_A_train.json part_A_val.json  kk/ 0 0  
