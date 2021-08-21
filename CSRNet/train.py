@@ -1,18 +1,20 @@
 import os
-from dataset import listDataset
-from model import CSRNet
-from utils import save_checkpoint
 import argparse
 import json
 import time
 import oneflow as flow
 import oneflow.nn as nn
 import transforms.spatial_transforms as ST
+from dataset import listDataset
+from model import CSRNet
+from utils import save_checkpoint
 
-parser = argparse.ArgumentParser(description='PyTorch CSRNet')
+parser = argparse.ArgumentParser(description='Oneflow CSRNet')
 parser.add_argument('train_json', metavar='TRAIN',
                     help='path to train json')
 parser.add_argument('test_json', metavar='TEST',
+                    help='path to test json')
+parser.add_argument('modelPath', metavar='MODELPATH', type=str,
                     help='path to test json')
 
 parser.add_argument('--pre', '-p', metavar='PRETRAINED', default=None, type=str,
@@ -23,7 +25,6 @@ parser.add_argument('gpu', metavar='GPU', type=str,
 
 parser.add_argument('task', metavar='TASK', type=str,
                     help='task id to use.')
-
 
 def main():
     global args, best_prec1
@@ -46,7 +47,6 @@ def main():
     with open(args.test_json, 'r') as outfile:
         val_list = json.load(outfile)
 
-
     # 设置gpu
     os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
     model = CSRNet()
@@ -54,8 +54,6 @@ def main():
     criterion = nn.MSELoss(reduction="sum").to("cuda")
     optimizer = flow.optim.SGD(model.parameters(), args.lr,
                                 momentum=args.momentum,   weight_decay=args.decay)
-
-
     if args.pre:
         if os.path.isfile(args.pre):
             print("=> loading checkpoint '{}'".format(args.pre))
@@ -63,7 +61,7 @@ def main():
             args.start_epoch = checkpoint['epoch']
             best_prec1 = checkpoint['best_prec1']
             model.load_state_dict(checkpoint['state_dict'])
-            #7.21尝试oneflow版本能否加载
+
             optimizer.load_state_dict(checkpoint['optimizer'])
             print("=> loaded checkpoint '{}' (epoch {})"
                   .format(args.pre, checkpoint['epoch']))
@@ -72,12 +70,8 @@ def main():
 
     for epoch in range(args.start_epoch, args.epochs):
         adjust_learning_rate(optimizer, epoch)
-
         train(train_list, model, criterion, optimizer, epoch)
         prec1 = validate(val_list, model, criterion)
-        #prec1 = 0
-
-
         is_best = prec1 < best_prec1
         best_prec1 = min(prec1, best_prec1)
         print(' * best MAE {mae:.3f} '
@@ -87,16 +81,12 @@ def main():
             'arch': args.pre,
             'state_dict': model.state_dict(),
             'best_prec1': best_prec1,
-            #'optimizer': optimizer.state_dict(),
-        }, is_best, str(epoch+1))
-
+        }, is_best, str(epoch+1),args.modelPath)
 
 def train(train_list, model, criterion, optimizer, epoch):
     losses = AverageMeter()
     batch_time = AverageMeter()
     data_time = AverageMeter()
-
-
     train_loader = listDataset(train_list,
                        shuffle=True,
                        transform=ST.Compose([
@@ -151,14 +141,7 @@ def validate(val_list, model, criterion):
         img = flow.Tensor(img, dtype=flow.float32, device="cuda")
         with flow.no_grad():
             output = model(img).to("cuda")
-
-
-       # output = model(img).to("cuda")
-       # output = flow.Tensor(output, device="cuda")
         mae += abs(output.data.sum().numpy()[0] - target.sum())
-
-
-
     mae = mae / len(test_loader)
     print(' * MAE {mae:.3f} '
           .format(mae=mae))
@@ -166,9 +149,7 @@ def validate(val_list, model, criterion):
 
 def adjust_learning_rate(optimizer, epoch):
     """Sets the learning rate to the initial LR decayed by 10 every 30 epochs"""
-
     args.lr = args.original_lr
-
     for i in range(len(args.steps)):
         scale = args.scales[i] if i < len(args.scales) else 1
         if epoch >= args.steps[i]:
@@ -180,7 +161,6 @@ def adjust_learning_rate(optimizer, epoch):
     for param_group in optimizer.param_groups:
         param_group['lr'] = args.lr
 
-
 class AverageMeter(object):
     """Computes and stores the average and current value"""
 
@@ -188,13 +168,10 @@ class AverageMeter(object):
         self.reset()
 
     def reset(self):
-        # 方差
+       
         self.val = 0
-        # 平均数
-        self.avg = 0
-        # 和
+        self.avg = 0    
         self.sum = 0
-        # 数量
         self.count = 0
 
     def update(self, val, n=1):
@@ -204,5 +181,4 @@ class AverageMeter(object):
         self.avg = self.sum / self.count
 
 if __name__ == '__main__':
-
     main()
