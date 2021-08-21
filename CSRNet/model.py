@@ -15,8 +15,7 @@ class CSRNet(nn.Module):
             mod = vgg16(pretrained=True)
             pretrain_models = flow.load('vgg_imagenet_pretrain_model/vgg16_oneflow_model')
             mod.load_state_dict(pretrain_models)
-            self._initialize_weights()
-            #print(self.frontend.state_dict().items())
+            self._initialize_weights()          
             for i in range(len(self.frontend.state_dict().items())):
                 src = list(mod.state_dict().items())[i][1]
                 dst = list(self.frontend.state_dict().items())[i][1].copy_(src)
