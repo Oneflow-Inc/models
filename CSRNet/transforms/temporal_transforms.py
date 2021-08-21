@@ -140,33 +140,4 @@ class TemporalBeginCrop(object):
                     if len(out) >= 4:
                         break
                     out.append(index)
-
         return out
-
-# class TemporalBeginCrop(object):
-#     """Temporally crop the given frame indices at a beginning.
-
-#     If the number of frames is less than the size,
-#     loop the indices as many times as necessary to satisfy the size.
-
-#     Args:
-#         size (int): Desired output size of the crop.
-#     """
-
-#     def __init__(self, size=4):
-#         self.size = size
-        
-#     def __call__(self, frame_indices):
-#         frame_indices = list(frame_indices)
-
-#         if len(frame_indices) >= 4:
-#             out = frame_indices[0:4:1]
-#         else:
-#             out = frame_indices[0:4]
-#             while len(out) < 4:
-#                 for index in out:
-#                     if len(out) >= 4:
-#                         break
-#                     out.append(index)
-
-#         return out
