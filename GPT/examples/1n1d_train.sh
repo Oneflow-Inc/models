@@ -18,3 +18,6 @@ python3 $src_dir/oneflow_gpt/training.py \
     --seq-length 1024 \
     --vocab-size 50257 \
     --split 949,50,1 \
+    --no-scale-tril-softmax-dropout-fusion \
+    --no-bias-gelu-fusion \
+    --no-bias-dropout-fusion \

@@ -42,6 +42,7 @@ def train():
 
     print("Training...")
     loss = trainer()
+    print("loss:", loss.to_local().numpy())
 
     # iteration = snapshot.iter
     # while iteration < args.train_iters:

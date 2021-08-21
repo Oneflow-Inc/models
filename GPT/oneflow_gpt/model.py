@@ -37,12 +37,12 @@ class GPTModel(flow.nn.Module):
 
     def logits(self, hidden_states):
         assert hidden_states.ndim == 3
-        assert np.prod(hidden_states.shape[0:2]) == self.batch_size * self.seq_length
-        assert hidden_states.shape[-1] == self.hidden_size
+        assert hidden_states.shape[0] == self.batch_size
+        assert hidden_states.shape[1] == self.seq_length
+        assert hidden_states.shape[2] == self.hidden_size
 
-        h = hidden_states.flatten(0, 1)
         # h.grad.sbp: [S(0), P] -> [S(0), B]
-        h = h.to_consistent(grad_sbp=h.sbp)
+        h = hidden_states.to_consistent(grad_sbp=hidden_states.sbp)
         # shape sign: (B * S, H) x (H, V) -> (B * S, V)
         # matmul fwd sbp sign: [S(0), B] x [B, S(1)] (wte.T) -> [S(0), S(1)]
         # bwd h.grad sbp sign: [S(0), S(1)] (lgs.grad) x [B, S(0)] (wte) -> [S(0), P] (h.grad)
@@ -96,7 +96,7 @@ class Embedding(flow.nn.Module):
         # gather forward sbp sign: [B, S(0)] x [S(0), B] -> [S(0), P]
         # backward sbp sign:
         # [S(0), B] (h.grad) x [S(0), B] (tokens) x [B, S(0)] (wte) -> [P, S(0)] (wte.grad)
-        h = flow.F.gather(wte, tokens)
+        h = flow.F.gather(wte, tokens, axis=0)
         # hidden_states shape: (batch_size, sel_len, hidden_size)
         # hidden_states: [S(0), P] -> [S(0), B]
         h = h.to_consistent(sbp=dist.get_hidden_sbp())
@@ -126,7 +126,7 @@ def scaled_init_method_normal(sigma, num_layers):
     return init_
 
 
-class Transformer(object):
+class Transformer(flow.nn.Module):
     def __init__(self, hidden_size, dtype):
         super().__init__()
         self.hidden_size = hidden_size
@@ -143,7 +143,7 @@ class Transformer(object):
                 dtype,
                 init_method=init_method_normal(args.init_method_std),
                 output_layer_init_method=scaled_init_method_normal(
-                    args.init_method_std
+                    args.init_method_std, self.num_layers
                 ),
             )
             self.layers.append(t_layer)
@@ -221,7 +221,7 @@ class TransformerLayer(flow.nn.Module):
             placement=dist.get_layer_placement(self.layer_idx)
         )
 
-        norm1 = self.lyernorm_1(h)
+        norm1 = self.layernorm_1(h)
         h = h + self.attn(norm1)
 
         norm2 = self.layernorm_2(h)
@@ -396,7 +396,7 @@ class MLP(flow.nn.Module):
 
         self.c_proj = RowParallelLinear(
             layer_idx,
-            self.hidden_size,
+            self.hidden_size * 4,
             self.hidden_size,
             dtype,
             output_layer_init_method,
@@ -562,8 +562,6 @@ class RowParallelLinear(flow.nn.Module):
 class ParallelSparseSoftmaxCrossEntropyLoss(flow.nn.Module):
     def __init__(self):
         super().__init__()
-        args = get_args()
-        self.batch_size = args.global_batch_size // args.num_accumulation_steps
 
     def __call__(self, logits, labels):
         # logits shape: (batch_size, seq_length, vocab_size)
@@ -572,12 +570,14 @@ class ParallelSparseSoftmaxCrossEntropyLoss(flow.nn.Module):
         # sbp: [S(0), B]
         assert logits.ndim == 3
         assert labels.ndim == 2
-        assert logits.shape[0] == self.batch_size
-        assert logits.shape[1:] == labels.shape
+        assert logits.shape[0:2] == labels.shape
 
-        loss = flow.F.sparse_softmax_cross_entropy_with_logits(labels, logits)
+        # loss = flow.F.sparse_softmax_cross_entropy_with_logits(labels, logits)
+        loss = flow.F.sparse_softmax_cross_entropy(
+            logits, labels, depth=logits.shape[-1]
+        )
 
         # if not logits.has_s1_sbp and logits.is_half_dtype:
         #     loss = flow.amp_white_identity(loss)
 
-        return loss.reduce_mean()
+        return loss.mean()
