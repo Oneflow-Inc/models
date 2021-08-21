@@ -25,7 +25,7 @@ def save_checkpoint(state, is_best,task_id, filename='checkpoints/'):
 
 def del_file(filepath):
     """
-    删除某一目录下的所有文件或文件夹
+    Delete all files or folders in a directory
     :param filepath:
     :return:
     """
