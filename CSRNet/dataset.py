@@ -15,7 +15,6 @@ class listDataset(object):
         self.num_workers = num_workers
 
     def __len__(self):
-        # 返回数据集中数据个数
         return self.nSamples
 
     def __getitem__(self, index):
