@@ -47,7 +47,6 @@ def main():
     with open(args.test_json, 'r') as outfile:
         val_list = json.load(outfile)
 
-    # 设置gpu
     os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
     model = CSRNet()
     model = model.to("cuda")
