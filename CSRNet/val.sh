@@ -34,4 +34,5 @@ if [ ! -d "${Data_PATH}" ]; then
 fi
 
 
-python3 val.py
+python3 val.py 'checkpoint/Shanghai_BestModelB/shanghaiB_bestmodel'  'part_B_test'
+#python3 val.py 'checkpoint/Shanghai_AestModelB/shanghaiA_bestmodel'  'part_A_test'
