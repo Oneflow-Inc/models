@@ -33,7 +33,7 @@ if __name__ == '__main__':
     wdl_module.to("cuda")
     bce_loss.to("cuda")
 
-    of_sgd = flow.optim.SGD(
+    opt = flow.optim.SGD(
         wdl_module.parameters(), lr=args.learning_rate
     )
     class WideAndDeepGraph(flow.nn.Graph):
@@ -61,7 +61,7 @@ if __name__ == '__main__':
     class WideAndDeepTrainGraph(WideAndDeepGraph):
         def __init__(self, dataloader):
             super(WideAndDeepTrainGraph, self).__init__(dataloader)
-            self.add_optimizer("sgd", of_sgd)
+            self.add_optimizer(opt)
         
         def build(self):
             predicts, labels, loss = self.graph()
