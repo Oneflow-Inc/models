@@ -11,10 +11,7 @@ from wide_and_deep_module import WideAndDeep
 from util import dump_to_npy, save_param_npy
 
 
-if __name__ == '__main__':
-
-    args = get_args()
-
+def prepare_modules(args):
     train_dataloader = OFRecordDataLoader(
         args, data_root=args.data_dir, batch_size=args.batch_size)
     val_dataloader = OFRecordDataLoader(
@@ -37,6 +34,21 @@ if __name__ == '__main__':
     opt = flow.optim.SGD(
         wdl_module.parameters(), lr=args.learning_rate
     )
+    return train_dataloader, val_dataloader, wdl_module, bce_loss, opt
+
+
+def print_eval_metrics(loss, lables_list, predicts_list):
+    all_labels = np.concatenate(lables_list, axis=0)
+    all_predicts = np.concatenate(predicts_list, axis=0)
+    auc = "NaN" if np.isnan(all_predicts).any(
+    ) else roc_auc_score(all_labels, all_predicts)
+    print(f"iter {i} eval_loss {loss} auc {auc}")
+
+
+if __name__ == '__main__':
+    args = get_args()
+    train_dataloader, val_dataloader, wdl_module, loss, opt = prepare_modules(
+        args)
 
     losses = []
     wdl_module.train()
@@ -48,14 +60,12 @@ if __name__ == '__main__':
         deep_sparse_fields = deep_sparse_fields.to("cuda")
         predicts = wdl_module(
             dense_fields, wide_sparse_fields, deep_sparse_fields)
-        loss = bce_loss(predicts, labels)
-        losses.append(loss.numpy().mean())
-        loss.backward()
+        train_loss = loss(predicts, labels)
+        losses.append(train_loss.numpy().mean())
+        train_loss.backward()
         opt.step()
         opt.zero_grad()
-        time.sleep(0.1)
-        # print(deep_sparse_fields)
-        # print(loss)
+        time.sleep(0.1) #keep it before bug fixed
         if (i+1) % args.print_interval == 0:
             l = sum(losses) / len(losses)
             losses = []
@@ -63,10 +73,10 @@ if __name__ == '__main__':
             if args.eval_batchs <= 0:
                 continue
 
-            eval_loss = 0.0
-            wdl_module.eval()
+            eval_loss_acc = 0.0
             lables_list = []
             predicts_list = []
+            wdl_module.eval()
             for j in range(args.eval_batchs):
                 labels, dense_fields, wide_sparse_fields, deep_sparse_fields = val_dataloader()
                 labels = labels.to("cuda").to(dtype=flow.float32)
@@ -75,14 +85,12 @@ if __name__ == '__main__':
                 deep_sparse_fields = deep_sparse_fields.to("cuda")
                 predicts = wdl_module(
                     dense_fields, wide_sparse_fields, deep_sparse_fields)
-                loss = bce_loss(predicts, labels)
-                eval_loss += loss.numpy().mean()
+                eval_loss = loss(predicts, labels).numpy().mean()
+
+                eval_loss_acc += loss.numpy().mean()
                 lables_list.append(labels.numpy())
                 predicts_list.append(predicts.numpy())
-            all_labels = np.concatenate(lables_list, axis=0)
-            all_predicts = np.concatenate(predicts_list, axis=0)
-            auc = "NaN" if np.isnan(all_predicts).any(
-            ) else roc_auc_score(all_labels, all_predicts)
-            print(f"iter {i} eval_loss {eval_loss/args.eval_batchs} auc {auc}")
 
+            print_eval_metrics(eval_loss_acc/args.eval_batchs,
+                               lables_list, predicts_list)
             wdl_module.train()
