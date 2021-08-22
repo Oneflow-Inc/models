@@ -28,14 +28,13 @@ if __name__ == '__main__':
         path = os.path.join(args.model_save_dir, 'initial_checkpoint')
         if not os.path.isdir(path):
             flow.save(wdl_module.state_dict(), path)
-    save_param_npy(wdl_module)
 
     bce_loss = flow.nn.BCELoss(reduction="mean")
 
     wdl_module.to("cuda")
     bce_loss.to("cuda")
 
-    of_sgd = flow.optim.SGD(
+    opt = flow.optim.SGD(
         wdl_module.parameters(), lr=args.learning_rate
     )
 
@@ -52,8 +51,8 @@ if __name__ == '__main__':
         loss = bce_loss(predicts, labels)
         losses.append(loss.numpy().mean())
         loss.backward()
-        of_sgd.step()
-        of_sgd.zero_grad()
+        opt.step()
+        opt.zero_grad()
         time.sleep(0.1)
         # print(deep_sparse_fields)
         # print(loss)
