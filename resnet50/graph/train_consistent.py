@@ -128,6 +128,22 @@ def _parse_args():
     )
     return parser.parse_args()
 
+from oneflow.nn.module import Module
+class LabelSmoothLoss(Module):
+    def __init__(self, num_classes=-1, smooth_rate=0.0) -> None:
+        super().__init__()
+        self.num_classes = num_classes
+        self.smooth_rate = smooth_rate
+
+    def forward(self, input, label):
+        onehot_label = flow.F.one_hot(label, num_classes= self.num_classes, 
+                                                on_value=1-self.smooth_rate, 
+                                                off_value=self.smooth_rate/(self.num_classes-1))
+        log_prob = input.softmax(dim=-1).log()
+        onehot_label = flow.F.cast(onehot_label, log_prob.dtype)
+        loss = flow.mul(log_prob * -1, onehot_label).sum(dim=-1).mean()
+        return loss
+
 
 def main(args):
 
@@ -173,23 +189,29 @@ def main(args):
     # oneflow init
     start_t = time.time()
     resnet50_module = resnet50()
-    if args.load_checkpoint != "":
-        print("load_checkpoint >>>>>>>>> ", args.load_checkpoint)
-        resnet50_module.load_state_dict(flow.load(args.load_checkpoint))
-
+    
     end_t = time.time()
     print("init time : {}".format(end_t - start_t))
 
-    of_cross_entropy = flow.nn.CrossEntropyLoss()
+    # of_cross_entropy = flow.nn.CrossEntropyLoss()
+    of_cross_entropy = LabelSmoothLoss(num_classes=args.num_classes, smooth_rate=args.label_smoothing)
 
     placement = flow.placement("cuda", {0: device_list})
     sbp = [flow.sbp.broadcast]
     resnet50_module.to_consistent(placement=placement, sbp=sbp)
     of_cross_entropy.to_consistent(placement=placement, sbp=sbp)
 
+    if args.load_checkpoint != "":
+        loaded_state_dict = flow.load(
+            args.load_checkpoint, consistent_src_rank=0
+        )
+        print("rank %d load_checkpoint >>>>>>>>> " % rank, args.load_checkpoint)
+        resnet50_module.load_state_dict(loaded_state_dict)
+
     of_sgd = flow.optim.SGD(
         resnet50_module.parameters(), lr=args.learning_rate, momentum=args.momentum
     )
+
     cosine_annealing_lr = flow.optim.lr_scheduler.CosineAnnealingLR(
         of_sgd, steps=decay_batches
     )
@@ -263,7 +285,6 @@ def main(args):
         resnet50_module.train()
 
         for b in range(len(train_data_loader)):
-
             # oneflow graph train
             start_t = time.time()
 
@@ -309,16 +330,14 @@ def main(args):
         of_accuracy.append(top1)
         print("rank %d epoch %d, oneflow top1 val acc: %f" % (rank, epoch, top1))
 
-        if rank == 0:
-            consistent_src_dst_rank = 0
-            flow.save(
-                resnet50_module.state_dict(),
-                os.path.join(
-                    args.save_checkpoint_path,
-                    "epoch_%d_val_acc_%f" % (epoch, top1),
-                ),
-                consistent_dst_rank=consistent_src_dst_rank
-            )
+        flow.save(
+            resnet50_module.state_dict(),
+            os.path.join(
+                args.save_checkpoint_path,
+                "epoch_%d_val_acc_%f" % (epoch, top1),
+            ),
+            consistent_dst_rank=0
+        )
 
     if rank == 0:
         writer = open("graph_of_losses.txt", "w")
