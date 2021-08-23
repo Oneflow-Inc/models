@@ -26,7 +26,9 @@ def get_args():
     parser.add_argument("--pretrained_model", type=str, default="None")
     parser.add_argument("--datasets_path", type=str, default="speech_data")
     parser.add_argument("--output_path", type=str, default="save_models")
-    parser.add_argument("--int_encoder", type=str, default="./speech_data/int_encoder.pkl")
+    parser.add_argument(
+        "--int_encoder", type=str, default="./speech_data/int_encoder.pkl"
+    )
 
     args = parser.parse_args()
     return args
