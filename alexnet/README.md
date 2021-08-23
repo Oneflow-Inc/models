@@ -50,7 +50,13 @@ Compare Alexnet model on different training mode (Graph / Eager)
 ```bash
 bash check/check.sh
 ```
-Compare results will be saved to `check_results/training info`
+Compare results will be saved to `results/check_info`
+
+Compare Results Picture
+```bash
+bash check/draw.sh
+```
+The pictures will be saved to `results/pictures`
 
 ### 2. Convert Pretrained Model Weight
 convert pytorch pretrained model to oneflow pretrained model

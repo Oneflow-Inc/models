@@ -132,9 +132,9 @@ checkpoints/
 of_losses.txt
 
 # resnet50
-imagenet*
+imagenet
 *.pth
-
+ofrecord
 .DS_Store
 
 # SRGAN
@@ -144,7 +144,13 @@ vgg_imagenet_pretrain_model
 
 result
 
+
 # yolov3
 yolov3/*_ckpt
 coco
 yolov3/runs
+
+# quantization
+._data
+*.tar.gz
+imagenette2/
