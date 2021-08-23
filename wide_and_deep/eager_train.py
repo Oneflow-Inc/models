@@ -69,7 +69,7 @@ if __name__ == '__main__':
         if (i+1) % args.print_interval == 0:
             l = sum(losses) / len(losses)
             losses = []
-            print(f"iter {i} train_loss {l} time {time.time()}")
+            print(f"iter {i+1} train_loss {l} time {time.time()}")
             if args.eval_batchs <= 0:
                 continue
 
