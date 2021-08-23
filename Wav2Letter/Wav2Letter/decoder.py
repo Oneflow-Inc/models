@@ -15,8 +15,8 @@ class Decoder(object):
         space_index (int, optional): index for the space ' ' character. Defaults to 28.
     """
 
-    def __init__(self, blank_index=0):
-        with open("./speech_data/int_encoder.pkl", "rb") as f:
+    def __init__(self, int_encoder="./speech_data/int_encoder.pkl", blank_index=0):
+        with open(int_encoder, "rb") as f:
             self.int_to_char = pickle.load(f)["index2char"]
         self.blank_index = blank_index
 

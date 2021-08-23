@@ -14,12 +14,6 @@ pip install -r requirements.txt
 We train and evaluate our models on [Google Speech Command Dataset](https://www.kaggle.com/c/tensorflow-speech-recognition-challenge/data). 
 This is a simple to use lightweight dataset for testing model performance.
 
-### Instructions to download data
-
-1. Download the dataset.
-2. Create a `./speech_data` directory at root of this project.
-3. Unzip the google speech data. Should be named `speech_commands_v0.01`. And move it to `./speech_data`.
-
 ### Data Preprocess
 
 `data.py` contains scripts to process google speech command audio data into features compatible with Wav2Letter.
@@ -33,13 +27,16 @@ This will process the google speech commands audio data into 13 mfcc features wi
 bash train.sh
 ```
 
+
 ## Infer
 
 ```bash
 bash infer.sh
 ```
 
+
 ## Wer
 
 oneflow 0.3031
 pytorch 0.3099
+
