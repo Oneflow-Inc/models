@@ -136,3 +136,108 @@ def plot_images(images, targets, paths=None, fname='images.jpg', names=None, max
         # cv2.imwrite(fname, cv2.cvtColor(mosaic, cv2.COLOR_BGR2RGB))  # cv2 save
         Image.fromarray(mosaic).save(fname)  # PIL save
     return mosaic
+
+
+def plot_labels(labels, names=(), save_dir=Path(''), loggers=None):
+    # plot dataset labels
+    print('Plotting labels...')
+    c, b = labels[:, 0], labels[:, 1:].transpose()  # classes, boxes
+    nc = int(c.max() + 1)  # number of classes
+    x = pd.DataFrame(b.transpose(), columns=['x', 'y', 'width', 'height'])
+
+    # seaborn correlogram
+    sns.pairplot(x, corner=True, diag_kind='auto', kind='hist', diag_kws=dict(bins=50), plot_kws=dict(pmax=0.9))
+    plt.savefig(save_dir / 'labels_correlogram.jpg', dpi=200)
+    plt.close()
+
+    # matplotlib labels
+    matplotlib.use('svg')  # faster
+    ax = plt.subplots(2, 2, figsize=(8, 8), tight_layout=True)[1].ravel()
+    y = ax[0].hist(c, bins=np.linspace(0, nc, nc + 1) - 0.5, rwidth=0.8)
+    ax[0].set_ylabel('instances')
+    if 0 < len(names) < 30:
+        ax[0].set_xticks(range(len(names)))
+        ax[0].set_xticklabels(names, rotation=90, fontsize=10)
+    else:
+        ax[0].set_xlabel('classes')
+    sns.histplot(x, x='x', y='y', ax=ax[2], bins=50, pmax=0.9)
+    sns.histplot(x, x='width', y='height', ax=ax[3], bins=50, pmax=0.9)
+
+    # rectangles
+    labels[:, 1:3] = 0.5  # center
+    labels[:, 1:] = xywh2xyxy(labels[:, 1:]) * 2000
+    img = Image.fromarray(np.ones((2000, 2000, 3), dtype=np.uint8) * 255)
+    for cls, *box in labels[:1000]:
+        ImageDraw.Draw(img).rectangle(box, width=1, outline=colors(cls))  # plot
+    ax[1].imshow(img)
+    ax[1].axis('off')
+
+    for a in [0, 1, 2, 3]:
+        for s in ['top', 'right', 'left', 'bottom']:
+            ax[a].spines[s].set_visible(False)
+
+    plt.savefig(save_dir / 'labels.jpg', dpi=200)
+    matplotlib.use('Agg')
+    plt.close()
+
+    # not support wandb logger now!
+
+
+def plot_evolution(yaml_file='data/hyp.finetune.yaml'):  # from utils.plots import *; plot_evolution()
+    # Plot hyperparameter evolution results in evolve.txt
+    with open(yaml_file) as f:
+        hyp = yaml.safe_load(f)
+    x = np.loadtxt('evolve.txt', ndmin=2)
+    f = fitness(x)
+    # weights = (f - f.min()) ** 2  # for weighted results
+    plt.figure(figsize=(10, 12), tight_layout=True)
+    matplotlib.rc('font', **{'size': 8})
+    for i, (k, v) in enumerate(hyp.items()):
+        y = x[:, i + 7]
+        # mu = (y * weights).sum() / weights.sum()  # best weighted result
+        mu = y[f.argmax()]  # best single result
+        plt.subplot(6, 5, i + 1)
+        plt.scatter(y, f, c=hist2d(y, f, 20), cmap='viridis', alpha=.8, edgecolors='none')
+        plt.plot(mu, f.max(), 'k+', markersize=15)
+        plt.title('%s = %.3g' % (k, mu), fontdict={'size': 9})  # limit to 40 characters
+        if i % 5 != 0:
+            plt.yticks([])
+        print('%15s: %.3g' % (k, mu))
+    plt.savefig('evolve.png', dpi=200)
+    print('\nPlot saved as evolve.png')
+
+
+def plot_results(start=0, stop=0, bucket='', id=(), labels=(), save_dir=''):
+    # Plot training 'results*.txt'. from utils.plots import *; plot_results(save_dir='runs/train/exp')
+    fig, ax = plt.subplots(2, 5, figsize=(12, 6), tight_layout=True)
+    ax = ax.ravel()
+    s = ['Box', 'Objectness', 'Classification', 'Precision', 'Recall',
+         'val Box', 'val Objectness', 'val Classification', 'mAP@0.5', 'mAP@0.5:0.95']
+    if bucket:
+        # files = ['https://storage.googleapis.com/%s/results%g.txt' % (bucket, x) for x in id]
+        files = ['results%g.txt' % x for x in id]
+        c = ('gsutil cp ' + '%s ' * len(files) + '.') % tuple('gs://%s/results%g.txt' % (bucket, x) for x in id)
+        os.system(c)
+    else:
+        files = list(Path(save_dir).glob('results*.txt'))
+    assert len(files), 'No results.txt files found in %s, nothing to plot.' % os.path.abspath(save_dir)
+    for fi, f in enumerate(files):
+        try:
+            results = np.loadtxt(f, usecols=[2, 3, 4, 8, 9, 12, 13, 14, 10, 11], ndmin=2).T
+            n = results.shape[1]  # number of rows
+            x = range(start, min(stop, n) if stop else n)
+            for i in range(10):
+                y = results[i, x]
+                if i in [0, 1, 2, 5, 6, 7]:
+                    y[y == 0] = np.nan  # don't show zero loss values
+                    # y /= y[0]  # normalize
+                label = labels[fi] if len(labels) else f.stem
+                ax[i].plot(x, y, marker='.', label=label, linewidth=2, markersize=8)
+                ax[i].set_title(s[i])
+                # if i in [5, 6, 7]:  # share train and val loss y axes
+                #     ax[i].get_shared_y_axes().join(ax[i], ax[i - 5])
+        except Exception as e:
+            print('Warning: Plotting error for %s; %s' % (f, e))
+
+    ax[1].legend()
+    fig.savefig(Path(save_dir) / 'results.png', dpi=200)

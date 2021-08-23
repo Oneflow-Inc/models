@@ -15,6 +15,7 @@ import models
 import oneflow as flow
 import oneflow.nn as nn
 import oneflow.nn.functional as F
+from oneflow.framework.sysconfig import with_cuda
 
 logger = logging.getLogger(__name__)
 
@@ -42,9 +43,9 @@ def select_device(device='', batch_size=None):
         os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
     elif device:  # non-cpu device requested
         os.environ['CUDA_VISIBLE_DEVICES'] = device  # set environment variable
-        assert flow.framework.sysconfig.with_cuda(), f'CUDA unavailable, invalid device {device} requested'
+        assert with_cuda(), f'CUDA unavailable, invalid device {device} requested'
 
-    cuda = not cpu and flow.framework.sysconfig.with_cuda()
+    cuda = not cpu and with_cuda()
     if cuda:
         devices = device.split(',') if device else range(1)
         n = len(devices)  # device count
@@ -64,6 +65,16 @@ def time_synchronized():
     return time.time()
 
 
+def is_parallel(model):
+    # Returns True if model is of type DP or DDP
+    return type(model) in (nn.parallel.DistributedDataParallel,)
+
+
+def de_parallel(model):
+    # De-parallelize a model: returns single-GPU model if model is of type DP or DDP
+    return model.module if is_parallel(model) else model
+
+
 def initialize_weights(model):
     for m in model.modules():
         t = type(m)
@@ -72,7 +83,7 @@ def initialize_weights(model):
         elif t is nn.BatchNorm2d:
             m.eps = 1e-3
             m.momentum = 0.03
-        elif t in [nn.Hardswish, nn.LeakyReLU, nn.ReLU, nn.ReLU6]:
+        elif t in [nn.Hardswish, nn.ReLU, nn.ReLU6]:
             m.inplace = True
 
 
@@ -122,3 +133,47 @@ def scale_img(img, ratio=1.0, same_shape=False, gs=32):  # img(16,3,256,416)
         if not same_shape:  # pad/crop img
             h, w = [math.ceil(x * ratio / gs) * gs for x in (h, w)]
         return F.pad(img, [0, w - s[1], 0, h - s[0]], value=0.447)  # value = imagenet mean
+
+
+def copy_attr(a, b, include=(), exclude=()):
+    # Copy attributes from b to a, options to only include [...] and to exclude [...]
+    for k, v in b.__dict__.items():
+        if (len(include) and k not in include) or k.startswith('_') or k in exclude:
+            continue
+        else:
+            setattr(a, k, v)
+
+
+class ModelEMA:
+    """ Model Exponential Moving Average from https://github.com/rwightman/pytorch-image-models
+    Keep a moving average of everything in the model state_dict (parameters and buffers).
+    This is intended to allow functionality like
+    https://www.tensorflow.org/api_docs/python/tf/train/ExponentialMovingAverage
+    A smoothed version of the weights is necessary for some training schemes to perform well.
+    This class is sensitive where it is initialized in the sequence of model init,
+    GPU assignment and distributed training wrappers.
+    """
+
+    def __init__(self, model, decay=0.9999, updates=0):
+        # Create EMA
+        self.ema = deepcopy(model.module if is_parallel(model) else model).eval()  # FP32 EMA
+        self.updates = updates
+        self.decay = lambda x: decay * (1 - math.exp(-x / 2000))  # decay exponential ramp (to help early epochs)
+        for p in self.ema.parameters():
+            p.requires_grad_(False)
+
+    def update(self, model):
+        # Update EMA parameters
+        with flow.no_grad():
+            self.updates += 1
+            d = self.decay(self.updates)
+
+            msd = model.module.state_dict() if is_parallel(model) else model.state_dict()  # model state_dict
+            for k, v in self.ema.state_dict().items():
+                if v.dtype.is_floating_point:
+                    v *= d
+                    v += (1. - d) * msd[k].detach()
+
+    def update_attr(self, model, include=(), exclude=('process_group', 'reducer')):
+        # Update EMA attributes
+        copy_attr(self.ema, model, include, exclude)

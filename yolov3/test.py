@@ -124,7 +124,7 @@ def test(data,
 
                 if pred.shape[0] == 0:
                     if nl:
-                        stats.append((np.zeros((1, niou), dtype=bool), np.array([]), np.array([]), tcls))
+                        stats.append((np.zeros((0, niou), dtype=bool), np.array([]), np.array([]), tcls))
                     continue
 
                 # Predictions
@@ -135,7 +135,7 @@ def test(data,
 
                 # Append to text file
                 if save_txt:
-                    gn = flow.tensor(shapes[si][0])[[1, 0, 1, 0]]  # normalization gain whwh
+                    gn = flow.tensor(shapes[si][0])[[1, 0, 1, 0]].to(dtype=flow.float32)  # normalization gain whwh
                     for *xyxy, conf, cls in predn.tolist():
                         xywh = (xyxy2xywh(flow.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()  # normalized
                         line = (cls, *xywh, conf) if save_conf else (cls, *xywh)  # label format
@@ -166,7 +166,6 @@ def test(data,
                     if plots:
                         confusion_matrix.process_batch(predn, flow.cat((labels[:, 0:1], tbox), 1))
 
-                    #predn_np = predn.numpy()
                     # Per target class
                     for cls in np.unique(tcls_tensor):
                         ti = (cls == tcls_tensor).nonzero()[0].reshape(-1)  # target indices
@@ -245,7 +244,7 @@ def test(data,
             pred = anno.loadRes(pred_json)  # init predictions api
             eval = COCOeval(anno, pred, 'bbox')
             if is_coco:
-                pass
+                eval.params.imgIds = [int(Path(x).stem) for x in dataloader.dataset.img_files]  # image IDs to evaluate
             eval.evaluate()
             eval.accumulate()
             eval.summarize()
@@ -254,7 +253,6 @@ def test(data,
             print(f'pycocotools unable to run: {e}')
 
     # Return results
-    #model.to(dtype=flow.float)  # for training
     if not training:
         s = f"\n{len(list(save_dir.glob('labels/*.txt')))} labels saved to {save_dir / 'labels'}" if save_txt else ''
         print(f"Results saved to {save_dir}{s}")

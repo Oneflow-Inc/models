@@ -333,7 +333,8 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
         self.label_files = img2label_paths(self.img_files)  # labels
         cache_path = (p if p.is_file() else Path(self.label_files[0]).parent).with_suffix('.pkl')  # cached labels
         if cache_path.is_file():
-            cache, exits = pickle.load(cache_path, encoding='laten1'), True  # load
+            with open(cache_path, 'rb') as f:
+                cache, exists = pickle.load(f), True  # load
             if cache['hash'] != get_hash(self.label_files + self.img_files):  # changed
                 cache, exists = self.cache_labels(cache_path, prefix), False  # re-cache
         else:
@@ -454,7 +455,8 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
         x['results'] = nf, nm, ne, nc, i + 1
         x['version'] = 0.2  # cache version
         try:
-            pickle.dump(x, path)  # save cache for next time
+            with open(path, "wb") as f:
+                pickle.dump(x, f)  # save cache for next time
             logging.info(f'{prefix}New cache created: {path}')
         except Exception as e:
             logging.info(f'{prefix}WARNING: Cache directory {path.parent} is not writeable: {e}')  # path not writeable
@@ -529,10 +531,10 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
                 if nL:
                     labels[:, 1] = 1 - labels[:, 1]
 
-        if nL:
-            labels_out = flow.zeros((nL, 6))
-        else:
-            labels_out = flow.zeros((1, 6))
+        #if nL:
+        labels_out = flow.zeros((nL, 6))
+        #else:
+        #    labels_out = flow.zeros((1, 6))
         if nL:
             labels_out[:, 1:] = flow.tensor(labels)
 
