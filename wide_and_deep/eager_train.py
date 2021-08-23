@@ -32,17 +32,17 @@ def prepare_modules(args):
     bce_loss.to("cuda")
 
     opt = flow.optim.SGD(
-        wdl_module.parameters(), lr=args.learning_rate
+        wdl_module.parameters(), lr=args.learning_rate, momentum=0.9
     )
     return train_dataloader, val_dataloader, wdl_module, bce_loss, opt
 
 
-def print_eval_metrics(loss, lables_list, predicts_list):
+def print_eval_metrics(step, loss, lables_list, predicts_list):
     all_labels = np.concatenate(lables_list, axis=0)
     all_predicts = np.concatenate(predicts_list, axis=0)
     auc = "NaN" if np.isnan(all_predicts).any(
     ) else roc_auc_score(all_labels, all_predicts)
-    print(f"iter {i} eval_loss {loss} auc {auc}")
+    print(f"iter {step} eval_loss {loss} auc {auc}")
 
 
 if __name__ == '__main__':
@@ -85,12 +85,12 @@ if __name__ == '__main__':
                 deep_sparse_fields = deep_sparse_fields.to("cuda")
                 predicts = wdl_module(
                     dense_fields, wide_sparse_fields, deep_sparse_fields)
-                eval_loss = loss(predicts, labels).numpy().mean()
+                eval_loss = loss(predicts, labels)
 
-                eval_loss_acc += loss.numpy().mean()
+                eval_loss_acc += eval_loss.numpy().mean()
                 lables_list.append(labels.numpy())
                 predicts_list.append(predicts.numpy())
 
-            print_eval_metrics(eval_loss_acc/args.eval_batchs,
+            print_eval_metrics(i+1, eval_loss_acc/args.eval_batchs,
                                lables_list, predicts_list)
             wdl_module.train()

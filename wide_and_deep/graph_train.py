@@ -78,6 +78,6 @@ if __name__ == '__main__':
                 lables_list.append(labels.numpy())
                 predicts_list.append(predicts.numpy())
 
-            print_eval_metrics(eval_loss_acc/args.eval_batchs,
+            print_eval_metrics(i+1, eval_loss_acc/args.eval_batchs,
                                lables_list, predicts_list)
             wdl_module.train()
