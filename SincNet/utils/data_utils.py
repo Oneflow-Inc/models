@@ -26,65 +26,63 @@ def read_conf():
     Config = ConfigParser.ConfigParser()
     Config.read(cfg_file)
 
-    #[data]
-    options.tr_lst = Config.get('data', 'tr_lst')
-    options.te_lst = Config.get('data', 'te_lst')
-    options.lab_dict = Config.get('data', 'lab_dict')
-    options.data_folder = Config.get('data', 'data_folder')
-    options.output_folder = Config.get('data', 'output_folder')
-    options.pretrain_models = Config.get('data', 'pretrain_models')
+    # [data]
+    options.tr_lst = Config.get("data", "tr_lst")
+    options.te_lst = Config.get("data", "te_lst")
+    options.lab_dict = Config.get("data", "lab_dict")
+    options.data_folder = Config.get("data", "data_folder")
+    options.output_folder = Config.get("data", "output_folder")
+    options.pretrain_models = Config.get("data", "pretrain_models")
 
-    #[windowing]
-    options.fs = Config.get('windowing', 'fs')
-    options.cw_len = Config.get('windowing', 'cw_len')
-    options.cw_shift = Config.get('windowing', 'cw_shift')
+    # [windowing]
+    options.fs = Config.get("windowing", "fs")
+    options.cw_len = Config.get("windowing", "cw_len")
+    options.cw_shift = Config.get("windowing", "cw_shift")
 
-    #[cnn]
-    options.cnn_N_filt = Config.get('cnn', 'cnn_N_filt')
-    options.cnn_len_filt = Config.get('cnn', 'cnn_len_filt')
-    options.cnn_max_pool_len = Config.get('cnn', 'cnn_max_pool_len')
-    options.cnn_use_laynorm_inp = Config.get('cnn', 'cnn_use_laynorm_inp')
-    options.cnn_use_batchnorm_inp = Config.get('cnn', 'cnn_use_batchnorm_inp')
-    options.cnn_use_laynorm = Config.get('cnn', 'cnn_use_laynorm')
-    options.cnn_use_batchnorm = Config.get('cnn', 'cnn_use_batchnorm')
-    options.cnn_act = Config.get('cnn', 'cnn_act')
-    options.cnn_drop = Config.get('cnn', 'cnn_drop')
+    # [cnn]
+    options.cnn_N_filt = Config.get("cnn", "cnn_N_filt")
+    options.cnn_len_filt = Config.get("cnn", "cnn_len_filt")
+    options.cnn_max_pool_len = Config.get("cnn", "cnn_max_pool_len")
+    options.cnn_use_laynorm_inp = Config.get("cnn", "cnn_use_laynorm_inp")
+    options.cnn_use_batchnorm_inp = Config.get("cnn", "cnn_use_batchnorm_inp")
+    options.cnn_use_laynorm = Config.get("cnn", "cnn_use_laynorm")
+    options.cnn_use_batchnorm = Config.get("cnn", "cnn_use_batchnorm")
+    options.cnn_act = Config.get("cnn", "cnn_act")
+    options.cnn_drop = Config.get("cnn", "cnn_drop")
 
-    #[dnn]
-    options.fc_lay = Config.get('dnn', 'fc_lay')
-    options.fc_drop = Config.get('dnn', 'fc_drop')
-    options.fc_use_laynorm_inp = Config.get('dnn', 'fc_use_laynorm_inp')
-    options.fc_use_batchnorm_inp = Config.get('dnn', 'fc_use_batchnorm_inp')
-    options.fc_use_batchnorm = Config.get('dnn', 'fc_use_batchnorm')
-    options.fc_use_laynorm = Config.get('dnn', 'fc_use_laynorm')
-    options.fc_act = Config.get('dnn', 'fc_act')
+    # [dnn]
+    options.fc_lay = Config.get("dnn", "fc_lay")
+    options.fc_drop = Config.get("dnn", "fc_drop")
+    options.fc_use_laynorm_inp = Config.get("dnn", "fc_use_laynorm_inp")
+    options.fc_use_batchnorm_inp = Config.get("dnn", "fc_use_batchnorm_inp")
+    options.fc_use_batchnorm = Config.get("dnn", "fc_use_batchnorm")
+    options.fc_use_laynorm = Config.get("dnn", "fc_use_laynorm")
+    options.fc_act = Config.get("dnn", "fc_act")
 
-    #[class]
-    options.class_lay = Config.get('class', 'class_lay')
-    options.class_drop = Config.get('class', 'class_drop')
-    options.class_use_laynorm_inp = Config.get('class',
-                                               'class_use_laynorm_inp')
-    options.class_use_batchnorm_inp = Config.get('class',
-                                                 'class_use_batchnorm_inp')
-    options.class_use_batchnorm = Config.get('class', 'class_use_batchnorm')
-    options.class_use_laynorm = Config.get('class', 'class_use_laynorm')
-    options.class_act = Config.get('class', 'class_act')
+    # [class]
+    options.class_lay = Config.get("class", "class_lay")
+    options.class_drop = Config.get("class", "class_drop")
+    options.class_use_laynorm_inp = Config.get("class", "class_use_laynorm_inp")
+    options.class_use_batchnorm_inp = Config.get("class", "class_use_batchnorm_inp")
+    options.class_use_batchnorm = Config.get("class", "class_use_batchnorm")
+    options.class_use_laynorm = Config.get("class", "class_use_laynorm")
+    options.class_act = Config.get("class", "class_act")
 
-    #[optimization]
-    options.lr = Config.get('optimization', 'lr')
-    options.batch_size = Config.get('optimization', 'batch_size')
-    options.N_epochs = Config.get('optimization', 'N_epochs')
-    options.N_batches = Config.get('optimization', 'N_batches')
-    options.N_eval_epoch = Config.get('optimization', 'N_eval_epoch')
-    options.seed = Config.get('optimization', 'seed')
+    # [optimization]
+    options.lr = Config.get("optimization", "lr")
+    options.batch_size = Config.get("optimization", "batch_size")
+    options.N_epochs = Config.get("optimization", "N_epochs")
+    options.N_batches = Config.get("optimization", "N_batches")
+    options.N_eval_epoch = Config.get("optimization", "N_eval_epoch")
+    options.seed = Config.get("optimization", "seed")
 
     return options
 
 
 def str_to_bool(s):
-    if s == 'True':
+    if s == "True":
         return True
-    elif s == 'False':
+    elif s == "False":
         return False
     else:
         raise ValueError
@@ -98,63 +96,62 @@ def read_conf_inp(cfg_file):
     Config = ConfigParser.ConfigParser()
     Config.read(cfg_file)
 
-    #[data]
-    options.tr_lst = Config.get('data', 'tr_lst')
-    options.te_lst = Config.get('data', 'te_lst')
-    options.lab_dict = Config.get('data', 'lab_dict')
-    options.data_folder = Config.get('data', 'data_folder')
-    options.output_folder = Config.get('data', 'output_folder')
-    options.pt_file = Config.get('data', 'pt_file')
+    # [data]
+    options.tr_lst = Config.get("data", "tr_lst")
+    options.te_lst = Config.get("data", "te_lst")
+    options.lab_dict = Config.get("data", "lab_dict")
+    options.data_folder = Config.get("data", "data_folder")
+    options.output_folder = Config.get("data", "output_folder")
+    options.pt_file = Config.get("data", "pt_file")
 
-    #[windowing]
-    options.fs = Config.get('windowing', 'fs')
-    options.cw_len = Config.get('windowing', 'cw_len')
-    options.cw_shift = Config.get('windowing', 'cw_shift')
+    # [windowing]
+    options.fs = Config.get("windowing", "fs")
+    options.cw_len = Config.get("windowing", "cw_len")
+    options.cw_shift = Config.get("windowing", "cw_shift")
 
-    #[cnn]
-    options.cnn_N_filt = Config.get('cnn', 'cnn_N_filt')
-    options.cnn_len_filt = Config.get('cnn', 'cnn_len_filt')
-    options.cnn_max_pool_len = Config.get('cnn', 'cnn_max_pool_len')
-    options.cnn_use_laynorm_inp = Config.get('cnn', 'cnn_use_laynorm_inp')
-    options.cnn_use_batchnorm_inp = Config.get('cnn', 'cnn_use_batchnorm_inp')
-    options.cnn_use_laynorm = Config.get('cnn', 'cnn_use_laynorm')
-    options.cnn_use_batchnorm = Config.get('cnn', 'cnn_use_batchnorm')
-    options.cnn_act = Config.get('cnn', 'cnn_act')
-    options.cnn_drop = Config.get('cnn', 'cnn_drop')
+    # [cnn]
+    options.cnn_N_filt = Config.get("cnn", "cnn_N_filt")
+    options.cnn_len_filt = Config.get("cnn", "cnn_len_filt")
+    options.cnn_max_pool_len = Config.get("cnn", "cnn_max_pool_len")
+    options.cnn_use_laynorm_inp = Config.get("cnn", "cnn_use_laynorm_inp")
+    options.cnn_use_batchnorm_inp = Config.get("cnn", "cnn_use_batchnorm_inp")
+    options.cnn_use_laynorm = Config.get("cnn", "cnn_use_laynorm")
+    options.cnn_use_batchnorm = Config.get("cnn", "cnn_use_batchnorm")
+    options.cnn_act = Config.get("cnn", "cnn_act")
+    options.cnn_drop = Config.get("cnn", "cnn_drop")
 
-    #[dnn]
-    options.fc_lay = Config.get('dnn', 'fc_lay')
-    options.fc_drop = Config.get('dnn', 'fc_drop')
-    options.fc_use_laynorm_inp = Config.get('dnn', 'fc_use_laynorm_inp')
-    options.fc_use_batchnorm_inp = Config.get('dnn', 'fc_use_batchnorm_inp')
-    options.fc_use_batchnorm = Config.get('dnn', 'fc_use_batchnorm')
-    options.fc_use_laynorm = Config.get('dnn', 'fc_use_laynorm')
-    options.fc_act = Config.get('dnn', 'fc_act')
+    # [dnn]
+    options.fc_lay = Config.get("dnn", "fc_lay")
+    options.fc_drop = Config.get("dnn", "fc_drop")
+    options.fc_use_laynorm_inp = Config.get("dnn", "fc_use_laynorm_inp")
+    options.fc_use_batchnorm_inp = Config.get("dnn", "fc_use_batchnorm_inp")
+    options.fc_use_batchnorm = Config.get("dnn", "fc_use_batchnorm")
+    options.fc_use_laynorm = Config.get("dnn", "fc_use_laynorm")
+    options.fc_act = Config.get("dnn", "fc_act")
 
-    #[class]
-    options.class_lay = Config.get('class', 'class_lay')
-    options.class_drop = Config.get('class', 'class_drop')
-    options.class_use_laynorm_inp = Config.get('class',
-                                               'class_use_laynorm_inp')
-    options.class_use_batchnorm_inp = Config.get('class',
-                                                 'class_use_batchnorm_inp')
-    options.class_use_batchnorm = Config.get('class', 'class_use_batchnorm')
-    options.class_use_laynorm = Config.get('class', 'class_use_laynorm')
-    options.class_act = Config.get('class', 'class_act')
+    # [class]
+    options.class_lay = Config.get("class", "class_lay")
+    options.class_drop = Config.get("class", "class_drop")
+    options.class_use_laynorm_inp = Config.get("class", "class_use_laynorm_inp")
+    options.class_use_batchnorm_inp = Config.get("class", "class_use_batchnorm_inp")
+    options.class_use_batchnorm = Config.get("class", "class_use_batchnorm")
+    options.class_use_laynorm = Config.get("class", "class_use_laynorm")
+    options.class_act = Config.get("class", "class_act")
 
-    #[optimization]
-    options.lr = Config.get('optimization', 'lr')
-    options.batch_size = Config.get('optimization', 'batch_size')
-    options.N_epochs = Config.get('optimization', 'N_epochs')
-    options.N_batches = Config.get('optimization', 'N_batches')
-    options.N_eval_epoch = Config.get('optimization', 'N_eval_epoch')
-    options.seed = Config.get('optimization', 'seed')
+    # [optimization]
+    options.lr = Config.get("optimization", "lr")
+    options.batch_size = Config.get("optimization", "batch_size")
+    options.N_epochs = Config.get("optimization", "N_epochs")
+    options.N_batches = Config.get("optimization", "N_batches")
+    options.N_eval_epoch = Config.get("optimization", "N_eval_epoch")
+    options.seed = Config.get("optimization", "seed")
 
     return options
 
 
-def create_batches_rnd(batch_size, data_folder, wav_lst, N_snt, wlen, lab_dict,
-                       fact_amp):
+def create_batches_rnd(
+    batch_size, data_folder, wav_lst, N_snt, wlen, lab_dict, fact_amp
+):
 
     # Initialization of the minibatch (batch_size,[0=>x_t,1=>x_t+N,1=>random_samp])
     sig_batch = np.zeros([batch_size, wlen])
@@ -176,15 +173,14 @@ def create_batches_rnd(batch_size, data_folder, wav_lst, N_snt, wlen, lab_dict,
 
         channels = len(signal.shape)
         if channels == 2:
-            print('WARNING: stereo to mono: ' + data_folder +
-                wav_lst[snt_id_arr[i]])
+            print("WARNING: stereo to mono: " + data_folder + wav_lst[snt_id_arr[i]])
             signal = signal[:, 0]
 
         sig_batch[i, :] = signal[snt_beg:snt_end] * rand_amp_arr[i]
         lab_batch[i] = lab_dict[wav_lst[snt_id_arr[i]].lower()]
 
-    inp = flow.Tensor(sig_batch, dtype=flow.float32).to('cuda')
-    lab = flow.Tensor(lab_batch, dtype=flow.float32).to('cuda')
+    inp = flow.Tensor(sig_batch, dtype=flow.float32).to("cuda")
+    lab = flow.Tensor(lab_batch, dtype=flow.float32).to("cuda")
 
     return inp, lab
 
@@ -192,20 +188,21 @@ def create_batches_rnd(batch_size, data_folder, wav_lst, N_snt, wlen, lab_dict,
 def flip(x, dim):
     xsize = x.size()
     dim = x.dim() + dim if dim < 0 else dim
-    x = flow.reshape(x,shape=(-1, *xsize[dim:]))
+    x = flow.reshape(x, shape=(-1, *xsize[dim:]))
     x = flow.reshape(x, shape=(x.size(0), x.size(1), -1))
 
-    index = []; index1 = []
-    for i in range(x.size(1)-1,-1,-1):
-        index1.append([i]*x.size(2))
+    index = []
+    index1 = []
+    for i in range(x.size(1) - 1, -1, -1):
+        index1.append([i] * x.size(2))
     for i in range(x.size(0)):
         index.append(index1)
     index = flow.Tensor(index).long()
-    
+
     if x.is_cuda:
-        x = flow.gather(x,index.to('cuda'),dim=1)
+        x = flow.gather(x, index.to("cuda"), dim=1)
     else:
-        x = flow.gather(x,index,dim=1)
+        x = flow.gather(x, index, dim=1)
 
     return flow.reshape(x, shape=xsize)
 
@@ -214,29 +211,29 @@ def sinc(band, t_right):
     y_right = flow.sin(2 * math.pi * band * t_right) / (2 * math.pi * band * t_right)
     y_left = flip(y_right, 0)
 
-    y = flow.cat([y_left, flow.ones(1).to('cuda'), y_right])
+    y = flow.cat([y_left, flow.ones(1).to("cuda"), y_right])
 
     return y
 
 
 def act_fun(act_type):
-    if act_type=="relu":
+    if act_type == "relu":
         return nn.ReLU()
 
-    if act_type=="tanh":
+    if act_type == "tanh":
         return nn.Tanh()
 
-    if act_type=="sigmoid":
+    if act_type == "sigmoid":
         return nn.Sigmoid()
 
-    if act_type=="leaky_relu":
+    if act_type == "leaky_relu":
         return nn.LeakyReLU(0.2)
 
-    if act_type=="elu":
+    if act_type == "elu":
         return nn.ELU()
 
-    if act_type=="softmax":
+    if act_type == "softmax":
         return nn.LogSoftmax(dim=1)
 
-    if act_type=="linear":
+    if act_type == "linear":
         return nn.LeakyReLU(1)

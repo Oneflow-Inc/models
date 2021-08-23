@@ -69,6 +69,7 @@ def test(
 
         if ddp:
             import torch.distributed as dist
+
             local_rank_env_var = os.getenv("LOCAL_RANK")
             assert local_rank_env_var is not None
             rank = int(local_rank_env_var)
@@ -125,6 +126,7 @@ def test(
         )
     if ddp and not test_oneflow:
         import torch.distributed as dist
+
         dist.destroy_process_group()
 
     return time_per_run_ms

@@ -4,10 +4,20 @@ import oneflow.nn as nn
 from models.resnet50 import resnet50
 
 
-def conv3x3(in_planes: int, out_planes: int, stride: int = 1, groups: int = 1, dilation: int = 1) -> nn.Conv2d:
+def conv3x3(
+    in_planes: int, out_planes: int, stride: int = 1, groups: int = 1, dilation: int = 1
+) -> nn.Conv2d:
     """3x3 convolution with padding"""
-    return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride,
-                     padding=dilation, groups=groups, bias=False, dilation=dilation)
+    return nn.Conv2d(
+        in_planes,
+        out_planes,
+        kernel_size=3,
+        stride=stride,
+        padding=dilation,
+        groups=groups,
+        bias=False,
+        dilation=dilation,
+    )
 
 
 class ConvRelu(nn.Module):
@@ -33,8 +43,14 @@ class DecoderBlockLinkNet(nn.Module):
         self.norm1 = nn.BatchNorm2d(in_channels // 4)
 
         # B, C/4, H, W -> B, C/4, 2 * H, 2 * W
-        self.deconv2 = nn.ConvTranspose2d(in_channels // 4, in_channels // 4, kernel_size=4,
-                                          stride=2, padding=1, output_padding=0)
+        self.deconv2 = nn.ConvTranspose2d(
+            in_channels // 4,
+            in_channels // 4,
+            kernel_size=4,
+            stride=2,
+            padding=1,
+            output_padding=0,
+        )
 
         self.norm2 = nn.BatchNorm2d(in_channels // 4)
 
@@ -56,7 +72,9 @@ class DecoderBlockLinkNet(nn.Module):
 
 
 class LinkNet34(nn.Module):
-    def __init__(self, num_classes=1, num_channels=3, pretrained=False, pretrained_model_path=""):
+    def __init__(
+        self, num_classes=1, num_channels=3, pretrained=False, pretrained_model_path=""
+    ):
         super().__init__()
         assert num_channels == 3
         self.num_classes = num_classes

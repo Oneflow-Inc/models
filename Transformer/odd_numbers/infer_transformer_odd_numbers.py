@@ -11,16 +11,16 @@ TO_CUDA = True
 
 parser = argparse.ArgumentParser()
 
-parser.add_argument('--vocab_sz', type=int, default=50000)
-parser.add_argument('--d_model', type=int, default=512)
-parser.add_argument('--dropout', type=float, default=0.1)
-parser.add_argument('--n_head', type=int, default=8)
-parser.add_argument('--n_encoder_layers', type=int, default=6)
-parser.add_argument('--n_decoder_layers', type=int, default=6)
-parser.add_argument('--dim_feedforward', type=int, default=1024)
+parser.add_argument("--vocab_sz", type=int, default=50000)
+parser.add_argument("--d_model", type=int, default=512)
+parser.add_argument("--dropout", type=float, default=0.1)
+parser.add_argument("--n_head", type=int, default=8)
+parser.add_argument("--n_encoder_layers", type=int, default=6)
+parser.add_argument("--n_decoder_layers", type=int, default=6)
+parser.add_argument("--dim_feedforward", type=int, default=1024)
 
-parser.add_argument('--load_dir', type=str, default='.')
-parser.add_argument('--input_start', type=int)
+parser.add_argument("--load_dir", type=str, default=".")
+parser.add_argument("--input_start", type=int)
 
 args = parser.parse_args()
 
@@ -39,8 +39,16 @@ def main():
 
     voc_size = args.vocab_sz
     print("Setting model...", end="")
-    model = TransformerModel(input_sz=voc_size, output_sz=voc_size, d_model=args.d_model, nhead=args.n_head,
-                             num_encoder_layers=args.n_encoder_layers, num_decoder_layers=args.n_decoder_layers, dim_feedforward=args.dim_feedforward, dropout=args.dropout)
+    model = TransformerModel(
+        input_sz=voc_size,
+        output_sz=voc_size,
+        d_model=args.d_model,
+        nhead=args.n_head,
+        num_encoder_layers=args.n_encoder_layers,
+        num_decoder_layers=args.n_decoder_layers,
+        dim_feedforward=args.dim_feedforward,
+        dropout=args.dropout,
+    )
     model.load_state_dict(flow.load(args.load_dir))
     model = to_cuda(model)
     print("Done")
