@@ -266,7 +266,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog="test.py")
     parser.add_argument('--weights', nargs='+', type=str, default='yolov3_ckpt', help='model path(s)')
     parser.add_argument('--cfg', type=str, default='models/yolov3.yaml', help='model.yaml path')
-    parser.add_argument('--data', type=str, default='data/coco128.yaml', help='*.data path')
+    parser.add_argument('--data', type=str, default='dataset/coco128.yaml', help='*.data path')
     parser.add_argument('--batch-size', type=int, default=32, help='size of each image batch')
     parser.add_argument('--img-size', type=int, default=640, help='inference size (pixels)')
     parser.add_argument('--conf-thres', type=float, default=0.001, help='object confidence threshold')
