@@ -64,21 +64,28 @@ class EmbeddingPostProcessor(nn.Module):
         max_position_embeddings=512,
     ):
         super().__init__()
-        self.seq_length = seq_length
-        self.token_embedding_table = nn.Embedding(token_type_vocab_size, embedding_size)
+        self.position_embeddings = nn.Embedding(max_position_embeddings, embedding_size)
+        self.token_type_embeddings = nn.Embedding(token_type_vocab_size, embedding_size)
 
-        self.position_embedding_table = nn.Parameter(
-            oneflow.Tensor(1, max_position_embeddings, embedding_size)
+        self.register_buffer(
+            "position_ids", oneflow.arange(max_position_embeddings).unsqueeze(0)
         )
 
+        self.seq_length = seq_length
+
     def forward(self, input_blob, token_type_ids_blob):
-        token_type_embedding = self.token_embedding_table(token_type_ids_blob)
-        position_embedding = self.position_embedding_table[:, : self.seq_length]
-        return input_blob + token_type_embedding + position_embedding
+        position_ids = self.position_ids[:, : self.seq_length]
+        position_embeds = self.position_embeddings(position_ids)
+
+        token_type_embeds = self.token_type_embeddings(token_type_ids_blob)
+        return input_blob + token_type_embeds + position_embeds
 
     def weight_init(self, token_table, position_table):
-        self.token_embedding_table.weight = nn.Parameter(oneflow.tensor(token_table))
-        self.position_embedding_table = nn.Parameter(oneflow.tensor(position_table))
+        self.token_type_embeddings.weight.data.copy_(oneflow.tensor(token_table))
+        self.position_embeddings.weight.data.copy_(oneflow.tensor(position_table))
+
+        # self.token_embedding_table.weight = nn.Parameter()
+        # self.position_embedding_table = nn.Parameter(oneflow.tensor(position_table))
 
 
 def compare_with_lazy_embed_post():
@@ -107,7 +114,9 @@ def compare_with_lazy_embed_post():
 
     # eager embedding post processor
     eager_embedpost = EmbeddingPostProcessor(10, 128)
-    eager_embedpost.weight_init(token_type_table.numpy(), position_table.numpy())
+    eager_embedpost.weight_init(
+        token_type_table.numpy(), position_table.numpy().squeeze(0)
+    )
     eager_res = eager_embedpost(
         oneflow.tensor(input_blobs, dtype=oneflow.float32),
         oneflow.tensor(token_type_ids, dtype=oneflow.int32),
