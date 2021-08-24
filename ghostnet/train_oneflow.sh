@@ -18,8 +18,8 @@ TRAIN_BATCH_SIZE=16
 VAL_BATCH_SIZE=16
 MODEL=ghostnet
 
-# LOAD PREVIOUS CHECKPOINT 
-# LOAD_CHECKPOINT=$CHECKPOINT_PATH/your_pretrained_model
+# LOAD_CHECKPOINT="$CHECKPOINT_PATH/your_pretrain_model" 
+# LOAD PREVIOUS CHECKPOINT
 
 python3 train_oneflow.py \
     --save_checkpoint_path $CHECKPOINT_PATH \
