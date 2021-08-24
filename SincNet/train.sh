@@ -2,6 +2,7 @@ set -aux
 
 
 DATA_PATH='data/'
+DATA_LISTS='data_lists'
 TIMIT_FOLDER='data/lisa/data/timit/raw/TIMIT'
 DATA_PREPARED='data_preprocessed'
 LABEL='data_lists/TIMIT_all_upper.scp'
@@ -11,6 +12,12 @@ if [ ! -d "$DATA_PATH" ]; then
     wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/datasets/SincNet/TIMIT.zip
     unzip TIMIT.zip
     rm -fr TIMIT.zip
+fi
+
+if [ ! -d "$DATA_LISTS" ]; then
+    wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/datasets/SincNet/data_lists.zip
+    unzip data_lists.zip
+    rm -fr data_lists.zip
 fi
 
 if [ ! -d "$DATA_PREPARED" ]; then
