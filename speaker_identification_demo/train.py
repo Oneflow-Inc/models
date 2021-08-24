@@ -12,7 +12,7 @@ from model.dataloader import create_batches_rnd
 
 
 def get_args():
-    parser = argparse.ArgumentParser("""Speaker Recognization Demo Train""")
+    parser = argparse.ArgumentParser("""Speaker Identification Demo Train""")
     parser.add_argument(
         "--label_dict", type=str, default="data_preprocessed/label_dict.json"
     )
@@ -26,6 +26,8 @@ def get_args():
     parser.add_argument("--eps", type=float, default=1e-6)
     parser.add_argument("--wlen", type=int, default=3200)
     parser.add_argument("--fact_amp", type=float, default=0.2)
+    parser.add_argument("--num_speakers", type=int, default=2)
+    
     parser.add_argument("--output_path", type=str, default="save_models")
 
     args = parser.parse_args()
@@ -36,7 +38,7 @@ def train(opt):
     with open(opt.label_dict, "r") as f:
         lab_dict = json.load(f)
 
-    cnn = simple_CNN()
+    cnn = simple_CNN(opt.num_speakers)
     cnn.to("cuda")
 
     cost = nn.CrossEntropyLoss()

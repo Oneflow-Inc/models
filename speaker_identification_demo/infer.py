@@ -9,10 +9,11 @@ from model.model import simple_CNN
 
 
 def get_args():
-    parser = argparse.ArgumentParser("""Speaker Recognization Demo Infer""")
+    parser = argparse.ArgumentParser("""Speaker Identification Demo Infer""")
     parser.add_argument(
         "--label_dict", type=str, default="data_preprocessed/label_dict.json"
     )
+    parser.add_argument("--num_speakers", type=int, default=2)
     parser.add_argument("--load_path", type=str, default="save_models/CNN_model")
 
     args = parser.parse_args()
@@ -50,7 +51,7 @@ def infer(opt):
     with open(opt.label_dict, "r") as f:
         lab_dict = json.load(f)
 
-    cnn = simple_CNN()
+    cnn = simple_CNN(opt.num_speakers)
     cnn.to("cuda")
 
     cnn.load_state_dict(flow.load(opt.load_path))

@@ -2,7 +2,7 @@ import oneflow.nn as nn
 
 
 class simple_CNN(nn.Module):
-    def __init__(self) -> None:
+    def __init__(self, num_speakers=2) -> None:
         super(simple_CNN, self).__init__()
         self.convs = nn.Sequential(
             nn.Conv1d(1, 16, 100, stride=10),
@@ -15,7 +15,7 @@ class simple_CNN(nn.Module):
             nn.BatchNorm1d(64),
             nn.ReLU(),
         )
-        self.linears = nn.Sequential(nn.Linear(1 * 6 * 64, 128), nn.Linear(128, 2))
+        self.linears = nn.Sequential(nn.Linear(1 * 6 * 64, 128), nn.Linear(128, num_speakers))
 
     def forward(self, x):
         x = self.convs(x)
