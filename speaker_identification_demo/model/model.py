@@ -15,7 +15,9 @@ class simple_CNN(nn.Module):
             nn.BatchNorm1d(64),
             nn.ReLU(),
         )
-        self.linears = nn.Sequential(nn.Linear(1 * 6 * 64, 128), nn.Linear(128, num_speakers))
+        self.linears = nn.Sequential(
+            nn.Linear(1 * 6 * 64, 128), nn.Linear(128, num_speakers)
+        )
 
     def forward(self, x):
         x = self.convs(x)

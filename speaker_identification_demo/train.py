@@ -27,7 +27,7 @@ def get_args():
     parser.add_argument("--wlen", type=int, default=3200)
     parser.add_argument("--fact_amp", type=float, default=0.2)
     parser.add_argument("--num_speakers", type=int, default=2)
-    
+
     parser.add_argument("--output_path", type=str, default="save_models")
 
     args = parser.parse_args()
