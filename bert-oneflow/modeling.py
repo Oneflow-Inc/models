@@ -49,7 +49,9 @@ class BertEmbeddings(nn.Module):
 
 
 class BertSelfAttention(nn.Module):
-    def __init__(self, num_attention_heads, hidden_size, seq_len, hidden_dropout_prob):
+    def __init__(
+        self, num_attention_heads, hidden_size, seq_len, hidden_dropout_prob=0.0
+    ):
         super().__init__()
 
         self.num_attention_heads = num_attention_heads
@@ -77,7 +79,12 @@ class BertSelfAttention(nn.Module):
         attention_scores = flow.matmul(query_layer, key_layer.transpose(-2, -1))
         attention_scores = attention_scores / math.sqrt(self.attention_head_size)
 
-        attention_scores = attention_scores + attention_mask
+        attention_mask = flow.reshape(
+            attention_mask, [-1, 1, self.seq_len, self.seq_len]
+        )
+        attention_mask = flow.cast(attention_mask, dtype=flow.float32)
+        addr_blob = (attention_mask - 1.0) * 10000.0
+        attention_scores = attention_scores + addr_blob
 
         # Normalize the attention scores to probabilities.
         attention_probs = flow.softmax(attention_scores, dim=-1)
