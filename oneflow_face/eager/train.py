@@ -90,9 +90,7 @@ def main(args):
         lr=cfg.lr,  momentum=0.9, weight_decay=cfg.weight_decay)
 
     
-    # train_data_path=cfg.rec
-    # train_set = MXFaceDataset(root_dir=train_data_path, local_rank=0)
-    # train_loader = DataLoader(train_set, batch_size=cfg.batch_size , shuffle=True, num_workers=12,drop_last=True)
+
 
     train_data_loader = OFRecordDataLoader(
         ofrecord_root=cfg.ofrecord_path,
