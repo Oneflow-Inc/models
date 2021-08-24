@@ -32,12 +32,7 @@ class OFRecordDataLoader(nn.Module):
         height = 112
         width =112
 
-        self.record_image_decoder = (
-            flow.nn.OFRecordImageDecoderRandomCrop("encoded", color_space=color_space)
-            if mode == "train"
-            else flow.nn.OFRecordImageDecoder("encoded", color_space=color_space)
-        )
-
+        self.record_image_decoder = ( flow.nn.OFRecordImageDecoder("encoded", color_space=color_space))
         self.resize = (
             flow.nn.image.Resize(target_size=[height, width])
             if mode == "train"
