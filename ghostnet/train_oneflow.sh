@@ -1,6 +1,6 @@
 set -aux
 
-OFRECORD_PATH="/mnt/local/fengyuchao/Data/ofrecord"
+OFRECORD_PATH="ofrecord"
 if [ ! -d "$OFRECORD_PATH" ]; then
     wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/datasets/imagenette_ofrecord.tar.gz
     tar zxf imagenette_ofrecord.tar.gz
@@ -19,7 +19,7 @@ VAL_BATCH_SIZE=16
 MODEL=ghostnet
 
 # LOAD PREVIOUS CHECKPOINT 
-# LOAD_CHECKPOINT=$CHECKPOINT_PATH/epoch_484_val_acc_0.908418
+# LOAD_CHECKPOINT=$CHECKPOINT_PATH/your_pretrained_model
 
 python3 train_oneflow.py \
     --save_checkpoint_path $CHECKPOINT_PATH \
