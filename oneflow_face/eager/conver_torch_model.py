@@ -1,4 +1,6 @@
 import torch
+import sys
+sys.path.append("..")
 
 from backbones import get_model
 import oneflow as flow

@@ -4,7 +4,7 @@ from oneflow import Tensor
 from typing import Type, Any, Callable, Union, List, Optional
 
 
-__all__ = ['iresnet18', 'iresnet34', 'iresnet50', 'iresnet100', 'iresnet200']
+
 
 
 
@@ -118,7 +118,7 @@ class IResNet(nn.Module):
         self.features = nn.BatchNorm1d(num_features, eps=1e-05)
         nn.init.constant_(self.features.weight, 1.0)
         self.features.weight.requires_grad = False
-        self.fc7=nn.Linear(512,93431,False)  
+
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 nn.init.normal_(m.weight, 0, 0.1)
@@ -171,7 +171,7 @@ class IResNet(nn.Module):
         x = self.dropout(x)
         x = self.fc(x)
         x = self.features(x)
-        x=self.fc7(x)
+
         return x
 
 

@@ -32,11 +32,11 @@ import mxnet as mx
 import numpy as np
 import sklearn
 import oneflow as flow
-from mxnet import ndarray as nd
+
 from scipy import interpolate
 from sklearn.decomposition import PCA
 from sklearn.model_selection import KFold
-
+import cv2 as cv
 
 class LFold:
     def __init__(self, n_splits=2, shuffle=False):
@@ -196,32 +196,53 @@ def evaluate(embeddings, actual_issame, nrof_folds=10, pca=0):
                                       nrof_folds=nrof_folds)
     return tpr, fpr, accuracy, val, val_std, far
 
+
 ##@flow.no_grad()
-def load_bin(path, image_size):
-    try:
-        with open(path, 'rb') as f:
-            bins, issame_list = pickle.load(f)  # py2
-    except UnicodeDecodeError as e:
-        with open(path, 'rb') as f:
-            bins, issame_list = pickle.load(f, encoding='bytes')  # py3
+def load_bin(path, image_size,image_num):
+    color_space = "RGB"
+    val_dataset_dir=path
+
+    val_batch_size=image_num
+    val_data_part_num=1
+    mode="val"
+    ofrecord = flow.nn.OfrecordReader(
+        val_dataset_dir,
+        batch_size=val_batch_size,
+        data_part_num=val_data_part_num,
+        part_name_suffix_length=1,
+        random_shuffle=False,
+        shuffle_after_epoch=False,
+    )
+    image_reader = flow.nn.OFRecordImageDecoder( "encoded", color_space=color_space)
+    
+    record_image_decoder = flow.nn.OFRecordImageDecoder("encoded", color_space=color_space)
+  
+    issame_reader = flow.nn.OfrecordRawDecoder( "issame", shape=(), dtype=flow.int32)
+    
+    image_of=ofrecord()    
+    image=record_image_decoder (image_of).numpy() 
+    issame_list=issame_reader(image_of).numpy() 
+    issame = np.array(issame_list).flatten().reshape(-1, 1)[:image_num, :]
+    issame_list = [bool(x) for x in issame[0::2]]
+
+
     data_list = []
     for flip in [0, 1]:
-        data = flow.empty((len(issame_list) * 2, 3, image_size[0], image_size[1]))
+        data = flow.empty(len(issame_list)*2 , 3, image_size[0], image_size[1])
         data_list.append(data)
-    for idx in range(len(issame_list) * 2):
-        _bin = bins[idx]
-        img = mx.image.imdecode(_bin)
-        if img.shape[1] != image_size[0]:
-            img = mx.image.resize_short(img, image_size[0])
-        img = nd.transpose(img, axes=(2, 0, 1))
+    for idx in range(len(issame_list)*2):
+        img=image[idx]       
         for flip in [0, 1]:
             if flip == 1:
-                img = mx.ndarray.flip(data=img, axis=2)
-            data_list[flip][idx][:] = flow.from_numpy(img.asnumpy())
+                img = np.fliplr(img)
+            data_list[flip][idx] = flow.Tensor(img.transpose((2, 0, 1)))
         if idx % 1000 == 0:
             print('loading bin', idx)
     print(data_list[0].shape)
     return data_list, issame_list
+
+
+
 
 #@flow.no_grad()
 def test(data_set, backbone, batch_size, nfolds=10):
@@ -241,8 +262,8 @@ def test(data_set, backbone, batch_size, nfolds=10):
             time0 = datetime.datetime.now()
             img = ((_data / 255) - 0.5) / 0.5
             with flow.no_grad():
-                net_out: flow.Tensor = backbone(img)
-            _embeddings = net_out.detach().cpu().numpy()
+                net_out: flow.Tensor = backbone(img.to("cuda"))
+            _embeddings = net_out.detach().numpy()
             time_now = datetime.datetime.now()
             diff = time_now - time0
             time_consumed += diff.total_seconds()
