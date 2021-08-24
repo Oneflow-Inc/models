@@ -10,8 +10,23 @@ matplotlib.use("agg")
 import matplotlib.pyplot as plt
 import oneflow as flow
 
-from utils import make_dirs, load_mnist, download_mnist, to_numpy, to_tensor, save_to_gif, save_images
-from models import Generator, Discriminator, GeneratorTrainGraph, DiscriminatorTrainGraph, GeneratorEvalGraph
+from utils import (
+    make_dirs,
+    load_mnist,
+    download_mnist,
+    to_numpy,
+    to_tensor,
+    save_to_gif,
+    save_images,
+)
+from models import (
+    Generator,
+    Discriminator,
+    GeneratorTrainGraph,
+    DiscriminatorTrainGraph,
+    GeneratorEvalGraph,
+)
+
 
 def _parse_args():
     parser = argparse.ArgumentParser(description="oneflow DCGAN")
@@ -47,6 +62,7 @@ def _parse_args():
         "--no_cuda", action="store_true", default=False, help="disables CUDA training"
     )
     return parser.parse_args()
+
 
 class DCGAN(flow.nn.Module):
     def __init__(self, args):
@@ -194,8 +210,8 @@ class DCGAN(flow.nn.Module):
         cat = flow.cat((images, g_out), dim=0)
 
         result = self.discriminator(cat)
-        d_logits = result[:images.shape[0]]
-        g_logits = result[images.shape[0]:]
+        d_logits = result[: images.shape[0]]
+        g_logits = result[images.shape[0] :]
 
         d_loss_real = self.of_cross_entropy(d_logits, label1)
 

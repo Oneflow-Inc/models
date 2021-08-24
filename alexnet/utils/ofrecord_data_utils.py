@@ -10,7 +10,7 @@ class OFRecordDataLoader(nn.Module):
         mode: str = "train",  # "val"
         dataset_size: int = 9469,
         batch_size: int = 1,
-        train_shuffle = True,
+        train_shuffle=True,
     ):
         super().__init__()
         channel_last = False

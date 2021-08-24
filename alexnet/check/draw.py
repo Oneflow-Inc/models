@@ -1,16 +1,15 @@
 import os
 import argparse
 import matplotlib
-matplotlib.use('Agg')
+
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+
 
 def _parse_args():
     parser = argparse.ArgumentParser("flags for draw image")
     parser.add_argument(
-        "--txt_root",
-        type=str,
-        default="./results/default/",
-        help="your txt root dir",
+        "--txt_root", type=str, default="./results/default/", help="your txt root dir",
     )
     parser.add_argument(
         "--save_root",
@@ -24,7 +23,7 @@ def _parse_args():
 # helpers
 def load_data(file_path):
     data = []
-    with open(file_path, 'r') as f:
+    with open(file_path, "r") as f:
         for _line in f.readlines():
             data.append(float(_line.strip()))
     return data
@@ -50,10 +49,10 @@ def draw_and_save(info_dic):
     assert len(txts) == len(labels)
 
     # setup
-    plt.rcParams['figure.dpi'] = 100
+    plt.rcParams["figure.dpi"] = 100
     plt.clf()
-    plt.xlabel(xlabel, fontproperties='Times New Roman')
-    plt.ylabel(ylabel, fontproperties='Times New Roman')
+    plt.xlabel(xlabel, fontproperties="Times New Roman")
+    plt.ylabel(ylabel, fontproperties="Times New Roman")
     if xlim:
         plt.xlim(xlim[0], xlim[1])
     if ylim:
@@ -72,74 +71,111 @@ def draw_and_save(info_dic):
             idxs = [i for i in range(len(data))]
             plt.plot(idxs, data, label=label)
     plt.title(title)
-    plt.legend(loc='upper right', frameon=True, fontsize=8)
+    plt.legend(loc="upper right", frameon=True, fontsize=8)
     plt.savefig(save_path)
 
+
 def add_pth(a, b):
-    return os.path.join(a,b)
+    return os.path.join(a, b)
+
 
 if __name__ == "__main__":
     args = _parse_args()
     txt_root = args.txt_root
     save_root = args.save_root
-    assert os.path.exists(txt_root), 'you should run "check/check.sh" before drawing graphs'
+    assert os.path.exists(
+        txt_root
+    ), 'you should run "check/check.sh" before drawing graphs'
 
     # draw and save
     os.makedirs(save_root, exist_ok=True)
-    draw_and_save({ "title": "compare_acc",
-                    "save_path": add_pth(save_root, "acc.png"),
-                    "txts": [add_pth(txt_root, "eager_acc.txt"), 
-                            add_pth(txt_root, "graph_acc.txt")],
-                    "names": ["eager_acc", "graph_acc"],
-                    "xlabel": "epochs",
-                    "ylabel": "acc",
-                    })
-    draw_and_save({ "title": "compare_loss",
-                    "save_path": add_pth(save_root, "compare_loss.png"),
-                    "txts": [add_pth(txt_root, "eager_losses.txt"), 
-                            add_pth(txt_root, "graph_losses.txt")],
-                    "names": ["eager_loss", "graph_loss"],
-                    "xlabel": "epochs",
-                    "ylabel": "loss",
-                    })
-    draw_and_save({ "title": "compare_train_step_time",
-                    "save_path": add_pth(save_root, "compare_train_step_time.png"),
-                    "txts": [add_pth(txt_root, "eager_train_step_time_list.txt"), 
-                            add_pth(txt_root, "graph_train_step_time_list.txt")],
-                    "names": ["eager_step_time", "graph_step_time"],
-                    "xlabel": "iters",
-                    "ylabel": "time(s)",
-                    "ylim": [0, 1]
-                    })
-    draw_and_save({ "title": "compare_train_epoch_time",
-                    "save_path": add_pth(save_root, "compare_train_epoch_time.png"),
-                    "txts": [add_pth(txt_root, "eager_train_epoch_time_list.txt"), 
-                            add_pth(txt_root, "graph_train_epoch_time_list.txt")],
-                    "names": ["eager_epoch_time", "graph_epoch_time"],
-                    "xlabel": "epochs",
-                    "ylabel": "time(s)",
-                    })
-    draw_and_save({ "title": "compare_eval_epoch_time",
-                    "save_path": add_pth(save_root,"compare_eval_epoch_time.png"),
-                    "txts": [add_pth(txt_root, "eager_eval_epoch_time_list.txt"), 
-                            add_pth(txt_root, "graph_eval_epoch_time_list.txt")],
-                    "names": ["eager_eval_time", "graph_eval_time"],
-                    "xlabel": "epochs",
-                    "ylabel": "time(s)",
-                    })
-    draw_and_save({ "title": "compare_abs_loss",
-                    "save_path": add_pth(save_root, "compare_abs_loss.png"),
-                    "txts": [add_pth(txt_root, "eager_losses.txt"), 
-                            add_pth(txt_root, "graph_losses.txt")],
-                    "names": ["eager_loss", "graph_loss"],
-                    "xlabel": "iters",
-                    "ylabel": "abs_loss",
-                    "do_abs_minus": True
-                    })
-    draw_and_save({ "title": "compare_abs_model_param",
-                    "save_path": add_pth(save_root, "compare_abs_model_param.png"),
-                    "txts": [add_pth(txt_root, "eager_graph_model_diff_list.txt")],
-                    "names": ["model_param_abs_diff"],
-                    "xlabel": "iters",
-                    "ylabel": "abs_diff",
-                    })
+    draw_and_save(
+        {
+            "title": "compare_acc",
+            "save_path": add_pth(save_root, "acc.png"),
+            "txts": [
+                add_pth(txt_root, "eager_acc.txt"),
+                add_pth(txt_root, "graph_acc.txt"),
+            ],
+            "names": ["eager_acc", "graph_acc"],
+            "xlabel": "epochs",
+            "ylabel": "acc",
+        }
+    )
+    draw_and_save(
+        {
+            "title": "compare_loss",
+            "save_path": add_pth(save_root, "compare_loss.png"),
+            "txts": [
+                add_pth(txt_root, "eager_losses.txt"),
+                add_pth(txt_root, "graph_losses.txt"),
+            ],
+            "names": ["eager_loss", "graph_loss"],
+            "xlabel": "epochs",
+            "ylabel": "loss",
+        }
+    )
+    draw_and_save(
+        {
+            "title": "compare_train_step_time",
+            "save_path": add_pth(save_root, "compare_train_step_time.png"),
+            "txts": [
+                add_pth(txt_root, "eager_train_step_time_list.txt"),
+                add_pth(txt_root, "graph_train_step_time_list.txt"),
+            ],
+            "names": ["eager_step_time", "graph_step_time"],
+            "xlabel": "iters",
+            "ylabel": "time(s)",
+            "ylim": [0, 1],
+        }
+    )
+    draw_and_save(
+        {
+            "title": "compare_train_epoch_time",
+            "save_path": add_pth(save_root, "compare_train_epoch_time.png"),
+            "txts": [
+                add_pth(txt_root, "eager_train_epoch_time_list.txt"),
+                add_pth(txt_root, "graph_train_epoch_time_list.txt"),
+            ],
+            "names": ["eager_epoch_time", "graph_epoch_time"],
+            "xlabel": "epochs",
+            "ylabel": "time(s)",
+        }
+    )
+    draw_and_save(
+        {
+            "title": "compare_eval_epoch_time",
+            "save_path": add_pth(save_root, "compare_eval_epoch_time.png"),
+            "txts": [
+                add_pth(txt_root, "eager_eval_epoch_time_list.txt"),
+                add_pth(txt_root, "graph_eval_epoch_time_list.txt"),
+            ],
+            "names": ["eager_eval_time", "graph_eval_time"],
+            "xlabel": "epochs",
+            "ylabel": "time(s)",
+        }
+    )
+    draw_and_save(
+        {
+            "title": "compare_abs_loss",
+            "save_path": add_pth(save_root, "compare_abs_loss.png"),
+            "txts": [
+                add_pth(txt_root, "eager_losses.txt"),
+                add_pth(txt_root, "graph_losses.txt"),
+            ],
+            "names": ["eager_loss", "graph_loss"],
+            "xlabel": "iters",
+            "ylabel": "abs_loss",
+            "do_abs_minus": True,
+        }
+    )
+    draw_and_save(
+        {
+            "title": "compare_abs_model_param",
+            "save_path": add_pth(save_root, "compare_abs_model_param.png"),
+            "txts": [add_pth(txt_root, "eager_graph_model_diff_list.txt")],
+            "names": ["model_param_abs_diff"],
+            "xlabel": "iters",
+            "ylabel": "abs_diff",
+        }
+    )

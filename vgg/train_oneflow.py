@@ -52,8 +52,6 @@ def _parse_args():
 
 def main(args):
 
-    
-
     train_data_loader = OFRecordDataLoader(
         ofrecord_root=args.ofrecord_path,
         mode="train",

@@ -5,6 +5,7 @@ import os
 import time
 
 import sys
+
 sys.path.append(".")
 from models.resnet50 import resnet50
 from utils.ofrecord_data_utils import OFRecordDataLoader
@@ -39,7 +40,7 @@ def _parse_args():
 
 
 def main(args):
-    
+
     train_data_loader = OFRecordDataLoader(
         ofrecord_root=args.ofrecord_path,
         mode="train",
@@ -80,7 +81,7 @@ def main(args):
             self.cross_entropy = of_cross_entropy
             self.add_optimizer(of_sgd)
             self.train_data_loader = train_data_loader
-        
+
         def build(self):
             image, label = self.train_data_loader()
             image = image.to("cuda")
@@ -97,7 +98,7 @@ def main(args):
             super().__init__()
             self.resnet50 = resnet50_module
             self.val_data_loader = val_data_loader
-        
+
         def build(self):
             image, label = self.val_data_loader()
             image = image.to("cuda")
@@ -112,7 +113,6 @@ def main(args):
     of_losses, of_accuracy = [], []
     all_samples = len(val_data_loader) * args.val_batch_size
     print_interval = 100
-
 
     for epoch in range(args.epochs):
         resnet50_module.train()
@@ -170,6 +170,7 @@ def main(args):
     for o in of_accuracy:
         writer.write("%f\n" % o)
     writer.close()
+
 
 if __name__ == "__main__":
     args = _parse_args()
