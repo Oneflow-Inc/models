@@ -250,7 +250,10 @@ def prepare_modules(args, to_consistent=True):
     # exit()
 
     optimizer = flow.optim.SGD(
-        resnet50_module.parameters(), lr=args.learning_rate, momentum=args.momentum, weight_decay=3.05175781e-05
+        resnet50_module.parameters(),
+        lr=args.learning_rate,
+        momentum=args.momentum,
+        weight_decay=args.wd,
     )
 
     lr_scheduler = flow.optim.lr_scheduler.CosineDecayLR(
