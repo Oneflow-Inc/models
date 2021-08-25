@@ -52,7 +52,7 @@ python3 -m oneflow.distributed.launch \
     --num_epochs $EPOCH \
     --train_batch_size_per_device $TRAIN_BATCH_SIZE_PER_DEVICE \
     --val_batch_size_per_device $VAL_BATCH_SIZE_PER_DEVICE \
-    --label_smoothing=0.1 \
+    --label_smoothing=0.0 \
     --warmup_epochs 5
     # --load_checkpoint $LOAD_CHECKPOINT \
     # --use_fp16 \

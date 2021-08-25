@@ -143,7 +143,19 @@ class LabelSmoothLoss(Module):
         log_prob = input.softmax(dim=-1).log()
         onehot_label = flow.F.cast(onehot_label, log_prob.dtype)
         loss = flow.mul(log_prob * -1, onehot_label).sum(dim=-1).mean()
-        return loss
+        # loss = flow.F.softmax_cross_entropy(input, onehot_label, depth=input.shape[-1])
+        return loss.mean()
+
+# class SparseCrossEntropyLoss(Module):
+#     def __init__(self, num_classes=-1) -> None:
+#         self.num_classes = num_classes
+#         super().__init__()
+
+#     def forward(self, input, label):
+#         onehot_label = flow.F.one_hot(label, num_classes=self.num_classes)        
+#         loss = flow.F.sparse_softmax_cross_entropy(input, onehot_label, depth=input.shape[-1])
+#         return loss.mean()
+
 
 def prepare_modules(args, to_consistent=True):
     rank = flow.distributed.get_rank()
@@ -189,8 +201,10 @@ def prepare_modules(args, to_consistent=True):
     end_t = time.time()
     print("init time : {}".format(end_t - start_t))
 
-    # of_cross_entropy = flow.nn.CrossEntropyLoss()
-    of_cross_entropy = LabelSmoothLoss(num_classes=args.num_classes, smooth_rate=args.label_smoothing)
+    if args.label_smoothing > 0:
+        of_cross_entropy = LabelSmoothLoss(num_classes=args.num_classes, smooth_rate=args.label_smoothing)
+    else:
+        of_cross_entropy = flow.nn.CrossEntropyLoss(reduction='mean')
 
     def load_ckpt():
         if args.load_checkpoint != "":
@@ -310,10 +324,10 @@ def main(args):
             start_t = time.time()
 
             loss, images, labels, logits = resnet50_graph()
-            dump_to_npy(images, sub=b)
-            dump_to_npy(labels, sub=b)
-            dump_to_npy(loss, sub=b)
-            dump_to_npy(logits, sub=b)
+            # dump_to_npy(images, sub=b)
+            # dump_to_npy(labels, sub=b)
+            # dump_to_npy(loss, sub=b)
+            # dump_to_npy(logits, sub=b)
             end_t = time.time()
             if b % args.loss_print_every_n_iter == 0:
                 loss = loss.to_local()
@@ -324,7 +338,7 @@ def main(args):
                         rank, epoch, b, l, end_t - start_t
                     )
                 )
-            if b >= 10:
+            if b >= 100:
                 break
         break
         print("rank %d epoch %d train done, start validation" % (rank, epoch))

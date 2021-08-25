@@ -66,7 +66,7 @@ def train_one_epoch(args, model, criterion, data_loader, optimizer, epoch, lr_sc
         if steps % args.loss_print_every_n_iter == 0:
             lr = optimizer.param_groups[0]['lr']
             print("Train:[%d/%d][%d/%d] Time: %.4f(%.4f) Training Loss: %.4f (%.4f) Lr: %.6f" % ((epoch + 1), args.num_epochs, steps, num_steps, batch_time.val, batch_time.avg, loss_meter.val, loss_meter.avg, lr))
-        if steps >= 10:
+        if steps >= 100:
             break
 
         # lr_scheduler.step()
