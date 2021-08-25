@@ -145,13 +145,13 @@ class LabelSmoothLoss(Module):
         loss = flow.mul(log_prob * -1, onehot_label).sum(dim=-1).mean()
         return loss
 
-def prepare_modules(args):
+def prepare_modules(args, to_consistent=True):
     rank = flow.distributed.get_rank()
     world_size = flow.distributed.get_world_size()
 
     device_list = [i for i in range(args.process_num_per_node)]
-    placement = flow.placement("cpu", {0: device_list})
-    sbp = [flow.sbp.split(0)]
+    placement = flow.placement("cpu", {0: device_list}) if to_consistent else None
+    sbp = [flow.sbp.split(0)] if to_consistent else None
 
     total_train_batch_size = args.train_batch_size_per_device * world_size
     total_val_batch_size = args.val_batch_size_per_device * world_size
@@ -192,17 +192,26 @@ def prepare_modules(args):
     # of_cross_entropy = flow.nn.CrossEntropyLoss()
     of_cross_entropy = LabelSmoothLoss(num_classes=args.num_classes, smooth_rate=args.label_smoothing)
 
-    placement = flow.placement("cuda", {0: device_list})
-    sbp = [flow.sbp.broadcast]
-    resnet50_module.to_consistent(placement=placement, sbp=sbp)
-    of_cross_entropy.to_consistent(placement=placement, sbp=sbp)
+    def load_ckpt():
+        if args.load_checkpoint != "":
+            loaded_state_dict = flow.load(
+                args.load_checkpoint, consistent_src_rank=0 if to_consistent else None
+            )
+            print("rank %d load_checkpoint >>>>>>>>> " % rank, args.load_checkpoint)
+            resnet50_module.load_state_dict(loaded_state_dict)
 
-    if args.load_checkpoint != "":
-        loaded_state_dict = flow.load(
-            args.load_checkpoint, consistent_src_rank=0
-        )
-        print("rank %d load_checkpoint >>>>>>>>> " % rank, args.load_checkpoint)
-        resnet50_module.load_state_dict(loaded_state_dict)
+    if to_consistent:
+        placement = flow.placement("cuda", {0: device_list})
+        sbp = [flow.sbp.broadcast]
+        resnet50_module.to_consistent(placement=placement, sbp=sbp)
+        of_cross_entropy.to_consistent(placement=placement, sbp=sbp)
+        load_ckpt()
+    else:
+        resnet50_module.to("cuda")
+        of_cross_entropy.to("cuda")
+        load_ckpt()
+    print(args)
+
     # flow.save(resnet50_module.state_dict(), "init_ckpt", consistent_dst_rank=0)
     # exit()
 
@@ -218,20 +227,20 @@ def prepare_modules(args):
         resnet50_module.parameters(), lr=args.learning_rate, momentum=args.momentum
     )
 
-    cosine_annealing_lr = flow.optim.lr_scheduler.CosineAnnealingLR(
-        opt, steps=decay_batches
-    )
-    if args.warmup_epochs > 0:
-        cosine_annealing_lr = flow.optim.lr_scheduler.LinearWarmupLR(
-            cosine_annealing_lr, steps=warmup_batches, start_multiplier=0
-        )
-    return train_data_loader, val_data_loader, resnet50_module, opt, of_cross_entropy, cosine_annealing_lr
+    # cosine_annealing_lr = flow.optim.lr_scheduler.CosineAnnealingLR(
+    #     opt, steps=decay_batches
+    # )
+    # if args.warmup_epochs > 0:
+    #     cosine_annealing_lr = flow.optim.lr_scheduler.LinearWarmupLR(
+    #         cosine_annealing_lr, steps=warmup_batches, start_multiplier=0
+    #     )
+    return train_data_loader, val_data_loader, resnet50_module, opt, of_cross_entropy, None#cosine_annealing_lr
 
 
 def main(args):
     rank = flow.distributed.get_rank()
     train_data_loader, val_data_loader, resnet50_module, opt, of_cross_entropy, cosine_annealing_lr = prepare_modules(args)
-
+    
     flow.backends.nccl.boxing_fusion_threshold_mb(args.nccl_fusion_threshold_mb)
     flow.backends.nccl.boxing_fusion_max_ops_num(args.nccl_fusion_max_ops)
     if args.use_fp16 and args.num_nodes * args.process_num_per_node > 1:

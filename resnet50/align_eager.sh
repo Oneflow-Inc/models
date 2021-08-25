@@ -18,7 +18,7 @@ OFRECORD_PATH="/dataset/ImageNet/ofrecord/"
 #     tar zxf imagenette_ofrecord.tar.gz
 # fi
 
-CHECKPOINT_PATH="graph_amp_checkpoints"
+CHECKPOINT_PATH="eager_checkpoints"
 if [ ! -d "$CHECKPOINT_PATH" ]; then
     mkdir $CHECKPOINT_PATH
 fi
@@ -40,7 +40,7 @@ python3 -m oneflow.distributed.launch \
     --nnodes $NUM_NODES \
     --node_rank $NODE_RANK \
     --master_addr $MASTER_ADDR \
-    graph/train_consistent.py \
+    eager/train.py \
     --loss_print_every_n_iter=1 \
     --load_checkpoint 'init_ckpt' \
     --save_checkpoint_path $CHECKPOINT_PATH \
@@ -53,9 +53,7 @@ python3 -m oneflow.distributed.launch \
     --train_batch_size_per_device $TRAIN_BATCH_SIZE_PER_DEVICE \
     --val_batch_size_per_device $VAL_BATCH_SIZE_PER_DEVICE \
     --label_smoothing=0.1 \
-    --warmup_epochs 5 \
-    --nccl_fusion_threshold_mb=16 \
-    --nccl_fusion_max_ops=24
+    --warmup_epochs 5
     # --load_checkpoint $LOAD_CHECKPOINT \
     # --use_fp16 \
 
