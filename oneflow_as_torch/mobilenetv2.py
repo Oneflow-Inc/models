@@ -223,4 +223,4 @@ def mobilenet_v2(pretrained: bool = False, progress: bool = True, **kwargs: Any)
 if __name__ == "__main__":
     input = Tensor(np.random.randn(1,3,512,512),dtype=torch.float32)
     net = mobilenet_v2()
-    print(net(input).shape)
+    print(f"mobilenetv2 output: {net(input).shape}")
