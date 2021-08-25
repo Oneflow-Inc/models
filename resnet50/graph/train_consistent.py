@@ -12,7 +12,7 @@ import sys
 sys.path.append(".")
 
 
-def _parse_args():
+def parse_args():
     def str_list(x):
         return [i.strip() for i in x.split(",")]
 
@@ -145,9 +145,7 @@ class LabelSmoothLoss(Module):
         loss = flow.mul(log_prob * -1, onehot_label).sum(dim=-1).mean()
         return loss
 
-
-def main(args):
-
+def prepare_modules(args):
     rank = flow.distributed.get_rank()
     world_size = flow.distributed.get_world_size()
 
@@ -162,7 +160,6 @@ def main(args):
     warmup_batches = batches_per_epoch * args.warmup_epochs
     num_train_batches = batches_per_epoch * args.num_epochs
     decay_batches = num_train_batches - warmup_batches
-
     train_data_loader = OFRecordDataLoader(
         ofrecord_root=args.ofrecord_path,
         mode="validation",  # "train",
@@ -184,7 +181,6 @@ def main(args):
         placement=placement,
         sbp=sbp,
     )
-    all_val_samples = len(val_data_loader) * total_val_batch_size
 
     # oneflow init
     start_t = time.time()
@@ -218,17 +214,23 @@ def main(args):
     #     print(name)
     # print('*'*100)
     # exit()
-    of_sgd = flow.optim.SGD(
+    opt = flow.optim.SGD(
         resnet50_module.parameters(), lr=args.learning_rate, momentum=args.momentum
     )
 
     cosine_annealing_lr = flow.optim.lr_scheduler.CosineAnnealingLR(
-        of_sgd, steps=decay_batches
+        opt, steps=decay_batches
     )
     if args.warmup_epochs > 0:
         cosine_annealing_lr = flow.optim.lr_scheduler.LinearWarmupLR(
             cosine_annealing_lr, steps=warmup_batches, start_multiplier=0
         )
+    return train_data_loader, val_data_loader, resnet50_module, opt, of_cross_entropy, cosine_annealing_lr
+
+
+def main(args):
+    rank = flow.distributed.get_rank()
+    train_data_loader, val_data_loader, resnet50_module, opt, of_cross_entropy, cosine_annealing_lr = prepare_modules(args)
 
     flow.backends.nccl.boxing_fusion_threshold_mb(args.nccl_fusion_threshold_mb)
     flow.backends.nccl.boxing_fusion_max_ops_num(args.nccl_fusion_max_ops)
@@ -241,7 +243,7 @@ def main(args):
             self.train_data_loader = train_data_loader
             self.resnet50 = resnet50_module
             self.cross_entropy = of_cross_entropy
-            self.add_optimizer(of_sgd)#, lr_sch=cosine_annealing_lr)
+            self.add_optimizer(opt)#, lr_sch=cosine_annealing_lr)
 
             if args.use_fp16:
                 self.config.enable_amp(True)
@@ -320,6 +322,7 @@ def main(args):
 
         resnet50_module.eval()
         correct_of = 0.0
+        num_val_samples = 0.0
         for b in range(len(val_data_loader)):
             start_t = time.time()
             predictions, label = resnet50_eval_graph()
@@ -336,12 +339,11 @@ def main(args):
 
             label_nd = label.numpy()
 
-            for i in range(total_val_batch_size):
-                if clsidxs[i] == label_nd[i]:
-                    correct_of += 1
+            correct_of += (clsidxs == label_nd).sum()
+            num_val_samples += label_nd.size
             end_t = time.time()
 
-        top1 = correct_of / all_val_samples
+        top1 = correct_of / num_val_samples
         of_accuracy.append(top1)
         print("rank %d epoch %d, oneflow top1 val acc: %f" % (rank, epoch, top1))
 
@@ -367,5 +369,5 @@ def main(args):
 
 
 if __name__ == "__main__":
-    args = _parse_args()
+    args = parse_args()
     main(args)
