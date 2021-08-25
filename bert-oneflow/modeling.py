@@ -305,7 +305,7 @@ class BertModel(nn.Module):
         output = flow.cast(attention_mask, dtype=flow.float32)
         output = flow.reshape(output, [-1, 1, to_seq_length])
         # broadcast `from_tensor` from 2D to 3D
-        zeros = flow.zeros((from_seq_length, to_seq_length), dtype=flow.float32)
+        zeros = flow.zeros((from_seq_length, to_seq_length), dtype=flow.float32, device=output.device)
         output = output + zeros
 
         attention_mask = flow.reshape(output, [-1, 1, from_seq_length, to_seq_length])
@@ -314,24 +314,6 @@ class BertModel(nn.Module):
         return addr_blob
 
 
-class BertOnlyNSPHead(nn.Module):
-    def __init__(self, hidden_size):
-        super().__init__()
-        self.seq_relationship = nn.Linear(hidden_size, 2)
-
-    def forward(self, pooled_output):
-        seq_relationship_score = self.seq_relationship(pooled_output)
-        return seq_relationship_score
-
-
-class BertOnlyMLMHead(nn.Module):
-    def __init__(self, hidden_size, vocab_size):
-        super().__init__()
-        self.predictions = nn.Linear(hidden_size, vocab_size)
-
-    def forward(self, sequence_output):
-        prediction_scores = self.predictions(sequence_output)
-        return prediction_scores
 
 
 class BertPredictionHeadTransform(nn.Module):
@@ -341,11 +323,12 @@ class BertPredictionHeadTransform(nn.Module):
         self.transform_act_fn = hidden_act
         self.layernorm = nn.LayerNorm(hidden_size)
 
-    def forward(self, hidden_states):
-        hidden_states = self.dense(hidden_states)
-        hidden_states = self.transform_act_fn(hidden_states)
-        hidden_states = self.layernorm(hidden_states)
-        return hidden_states
+    def forward(self, sequence_output, masked_lm_position):
+        from ipdb import set_trace; set_trace()
+        sequence_output = self.dense(sequence_output)
+        sequence_output = self.transform_act_fn(sequence_output)
+        sequence_output = self.layernorm(sequence_output)
+        return sequence_output
 
 
 class BertLMPredictionHead(nn.Module):
@@ -362,10 +345,10 @@ class BertLMPredictionHead(nn.Module):
         # Need a link between the two variables so that the bias is correctly resized with `resize_token_embeddings`
         self.decoder.bias = self.bias
 
-    def forward(self, hidden_states):
-        hidden_states = self.transform(hidden_states)
-        hidden_states = self.decoder(hidden_states)
-        return hidden_states
+    def forward(self, sequence_output, masked_lm_position):
+        sequence_output = self.transform(sequence_output, masked_lm_position)
+        sequence_output = self.decoder(sequence_output)
+        return sequence_output
 
 
 class BertPreTrainingHeads(nn.Module):
@@ -374,8 +357,8 @@ class BertPreTrainingHeads(nn.Module):
         self.predictions = BertLMPredictionHead(hidden_size, vocab_size, hidden_act)
         self.seq_relationship = nn.Linear(hidden_size, 2)
 
-    def forward(self, sequence_output, pooled_output):
-        prediction_scores = self.predictions(sequence_output)
+    def forward(self, sequence_output, pooled_output, masked_lm_position):
+        prediction_scores = self.predictions(sequence_output, masked_lm_position)
         seq_relationship_scores = self.seq_relationship(pooled_output)
         return prediction_scores, seq_relationship_scores
 
@@ -413,12 +396,12 @@ class BertForPreTraining(nn.Module):
 
         self.cls = BertPreTrainingHeads(hidden_size, vocab_size)
 
-    def forward(self, input_ids, token_type_ids, attention_mask):
+    def forward(self, input_ids, token_type_ids, attention_mask, masked_lm_position):
         sequence_output, pooled_output = self.bert(
             input_ids, token_type_ids, attention_mask
         )
 
         prediction_scores, seq_relationship_scores = self.cls(
-            sequence_output, pooled_output
+            sequence_output, pooled_output, masked_lm_position
         )
         return prediction_scores, seq_relationship_scores

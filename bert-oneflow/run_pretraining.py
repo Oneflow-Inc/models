@@ -225,15 +225,74 @@ def main():
         optimizer, steps=steps
     )
 
-    ns_criterion = nn.NLLLoss()
-    lm_criterion = nn.NLLLoss(ignore_index=0, reduction="sum")
+    ns_criterion = nn.CrossEntropyLoss(reduction="mean")
+
+    def get_masked_lm_loss():
+        # gather indices
+        mask_lm_output = flow.gather(
+            mask_lm_output,
+            index=masked_lm_positions.unsqueeze(2).repeat(1, 1, args.vocab_size),
+            dim=1,
+        )
+        mask_lm_output = flow.reshape(mask_lm_output, [-1, args.vocab_size])
+
+        label_id_blob = flow.reshape(masked_lm_ids, [-1])
+
+        # 2-2. NLLLoss of predicting masked token word
+        lm_loss = self.lm_criterion(mask_lm_output, label_id_blob)
+
+        condition = flow.eq(label_id_blob, 0)
+        ones = flow.ones(
+            condition.shape, dtype=condition.dtype, device=condition.device
+        )
+        condition = ones.sub(condition)
+        condition = flow.cast(condition, dtype=lm_loss.dtype)
+        reduce_count = condition.sum()
+
+        lm_loss = lm_loss / reduce_count   
+
+        # The `positions` tensor might be zero-padded (if the sequence is too
+        # short to have the maximum number of predictions). The `label_weights`
+        # tensor has a value of 1.0 for every real prediction and 0.0 for the
+        # padding predictions.
+        per_example_loss = -tf.reduce_sum(log_probs * one_hot_labels, axis=[-1])
+        numerator = tf.reduce_sum(label_weights * per_example_loss)
+        denominator = tf.reduce_sum(label_weights) + 1e-5
+        loss = numerator / denominator
+    
+        # model forward
+    (
+        input_ids,
+        next_sentence_labels,
+        input_mask,
+        segment_ids,
+        masked_lm_ids,
+        masked_lm_positions,
+        masked_lm_weights,
+    ) = train_data_loader()
+    input_ids = input_ids.to(device=device)
+    input_mask = input_mask.to(device=device)
+    segment_ids = segment_ids.to(device=device)
+    next_sentence_labels = next_sentence_labels.to(device=device)
+    masked_lm_ids = masked_lm_ids.to(device=device)
+    masked_lm_positions = masked_lm_positions.to(device=device)
+
+    # 1. forward the next_sentence_prediction and masked_lm model
+    prediction_scores, seq_relationship_scores = bert_model(input_ids, segment_ids, input_mask, masked_lm_positions)
+
+    # 2-1. loss of is_next classification result
+    next_sentence_loss = ns_criterion(seq_relationship_scores.view(-1, 2), next_sentence_labels.view(-1))
+
+    masked_lm_loss = get_masked_lm_loss(prediction_scores, masked_lm_positions, masked_lm_ids, masked_lm_weights)
+    # end
+
 
     class BertGraph(nn.Graph):
         def __init__(self):
             super().__init__()
             self.bert = bert_model
             self.ns_criterion = ns_criterion
-            self.lm_criterion = lm_criterion
+            self.masked_lm_criterion = get_masked_lm_loss
             self.add_optimizer(optimizer, lr_sch=cosine_annealing_lr)
             self._train_data_loader = train_data_loader
 
@@ -241,55 +300,32 @@ def main():
 
             (
                 input_ids,
-                next_sent_labels,
-                input_masks,
+                next_sentence_labels,
+                input_mask,
                 segment_ids,
                 masked_lm_ids,
                 masked_lm_positions,
                 masked_lm_weights,
             ) = self._train_data_loader()
             input_ids = input_ids.to(device=device)
-            input_masks = input_masks.to(device=device)
+            input_mask = input_mask.to(device=device)
             segment_ids = segment_ids.to(device=device)
-            next_sent_labels = next_sent_labels.to(device=device)
+            next_sentence_labels = next_sentence_labels.to(device=device)
             masked_lm_ids = masked_lm_ids.to(device=device)
             masked_lm_positions = masked_lm_positions.to(device=device)
 
             # 1. forward the next_sentence_prediction and masked_lm model
-            next_sent_output, mask_lm_output = self.bert(
-                input_ids, input_masks, segment_ids
-            )
+            prediction_scores, seq_relationship_scores = self.bert(input_ids, segment_ids, input_mask, masked_lm_positions)
 
-            # 2-1. NLL(negative log likelihood) loss of is_next classification result
-            ns_loss = self.ns_criterion(next_sent_output, next_sent_labels.squeeze(1))
+            # 2-1. loss of is_next classification result
+            next_sentence_loss = self.ns_criterion(seq_relationship_scores.view(-1, 2), next_sentence_labels.view(-1))
 
-            mask_lm_output = flow.gather(
-                mask_lm_output,
-                index=masked_lm_positions.unsqueeze(2).repeat(1, 1, args.vocab_size),
-                dim=1,
-            )
-            mask_lm_output = flow.reshape(mask_lm_output, [-1, args.vocab_size])
+            masked_lm_loss = self.masked_lm_criterion(prediction_scores, masked_lm_positions, masked_lm_ids, masked_lm_weights)
 
-            label_id_blob = flow.reshape(masked_lm_ids, [-1])
+            total_loss = next_sentence_loss + masked_lm_loss
 
-            # 2-2. NLLLoss of predicting masked token word
-            lm_loss = self.lm_criterion(mask_lm_output, label_id_blob)
-
-            condition = flow.eq(label_id_blob, 0)
-            ones = flow.ones(
-                condition.shape, dtype=condition.dtype, device=condition.device
-            )
-            condition = ones.sub(condition)
-            condition = flow.cast(condition, dtype=lm_loss.dtype)
-            reduce_count = condition.sum()
-
-            lm_loss = lm_loss / reduce_count
-
-            # 2-3. Adding next_loss and mask_loss : 3.4 Pre-training Procedure
-            loss = ns_loss + lm_loss
-
-            loss.backward()
-            return next_sent_output, next_sent_labels, loss
+            total_loss.backward()
+            return seq_relationship_scores, next_sentence_labels, total_loss
 
     bert_graph = BertGraph()
 
