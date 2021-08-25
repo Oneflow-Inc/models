@@ -15,7 +15,7 @@ import oneflow._oneflow_internal as oneflow_internal
 
 
 DEFAULT_TIMES = 20
-gpu_memory_used_by_pytorch = 0
+gpu_memory_used_by_oneflow = 0
 
 
 def import_file(path):
@@ -145,13 +145,13 @@ def test(
         print_rank_0(
             f"{framework_name} {module_name} time: {time_per_run_ms:.1f}ms (= {total_time_ms:.1f}ms / {times}, input_shape={input_shape}, backward is {'disabled' if disable_backward else 'enabled'})"
         )
-    global gpu_memory_used_by_pytorch
+    global gpu_memory_used_by_oneflow
     if test_oneflow:
-        print_rank_0(f"{framework_name} GPU used (rank 0): {gpu_memory_used() - gpu_memory_used_by_pytorch} MiB")
-    else:
-        gpu_memory_used_by_pytorch = gpu_memory_used()
+        gpu_memory_used_by_oneflow = gpu_memory_used()
 
-        print_rank_0(f"{framework_name} GPU used (rank 0): {gpu_memory_used_by_pytorch} MiB")
+        print_rank_0(f"{framework_name} GPU used (rank 0): {gpu_memory_used_by_oneflow} MiB")
+    else:
+        print_rank_0(f"{framework_name} GPU used (rank 0, estimated): {gpu_memory_used() - gpu_memory_used_by_oneflow} MiB")
     if ddp and not test_oneflow:
         import torch.distributed as dist
 
@@ -175,7 +175,18 @@ if __name__ == "__main__":
 
     global test_oneflow
 
-    # NOTE: PyTorch must run before OneFlow for correct memory usage
+    # NOTE: PyTorch must run after OneFlow for correct memory usage
+    test_oneflow = True
+    oneflow_time = test(
+        args.model_path,
+        args.module_name,
+        input_shape,
+        disable_backward=args.disable_backward,
+        times=args.times,
+        no_verbose=args.no_verbose,
+        ddp=args.ddp,
+    )
+
     test_oneflow = False
     pytorch_time = test(
         args.model_path,
@@ -187,16 +198,6 @@ if __name__ == "__main__":
         ddp=args.ddp,
     )
 
-    test_oneflow = True
-    oneflow_time = test(
-        args.model_path,
-        args.module_name,
-        input_shape,
-        disable_backward=args.disable_backward,
-        times=args.times,
-        no_verbose=args.no_verbose,
-        ddp=args.ddp,
-    )
     relative_speed = pytorch_time / oneflow_time
     if args.no_verbose:
         print_rank_0(f"Relative speed: {relative_speed:.2f}")
