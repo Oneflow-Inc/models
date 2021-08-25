@@ -334,7 +334,7 @@ def main(args):
 
     resnet50_eval_graph = Resnet50EvalGraph()
 
-    if rank == 0:
+    if vars.rank == 0:
         writer_train_loss = open("graph/train_losses.txt", "w")
         writer_train_top1_acc = open("graph/train_top1_accuracy.txt", "w")
         writer_val_top1_acc = open("graph/val_top1_accuracy.txt", "w")
