@@ -1,3 +1,7 @@
+from oneflow.nn.module import Module
+from utils.debug import dump_to_npy
+from utils.ofrecord_data_utils import OFRecordDataLoader
+from models.resnet50 import resnet50
 import oneflow as flow
 import argparse
 import numpy as np
@@ -6,9 +10,6 @@ import time
 
 import sys
 sys.path.append(".")
-
-from models.resnet50 import resnet50
-from utils.ofrecord_data_utils import OFRecordDataLoader
 
 
 def _parse_args():
@@ -128,7 +129,7 @@ def _parse_args():
     )
     return parser.parse_args()
 
-from oneflow.nn.module import Module
+
 class LabelSmoothLoss(Module):
     def __init__(self, num_classes=-1, smooth_rate=0.0) -> None:
         super().__init__()
@@ -136,9 +137,9 @@ class LabelSmoothLoss(Module):
         self.smooth_rate = smooth_rate
 
     def forward(self, input, label):
-        onehot_label = flow.F.one_hot(label, num_classes= self.num_classes, 
-                                                on_value=1-self.smooth_rate, 
-                                                off_value=self.smooth_rate/(self.num_classes-1))
+        onehot_label = flow.F.one_hot(label, num_classes=self.num_classes,
+                                      on_value=1-self.smooth_rate,
+                                      off_value=self.smooth_rate/(self.num_classes-1))
         log_prob = input.softmax(dim=-1).log()
         onehot_label = flow.F.cast(onehot_label, log_prob.dtype)
         loss = flow.mul(log_prob * -1, onehot_label).sum(dim=-1).mean()
@@ -154,7 +155,6 @@ def main(args):
     placement = flow.placement("cpu", {0: device_list})
     sbp = [flow.sbp.split(0)]
 
-
     total_train_batch_size = args.train_batch_size_per_device * world_size
     total_val_batch_size = args.val_batch_size_per_device * world_size
 
@@ -165,7 +165,7 @@ def main(args):
 
     train_data_loader = OFRecordDataLoader(
         ofrecord_root=args.ofrecord_path,
-        mode="train",
+        mode="validation",  # "train",
         dataset_size=args.train_examples_num,
         batch_size=total_train_batch_size,
         total_batch_size=total_train_batch_size,
@@ -189,7 +189,7 @@ def main(args):
     # oneflow init
     start_t = time.time()
     resnet50_module = resnet50()
-    
+
     end_t = time.time()
     print("init time : {}".format(end_t - start_t))
 
@@ -207,7 +207,17 @@ def main(args):
         )
         print("rank %d load_checkpoint >>>>>>>>> " % rank, args.load_checkpoint)
         resnet50_module.load_state_dict(loaded_state_dict)
+    # flow.save(resnet50_module.state_dict(), "init_ckpt", consistent_dst_rank=0)
+    # exit()
 
+    # print('named_parameters', '*'*100)
+    # for name, param in resnet50_module.named_parameters():
+    #     print(name)
+    # print('named_buffers', '*'*100)
+    # for name, param in resnet50_module.named_buffers():
+    #     print(name)
+    # print('*'*100)
+    # exit()
     of_sgd = flow.optim.SGD(
         resnet50_module.parameters(), lr=args.learning_rate, momentum=args.momentum
     )
@@ -231,7 +241,7 @@ def main(args):
             self.train_data_loader = train_data_loader
             self.resnet50 = resnet50_module
             self.cross_entropy = of_cross_entropy
-            self.add_optimizer(of_sgd, lr_sch=cosine_annealing_lr)
+            self.add_optimizer(of_sgd)#, lr_sch=cosine_annealing_lr)
 
             if args.use_fp16:
                 self.config.enable_amp(True)
@@ -247,7 +257,7 @@ def main(args):
             else:
                 self.config.cudnn_conv_heuristic_search_algo(False)
             self.config.enable_fuse_model_update_ops(True)
-        
+
         def build(self):
             image, label = self.train_data_loader()
             image = image.to("cuda")
@@ -255,7 +265,7 @@ def main(args):
             logits = self.resnet50(image)
             loss = self.cross_entropy(logits, label)
             loss.backward()
-            return loss
+            return loss, image, label, logits
 
     resnet50_graph = Resnet50Graph()
 
@@ -264,11 +274,11 @@ def main(args):
             super().__init__()
             self.val_data_loader = val_data_loader
             self.resnet50 = resnet50_module
-            
+
             if args.use_fp16:
                 self.config.enable_amp(True)
             self.config.enable_fuse_add_to_output(True)
-        
+
         def build(self):
             image, label = self.val_data_loader()
             image = image.to("cuda")
@@ -288,8 +298,11 @@ def main(args):
             # oneflow graph train
             start_t = time.time()
 
-            loss = resnet50_graph()
-
+            loss, images, labels, logits = resnet50_graph()
+            dump_to_npy(images, sub=b)
+            dump_to_npy(labels, sub=b)
+            dump_to_npy(loss, sub=b)
+            dump_to_npy(logits, sub=b)
             end_t = time.time()
             if b % args.loss_print_every_n_iter == 0:
                 loss = loss.to_local()
@@ -300,7 +313,9 @@ def main(args):
                         rank, epoch, b, l, end_t - start_t
                     )
                 )
-
+            if b >= 10:
+                break
+        break
         print("rank %d epoch %d train done, start validation" % (rank, epoch))
 
         resnet50_module.eval()
@@ -308,19 +323,19 @@ def main(args):
         for b in range(len(val_data_loader)):
             start_t = time.time()
             predictions, label = resnet50_eval_graph()
-            
+
             predictions = predictions.to_consistent(sbp=[flow.sbp.broadcast])
             predictions = predictions.to_local()
 
             of_predictions = predictions.numpy()
-            
+
             clsidxs = np.argmax(of_predictions, axis=1)
 
             label = label.to_consistent(sbp=[flow.sbp.broadcast])
             label = label.to_local()
 
             label_nd = label.numpy()
-            
+
             for i in range(total_val_batch_size):
                 if clsidxs[i] == label_nd[i]:
                     correct_of += 1
@@ -349,6 +364,7 @@ def main(args):
         for o in of_accuracy:
             writer.write("%f\n" % o)
         writer.close()
+
 
 if __name__ == "__main__":
     args = _parse_args()
