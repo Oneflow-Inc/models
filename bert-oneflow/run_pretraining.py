@@ -1,10 +1,9 @@
-
 import argparse
 import os
 import time
 
 import oneflow as flow
-from modeling import BertModel
+from modeling import BertForPreTraining
 from oneflow import nn
 from utils.ofrecord_data_utils import OfRecordDataLoader
 
@@ -98,7 +97,10 @@ def main():
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
-        "--ofrecord-path", type=str, default="wiki_ofrecord_seq_len_128_example", help="Path to ofrecord dataset"
+        "--ofrecord-path",
+        type=str,
+        default="wiki_ofrecord_seq_len_128_example",
+        help="Path to ofrecord dataset",
     )
     parser.add_argument(
         "--train-batch-size", type=int, default=16, help="Training batch size"
@@ -108,16 +110,20 @@ def main():
     )
 
     parser.add_argument(
-        "--hidden-size",
-        type=int,
-        default=768,
-        help="Hidden size of transformer model",
+        "--hidden-size", type=int, default=768, help="Hidden size of transformer model",
     )
-    parser.add_argument("--hidden-layers", type=int, default=12, help="Number of layers")
+    parser.add_argument(
+        "--hidden-layers", type=int, default=12, help="Number of layers"
+    )
     parser.add_argument(
         "-a", "--atten_heads", type=int, default=12, help="Number of attention heads"
     )
-    parser.add_argument("--intermediate-size", type=int, default=3072, help="intermediate size of bert encoder")
+    parser.add_argument(
+        "--intermediate-size",
+        type=int,
+        default=3072,
+        help="intermediate size of bert encoder",
+    )
     parser.add_argument("--max-position-embeddings", type=int, default=512)
     parser.add_argument(
         "-s", "--seq-length", type=int, default=128, help="Maximum sequence len"
@@ -192,7 +198,19 @@ def main():
     )
 
     print("Building BERT Model")
-    bert_model = BertModel(args.vocab_size, args.seq_length, args.hidden_size, args.hidden_layers, args.atten_heads, args.intermediate_size, args.hidden_dropout_prob, args.attention_probs_dropout_prob, args.max_position_embeddings, args.type_vocab_size)
+    bert_model = BertForPreTraining(
+        args.vocab_size,
+        args.seq_length,
+        args.hidden_size,
+        args.hidden_layers,
+        args.atten_heads,
+        args.intermediate_size,
+        nn.GELU(),
+        args.hidden_dropout_prob,
+        args.attention_probs_dropout_prob,
+        args.max_position_embeddings,
+        args.type_vocab_size,
+    )
     bert_model.to(device)
 
     optimizer = flow.optim.Adam(
@@ -206,9 +224,6 @@ def main():
     cosine_annealing_lr = flow.optim.lr_scheduler.CosineAnnealingLR(
         optimizer, steps=steps
     )
-    # optim_schedule = ScheduledOptim(
-    #         self.optim, self.bert.hidden, n_warmup_steps=warmup_steps
-    #     )
 
     ns_criterion = nn.NLLLoss()
     lm_criterion = nn.NLLLoss(ignore_index=0, reduction="sum")
@@ -223,6 +238,7 @@ def main():
             self._train_data_loader = train_data_loader
 
         def build(self):
+
             (
                 input_ids,
                 next_sent_labels,
@@ -267,7 +283,7 @@ def main():
             condition = flow.cast(condition, dtype=lm_loss.dtype)
             reduce_count = condition.sum()
 
-            lm_loss = lm_loss / reduce_count 
+            lm_loss = lm_loss / reduce_count
 
             # 2-3. Adding next_loss and mask_loss : 3.4 Pre-training Procedure
             loss = ns_loss + lm_loss

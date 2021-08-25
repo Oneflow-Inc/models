@@ -165,6 +165,7 @@ class BertLayer(nn.Module):
         hidden_size,
         seq_len,
         intermediate_size,
+        hidden_act,
         hidden_dropout_prob=0.1,
         attention_prob_dropout_prob=0.1,
     ):
@@ -177,7 +178,7 @@ class BertLayer(nn.Module):
             attention_prob_dropout_prob,
         )
 
-        self.intermediate = BertIntermediate(hidden_size, intermediate_size)
+        self.intermediate = BertIntermediate(hidden_size, intermediate_size, hidden_act)
         self.output = BertOutput(intermediate_size, hidden_size, hidden_dropout_prob)
 
     def forward(self, hidden_states, attention_mask):
@@ -195,6 +196,7 @@ class BertEncoder(nn.Module):
         hidden_size,
         seq_len,
         intermediate_size,
+        hidden_act,
         hidden_dropout_prob,
         attention_prob_dropout_prob,
     ):
@@ -207,6 +209,7 @@ class BertEncoder(nn.Module):
                     hidden_size,
                     seq_len,
                     intermediate_size,
+                    hidden_act,
                     hidden_dropout_prob,
                     attention_prob_dropout_prob,
                 )
@@ -227,7 +230,7 @@ class BertPooler(nn.Module):
         self.activation = nn.Tanh()
 
     def forward(self, hidden_states):
-        """Just "pool" the model by simply taking the [CLS] token corresponding to the first token
+        """Just "pool" the model by simply taking the [CLS] token corresponding to the first token.
         """
         first_token_tensor = hidden_states[:, 0]
         pooled_output = self.dense(first_token_tensor)
@@ -244,6 +247,7 @@ class BertModel(nn.Module):
         num_hidden_layers,
         num_attention_heads,
         intermediate_size,
+        hidden_act=nn.GELU(),
         hidden_dropout_prob=0.1,
         attention_probs_dropout_prob=0.1,
         max_position_embeddings=512,
@@ -264,6 +268,7 @@ class BertModel(nn.Module):
             hidden_size,
             seq_length,
             intermediate_size,
+            hidden_act,
             hidden_dropout_prob,
             attention_probs_dropout_prob,
         )
@@ -274,6 +279,9 @@ class BertModel(nn.Module):
 
     def init_weights(self):
         pass
+
+    def get_input_embeddings(self):
+        return self.embeddings.word_embeddings
 
     def forward(self, input_ids, token_type_ids, attention_mask):
         input_shape = input_ids.size()
@@ -304,3 +312,113 @@ class BertModel(nn.Module):
         attention_mask = flow.cast(attention_mask, dtype=flow.float32)
         addr_blob = (attention_mask - 1.0) * 10000.0
         return addr_blob
+
+
+class BertOnlyNSPHead(nn.Module):
+    def __init__(self, hidden_size):
+        super().__init__()
+        self.seq_relationship = nn.Linear(hidden_size, 2)
+
+    def forward(self, pooled_output):
+        seq_relationship_score = self.seq_relationship(pooled_output)
+        return seq_relationship_score
+
+
+class BertOnlyMLMHead(nn.Module):
+    def __init__(self, hidden_size, vocab_size):
+        super().__init__()
+        self.predictions = nn.Linear(hidden_size, vocab_size)
+
+    def forward(self, sequence_output):
+        prediction_scores = self.predictions(sequence_output)
+        return prediction_scores
+
+
+class BertPredictionHeadTransform(nn.Module):
+    def __init__(self, hidden_size, hidden_act=nn.GELU()):
+        super().__init__()
+        self.dense = nn.Linear(hidden_size, hidden_size)
+        self.transform_act_fn = hidden_act
+        self.layernorm = nn.LayerNorm(hidden_size)
+
+    def forward(self, hidden_states):
+        hidden_states = self.dense(hidden_states)
+        hidden_states = self.transform_act_fn(hidden_states)
+        hidden_states = self.layernorm(hidden_states)
+        return hidden_states
+
+
+class BertLMPredictionHead(nn.Module):
+    def __init__(self, hidden_size, vocab_size, hidden_act=nn.GELU()):
+        super().__init__()
+        self.transform = BertPredictionHeadTransform(hidden_size, hidden_act)
+
+        # The output weights are the same as the input embeddings, but there is
+        # an output-only bias for each token.
+        self.decoder = nn.Linear(hidden_size, vocab_size)
+
+        self.bias = nn.Parameter(flow.zeros(vocab_size))
+
+        # Need a link between the two variables so that the bias is correctly resized with `resize_token_embeddings`
+        self.decoder.bias = self.bias
+
+    def forward(self, hidden_states):
+        hidden_states = self.transform(hidden_states)
+        hidden_states = self.decoder(hidden_states)
+        return hidden_states
+
+
+class BertPreTrainingHeads(nn.Module):
+    def __init__(self, hidden_size, vocab_size, hidden_act=nn.GELU()):
+        super().__init__()
+        self.predictions = BertLMPredictionHead(hidden_size, vocab_size, hidden_act)
+        self.seq_relationship = nn.Linear(hidden_size, 2)
+
+    def forward(self, sequence_output, pooled_output):
+        prediction_scores = self.predictions(sequence_output)
+        seq_relationship_scores = self.seq_relationship(pooled_output)
+        return prediction_scores, seq_relationship_scores
+
+
+class BertForPreTraining(nn.Module):
+    def __init__(
+        self,
+        vocab_size,
+        seq_length,
+        hidden_size,
+        hidden_layers,
+        atten_heads,
+        intermediate_size,
+        hidden_act,
+        hidden_dropout_prob,
+        attention_probs_dropout_prob,
+        max_position_embeddings,
+        type_vocab_size,
+    ):
+        super().__init__()
+
+        self.bert = BertModel(
+            vocab_size,
+            seq_length,
+            hidden_size,
+            hidden_layers,
+            atten_heads,
+            intermediate_size,
+            hidden_act,
+            hidden_dropout_prob,
+            attention_probs_dropout_prob,
+            max_position_embeddings,
+            type_vocab_size,
+        )
+
+        self.cls = BertPreTrainingHeads(hidden_size, vocab_size)
+
+    def forward(self, input_ids, token_type_ids, attention_mask):
+        sequence_output, pooled_output = self.bert(
+            input_ids, token_type_ids, attention_mask
+        )
+
+        prediction_scores, seq_relationship_scores = self.cls(
+            sequence_output, pooled_output
+        )
+        return prediction_scores, seq_relationship_scores
