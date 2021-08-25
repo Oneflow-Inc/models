@@ -138,12 +138,12 @@ class LabelSmoothLoss(Module):
 
     def forward(self, input, label):
         onehot_label = flow.F.one_hot(label, num_classes=self.num_classes,
-                                      on_value=1-self.smooth_rate,
-                                      off_value=self.smooth_rate/(self.num_classes-1))
-        log_prob = input.softmax(dim=-1).log()
-        onehot_label = flow.F.cast(onehot_label, log_prob.dtype)
-        loss = flow.mul(log_prob * -1, onehot_label).sum(dim=-1).mean()
-        # loss = flow.F.softmax_cross_entropy(input, onehot_label, depth=input.shape[-1])
+                                      on_value=1-self.smooth_rate + self.smooth_rate / self.num_classes,
+                                      off_value=self.smooth_rate/self.num_classes)
+        # log_prob = input.softmax(dim=-1).log()
+        # onehot_label = flow.F.cast(onehot_label, log_prob.dtype)
+        # loss = flow.mul(log_prob * -1, onehot_label).sum(dim=-1).mean()
+        loss = flow.F.softmax_cross_entropy(input, onehot_label.to(dtype=input.dtype))
         return loss.mean()
 
 # class SparseCrossEntropyLoss(Module):
@@ -255,10 +255,10 @@ def main(args):
     rank = flow.distributed.get_rank()
     train_data_loader, val_data_loader, resnet50_module, opt, of_cross_entropy, cosine_annealing_lr = prepare_modules(args)
     
-    flow.backends.nccl.boxing_fusion_threshold_mb(args.nccl_fusion_threshold_mb)
-    flow.backends.nccl.boxing_fusion_max_ops_num(args.nccl_fusion_max_ops)
+    flow.boxing.nccl.set_fusion_threshold_mbytes(args.nccl_fusion_threshold_mb)
+    flow.boxing.nccl.set_fusion_max_ops_num(args.nccl_fusion_max_ops)
     if args.use_fp16 and args.num_nodes * args.process_num_per_node > 1:
-        flow.backends.nccl.boxing_fusion_all_reduce_use_buffer(False)
+        flow.boxing.nccl.enable_use_buffer_to_fuse_all_reduce(False)
 
     class Resnet50Graph(flow.nn.Graph):
         def __init__(self):
@@ -273,15 +273,15 @@ def main(args):
                 loss_scale = flow.nn.graph.amp.DynamicLossScalePolicy(increment_period=2000)
                 self.config.amp_add_loss_scale_policy(loss_scale)
 
-            self.config.enable_fuse_add_to_output(True)
-            self.config.cudnn_conv_heuristic_search_algo(False)
-            self.config.prune_parallel_cast_ops(True)
-            self.config.enable_inplace(True)
-            if args.num_nodes > 1:
-                self.config.cudnn_conv_heuristic_search_algo(True)
-            else:
-                self.config.cudnn_conv_heuristic_search_algo(False)
-            self.config.enable_fuse_model_update_ops(True)
+            self.config.allow_fuse_add_to_output(True)
+            # self.config.prune_parallel_cast_ops(True)
+            # self.config.cudnn_conv_heuristic_search_algo(False)
+            # self.config.enable_inplace(True)
+            # if args.num_nodes > 1:
+            #     self.config.cudnn_conv_heuristic_search_algo(True)
+            # else:
+            #     self.config.cudnn_conv_heuristic_search_algo(False)
+            self.config.allow_fuse_model_update_ops(True)
 
         def build(self):
             image, label = self.train_data_loader()
@@ -302,7 +302,7 @@ def main(args):
 
             if args.use_fp16:
                 self.config.enable_amp(True)
-            self.config.enable_fuse_add_to_output(True)
+            self.config.allow_fuse_add_to_output(True)
 
         def build(self):
             image, label = self.val_data_loader()
