@@ -2,6 +2,7 @@ import argparse
 import os
 import time
 
+from functools import partial
 import oneflow as flow
 from modeling import BertForPreTraining
 from oneflow import nn
@@ -226,73 +227,45 @@ def main():
     )
 
     ns_criterion = nn.CrossEntropyLoss(reduction="mean")
+    mlm_criterion = nn.CrossEntropyLoss(reduction="none")
 
-    def get_masked_lm_loss():
-        # gather indices
-        mask_lm_output = flow.gather(
-            mask_lm_output,
+    def get_masked_lm_loss(
+        logit_blob,
+        masked_lm_positions,
+        masked_lm_labels,
+        label_weights,
+        max_prediction_per_seq,
+    ):
+        # gather valid position indices
+        logit_blob = flow.gather(
+            logit_blob,
             index=masked_lm_positions.unsqueeze(2).repeat(1, 1, args.vocab_size),
             dim=1,
         )
-        mask_lm_output = flow.reshape(mask_lm_output, [-1, args.vocab_size])
-
-        label_id_blob = flow.reshape(masked_lm_ids, [-1])
-
-        # 2-2. NLLLoss of predicting masked token word
-        lm_loss = self.lm_criterion(mask_lm_output, label_id_blob)
-
-        condition = flow.eq(label_id_blob, 0)
-        ones = flow.ones(
-            condition.shape, dtype=condition.dtype, device=condition.device
-        )
-        condition = ones.sub(condition)
-        condition = flow.cast(condition, dtype=lm_loss.dtype)
-        reduce_count = condition.sum()
-
-        lm_loss = lm_loss / reduce_count   
+        logit_blob = flow.reshape(logit_blob, [-1, args.vocab_size])
+        label_id_blob = flow.reshape(masked_lm_labels, [-1])
 
         # The `positions` tensor might be zero-padded (if the sequence is too
         # short to have the maximum number of predictions). The `label_weights`
         # tensor has a value of 1.0 for every real prediction and 0.0 for the
         # padding predictions.
-        per_example_loss = -tf.reduce_sum(log_probs * one_hot_labels, axis=[-1])
-        numerator = tf.reduce_sum(label_weights * per_example_loss)
-        denominator = tf.reduce_sum(label_weights) + 1e-5
+        pre_example_loss = mlm_criterion(logit_blob, label_id_blob)
+        pre_example_loss = flow.reshape(pre_example_loss, [-1, max_prediction_per_seq])
+        sum_label_weight = flow.sum(label_weights, dim=-1)
+        sum_label_weight = sum_label_weight / label_weights.shape[0]
+        numerator = flow.sum(pre_example_loss * label_weights)
+        denominator = flow.sum(label_weights) + 1e-5
         loss = numerator / denominator
-    
-        # model forward
-    (
-        input_ids,
-        next_sentence_labels,
-        input_mask,
-        segment_ids,
-        masked_lm_ids,
-        masked_lm_positions,
-        masked_lm_weights,
-    ) = train_data_loader()
-    input_ids = input_ids.to(device=device)
-    input_mask = input_mask.to(device=device)
-    segment_ids = segment_ids.to(device=device)
-    next_sentence_labels = next_sentence_labels.to(device=device)
-    masked_lm_ids = masked_lm_ids.to(device=device)
-    masked_lm_positions = masked_lm_positions.to(device=device)
-
-    # 1. forward the next_sentence_prediction and masked_lm model
-    prediction_scores, seq_relationship_scores = bert_model(input_ids, segment_ids, input_mask, masked_lm_positions)
-
-    # 2-1. loss of is_next classification result
-    next_sentence_loss = ns_criterion(seq_relationship_scores.view(-1, 2), next_sentence_labels.view(-1))
-
-    masked_lm_loss = get_masked_lm_loss(prediction_scores, masked_lm_positions, masked_lm_ids, masked_lm_weights)
-    # end
-
+        return loss
 
     class BertGraph(nn.Graph):
         def __init__(self):
             super().__init__()
             self.bert = bert_model
             self.ns_criterion = ns_criterion
-            self.masked_lm_criterion = get_masked_lm_loss
+            self.masked_lm_criterion = partial(
+                get_masked_lm_loss, max_prediction_per_seq=20
+            )
             self.add_optimizer(optimizer, lr_sch=cosine_annealing_lr)
             self._train_data_loader = train_data_loader
 
@@ -313,14 +286,21 @@ def main():
             next_sentence_labels = next_sentence_labels.to(device=device)
             masked_lm_ids = masked_lm_ids.to(device=device)
             masked_lm_positions = masked_lm_positions.to(device=device)
+            masked_lm_weights = masked_lm_weights.to(device=device)
 
             # 1. forward the next_sentence_prediction and masked_lm model
-            prediction_scores, seq_relationship_scores = self.bert(input_ids, segment_ids, input_mask, masked_lm_positions)
+            prediction_scores, seq_relationship_scores = self.bert(
+                input_ids, segment_ids, input_mask
+            )
 
             # 2-1. loss of is_next classification result
-            next_sentence_loss = self.ns_criterion(seq_relationship_scores.view(-1, 2), next_sentence_labels.view(-1))
+            next_sentence_loss = self.ns_criterion(
+                seq_relationship_scores.view(-1, 2), next_sentence_labels.view(-1)
+            )
 
-            masked_lm_loss = self.masked_lm_criterion(prediction_scores, masked_lm_positions, masked_lm_ids, masked_lm_weights)
+            masked_lm_loss = self.masked_lm_criterion(
+                prediction_scores, masked_lm_positions, masked_lm_ids, masked_lm_weights
+            )
 
             total_loss = next_sentence_loss + masked_lm_loss
 
@@ -354,9 +334,9 @@ def main():
 
             with flow.no_grad():
                 # 1. forward the next_sentence_prediction and masked_lm model
-                next_sent_output, _ = self.bert(input_ids, input_masks, segment_ids)
+                _, seq_relationship_scores = self.bert(input_ids, input_masks, segment_ids)
 
-            return next_sent_output, next_sent_labels
+            return seq_relationship_scores, next_sent_labels
 
     bert_eval_graph = BertEvalGraph()
 
