@@ -275,10 +275,6 @@ class BertModel(nn.Module):
 
         self.pooler = BertPooler(hidden_size)
 
-        self.init_weights()
-
-    def init_weights(self):
-        pass
 
     def get_input_embeddings(self):
         return self.embeddings.word_embeddings
@@ -376,8 +372,10 @@ class BertForPreTraining(nn.Module):
         attention_probs_dropout_prob,
         max_position_embeddings,
         type_vocab_size,
+        initializer_range=0.02,
     ):
         super().__init__()
+        self.initializer_range = initializer_range
 
         self.bert = BertModel(
             vocab_size,
@@ -395,6 +393,8 @@ class BertForPreTraining(nn.Module):
 
         self.cls = BertPreTrainingHeads(hidden_size, vocab_size)
 
+        self.init_weights()
+
     def forward(self, input_ids, token_type_ids, attention_mask):
         sequence_output, pooled_output = self.bert(
             input_ids, token_type_ids, attention_mask
@@ -404,3 +404,37 @@ class BertForPreTraining(nn.Module):
             sequence_output, pooled_output
         )
         return prediction_scores, seq_relationship_scores
+
+    def get_output_embeddings(self):
+        return self.cls.predictions.decoder
+
+    def set_output_embeddings(self, new_embeddings):
+        self.cls.predictions.decoder = new_embeddings
+    
+    def init_weights(self):
+        self.apply(self._init_weights)
+
+        self.clone_weights(self.get_output_embeddings(), self.bert.get_input_embeddings())
+
+    def _init_weights(self, module):
+        """Initialize the weights"""
+        if isinstance(module, nn.Linear):
+            # Slightly different from the TF version which uses truncated_normal for initialization
+            # cf https://github.com/pytorch/pytorch/pull/5617
+            module.weight.data.normal_(mean=0.0, std=self.initializer_range)
+            if module.bias is not None:
+                module.bias.data.fill_(0.0)
+        elif isinstance(module, nn.Embedding):
+            module.weight.data.normal_(mean=0.0, std=self.initializer_range)
+            if module.padding_idx is not None:
+                module.weight.data[module.padding_idx].zero_()
+        elif isinstance(module, nn.LayerNorm):
+            nn
+            module.bias.data.fill_(0.0)
+            module.weight.data.fill_(1.0)
+    
+    def clone_weights(self, output_embeddings, input_embeddings):
+        """
+        Tie the weights between the input embeddings and the output embeddings.
+        """
+        output_embeddings.weight = input_embeddings.weight
