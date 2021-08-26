@@ -62,6 +62,6 @@ The code requires the following libraries:
 The following shows some results of road image segmentation.
 
 
-<img src="https://github.com/Cristina-cxq/models-1/blob/main/FODDet/myplot1.png"/>
+![img](https://raw.githubusercontent.com/Cristina-cxq/models-1/blob/main/FODDet/myplot1.png)
 
-<img src="https://github.com/Cristina-cxq/models-1/blob/main/FODDet/myplot2.png"/>
+![img](https://raw.githubusercontent.com/Cristina-cxq/models-1/blob/main/FODDet/myplot2.png)
