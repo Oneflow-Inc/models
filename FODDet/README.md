@@ -62,6 +62,6 @@ The code requires the following libraries:
 The following shows some results of road image segmentation.
 
 
-![img](https://imgtu.com/i/hm34OA)
+<img src="https://z3.ax1x.com/2021/08/26/hm34OA.png"/>
 
-![img](https://imgtu.com/i/hm3hyd)
+<img src="https://z3.ax1x.com/2021/08/26/hm3hyd.png"/>
