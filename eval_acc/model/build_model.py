@@ -8,11 +8,12 @@ def build_model(args):
     if args.eval_mode == "flow":
         if args.model == "alexnet":
             return {"model": alexnet_of(), "weight":"/data/rentianhe/code/new_models/models/eval_acc/weight/torch/alexnet-owt-4df8aa71.pth"}
+        print("successfully build oneflow model")
     
     if args.eval_mode == "torch":
         if args.model == "alexnet":
             return {"model": alexnet_torch(), "weight":"/data/rentianhe/code/new_models/models/eval_acc/weight/torch/alexnet-owt-4df8aa71.pth"}
-
+        print("successfully build pytorch model")
 
 
 if __name__ == "__main__":

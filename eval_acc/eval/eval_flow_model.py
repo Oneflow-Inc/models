@@ -1,10 +1,25 @@
 import os
 import torch
+import argparse
 import oneflow as flow
 import numpy as np
 from tqdm import tqdm
-from model.mnasnet import mnasnet0_5, mnasnet1_0
+from model.build_model import build_model
 from torch_loader import *
+
+def _parse_args():
+    parser = argparse.ArgumentParser("flags for eval acc")
+    parser.add_argument(
+        "--eval_mode",
+        type=str,
+        default="torch",
+        help="eval torch or flow model",
+    )
+    parser.add_argument(
+        "--model", type=str, default="alexnet", help="choose the model to eval"
+    )
+
+    return parser.parse_args()
 
 def setup_device(n_gpu_use):
     n_gpu = torch.cuda.device_count()
@@ -38,11 +53,14 @@ def convert_checkpoint(state_dict):
     for key, value in state_dict.items():
         if "num_batches_tracked" not in key:
             val = value.detach().cpu().numpy()
-            new_parameters[key] = val
+            new_parameters[key] = val.astype(np.float32)
     return new_parameters
 
-def main(model, checkpoint_path):
+def main(args):
 
+    info_dict = build_model(args)
+    model = info_dict["model"]
+    checkpoint_path = info_dict["weight"]
 
     # device
     device, device_ids = setup_device(1)
@@ -50,13 +68,8 @@ def main(model, checkpoint_path):
     # load checkpoint
     if checkpoint_path:
         state_dict = torch.load(checkpoint_path)
-        new_parameters = dict()
-        for key, value in state_dict.items():
-            if "num_batches_tracked" not in key:
-                val = value.detach().cpu().numpy()
-                new_parameters[key] = val.astype(np.float32)
-        # flow_state_dict = convert_checkpoint(state_dict)
-        model.load_state_dict(new_parameters)
+        flow_state_dict = convert_checkpoint(state_dict)
+        model.load_state_dict(flow_state_dict)
         print("Load pretrained weights from {}".format(checkpoint_path))
 
     # send model to device
@@ -81,11 +94,9 @@ def main(model, checkpoint_path):
         for batch_idx, (data, target) in pbar:
             pbar.set_description("Batch {:05d}/{:05d}".format(batch_idx, total_batch))
 
-            # data = data.to(device)
-            # target = target.to(device)
             data = flow.tensor(data.numpy()).to("cuda")
             target = target.to("cuda")
-            # target = flow.tensor(target.numpy()).to("cuda")
+ 
 
             pred_logits = model(data)
             pred_logits = torch.tensor(pred_logits.numpy()).to(device)
@@ -99,8 +110,5 @@ def main(model, checkpoint_path):
     print("Evaluation of model {:s} on dataset {:s}, Acc@1: {:.4f}, Acc@5: {:.4f}".format("wide_resnet50_2", "ImageNet", np.mean(acc1s), np.mean(acc5s)))
 
 if __name__ == "__main__":
-    mnasnet0_5_weight = "/data/rentianhe/code/new_models/models/mnasnet/weight/torch/mnasnet0.5_top1_67.823-3ffadce67e.pth"
-    mnasnet1_0_weight = "/data/rentianhe/code/new_models/models/mnasnet/weight/torch/mnasnet1.0_top1_73.512-f206786ef8.pth"
-    # model = mnasnet0_5()
-    model = mnasnet1_0()
-    main(model, mnasnet1_0_weight)
+    args = _parse_args()
+    main(args)
