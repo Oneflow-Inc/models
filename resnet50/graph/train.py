@@ -65,7 +65,7 @@ def main(args):
 
     of_cross_entropy = flow.nn.CrossEntropyLoss()
 
-    resnet50_module.to("cuda")
+    resnet50_module.to("cuda")·
     of_cross_entropy.to("cuda")
 
     of_sgd = flow.optim.SGD(

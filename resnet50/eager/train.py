@@ -9,8 +9,9 @@ import oneflow as flow
 
 import sys
 sys.path.append(".")
-from models.resnet50 import resnet50
-from utils.ofrecord_data_utils import OFRecordDataLoader
+# from models.resnet50 import resnet50
+# from utils.ofrecord_data_utils import OFRecordDataLoader
+from graph.train_consistent import prepare_modules, parse_args
 
 class AverageMeter:
     """Computes and stores the average and current value"""
@@ -28,37 +29,6 @@ class AverageMeter:
         self.sum += val * n
         self.count += n
         self.avg = self.sum / self.count
-
-def _parse_args():
-    parser = argparse.ArgumentParser("flags for train resnet50")
-    parser.add_argument(
-        "--save_checkpoint_path",
-        type=str,
-        default="./checkpoints",
-        help="save checkpoint root dir",
-    )
-    parser.add_argument(
-        "--load_checkpoint", type=str, default="", help="load checkpoint"
-    )
-    parser.add_argument(
-        "--ofrecord_path", type=str, default="./ofrecord", help="dataset path"
-    )
-    # training hyper-parameters
-    parser.add_argument(
-        "--learning_rate", type=float, default=0.001, help="learning rate"
-    )
-    parser.add_argument("--mom", type=float, default=0.9, help="momentum")
-    parser.add_argument("--weight_decay", type=float, default=0.0, help="weight decay")
-    parser.add_argument("--epochs", type=int, default=100, help="training epochs")
-    parser.add_argument(
-        "--train_batch_size", type=int, default=32, help="train batch size"
-    )
-    parser.add_argument(
-        "--print_interval", type=int, default=10, help="print info frequency"
-    )
-    parser.add_argument("--val_batch_size", type=int, default=32, help="val batch size")
-
-    return parser.parse_args()
 
 
 def train_one_epoch(args, model, criterion, data_loader, optimizer, epoch, lr_scheduler):
@@ -88,16 +58,18 @@ def train_one_epoch(args, model, criterion, data_loader, optimizer, epoch, lr_sc
         optimizer.zero_grad()
 
         # update metrics
-        loss_meter.update(loss.numpy(), args.train_batch_size)
+        loss_meter.update(loss.numpy(), args.train_batch_size_per_device)
         batch_time.update(time.time() - end)
         end = time.time()
 
         # print info
-        if steps % args.print_interval == 0:
+        if steps % args.loss_print_every_n_iter == 0:
             lr = optimizer.param_groups[0]['lr']
-            print("Train:[%d/%d][%d/%d] Time: %.4f(%.4f) Training Loss: %.4f(%.4f) Lr: %.6f" % ((epoch + 1), args.epochs, steps, num_steps, batch_time.val, batch_time.avg, loss_meter.val, loss_meter.avg, lr))
-    
-    lr_scheduler.step()
+            print("Train:[%d/%d][%d/%d] Time: %.4f(%.4f) Training Loss: %.4f (%.4f) Lr: %.6f" % ((epoch + 1), args.num_epochs, steps, num_steps, batch_time.val, batch_time.avg, loss_meter.val, loss_meter.avg, lr))
+        if steps >= 100:
+            break
+
+        # lr_scheduler.step()
     return loss_meter.avg
 
 def valid(args, model, criterion, data_loader):
@@ -156,46 +128,15 @@ def save_logs(training_info, file_path):
 
 
 def main(args):
-    # Data Setup
-    train_data_loader = OFRecordDataLoader(
-        ofrecord_root=args.ofrecord_path,
-        mode="train",
-        dataset_size=9469,
-        batch_size=args.train_batch_size,
-    )
-
-    val_data_loader = OFRecordDataLoader(
-        ofrecord_root=args.ofrecord_path,
-        mode="val",
-        dataset_size=3925,
-        batch_size=args.val_batch_size,
-    )
-
-    # Model Setup
-    print("***** Initialization *****")
-    start_t = time.time()
-    model = resnet50()
-    if args.load_checkpoint != "":
-        print("load_checkpoint >>>>>>>>> ", args.load_checkpoint)
-        model.load_state_dict(flow.load(args.load_checkpoint))
-    end_t = time.time()
-    print("init time : {}".format(end_t - start_t))
-
-    # Training Setup
-    criterion = flow.nn.CrossEntropyLoss()
-    model.to("cuda")
-    criterion.to("cuda")
-    optimizer = flow.optim.SGD(
-        model.parameters(), lr=args.learning_rate, momentum=args.mom, weight_decay=args.weight_decay
-    )
-    lr_scheduler = flow.optim.lr_scheduler.StepLR(optimizer, step_size=30, gamma=0.1)
+    train_data_loader, val_data_loader, model, optimizer, criterion, lr_scheduler = prepare_modules(args, to_consistent=False)
 
     loss_list = []
     accuracy_list = []
     best_acc = 0.0
-    for epoch in range(args.epochs):
+    for epoch in range(args.num_epochs):
         print("***** Runing Training *****")
         train_loss = train_one_epoch(args, model, criterion, train_data_loader, optimizer, epoch, lr_scheduler)
+        break
         print("***** Run Validation *****")
         accuracy = valid(args, model, criterion, val_data_loader)
         
@@ -226,5 +167,5 @@ def main(args):
     print("Save acc info to: ", "eager/accuracy.txt")
 
 if __name__ == "__main__":
-    args = _parse_args()
+    args = parse_args()
     main(args)
