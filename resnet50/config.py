@@ -164,6 +164,18 @@ def parse_args(ignore_unknown_args=False):
         dest="label_smoothing",
         help="label smoothing factor",
     )
+    parser.add_argument(
+        "--batches-per-epoch",
+        type=int,
+        default=None,
+        dest="batches_per_epoch",
+    )
+    parser.add_argument(
+        "--val-batches-per-epoch",
+        type=int,
+        default=None,
+        dest="val_batches_per_epoch",
+    )
 
     # log and loss print
     parser.add_argument(
@@ -196,12 +208,15 @@ def parse_args(ignore_unknown_args=False):
     else:
         assert args.val_global_batch_size % args.val_batch_size == 0
 
-    args.batches_per_epoch = math.ceil(
-        args.samples_per_epoch // args.train_global_batch_size
-    )
-    args.val_batches_per_epoch = int(
-        args.val_samples_per_epoch / args.val_global_batch_size
-    )
+    if args.batches_per_epoch is None:
+        args.batches_per_epoch = math.ceil(
+            args.samples_per_epoch // args.train_global_batch_size
+        )
+
+    if args.val_batches_per_epoch is None:
+        args.val_batches_per_epoch = int(
+            args.val_samples_per_epoch / args.val_global_batch_size
+        )
 
     _print_args(args)
     return args

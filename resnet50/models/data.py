@@ -15,11 +15,11 @@ def make_data_loader(args, mode):
         batch_size = args.val_batch_size
         num_samples = args.val_samples_per_epoch
 
-    if args.ddp:
-        placement = None
-        sbp = None
-    else:
-        world_size = flow.distributed.get_world_size()
+    placement = None
+    sbp = None
+
+    world_size = flow.distributed.get_world_size()
+    if args.graph or (world_size > 1 and not args.ddp):
         placement = flow.placement("cpu", {0: range(world_size)})
         sbp = flow.sbp.split(0)
 
