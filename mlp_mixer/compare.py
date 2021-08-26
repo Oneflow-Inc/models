@@ -27,6 +27,7 @@ def torch_weight_load(model, checkpoint_path):
 
 def compare(torch_dict, of_dict):
     for torch_key, of_key in zip(torch_dict, of_dict):
+        # 768, 3, 32, 32
         if 'stem' in torch_key and 'weight' in torch_key:
             torch_value = torch_dict[torch_key].numpy().flatten()
             of_value = of_dict[of_key].numpy().flatten()
