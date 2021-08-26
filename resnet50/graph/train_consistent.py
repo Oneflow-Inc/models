@@ -282,6 +282,9 @@ def main(args):
             # else:
             #     self.config.cudnn_conv_heuristic_search_algo(False)
             self.config.allow_fuse_model_update_ops(True)
+            self.config.proto.set_cudnn_conv_force_fwd_algo(0)
+            self.config.proto.set_cudnn_conv_force_bwd_data_algo(1)
+            self.config.proto.set_cudnn_conv_force_bwd_filter_algo(1)
 
         def build(self):
             image, label = self.train_data_loader()
