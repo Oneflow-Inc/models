@@ -34,6 +34,8 @@ the number of epochs should be adapted so that we have the same number of iterat
 # 14. tensor.copy_(tensor)
 # 15. zeros_like miss dtype parameter
 # 16. ones_like dtype argument does not exist
+# 17.transform expect hfilp mode
+# 18.multisteplr
 # not important:IntermediateLayerGetter
 
 import datetime
@@ -42,30 +44,31 @@ import time
 
 import oneflow as flow
 import oneflow.nn as nn
-# from coco_utils import get_coco, get_coco_kp
-from utils.dataset_utils import get_ofrecord
+# from utils.dataset_utils import get_coco, get_coco_kp
+from utils import presets
+from utils.dataset_utils import get_coco_loader
+# from utils.dataset_utils import get_ofrecord
 # from group_by_aspect_ratio import GroupedBatchSampler, create_aspect_ratio_groups
 from utils.engine import train_one_epoch, evaluate
-
 # import presets
 # import utils
 from utils.os_utils import mkdir
-import models
+from models import mask_rcnn
 
 
 # def get_dataset(name, image_set, transform, data_path):
-def get_dataset(name, image_set, transform, batch_size, data_path):
-    paths = {
-        # "coco": (data_path, get_coco, 91),
-        # "coco_kp": (data_path, get_coco_kp, 2)
-        "ofrecord": (data_path, get_ofrecord, 2)
-    }
-    p, ds_fn, num_classes = paths[name]
-
-
-    # ds = ds_fn(p, image_set=image_set, transforms=transform)
-    ds = ds_fn(p, image_set=image_set, batch_size=batch_size, transforms=transform)
-    return ds, num_classes
+# def get_dataset(name, image_set, transform, batch_size, data_path):
+#     paths = {
+#         "coco": (data_path, get_coco, 91),
+#         # "coco_kp": (data_path, get_coco_kp, 2)
+#         # "ofrecord": (data_path, get_ofrecord, 2)
+#     }
+#     p, ds_fn, num_classes = paths[name]
+#
+#
+#     ds = ds_fn(p, image_set=image_set, transforms=transform)
+#     # ds = ds_fn(p, image_set=image_set, batch_size=batch_size, transforms=transform)
+#     return ds, num_classes
 
 
 def get_transform(train, data_augmentation):
@@ -76,17 +79,16 @@ def get_args_parser(add_help=True):
     import argparse
     parser = argparse.ArgumentParser(description='PyTorch Detection Training', add_help=add_help)
 
-    parser.add_argument('--data-path', default='/datasets01/COCO/022719/', help='dataset')
-    # parser.add_argument('--dataset', default='coco', help='dataset')
-    parser.add_argument('--dataset', default='ofrecord', help='dataset')
+    parser.add_argument('--data-path', default='/dataset/coco', help='dataset')
+    parser.add_argument('--dataset', default='coco', help='dataset')
     parser.add_argument('--model', default='maskrcnn_resnet50_fpn', help='model')
     parser.add_argument('--device', default='cuda', help='device')
     parser.add_argument('-b', '--batch-size', default=2, type=int,
                         help='images per gpu, the total batch size is $NGPU x batch_size')
     parser.add_argument('--epochs', default=26, type=int, metavar='N',
                         help='number of total epochs to run')
-    parser.add_argument('-j', '--workers', default=4, type=int, metavar='N',
-                        help='number of data loading workers (default: 4)')
+    parser.add_argument('-j', '--workers', default=1, type=int, metavar='N',
+                        help='number of data loading workers (default: 1)')
     parser.add_argument('--lr', default=0.02, type=float,
                         help='initial learning rate, 0.02 is the default value for training '
                              'on 8 gpus and 2 images_per_gpu')
@@ -131,9 +133,9 @@ def get_args_parser(add_help=True):
     )
 
     # distributed training parameters
-    parser.add_argument('--world-size', default=1, type=int,
-                        help='number of distributed processes')
-    parser.add_argument('--dist-url', default='env://', help='url used to set up distributed training')
+    # parser.add_argument('--world-size', default=1, type=int,
+    #                     help='number of distributed processes')
+    # parser.add_argument('--dist-url', default='env://', help='url used to set up distributed training')
 
     return parser
 
@@ -166,9 +168,13 @@ def main(args):
     # dataset, num_classes = get_dataset(args.dataset, "train", get_transform(True, args.data_augmentation),
     #                                    args.data_path)
     # dataset_test, _ = get_dataset(args.dataset, "val", get_transform(False, args.data_augmentation), args.data_path)
-    data_loader, num_classes = get_dataset(args.dataset, "train", args.batch_size, get_transform(True, args.data_augmentation),
-                                       args.data_path)
-    data_loader_test, _ = get_dataset(args.dataset, "val", args.batch_size, get_transform(False, args.data_augmentation), args.data_path)
+
+    # data_loader, num_classes = get_dataset(args.dataset, "train", args.batch_size, get_transform(True, args.data_augmentation),
+    #                                    args.data_path)
+    # data_loader_test, _ = get_dataset(args.dataset, "val", args.batch_size, get_transform(False, args.data_augmentation), args.data_path)
+    data_loader, num_classes = get_coco_loader(args.data_path, "train", args.batch_size)
+    data_loader_test, _ = get_coco_loader(args.data_path, "val", args.batch_size)
+
 
     print("Creating data loaders")
     # if args.distributed:
@@ -201,7 +207,7 @@ def main(args):
     if "rcnn" in args.model:
         if args.rpn_score_thresh is not None:
             kwargs["rpn_score_thresh"] = args.rpn_score_thresh
-    model = models.__dict__[args.model](num_classes=num_classes, pretrained=args.pretrained,
+    model = mask_rcnn.__dict__[args.model](num_classes=num_classes, pretrained=args.pretrained,
                                                               **kwargs)
     model.to(device)
     # if args.distributed and args.sync_bn:
@@ -217,10 +223,11 @@ def main(args):
         params, lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
 
     args.lr_scheduler = args.lr_scheduler.lower()
+
     if args.lr_scheduler == 'multisteplr':
         lr_scheduler = flow.optim.lr_scheduler.MultiStepLR(optimizer, milestones=args.lr_steps, gamma=args.lr_gamma)
     elif args.lr_scheduler == 'cosineannealinglr':
-        lr_scheduler = flow.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
+        lr_scheduler = flow.optim.lr_scheduler.CosineAnnealingLR(optimizer, steps=args.epochs)
     else:
         raise RuntimeError("Invalid lr scheduler '{}'. Only MultiStepLR and CosineAnnealingLR "
                            "are supported.".format(args.lr_scheduler))
@@ -233,7 +240,8 @@ def main(args):
         args.start_epoch = checkpoint['epoch'] + 1
 
     if args.test_only:
-        evaluate(model, data_loader_test, device=device)
+        with flow.no_grad():
+            evaluate(model, data_loader_test, device=device)
         return
 
     print("Start training")

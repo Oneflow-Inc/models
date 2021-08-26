@@ -42,7 +42,7 @@ def fastrcnn_loss(class_logits, box_regression, labels, regression_targets):
     sampled_pos_inds_subset = flow.argwhere(labels > 0)[0]
     labels_pos = labels[sampled_pos_inds_subset].to(sampled_pos_inds_subset.dtype)
     N, num_classes = class_logits.shape
-    box_regression = box_regression.reshape((N, box_regression.size(-1) // 4, 4))
+    box_regression = box_regression.reshape(N, box_regression.size(-1) // 4, 4)
 
     box_loss = det_utils.smooth_l1_loss(
         box_regression[sampled_pos_inds_subset, labels_pos],
@@ -693,7 +693,9 @@ class RoIHeads(nn.Module):
         boxes_per_image = [boxes_in_image.shape[0] for boxes_in_image in proposals]
         pred_boxes = self.box_coder.decode(box_regression, proposals)
 
-        pred_scores = F.softmax(class_logits, -1)
+        #TODO:softmax
+        # pred_scores = nn.functional.softmax(class_logits, -1)
+        pred_scores = nn.functional.softmax(class_logits)
 
         pred_boxes_list = pred_boxes.split(boxes_per_image, 0)
         pred_scores_list = pred_scores.split(boxes_per_image, 0)
@@ -706,7 +708,7 @@ class RoIHeads(nn.Module):
 
             # create labels for each prediction
             labels = flow.arange(num_classes, device=device)
-            labels = labels.view(1, -1).expand_as(scores)
+            labels = labels.view(1, -1).expand(*scores.shape)
 
             # remove predictions with the background label
             boxes = boxes[:, 1:]

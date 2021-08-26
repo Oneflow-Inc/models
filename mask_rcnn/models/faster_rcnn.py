@@ -179,8 +179,10 @@ class FasterRCNN(GeneralizedRCNN):
         out_channels = backbone.out_channels
 
         if rpn_anchor_generator is None:
-            # anchor_sizes = ((32,), (64,), (128,), (256,), (512,))
-            anchor_sizes = ((8,), (16,), (32,), (64,), (128,))
+            #org:
+            anchor_sizes = ((32,), (64,), (128,), (256,), (512,))
+            # anchor_sizes = ((8,), (16,), (32,), (64,), (128,))
+            # anchor_sizes = ((16,), (32,), (64,), (128,), (256,))
             aspect_ratios = ((0.5, 1.0, 2.0),) * len(anchor_sizes)
             rpn_anchor_generator = AnchorGenerator(
                 anchor_sizes, aspect_ratios

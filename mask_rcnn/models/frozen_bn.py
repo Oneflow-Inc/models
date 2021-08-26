@@ -48,10 +48,10 @@ class FrozenBatchNorm2d(nn.Module):
     def forward(self, x: Tensor) -> Tensor:
         # move reshapes to the beginning
         # to make it fuser-friendly
-        w = self.weight.reshape([1, -1, 1, 1])
-        b = self.bias.reshape([1, -1, 1, 1])
-        rv = self.running_var.reshape([1, -1, 1, 1])
-        rm = self.running_mean.reshape([1, -1, 1, 1])
+        w = self.weight.reshape(1, -1, 1, 1)
+        b = self.bias.reshape(1, -1, 1, 1)
+        rv = self.running_var.reshape(1, -1, 1, 1)
+        rm = self.running_mean.reshape(1, -1, 1, 1)
         scale = w * (rv + self.eps).rsqrt()
         bias = b - rm * scale
         return x * scale + bias

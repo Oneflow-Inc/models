@@ -65,7 +65,7 @@ def permute_and_flatten(layer, N, A, C, H, W):
     # type: (Tensor, int, int, int, int, int) -> Tensor
     layer = layer.view(N, -1, C, H, W)
     layer = layer.permute(0, 3, 4, 1, 2)
-    layer = layer.reshape((N, -1, C))
+    layer = layer.reshape(N, -1, C)
     return layer
 
 
@@ -97,7 +97,7 @@ def concat_box_prediction_layers(box_cls, box_regression):
     # take into account the way the labels were generated (with all feature maps
     # being concatenated as well)
     box_cls = flow.cat(box_cls_flattened, dim=1).flatten(0, -2)
-    box_regression = flow.cat(box_regression_flattened, dim=1).reshape((-1, 4))
+    box_regression = flow.cat(box_regression_flattened, dim=1).reshape(-1, 4)
     # oneflow._oneflow_internal.Tensor -> flow.Tensor
     # box_regression = flow.Tensor(*box_regression)
     return box_cls, box_regression
@@ -262,7 +262,7 @@ class RegionProposalNetwork(nn.Module):
         device = proposals.device
         # do not backprop throught objectness
         objectness = objectness.detach()
-        objectness = objectness.reshape((num_images, -1))
+        objectness = objectness.reshape(num_images, -1)
 
         levels = [
             # flow.full((n,), idx, dtype=torch.int64, device=device)
@@ -271,7 +271,7 @@ class RegionProposalNetwork(nn.Module):
         ]
         levels = flow.cat(levels, 0)
         # print(levels.shape, levels.dtype, levels.device, objectness.shape, objectness.dtype, objectness.device)
-        levels = (levels.reshape((1, -1))).expand(*objectness.shape)
+        levels = (levels.reshape(1, -1)).expand(*objectness.shape)
 
         # select top_n boxes independently per level before applying nms
         top_n_idx = self._get_top_n_idx(objectness, num_anchors_per_level)
@@ -439,7 +439,6 @@ class RegionProposalNetwork(nn.Module):
         # apply pred_bbox_deltas to anchors to obtain the decoded proposals
         # note that we detach the deltas because Faster R-CNN do not backprop through
         # the proposals
-
         proposals = self.box_coder.decode(pred_bbox_deltas.detach(), anchors)
         proposals = proposals.view(num_images, -1, 4)
         boxes, scores = self.filter_proposals(proposals, objectness, images.image_sizes, num_anchors_per_level)

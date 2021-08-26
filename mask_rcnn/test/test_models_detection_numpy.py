@@ -44,20 +44,21 @@ def assertEqual(param, param1):
 
 
 def _make_empty_sample(add_masks=False, add_keypoints=False):
+    device = 'cuda'
     num_images = 2
-    images = [flow.Tensor(np.random.rand(3, 128, 128), dtype=flow.float32, device = flow.device('cuda')) for _ in range(num_images)]
+    images = [flow.Tensor(np.random.rand(3, 128, 128), dtype=flow.float32, device = flow.device(device)) for _ in range(num_images)]
     # boxes = flow.zeros((0, 4), dtype=flow.float32)
     boxes_numpy = np.concatenate((np.sort(np.random.randint(0, 128, (4, 4))), np.array([[74.,  86., 57., 63.]]), np.array([[90, 102, 69, 75]])))
 
-    boxes = flow.Tensor(boxes_numpy, dtype=flow.float32, device = flow.device('cuda'))
+    boxes = flow.Tensor(boxes_numpy, dtype=flow.float32, device = flow.device(device))
     negative_target = {"boxes": boxes,
-                       "labels": flow.tensor(np.concatenate((np.zeros(1), np.random.randint(1, 4, (5,)))), dtype=flow.int64, device = flow.device('cuda')),
+                       "labels": flow.tensor(np.concatenate((np.zeros(1), np.random.randint(1, 4, (5,)))), dtype=flow.int64, device = flow.device(device)),
                        "image_id": 4,
                        "area": (boxes[:, 3] - boxes[:, 1]) * (boxes[:, 2] - boxes[:, 0]),
-                       "iscrowd": flow.zeros(1, dtype=flow.int64,  device = flow.device('cuda'))}
+                       "iscrowd": flow.zeros(1, dtype=flow.int64,  device = flow.device(device))}
 
     if add_masks:
-        negative_target["masks"] = flow.Tensor(np.random.rand(1, 100, 100), dtype=flow.uint8, device = flow.device('cuda'))
+        negative_target["masks"] = flow.Tensor(np.random.rand(1, 100, 100), dtype=flow.uint8, device = flow.device(device))
 
     if add_keypoints:
         negative_target["keypoints"] = flow.Tensor(np.random.rand(17, 0, 3), dtype=flow.float32)

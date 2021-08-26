@@ -134,7 +134,7 @@ class AnchorGenerator(nn.Module):
             # For every (base anchor, output anchor) pair,
             # offset each zero-centered base anchor by the center of the output anchor.
             anchors.append(
-                (shifts.view(-1, 1, 4) + base_anchors.view(1, -1, 4).reshape((-1, 4)))
+                (shifts.view(-1, 1, 4) + base_anchors.view(1, -1, 4).reshape(-1, 4))
             )
 
         return anchors

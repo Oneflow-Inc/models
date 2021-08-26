@@ -247,7 +247,7 @@ class MultiScaleRoIAlign(nn.Module):
             if len(idx_in_level) == num_rois:
                 result = result_idx_in_level
             else:
-                for idx, val in idx_in_level:
+                for idx, val in enumerate(idx_in_level):
                     result[val] = result_idx_in_level[idx]
             # result[idx_in_level] = result_idx_in_level.to(result.dtype)
 

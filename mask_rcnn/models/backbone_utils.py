@@ -34,7 +34,7 @@ class BackboneWithFPN(nn.Module):
         if extra_blocks is None:
             extra_blocks = LastLevelMaxPool()
 
-        # self.body = IntermediateLayerGetter(backbone, return_layers=return_layers)
+        self.body = IntermediateLayerGetter(backbone, return_layers=return_layers)
 
         orig_return_layers = return_layers
         return_layers = {str(k): str(v) for k, v in return_layers.items()}

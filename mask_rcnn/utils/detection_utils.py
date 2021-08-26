@@ -164,13 +164,13 @@ class BoxCoder(object):
         # proposals = flow.cat(proposals, dim=0)
         targets = self.encode_single(reference_boxes, proposals)
         #TODO: split op
-        split_targets = []
-        box_idx = 0
-        for box_size in boxes_per_image:
-            split_targets.append(targets[box_idx:box_idx + box_size])
-            box_idx += box_size
-        return split_targets
-        # return targets.split(boxes_per_image, 0)
+        # split_targets = []
+        # box_idx = 0
+        # for box_size in boxes_per_image:
+        #     split_targets.append(targets[box_idx:box_idx + box_size])
+        #     box_idx += box_size
+        # return split_targets
+        return targets.split(boxes_per_image, 0)
 
 
     def encode_single(self, reference_boxes, proposals):
@@ -199,12 +199,12 @@ class BoxCoder(object):
         for val in boxes_per_image:
             box_sum += val
         if box_sum > 0:
-            rel_codes = rel_codes.reshape((box_sum, -1))
+            rel_codes = rel_codes.reshape(box_sum, -1)
         pred_boxes = self.decode_single(
             rel_codes, concat_boxes
         )
         if box_sum > 0:
-            pred_boxes = pred_boxes.reshape((box_sum, -1, 4))
+            pred_boxes = pred_boxes.reshape(box_sum, -1, 4)
         return pred_boxes
 
     def decode_single(self, rel_codes, boxes):
@@ -232,11 +232,18 @@ class BoxCoder(object):
         # Prevent sending too large values into torch.exp()
         dw = flow.clamp(dw, max=self.bbox_xform_clip)
         dh = flow.clamp(dh, max=self.bbox_xform_clip)
+        #TODO:decode question
+        if len(widths.shape) == 1:
+            pred_ctr_x = dx * widths[:, None] + ctr_x[:, None]
+            pred_ctr_y = dy * heights[:, None] + ctr_y[:, None]
+            pred_w = flow.exp(dw) * widths[:, None]
+            pred_h = flow.exp(dh) * heights[:, None]
+        else:
+            pred_ctr_x = dx.mul(widths) + ctr_x
+            pred_ctr_y = dy.mul(heights) + ctr_y
+            pred_w = flow.exp(dw) * widths
+            pred_h = flow.exp(dh) * heights
 
-        pred_ctr_x = dx * widths[:, None] + ctr_x[:, None]
-        pred_ctr_y = dy * heights[:, None] + ctr_y[:, None]
-        pred_w = flow.exp(dw) * widths[:, None]
-        pred_h = flow.exp(dh) * heights[:, None]
 
         pred_boxes1 = pred_ctr_x - flow.tensor(0.5, dtype=pred_ctr_x.dtype, device=pred_w.device) * pred_w
         pred_boxes2 = pred_ctr_y - flow.tensor(0.5, dtype=pred_ctr_y.dtype, device=pred_h.device) * pred_h

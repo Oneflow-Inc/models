@@ -133,7 +133,7 @@ def clip_boxes_to_image(boxes: Tensor, size: Tuple[int, int]) -> Tensor:
     boxes_y = boxes_y.clamp(min=0, max=height)
 
     clipped_boxes = flow.stack((boxes_x, boxes_y), dim=dim)
-    return clipped_boxes.reshape(boxes.shape)
+    return clipped_boxes.reshape(*boxes.shape)
 
 
 def box_convert(boxes: Tensor, in_fmt: str, out_fmt: str) -> Tensor:

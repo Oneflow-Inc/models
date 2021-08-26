@@ -2,21 +2,48 @@ import oneflow as flow
 from oneflow import nn, Tensor
 import numpy as np
 from models.faster_rcnn import FastRCNNPredictor, TwoMLPHead
-
 from utils.anchor_utils import AnchorGenerator
 from models.rpn import RPNHead, RegionProposalNetwork
 from ops.ms_roi_align import MultiScaleRoIAlign
 from models.roi_heads import RoIHeads
 from models.faster_rcnn import fasterrcnn_resnet50_fpn
-
 from models.mask_rcnn import maskrcnn_resnet50_fpn
+import math
+import os
+
+coco_dict = dict()
+
+def _coco(anno_file):
+    global coco_dict
+
+    if anno_file not in coco_dict:
+        from pycocotools.coco import COCO
+
+        coco_dict[anno_file] = COCO(anno_file)
+
+    return coco_dict[anno_file]
+
+def _get_coco_image_samples(anno_file, image_dir, image_ids):
+    coco = _coco(anno_file)
+    category_id_to_contiguous_id_map = _get_category_id_to_contiguous_id_map(coco)
+    image, image_size = _read_images_with_cv(coco, image_dir, image_ids)
+    bbox = _read_bbox(coco, image_ids)
+    label = _read_label(coco, image_ids, category_id_to_contiguous_id_map)
+    img_segm_poly_list = _read_segm_poly(coco, image_ids)
+    poly, poly_index = _segm_poly_list_to_tensor(img_segm_poly_list)
+    samples = []
+    for im, ims, b, l, p, pi in zip(image, image_size, bbox, label, poly, poly_index):
+        samples.append(
+            dict(image=im, image_size=ims, bbox=b, label=l, poly=p, poly_index=pi)
+        )
+    return samples
 
 
 def assertEqual(param, param1):
     assert param == param1
 
 
-def _make_empty_sample(add_masks=False, add_keypoints=False):
+def _make_sample(add_masks=False, add_keypoints=False):
     num_images = 2
     images = [flow.Tensor(np.random.rand(3, 128, 128), dtype=flow.float32, device = flow.device('cuda')) for _ in range(num_images)]
     # boxes = flow.zeros((0, 4), dtype=flow.float32)
@@ -40,7 +67,7 @@ def _make_empty_sample(add_masks=False, add_keypoints=False):
 
 
 def test_targets_to_anchors():
-    _, targets = _make_empty_sample()
+    _, targets = _make_sample()
     anchors = [flow.Tensor(np.random.randint(-50, 50, (3, 4)), dtype=flow.float32)]
 
     anchor_sizes = ((32,), (64,), (128,), (256,), (512,))
@@ -114,7 +141,7 @@ def test_forward_negative_sample_frcnn():
     #         num_classes=2, min_size=100, max_size=100)
     model = fasterrcnn_resnet50_fpn(num_classes=2, min_size=100, max_size=100)
     model = model.to('cuda')
-    images, targets = _make_empty_sample()
+    images, targets = _make_sample()
     loss_dict = model(images.to('cuda'), targets.to('cuda'))
 
     assertEqual(loss_dict["loss_box_reg"], flow.tensor(0.))
@@ -125,7 +152,7 @@ def test_forward_negative_sample_mrcnn():
     model = maskrcnn_resnet50_fpn(
         num_classes=5, min_size=128, max_size=128)
     model = model.to('cuda')
-    images, targets = _make_empty_sample(add_masks=True)
+    images, targets = _make_sample(add_masks=True)
     loss_dict = model(images, targets)
 
     assertEqual(loss_dict["loss_box_reg"], flow.tensor(0.))
