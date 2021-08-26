@@ -1,12 +1,12 @@
 # set -aux
-
+# nohup bash eager/train_ddp.sh > resnet50_eager_ddp_1n8g.log 2>&1 &
 MASTER_ADDR=127.0.0.1
 MASTER_PORT=17788
-TOTAL_DEVICE_NUM=4
+TOTAL_DEVICE_NUM=8
 NUM_NODES=1
 NODE_RANK=0
 
-OFRECORD_PATH="/DATA/disk1/ImageNet/ofrecord/"
+OFRECORD_PATH="/usr/local/datasets/imagenet/ofrecord/"
 # if [ ! -d "$OFRECORD_PATH" ]; then
 #     wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/datasets/imagenette_ofrecord.tar.gz
 #     tar zxf imagenette_ofrecord.tar.gz
@@ -20,8 +20,8 @@ fi
 OFRECORD_PART_NUM=256
 LEARNING_RATE=0.768
 MOM=0.875
-EPOCH=2000
-TRAIN_BATCH_SIZE_PER_DEVICE=64
+EPOCH=90
+TRAIN_BATCH_SIZE_PER_DEVICE=96
 VAL_BATCH_SIZE=50
 
 NCCL_DEBUG=INFO \
