@@ -12,6 +12,7 @@ sys.path.append(".")
 # from models.resnet50 import resnet50
 # from utils.ofrecord_data_utils import OFRecordDataLoader
 from graph.train_consistent import prepare_modules, parse_args
+from utils.debug import dump_to_npy
 
 class AverageMeter:
     """Computes and stores the average and current value"""
@@ -51,9 +52,17 @@ def train_one_epoch(args, model, criterion, data_loader, optimizer, epoch, lr_sc
         # calculate
         logits = model(image)
         loss = criterion(logits, label)
+        logits.retain_grad()
+        loss.retain_grad()
+        # conv1_weight.retain_grad()
 
         # update model
         loss.backward()
+        # dump_to_npy(logits, name=f'{steps}/logits')
+        # dump_to_npy(logits.grad, name=f'{steps}/logits_grad')
+        # dump_to_npy(conv1_weight, name=f'{steps}/conv1_weight')
+        # dump_to_npy(conv1_weight.grad, name=f'{steps}/conv1_weight_grad')
+
         optimizer.step()
         optimizer.zero_grad()
 
@@ -66,6 +75,7 @@ def train_one_epoch(args, model, criterion, data_loader, optimizer, epoch, lr_sc
         if steps % args.loss_print_every_n_iter == 0:
             lr = optimizer.param_groups[0]['lr']
             print("Train:[%d/%d][%d/%d] Time: %.4f(%.4f) Training Loss: %.4f (%.4f) Lr: %.6f" % ((epoch + 1), args.num_epochs, steps, num_steps, batch_time.val, batch_time.avg, loss_meter.val, loss_meter.avg, lr))
+        # flow.save(model.state_dict(), f'iter{steps}_ckpt')
         if steps >= 100:
             break
 
