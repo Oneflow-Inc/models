@@ -2,7 +2,7 @@ import os
 import oneflow as flow
 
 
-def make_data_loader(args, mode):
+def make_data_loader(args, mode, is_consistent=False):
     # TODO(zwx): support synthetic data
     assert mode in ("train", "validation")
 
@@ -18,8 +18,8 @@ def make_data_loader(args, mode):
     placement = None
     sbp = None
 
-    world_size = flow.distributed.get_world_size()
-    if args.graph or (world_size > 1 and not args.ddp):
+    if is_consistent:
+        world_size = flow.env.get_world_size()
         placement = flow.placement("cpu", {0: range(world_size)})
         sbp = flow.sbp.split(0)
 

@@ -32,9 +32,10 @@ class Trainer(object):
         self.batches_ = args.batches_per_epoch
         self.val_batches_ = args.val_batches_per_epoch
         self.load_path_ = args.load
+        self.skip_eval_ = args.skip_eval
 
-        self.rank_ = flow.distributed.get_rank()
-        self.world_size_ = flow.distributed.get_world_size()
+        self.rank_ = flow.env.get_rank()
+        self.world_size_ = flow.env.get_world_size()
 
         self.with_graph_ = args.graph
         self.with_ddp_ = args.ddp
@@ -54,8 +55,8 @@ class Trainer(object):
         self._init_model()
         self.cross_entropy = make_cross_entropy(args)
 
-        self.train_data_loader = make_data_loader(args, "train")
-        self.val_data_loader = make_data_loader(args, "validation")
+        self.train_data_loader = make_data_loader(args, "train", self.is_consistent_)
+        self.val_data_loader = make_data_loader(args, "validation", self.is_consistent_)
 
         self.optimizer = make_optimizer(args, self.model)
         self.lr_scheduler = make_lr_scheduler(args, self.optimizer)
@@ -74,12 +75,12 @@ class Trainer(object):
 
     def _init_model(self):
         if self.is_consistent_:
-            self.model = self.model.to("cuda")
-        else:
             placement = flow.placement("cuda", {0: range(self.world_size_)})
             self.model = self.model.to_consistent(
                 placement=placement, sbp=flow.sbp.broadcast
             )
+        else:
+            self.model = self.model.to("cuda")
 
         if self.load_path_ is None:
             self._init_parameters()
@@ -90,11 +91,11 @@ class Trainer(object):
             self.model = ddp(self.model)
 
         # DEBUG(zwx):
-        print(f"is consistent? {self.is_consistent_}")
-        print(f"with ddp? {self.with_ddp_}")
-        for name, p in self.model.named_parameters():
-            if not p.is_consistent:
-                print(f"{name} is not consistent")
+        # print(f"is consistent? {self.is_consistent_}")
+        # print(f"with ddp? {self.with_ddp_}")
+        # for name, p in self.model.named_parameters():
+        #     if not p.is_consistent:
+        #         print(f"{name} is not consistent")
 
     def _init_parameters(self):
         # raise NotImplementedError
@@ -122,7 +123,9 @@ class Trainer(object):
 
             self.cur_epoch_ += 1
             self.cur_iter_ = 0
-            self._eval()
+
+            if not self.skip_eval_:
+                self._eval()
 
     def _train_one_epoch_with_graph(self):
         for _ in range(self.batches_):

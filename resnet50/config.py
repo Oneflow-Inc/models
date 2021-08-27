@@ -139,9 +139,7 @@ def parse_args(ignore_unknown_args=False):
         help="num of pic classes",
     )
     parser.add_argument(
-        "--channels-last",
-        action="store_true",
-        dest="channels_last",
+        "--channels-last", action="store_true", dest="channels_last",
     )
     parser.add_argument(
         "--samples-per-epoch",
@@ -165,17 +163,12 @@ def parse_args(ignore_unknown_args=False):
         help="label smoothing factor",
     )
     parser.add_argument(
-        "--batches-per-epoch",
-        type=int,
-        default=None,
-        dest="batches_per_epoch",
+        "--batches-per-epoch", type=int, default=None, dest="batches_per_epoch",
     )
     parser.add_argument(
-        "--val-batches-per-epoch",
-        type=int,
-        default=None,
-        dest="val_batches_per_epoch",
+        "--val-batches-per-epoch", type=int, default=None, dest="val_batches_per_epoch",
     )
+    parser.add_argument("--skip-eval", action="store_true", dest="skip_eval")
 
     # log and loss print
     parser.add_argument(
@@ -200,7 +193,7 @@ def parse_args(ignore_unknown_args=False):
     if args.ddp and args.graph:
         raise ValueError("graph and ddp can't be set at the same time")
 
-    world_size = flow.distributed.get_world_size()
+    world_size = flow.env.get_world_size()
     if args.train_global_batch_size is None:
         args.train_global_batch_size = args.train_batch_size * world_size
     else:
