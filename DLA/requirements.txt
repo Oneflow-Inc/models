@@ -1,4 +1,4 @@
-numpy
-oneflow
-Pillow
-visdom
+numpy==1.19.5
+oneflow==0.5.0.dev20210801+cu102
+Pillow==8.3.1
+visdom==0.1.8.9
