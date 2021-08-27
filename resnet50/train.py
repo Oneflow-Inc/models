@@ -64,7 +64,10 @@ class Trainer(object):
         self.lr_scheduler = make_lr_scheduler(args, self.optimizer)
 
         self.metric = Metric(
-            self.rank_, args.print_interval, print_format=args.print_format
+            self.rank_,
+            args.print_interval,
+            print_format=args.print_format,
+            persistent_file=args.metric_persistent_file,
         )
 
         if self.with_graph_:
@@ -143,16 +146,16 @@ class Trainer(object):
 
     def train_one_epoch_with_graph(self):
         for _ in range(self.batches_):
-            loss = self.train_graph()
+            loss, pred, label = self.train_graph()
             self.cur_iter_ += 1
 
-            loss_np = loss.to_local().numpy() if loss.is_consistent else loss.numpy()
+            top1_acc = calc_acc([tton(pred)], [tton(label)])
             self.metric.step(
                 rank=self.rank_,
                 epoch=self.cur_epoch_,
                 iter=self.cur_iter_,
-                loss=loss_np.item(),
-                top1=0.0,
+                loss=tton(loss).item(),
+                top1=top1_acc,
                 job="train",
             )
 
@@ -160,7 +163,7 @@ class Trainer(object):
         self.model.train()
 
         for _ in range(self.batches_):
-            loss = self.forward()
+            loss, pred, label = self.forward()
             loss.backward()
 
             self.optimizer.step()
@@ -171,23 +174,22 @@ class Trainer(object):
 
             self.cur_iter_ += 1
 
-            loss_np = loss.to_local().numpy() if loss.is_consistent else loss.numpy()
+            top1_acc = calc_acc([tton(pred)], [tton(label)])
             self.metric.step(
                 rank=self.rank_,
                 epoch=self.cur_epoch_,
                 iter=self.cur_iter_,
-                loss=loss_np.item(),
-                top1=0.0,
+                loss=tton(loss).item(),
+                top1=top1_acc,
                 job="train",
             )
 
     def forward(self):
         image, label = self.train_data_loader()
-        image = image.to("cuda")
-        label = label.to("cuda")
-        logits = self.model(image)
-        loss = self.cross_entropy(logits, label)
-        return loss
+        logits = self.model(image.to("cuda"))
+        pred = logits.softmax()
+        loss = self.cross_entropy(logits, label.to("cuda"))
+        return loss, pred, label
 
     def inference(self):
         image, label = self.val_data_loader()
@@ -200,31 +202,17 @@ class Trainer(object):
     def eval(self):
         self.model.eval()
 
-        correct_of = 0.0
-        num_samples = 0
+        preds, labels = [], []
         for _ in range(self.val_batches_):
             if self.with_graph_:
                 pred, label = self.eval_graph()
             else:
                 pred, label = self.inference()
 
-            if pred.is_consistent:
-                # pred = pred.to_consistent(sbp=flow.sbp.broadcast).to_local().numpy()
-                pred = pred.to_local().numpy()
-            else:
-                pred = pred.numpy()
+            preds.append(tton(pred))
+            labels.append(tton(label))
 
-            if label.is_consistent:
-                # label = label.to_consistent(sbp=flow.sbp.broadcast).to_local().numpy()
-                label = label.to_local().numpy()
-            else:
-                label = label.numpy()
-
-            clsidxs = np.argmax(pred, axis=1)
-            correct_of += (clsidxs == label).sum()
-            num_samples += label.size
-
-        top1_acc = correct_of / num_samples
+        top1_acc = calc_acc(preds, labels)
 
         self.metric.print(
             rank=self.rank_,
@@ -255,6 +243,31 @@ class Trainer(object):
             return
 
 
+def tton(tensor, local_only=True):
+    """ tensor to numpy """
+    if tensor.is_consistent:
+        if local_only:
+            tensor = tensor.to_local().numpy()
+        else:
+            tensor = tensor.to_consistent(sbp=flow.sbp.broadcast).to_local().numpy()
+    else:
+        tensor = tensor.numpy()
+
+    return tensor
+
+
+def calc_acc(preds, labels):
+    correct_of = 0.0
+    num_samples = 0
+    for pred, label in zip(preds, labels):
+        clsidxs = np.argmax(pred, axis=1)
+        correct_of += (clsidxs == label).sum()
+        num_samples += label.size
+
+    top1_acc = correct_of / num_samples
+    return top1_acc
+
+
 def _last(s):
     return s.iloc[-1]
 
@@ -269,7 +282,12 @@ def _mean(s):
 
 class Metric(object):
     def __init__(
-        self, rank, print_interval, print_only_on_rank=None, print_format="normal"
+        self,
+        rank,
+        print_interval,
+        print_only_on_rank=None,
+        print_format="normal",
+        persistent_file=None,
     ):
         self.rank_ = rank
         self.print_interval_ = print_interval
@@ -277,7 +295,9 @@ class Metric(object):
         self.step_ = 0
 
         self.p_ = Printer(
-            ("rank", "epoch", "iter", "job", "loss", "top1"), print_format
+            ("rank", "epoch", "iter", "job", "loss", "top1"),
+            print_format,
+            persistent_file,
         )
 
         self.p_.register_handler("rank", _last)

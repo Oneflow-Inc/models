@@ -3,11 +3,12 @@ from collections import namedtuple
 
 
 class Printer(object):
-    def __init__(self, field_names, print_format="table"):
+    def __init__(self, field_names, print_format="table", persistent_file=None):
         assert print_format in ("table", "normal")
 
         self.field_names_ = field_names
         self.format_ = print_format
+        self.persistent_file_ = persistent_file
         self.records_ = []
         self.handlers_ = dict()
         self.str_lens_ = dict()
@@ -15,7 +16,6 @@ class Printer(object):
         self.Record = None
 
     def finish(self):
-        self.Record = namedtuple("Record", self.field_names_)
         err = f"{len(self.field_names_)} vs. {len(self.handlers_)}"
         assert len(self.field_names_) == len(self.handlers_), err
         err = f"{len(self.field_names_)} vs. {len(self.str_lens_)}"
@@ -23,6 +23,13 @@ class Printer(object):
         for fname in self.field_names_:
             assert fname in self.handlers_, f"{fname} handler not register"
             assert fname in self.str_lens_, f"{fname} str_len not register"
+
+        self.Record = namedtuple("Record", self.field_names_)
+        # DEBUG(zwx):
+        # dummy = self.Record(*(["-"] * len(self.field_names_)))
+        # df = pd.DataFrame(dummy)
+        # if self.persistent_file_ is not None:
+        #     df.to_csv(self.persistent_file_, mode='a', header=True)
 
     def record(self, *args, **kwargs):
         assert self.Record is not None
@@ -88,5 +95,8 @@ class Printer(object):
             print(record)
         else:
             raise ValueError
+
+        if self.persistent_file_ is not None:
+            df.to_csv(self.persistent_file_, mode='a', header=False)
 
         self.reset_records()

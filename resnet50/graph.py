@@ -31,12 +31,11 @@ class TrainGraph(flow.nn.Graph):
 
     def build(self):
         image, label = self.data_loader()
-        image = image.to("cuda")
-        label = label.to("cuda")
-        logits = self.model(image)
-        loss = self.cross_entropy(logits, label)
+        logits = self.model(image.to("cuda"))
+        pred = logits.softmax()
+        loss = self.cross_entropy(logits, label.to("cuda"))
         loss.backward()
-        return loss
+        return loss, pred, label
 
 
 class EvalGraph(flow.nn.Graph):
