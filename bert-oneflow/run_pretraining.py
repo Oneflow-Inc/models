@@ -1,12 +1,16 @@
 import argparse
 import os
 import time
-
 from functools import partial
+from compare_lazy_outputs import load_params_from_lazy
+
+import numpy as np
 import oneflow as flow
-from modeling import BertForPreTraining
 from oneflow import nn
+
+from modeling import BertForPreTraining
 from utils.ofrecord_data_utils import OfRecordDataLoader
+from utils.reporter import Reporter
 
 
 def save_model(module: nn.Module, checkpoint_path: str, epoch: int, acc: float):
@@ -17,7 +21,7 @@ def save_model(module: nn.Module, checkpoint_path: str, epoch: int, acc: float):
 
 
 def train(epoch, iter_per_epoch, graph, print_interval):
-    total_loss = 0.0
+    total_loss = []
     total_correct = 0
     total_element = 0
     for i in range(iter_per_epoch):
@@ -27,7 +31,7 @@ def train(epoch, iter_per_epoch, graph, print_interval):
         next_sent_output, next_sent_labels, loss = graph()
 
         # Waiting for sync
-        loss = loss.numpy().item()
+        loss = flow.cast(loss, dtype=flow.float64).numpy().item()
         end_t = time.time()
 
         # next sentence prediction accuracy
@@ -38,22 +42,23 @@ def train(epoch, iter_per_epoch, graph, print_interval):
             .numpy()
             .item()
         )
-        total_loss += loss
+        total_loss.append(loss)
         total_correct += correct
         total_element += next_sent_labels.nelement()
 
         if (i + 1) % print_interval == 0:
             print(
                 "Epoch {}, train iter {}, loss {:.3f}, iter time: {:.3f}s".format(
-                    epoch, (i + 1), total_loss / (i + 1), end_t - start_t
+                    epoch, (i + 1), np.mean(total_loss), end_t - start_t
                 )
             )
 
     print(
         "Epoch {}, train iter {}, loss {:.3f}, total accuracy {:.2f}".format(
-            epoch, (i + 1), total_loss / (i + 1), total_correct * 100.0 / total_element
+            epoch, (i + 1), np.mean(total_loss), total_correct * 100.0 / total_element
         )
     )
+    return total_loss
 
 
 def validation(
@@ -104,10 +109,10 @@ def main():
         help="Path to ofrecord dataset",
     )
     parser.add_argument(
-        "--train-batch-size", type=int, default=16, help="Training batch size"
+        "--train-batch-size", type=int, default=32, help="Training batch size"
     )
     parser.add_argument(
-        "--val-batch-size", type=int, default=16, help="Validation batch size"
+        "--val-batch-size", type=int, default=32, help="Validation batch size"
     )
 
     parser.add_argument(
@@ -180,7 +185,7 @@ def main():
     print("Creating Dataloader")
     train_data_loader = OfRecordDataLoader(
         ofrecord_dir=args.ofrecord_path,
-        mode='train',
+        mode='test',
         dataset_size=1024,
         batch_size=args.train_batch_size,
         data_part_num=1,
@@ -207,11 +212,17 @@ def main():
         args.atten_heads,
         args.intermediate_size,
         nn.GELU(),
-        args.hidden_dropout_prob,
-        args.attention_probs_dropout_prob,
+        0.,# args.hidden_dropout_prob,
+        0.,# args.attention_probs_dropout_prob,
         args.max_position_embeddings,
         args.type_vocab_size,
     )
+
+    # Load the same initial parameters with lazy model.
+    load_params_from_lazy(bert_model.state_dict(), flow.load(
+        "../../OneFlow-Benchmark/LanguageModeling/BERT/snapshots/snapshot_snapshot_1"
+    ))
+    
     bert_model.to(device)
 
     optimizer = flow.optim.Adam(
@@ -334,25 +345,33 @@ def main():
 
             with flow.no_grad():
                 # 1. forward the next_sentence_prediction and masked_lm model
-                _, seq_relationship_scores = self.bert(input_ids, input_masks, segment_ids)
+                _, seq_relationship_scores = self.bert(
+                    input_ids, input_masks, segment_ids
+                )
 
             return seq_relationship_scores, next_sent_labels
 
     bert_eval_graph = BertEvalGraph()
 
+    train_total_losses = []
     for epoch in range(args.epochs):
         # Train
         bert_model.train()
-        train(epoch, len(train_data_loader), bert_graph, args.print_interval)
-
-        # Eval
-        bert_model.eval()
-        val_acc = validation(
-            epoch, len(test_data_loader), bert_eval_graph, args.print_interval * 10
+        train_total_loss = train(
+            epoch, len(train_data_loader), bert_graph, args.print_interval
         )
 
-        print("Saveing model ...")
-        save_model(bert_model, args.checkpoint_path, epoch, val_acc)
+        train_total_losses.extend(train_total_loss)
+
+    Reporter.write2file(train_total_losses, "bert_graph_loss1.txt")
+    # Eval
+    # bert_model.eval()
+    # val_acc = validation(
+    #     epoch, len(test_data_loader), bert_eval_graph, args.print_interval * 10
+    # )
+
+    # print("Saveing model ...")
+    # save_model(bert_model, args.checkpoint_path, epoch, val_acc)
 
 
 if __name__ == "__main__":

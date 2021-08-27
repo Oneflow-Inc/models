@@ -43,7 +43,7 @@ def change_name_from_lazy_to_eager(lazy_name: str):
 
 
 def load_params_from_lazy(eager_state_dict, lazy_state_dict):
-    all_eager_names_list = set(bert_module.state_dict().keys())
+    all_eager_names_list = set(eager_state_dict.keys())
 
     # load regular weights
     for lazy_name, lazy_weight in lazy_state_dict.items():
