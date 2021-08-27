@@ -117,7 +117,7 @@ def main():
         "--hidden-layers", type=int, default=12, help="Number of layers"
     )
     parser.add_argument(
-        "-a", "--atten_heads", type=int, default=12, help="Number of attention heads"
+        "-a", "--atten-heads", type=int, default=12, help="Number of attention heads"
     )
     parser.add_argument(
         "--intermediate-size",
@@ -139,7 +139,7 @@ def main():
     parser.add_argument("-e", "--epochs", type=int, default=10, help="Number of epochs")
 
     parser.add_argument(
-        "--with_cuda",
+        "--with-cuda",
         type=bool,
         default=True,
         help="Training with CUDA: true, or false",

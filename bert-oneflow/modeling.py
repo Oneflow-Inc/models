@@ -13,6 +13,7 @@ class BertEmbeddings(nn.Module):
         type_vocab_size,
         max_position_embeddings,
         hidden_size,
+        hidden_dropout_prob,
         seq_length,
     ):
         super().__init__()
@@ -20,8 +21,8 @@ class BertEmbeddings(nn.Module):
         self.position_embeddings = nn.Embedding(max_position_embeddings, hidden_size)
         self.token_type_embeddings = nn.Embedding(type_vocab_size, hidden_size)
 
-        self.layernorm = nn.LayerNorm(hidden_size)
-        self.dropout = nn.Dropout()
+        self.LayerNorm = nn.LayerNorm(hidden_size)
+        self.dropout = nn.Dropout(hidden_dropout_prob)
         self.register_buffer(
             "position_ids", flow.arange(max_position_embeddings).unsqueeze(0)
         )
@@ -31,14 +32,14 @@ class BertEmbeddings(nn.Module):
 
         input_embeds = self.word_embeddings(input_ids)
 
-        if position_ids is None:
-            position_ids = self.position_ids[:, : self.seq_length]
+        if position_ids is None: 
+            position_ids = self.position_ids[:, : self.seq_length]  
         position_embeds = self.position_embeddings(position_ids)
 
         token_type_embeds = self.token_type_embeddings(token_type_ids)
 
         embeddings = input_embeds + token_type_embeds + position_embeds
-        embeddings = self.layernorm(embeddings)
+        embeddings = self.LayerNorm(embeddings)
         embeddings = self.dropout(embeddings)
         return embeddings
 
@@ -101,13 +102,13 @@ class BertSelfOutput(nn.Module):
     def __init__(self, hidden_size, hidden_dropout_prob):
         super().__init__()
         self.dense = nn.Linear(hidden_size, hidden_size)
-        self.layernorm = nn.LayerNorm(hidden_size)
+        self.LayerNorm = nn.LayerNorm(hidden_size)
         self.dropout = nn.Dropout(hidden_dropout_prob)
 
     def forward(self, hidden_states, input_tensor):
         hidden_states = self.dense(hidden_states)
         hidden_states = self.dropout(hidden_states)
-        hidden_states = self.layernorm(hidden_states + input_tensor)
+        hidden_states = self.LayerNorm(hidden_states + input_tensor)
         return hidden_states
 
 
@@ -121,13 +122,13 @@ class BertAttention(nn.Module):
         attention_probs_dropout_prob=0.1,
     ):
         super().__init__()
-        self.self_atten = BertSelfAttention(
+        self.self = BertSelfAttention(
             num_attention_heads, hidden_size, seq_len, attention_probs_dropout_prob
         )
         self.output = BertSelfOutput(hidden_size, hidden_dropout_prob)
 
     def forward(self, hidden_states, attention_mask):
-        self_attention_output = self.self_atten(hidden_states, attention_mask)
+        self_attention_output = self.self(hidden_states, attention_mask)
         output = self.output(self_attention_output, hidden_states)
         return output
 
@@ -148,13 +149,13 @@ class BertOutput(nn.Module):
     def __init__(self, intermediate_size, hidden_size, hidden_dropout_prob=0.1):
         super().__init__()
         self.dense = nn.Linear(intermediate_size, hidden_size)
-        self.layernorm = nn.LayerNorm(hidden_size)
+        self.LayerNorm = nn.LayerNorm(hidden_size)
         self.dropout = nn.Dropout(hidden_dropout_prob)
 
     def forward(self, hidden_states, input_tensor):
         hidden_states = self.dense(hidden_states)
         hidden_states = self.dropout(hidden_states)
-        hidden_states = self.layernorm(hidden_states + input_tensor)
+        hidden_states = self.LayerNorm(hidden_states + input_tensor)
         return hidden_states
 
 
@@ -202,7 +203,7 @@ class BertEncoder(nn.Module):
     ):
         super().__init__()
 
-        self.layers = nn.ModuleList(
+        self.layer = nn.ModuleList(
             [
                 BertLayer(
                     num_attention_heads,
@@ -260,6 +261,7 @@ class BertModel(nn.Module):
             type_vocab_size,
             max_position_embeddings,
             hidden_size,
+            hidden_dropout_prob,
             seq_length,
         )
         self.encoder = BertEncoder(
@@ -317,12 +319,12 @@ class BertPredictionHeadTransform(nn.Module):
         super().__init__()
         self.dense = nn.Linear(hidden_size, hidden_size)
         self.transform_act_fn = hidden_act
-        self.layernorm = nn.LayerNorm(hidden_size)
+        self.LayerNorm = nn.LayerNorm(hidden_size)
 
     def forward(self, sequence_output):
         sequence_output = self.dense(sequence_output)
         sequence_output = self.transform_act_fn(sequence_output)
-        sequence_output = self.layernorm(sequence_output)
+        sequence_output = self.LayerNorm(sequence_output)
         return sequence_output
 
 
@@ -333,12 +335,12 @@ class BertLMPredictionHead(nn.Module):
 
         # The output weights are the same as the input embeddings, but there is
         # an output-only bias for each token.
-        self.decoder = nn.Linear(hidden_size, vocab_size)
+        self.decoder = nn.Linear(hidden_size, vocab_size, bias=False)
 
-        self.bias = nn.Parameter(flow.zeros(vocab_size))
+        self.output_bias = nn.Parameter(flow.zeros(vocab_size))
 
         # Need a link between the two variables so that the bias is correctly resized with `resize_token_embeddings`
-        self.decoder.bias = self.bias
+        self.decoder.bias = self.output_bias
 
     def forward(self, sequence_output):
         sequence_output = self.transform(sequence_output)
