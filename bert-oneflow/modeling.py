@@ -219,7 +219,7 @@ class BertEncoder(nn.Module):
         )
 
     def forward(self, hidden_states, attention_mask):
-        for layer_module in self.layers:
+        for layer_module in self.layer:
             hidden_states = layer_module(hidden_states, attention_mask)
         return hidden_states
 
