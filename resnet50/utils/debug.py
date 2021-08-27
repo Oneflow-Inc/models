@@ -14,8 +14,15 @@ def load_meta_info(path):
     with open(os.path.join(path, 'meta'), 'r') as f:
         meta_info = VariableMetaInfo()
         text_format.Parse(f.read(), meta_info)
-    assert meta_info.data_type == 2, 'float only'
-    return np.float32, list(meta_info.shape.dim)
+    
+    if meta_info.data_type in [2, 3]:
+        dtype = np.float32
+    elif meta_info.data_type in [4, 5, 6, 7]:
+        dtype = np.int32
+    else:
+        assert 'UNIMPLEMENTED'
+
+    return dtype, list(meta_info.shape.dim)
 
 
 def npy_compare(lhs_path, rhs_path):
@@ -155,15 +162,16 @@ def walk_compare(lhs, rhs, func, endswith='out', detail_func=None):
     print('ignore:', ignore)
 
 
-def var_to_ndarray_compare(lhs_path, rhs_path):
-    def get_meta_info_from_out_file(out_file):
-        # path = os.path.join(os.path.dirname(out_file), 'meta')
-        path = os.path.dirname(out_file)
-        if os.path.isfile(path + '/meta'):
-            return load_meta_info(path)
-        else:
-            return None
+def get_meta_info_from_out_file(out_file):
+    # path = os.path.join(os.path.dirname(out_file), 'meta')
+    path = os.path.dirname(out_file)
+    if os.path.isfile(path + '/meta'):
+        return load_meta_info(path)
+    else:
+        return None
 
+
+def var_to_ndarray_compare(lhs_path, rhs_path):
     meta_l = get_meta_info_from_out_file(lhs_path)
     meta_r = get_meta_info_from_out_file(rhs_path)
 
@@ -187,11 +195,41 @@ def var_to_ndarray_compare(lhs_path, rhs_path):
     return True
 
 
+def var_hist(out_file):
+    root = os.path.dirname(os.path.dirname(out_file))
+    var_name = os.path.basename(os.path.dirname(out_file))
+    if 'System-Train-TrainStep' in var_name:
+        return
+    fig_file = os.path.join(root, f'{var_name}.png')
+    print(fig_file)
+
+    meta = get_meta_info_from_out_file(out_file)
+    param = np.fromfile(out_file, dtype=meta[0])
+    # the histogram of the data
+    n, bins, patches = plt.hist(param, density=False, facecolor='g')
+
+    plt.title(f'Histogram of {var_name}')
+    plt.grid(True)
+    plt.savefig(fig_file)
+    plt.close()
+
+
+def walk_and_do(path, func, endswith='out'):
+    assert os.path.isdir(path)
+
+    for root, dirs, files in os.walk(path):
+        for name in filter(lambda f: f.endswith(endswith), files):
+            filename = os.path.join(root, name)
+            func(filename)
+
+
 if __name__ == '__main__':
-    path0 = '/ssd/xiexuan/models/resnet50/iter0_ckpt'
-    path1 = '/ssd/xiexuan/OneFlow-Benchmark/Classification/cnns/output/snapshots/model_save-20210826105011/snapshot_epoch_0_iter0'
-    # walk_compare_of_variable(path0, path1)
-    # walk_compare(path0, path1, file_cksum_compare, 'out')
-    walk_compare(path0, path1, var_to_ndarray_compare, 'out')
-    # walk_compare(path0, path1, npy_compare, '.npy', npy_diff)
-    # walk_compare_npy('output', '/ssd/xiexuan/OneFlow-Benchmark/Classification/cnns/output')
+    # compare ckpt values of two folder
+    # path0 = '/ssd/xiexuan/models/resnet50/iter0_ckpt'
+    # path1 = '/ssd/xiexuan/OneFlow-Benchmark/Classification/cnns/output/snapshots/model_save-20210826105011/snapshot_epoch_0_iter0'
+    # walk_compare(path0, path1, var_to_ndarray_compare, 'out')
+
+    # gen ckpt weight hist figures
+    path = '/ssd/xiexuan/OneFlow-Benchmark/Classification/cnns/init_ckpt_by_lazy'
+    path = '/ssd/xiexuan/models/resnet50/init_ckpt_by_graph'
+    walk_and_do(path, var_hist)

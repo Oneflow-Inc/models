@@ -42,7 +42,7 @@ python3 -m oneflow.distributed.launch \
     --master_addr $MASTER_ADDR \
     graph/train_consistent.py \
     --loss_print_every_n_iter=1 \
-    --load_checkpoint 'init_ckpt' \
+    --load_checkpoint './init_ckpt_by_lazy' \
     --save_checkpoint_path $CHECKPOINT_PATH \
     --ofrecord_path $OFRECORD_PATH \
     --ofrecord_part_num $OFRECORD_PART_NUM \

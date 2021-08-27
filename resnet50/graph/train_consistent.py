@@ -206,24 +206,21 @@ def prepare_modules(args, to_consistent=True):
     else:
         of_cross_entropy = flow.nn.CrossEntropyLoss(reduction='mean')
 
-    def load_ckpt():
-        if args.load_checkpoint != "":
-            loaded_state_dict = flow.load(
-                args.load_checkpoint, consistent_src_rank=0 if to_consistent else None
-            )
-            print("rank %d load_checkpoint >>>>>>>>> " % rank, args.load_checkpoint)
-            resnet50_module.load_state_dict(loaded_state_dict)
-
     if to_consistent:
         placement = flow.placement("cuda", {0: device_list})
         sbp = [flow.sbp.broadcast]
         resnet50_module.to_consistent(placement=placement, sbp=sbp)
         of_cross_entropy.to_consistent(placement=placement, sbp=sbp)
-        load_ckpt()
     else:
         resnet50_module.to("cuda")
         of_cross_entropy.to("cuda")
-        load_ckpt()
+        
+    if args.load_checkpoint != "":
+        loaded_state_dict = flow.load(
+            args.load_checkpoint, consistent_src_rank=0 if to_consistent else None
+        )
+        print("rank %d load_checkpoint >>>>>>>>> " % rank, args.load_checkpoint)
+        resnet50_module.load_state_dict(loaded_state_dict)
     print(args)
 
     # flow.save(resnet50_module.state_dict(), "init_ckpt", consistent_dst_rank=0)
