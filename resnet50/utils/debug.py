@@ -244,4 +244,4 @@ if __name__ == '__main__':
     # gen ckpt weight hist figures
     path = '/ssd/xiexuan/OneFlow-Benchmark/Classification/cnns/init_ckpt_by_lazy'
     path = '/ssd/xiexuan/models/resnet50/init_ckpt_by_graph'
-    walk_and_do(path, var_hist)
+    walk_and_do(path, var_statistics)
