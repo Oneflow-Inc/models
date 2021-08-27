@@ -197,6 +197,9 @@ def parse_args(ignore_unknown_args=False):
     if args.num_nodes > 1:
         raise ValueError("Not support num_nodes > 1")
 
+    if args.ddp and args.graph:
+        raise ValueError("graph and ddp can't be set at the same time")
+
     world_size = flow.distributed.get_world_size()
     if args.train_global_batch_size is None:
         args.train_global_batch_size = args.train_batch_size * world_size

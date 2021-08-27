@@ -1,4 +1,5 @@
 # set -aux
+
 DEVICE_NUM_PER_NODE=1
 MASTER_ADDR=127.0.0.1
 NUM_NODES=1
@@ -9,9 +10,6 @@ echo PYTHONUNBUFFERED=$PYTHONUNBUFFERED
 export NCCL_LAUNCH_MODE=PARALLEL
 echo NCCL_LAUNCH_MODE=$NCCL_LAUNCH_MODE
 export NCCL_DEBUG=INFO
-
-# SRC_DIR=/path/to/models/resnet50
-SRC_DIR=$(realpath $(dirname $0)/..)
 
 # OFRECORD_PATH="/DATA/disk1/ImageNet/ofrecord/"
 OFRECORD_PATH=/dataset/ImageNet/ofrecord/ 
@@ -27,6 +25,9 @@ MOM=0.875
 EPOCH=50
 TRAIN_BATCH_SIZE=96
 VAL_BATCH_SIZE=50
+
+# SRC_DIR=/path/to/models/resnet50
+SRC_DIR=$(realpath $(dirname $0)/..)
 
 python3 $SRC_DIR/train.py \
     --save $CHECKPOINT_PATH \

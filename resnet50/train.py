@@ -13,16 +13,13 @@ import oneflow as flow
 from oneflow.nn.parallel import DistributedDataParallel as ddp
 
 from config import get_args
+from graph import make_train_graph, make_eval_graph
 from models.resnet50 import resnet50
 from models.data import make_data_loader
 from models.optimizer import make_optimizer
-from models.optimizer import make_grad_scaler
 from models.optimizer import make_lr_scheduler
 from models.optimizer import make_cross_entropy
 from utils.printer import Printer
-
-# from utils.debug import dump_to_npy
-# from utils.ofrecord_data_utils import OFRecordDataLoader
 
 
 class Trainer(object):
@@ -36,20 +33,26 @@ class Trainer(object):
         self.val_batches_ = args.val_batches_per_epoch
         self.load_path_ = args.load
 
+        self.rank_ = flow.distributed.get_rank()
+        self.world_size_ = flow.distributed.get_world_size()
+
         self.with_graph_ = args.graph
         self.with_ddp_ = args.ddp
+        self.is_consistent_ = (
+            self.world_size_ > 1 and not self.with_ddp
+        ) or self.with_graph_
 
         if args.use_fp16 and not self.with_graph_:
             raise ValueError("NOT support fp16 in eager mode")
 
-        self.rank_ = flow.distributed.get_rank()
+        flow.boxing.nccl.set_fusion_threshold_mbytes(args.nccl_fusion_threshold_mb)
+        flow.boxing.nccl.set_fusion_max_ops_num(args.nccl_fusion_max_ops)
+        if args.use_fp16 and args.num_nodes * args.num_devices_per_node > 1:
+            flow.boxing.nccl.enable_use_buffer_to_fuse_all_reduce(False)
 
         self.model = resnet50()
         self._init_model()
         self.cross_entropy = make_cross_entropy(args)
-
-        self.model.to("cuda")
-        self.cross_entropy.to("cuda")
 
         self.train_data_loader = make_data_loader(args, "train")
         self.val_data_loader = make_data_loader(args, "validation")
@@ -59,36 +62,84 @@ class Trainer(object):
 
         self.metric = Metric(self.rank_, args.print_interval)
 
-    def _init_model(self):
-        if self.load_path_ is None:
-            pass
-        else:
-            if self.with_ddp_:
-                if self.rank_ == 0:
-                    self.model.load_state_dict(flow.load(self.load_path_))
+        if self.with_graph_:
+            self.train_graph = make_train_graph(
+                self.model,
+                self.cross_entropy,
+                self.train_data_loader,
+                self.optimizer,
+                self.lr_scheduler,
+            )
+            self.eval_graph = make_eval_graph(self.model, self.val_data_loader)
 
-                self.model = ddp(self.model)
-            else:
-                self.model.load_state_dict(
-                    flow.load(self.load_path_, consistent_src_rank=0)
-                )
+    def _init_model(self):
+        if self.is_consistent_:
+            self.model = self.model.to("cuda")
+        else:
+            placement = flow.placement("cuda", {0: range(self.world_size_)})
+            self.model = self.model.to_consistent(
+                placement=placement, sbp=flow.sbp.broadcast
+            )
+
+        if self.load_path_ is None:
+            self._init_parameters()
+        else:
+            self._load_state_dict()
+
+        if self.with_ddp_:
+            self.model = ddp(self.model)
+
+        # DEBUG(zwx):
+        print(f"is consistent? {self.is_consistent_}")
+        print(f"with ddp? {self.with_ddp_}")
+        for name, p in self.model.named_parameters():
+            if not p.is_consistent:
+                print(f"{name} is not consistent")
+
+    def _init_parameters(self):
+        # raise NotImplementedError
+        pass
+
+    def _load_state_dict(self):
+        if self.is_consistent_:
+            state_dict = flow.load(self.load_path_, consistent_src_rank=0)
+        elif self.rank_ == 0:
+            state_dict = flow.load(self.load_path_)
+        else:
+            return
+
+        self.model.load_state_dict(state_dict)
 
     def __call__(self):
-        if self.with_graph_:
-            self._train_with_graph()
-        else:
-            self._train()
+        self._train()
 
     def _train(self):
         for _ in range(self.num_epochs_):
-            self._train_one_epoch()
+            if self.with_graph_:
+                self._train_one_epoch_with_graph()
+            else:
+                self._train_one_epoch()
+
             self.cur_epoch_ += 1
             self.cur_iter_ = 0
             self._eval()
 
+    def _train_one_epoch_with_graph(self):
+        for _ in range(self.batches_):
+            loss = self.train_graph()
+            self.cur_iter_ += 1
+
+            loss_np = loss.to_local().numpy() if loss.is_consistent else loss.numpy()
+            self.metric.step(
+                epoch=self.cur_epoch_,
+                iter=self.cur_iter_,
+                loss=loss_np.item(),
+                top1=0.0,
+                job="train",
+            )
+
     def _train_one_epoch(self):
         self.model.train()
-        self.optimizer.zero_grad()
 
         for _ in range(self.batches_):
             loss = self._forward()
@@ -115,15 +166,14 @@ class Trainer(object):
         image, label = self.train_data_loader()
         image = image.to("cuda")
         label = label.to("cuda")
-
         logits = self.model(image)
         loss = self.cross_entropy(logits, label)
         return loss
 
     def _inference(self):
         image, label = self.val_data_loader()
-        logits = self.model(image.to("cuda"))
         with flow.no_grad():
+            logits = self.model(image.to("cuda"))
             predictions = logits.softmax()
 
         return predictions, label
@@ -134,7 +184,10 @@ class Trainer(object):
         correct_of = 0.0
         num_samples = 0
         for _ in range(self.val_batches_):
-            pred, label = self._inference()
+            if self.with_graph_:
+                pred, label = self.eval_graph()
+            else:
+                pred, label = self._inference()
 
             if pred.is_consistent:
                 pred = pred.to_consistent(sbp=flow.sbp.broadcast).to_local().numpy()
@@ -215,17 +268,6 @@ class Metric(object):
         self.p_.print()
 
 
-def main():
-    args = get_args()
-
-    flow.boxing.nccl.set_fusion_threshold_mbytes(args.nccl_fusion_threshold_mb)
-    flow.boxing.nccl.set_fusion_max_ops_num(args.nccl_fusion_max_ops)
-    if args.use_fp16 and args.num_nodes * args.num_devices_per_node > 1:
-        flow.boxing.nccl.enable_use_buffer_to_fuse_all_reduce(False)
-
+if __name__ == "__main__":
     trainer = Trainer()
     trainer()
-
-
-if __name__ == "__main__":
-    main()
