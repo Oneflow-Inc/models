@@ -211,28 +211,28 @@ def main(args):
     best_acc = 0.0
     for epoch in range(args.epochs):
         print("rank %d ***** Runing Training *****" % rank)
-        train_loss = train_one_epoch(args, model, criterion, train_data_loader, optimizer, epoch, lr_scheduler, rank)
+        # train_loss = train_one_epoch(args, model, criterion, train_data_loader, optimizer, epoch, lr_scheduler, rank)
 
         print("rank %d ***** Run Validation *****")
         accuracy = valid(args, model, criterion, val_data_loader, rank)
         
         # save model after each epoch
-        if rank == 0:
-            print("***** Save Checkpoint *****")
-            save_path = os.path.join(args.save_checkpoint_path, "epoch_%d_val_acc_%f" % (epoch, accuracy))
-            save_checkpoint(model, save_path)
-            print("Save checkpoint to: ", save_path)
+        # if rank == 0:
+        #     print("***** Save Checkpoint *****")
+        #     save_path = os.path.join(args.save_checkpoint_path, "epoch_%d_val_acc_%f" % (epoch, accuracy))
+        #     save_checkpoint(model, save_path)
+        #     print("Save checkpoint to: ", save_path)
         
-        # save best model
-        if rank == 0 and best_acc < accuracy:
-            save_path = os.path.join(args.save_checkpoint_path, "best_model")
-            if os.path.exists(save_path):
-                shutil.rmtree(save_path, True)
-            save_checkpoint(model, save_path)
-            best_acc = accuracy
+        # # save best model
+        # if rank == 0 and best_acc < accuracy:
+        #     save_path = os.path.join(args.save_checkpoint_path, "best_model")
+        #     if os.path.exists(save_path):
+        #         shutil.rmtree(save_path, True)
+        #     save_checkpoint(model, save_path)
+        #     best_acc = accuracy
         
-        loss_list.append(train_loss)
-        accuracy_list.append(accuracy)
+        # loss_list.append(train_loss)
+        # accuracy_list.append(accuracy)
 
     if rank == 0:
         print("End Training!")

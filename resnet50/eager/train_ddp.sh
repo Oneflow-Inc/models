@@ -2,7 +2,7 @@
 
 MASTER_ADDR=127.0.0.1
 MASTER_PORT=17788
-TOTAL_DEVICE_NUM=4
+TOTAL_DEVICE_NUM=8
 NUM_NODES=1
 NODE_RANK=0
 
@@ -24,6 +24,8 @@ EPOCH=2000
 TRAIN_BATCH_SIZE_PER_DEVICE=64
 VAL_BATCH_SIZE=50
 
+LOAD_CHECKPOINT="graph_amp_checkpoints_only_for_train/epoch_1"
+
 NCCL_DEBUG=INFO \
 python3 -m oneflow.distributed.launch \
     --nproc_per_node $TOTAL_DEVICE_NUM \
@@ -39,4 +41,5 @@ python3 -m oneflow.distributed.launch \
     --mom $MOM \
     --epochs $EPOCH \
     --train_batch_size $TRAIN_BATCH_SIZE_PER_DEVICE \
-    --val_batch_size $VAL_BATCH_SIZE
+    --val_batch_size $VAL_BATCH_SIZE \
+    --load_checkpoint $LOAD_CHECKPOINT

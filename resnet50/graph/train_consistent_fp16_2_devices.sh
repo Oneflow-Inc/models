@@ -1,6 +1,6 @@
 # set -aux
 
-DEVICE_NUM_PER_NODE=8
+DEVICE_NUM_PER_NODE=2
 MASTER_ADDR=127.0.0.1
 NUM_NODES=1
 NODE_RANK=0
@@ -17,16 +17,21 @@ OFRECORD_PATH="/DATA/disk1/ImageNet/ofrecord/"
 #     tar zxf imagenette_ofrecord.tar.gz
 # fi
 
-CHECKPOINT_PATH="graph_checkpoints"
+CHECKPOINT_PATH="graph_amp_checkpoints"
 if [ ! -d "$CHECKPOINT_PATH" ]; then
     mkdir $CHECKPOINT_PATH
 fi
+# LOAD_CHECKPOINT="graph_amp_checkpoints_lr_1.024_batch_128_warmup_5/epoch_8_val_acc_0.603240"
 
 OFRECORD_PART_NUM=256
-LEARNING_RATE=0.768
+LEARNING_RATE=1.536
+# LEARNING_RATE=1.250
+# LEARNING_RATE=1.024
 MOM=0.875
-EPOCH=50
-TRAIN_BATCH_SIZE_PER_DEVICE=96
+EPOCH=90
+TRAIN_BATCH_SIZE_PER_DEVICE=192
+# TRAIN_BATCH_SIZE_PER_DEVICE=160
+# TRAIN_BATCH_SIZE_PER_DEVICE=128
 VAL_BATCH_SIZE_PER_DEVICE=50
 
 python3 -m oneflow.distributed.launch \
@@ -44,5 +49,10 @@ python3 -m oneflow.distributed.launch \
     --num_epochs $EPOCH \
     --train_batch_size_per_device $TRAIN_BATCH_SIZE_PER_DEVICE \
     --val_batch_size_per_device $VAL_BATCH_SIZE_PER_DEVICE \
+    --label_smoothing=0.1 \
+    --warmup_epochs 5 \
+    --use_fp16 \
     --nccl_fusion_threshold_mb=16 \
     --nccl_fusion_max_ops=24
+    # --load_checkpoint $LOAD_CHECKPOINT \
+
