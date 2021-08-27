@@ -32,6 +32,7 @@ class Trainer(object):
         self.batches_ = args.batches_per_epoch
         self.val_batches_ = args.val_batches_per_epoch
         self.load_path_ = args.load
+        self.save_path_ = args.save
         self.skip_eval_ = args.skip_eval
 
         self.rank_ = flow.env.get_rank()
@@ -40,7 +41,7 @@ class Trainer(object):
         self.with_graph_ = args.graph
         self.with_ddp_ = args.ddp
         self.is_consistent_ = (
-            self.world_size_ > 1 and not self.with_ddp
+            self.world_size_ > 1 and not self.with_ddp_
         ) or self.with_graph_
 
         if args.use_fp16 and not self.with_graph_:
@@ -52,7 +53,7 @@ class Trainer(object):
             flow.boxing.nccl.enable_use_buffer_to_fuse_all_reduce(False)
 
         self.model = resnet50()
-        self._init_model()
+        self.init_model()
         self.cross_entropy = make_cross_entropy(args)
 
         self.train_data_loader = make_data_loader(args, "train", self.is_consistent_)
@@ -73,7 +74,7 @@ class Trainer(object):
             )
             self.eval_graph = make_eval_graph(self.model, self.val_data_loader)
 
-    def _init_model(self):
+    def init_model(self):
         if self.is_consistent_:
             placement = flow.placement("cuda", {0: range(self.world_size_)})
             self.model = self.model.to_consistent(
@@ -83,25 +84,18 @@ class Trainer(object):
             self.model = self.model.to("cuda")
 
         if self.load_path_ is None:
-            self._init_parameters()
+            self.init_parameters()
         else:
-            self._load_state_dict()
+            self.load_state_dict()
 
         if self.with_ddp_:
             self.model = ddp(self.model)
 
-        # DEBUG(zwx):
-        # print(f"is consistent? {self.is_consistent_}")
-        # print(f"with ddp? {self.with_ddp_}")
-        # for name, p in self.model.named_parameters():
-        #     if not p.is_consistent:
-        #         print(f"{name} is not consistent")
-
-    def _init_parameters(self):
+    def init_parameters(self):
         # raise NotImplementedError
         pass
 
-    def _load_state_dict(self):
+    def load_state_dict(self):
         if self.is_consistent_:
             state_dict = flow.load(self.load_path_, consistent_src_rank=0)
         elif self.rank_ == 0:
@@ -112,22 +106,24 @@ class Trainer(object):
         self.model.load_state_dict(state_dict)
 
     def __call__(self):
-        self._train()
+        self.train()
 
-    def _train(self):
+    def train(self):
         for _ in range(self.num_epochs_):
             if self.with_graph_:
-                self._train_one_epoch_with_graph()
+                self.train_one_epoch_with_graph()
             else:
-                self._train_one_epoch()
+                self.train_one_epoch()
 
             self.cur_epoch_ += 1
             self.cur_iter_ = 0
 
             if not self.skip_eval_:
-                self._eval()
+                acc = self.eval()
 
-    def _train_one_epoch_with_graph(self):
+            self.save(acc)
+
+    def train_one_epoch_with_graph(self):
         for _ in range(self.batches_):
             loss = self.train_graph()
             self.cur_iter_ += 1
@@ -141,11 +137,11 @@ class Trainer(object):
                 job="train",
             )
 
-    def _train_one_epoch(self):
+    def train_one_epoch(self):
         self.model.train()
 
         for _ in range(self.batches_):
-            loss = self._forward()
+            loss = self.forward()
             loss.backward()
 
             self.optimizer.step()
@@ -165,7 +161,7 @@ class Trainer(object):
                 job="train",
             )
 
-    def _forward(self):
+    def forward(self):
         image, label = self.train_data_loader()
         image = image.to("cuda")
         label = label.to("cuda")
@@ -173,7 +169,7 @@ class Trainer(object):
         loss = self.cross_entropy(logits, label)
         return loss
 
-    def _inference(self):
+    def inference(self):
         image, label = self.val_data_loader()
         with flow.no_grad():
             logits = self.model(image.to("cuda"))
@@ -181,7 +177,7 @@ class Trainer(object):
 
         return predictions, label
 
-    def _eval(self):
+    def eval(self):
         self.model.eval()
 
         correct_of = 0.0
@@ -190,7 +186,7 @@ class Trainer(object):
             if self.with_graph_:
                 pred, label = self.eval_graph()
             else:
-                pred, label = self._inference()
+                pred, label = self.inference()
 
             if pred.is_consistent:
                 pred = pred.to_consistent(sbp=flow.sbp.broadcast).to_local().numpy()
@@ -215,6 +211,25 @@ class Trainer(object):
             top1=top1_acc,
             job="eval",
         )
+        return top1_acc
+
+    def save(self, acc):
+        if self.save_path_ is None:
+            return
+
+        acc = acc or 0
+        save_path = os.path.join(
+            self.save_path_,
+            "epoch_{}_val_acc_{}".format(self.cur_epoch_, acc),
+        )
+        state_dict = self.model.state_dict()
+
+        if self.is_consistent_:
+            flow.save(state_dict, save_path, consistent_dst_rank=0)
+        elif self.rank_ == 0:
+            flow.save(state_dict, save_path)
+        else:
+            return
 
 
 def _last(s):
@@ -268,6 +283,7 @@ class Metric(object):
             return
 
         self.p_.record(**kwargs)
+        self.p_.reset_title_printed()
         self.p_.print()
 
 

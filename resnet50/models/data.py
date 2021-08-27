@@ -22,6 +22,8 @@ def make_data_loader(args, mode, is_consistent=False):
         world_size = flow.env.get_world_size()
         placement = flow.placement("cpu", {0: range(world_size)})
         sbp = flow.sbp.split(0)
+        # NOTE(zwx): consistent view, only consider logical batch size
+        batch_size = total_batch_size
 
     ofrecord_data_loader = OFRecordDataLoader(
         ofrecord_dir=args.ofrecord_path,

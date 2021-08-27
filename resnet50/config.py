@@ -188,10 +188,13 @@ def parse_args(ignore_unknown_args=False):
         args = parser.parse_args()
 
     if args.num_nodes > 1:
-        raise ValueError("Not support num_nodes > 1")
+        raise ValueError("NOT support num_nodes > 1")
 
     if args.ddp and args.graph:
         raise ValueError("graph and ddp can't be set at the same time")
+
+    if args.channels_last:
+        raise ValueError("NOT support channels_last yet")
 
     world_size = flow.env.get_world_size()
     if args.train_global_batch_size is None:
@@ -214,7 +217,9 @@ def parse_args(ignore_unknown_args=False):
             args.val_samples_per_epoch / args.val_global_batch_size
         )
 
-    _print_args(args)
+    if flow.env.get_rank() == 0:
+        _print_args(args)
+
     return args
 
 
