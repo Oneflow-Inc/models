@@ -18,7 +18,9 @@ def _parse_args():
     parser.add_argument(
         "--model", type=str, default="alexnet", help="choose the model to eval"
     )
-
+    parser.add_argument(
+        "--checkpoint_path", type=str, default="", help="the path to load pytorch pretrained weight"
+    )
     return parser.parse_args()
 
 
@@ -51,9 +53,8 @@ def accuracy(output, target, topk=(1,)):
 
 def main(args):
 
-    info_dict = build_model(args)
-    model = info_dict["model"]
-    checkpoint_path = info_dict["weight"]
+    model = build_model(args)
+    checkpoint_path = args.checkpoint_path
     # device
     device, device_ids = setup_device(1)
 
