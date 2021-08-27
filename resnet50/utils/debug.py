@@ -214,6 +214,18 @@ def var_hist(out_file):
     plt.close()
 
 
+def var_statistics(out_file):
+    root = os.path.dirname(os.path.dirname(out_file))
+    var_name = os.path.basename(os.path.dirname(out_file))
+    if 'System-Train-TrainStep' in var_name:
+        return
+    fig_file = os.path.join(root, f'{var_name}.png')
+
+    meta = get_meta_info_from_out_file(out_file)
+    param = np.fromfile(out_file, dtype=meta[0])
+    print(var_name, param.mean(), param.std(), param.max(), param.min())
+
+
 def walk_and_do(path, func, endswith='out'):
     assert os.path.isdir(path)
 
