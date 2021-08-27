@@ -209,12 +209,14 @@ class Trainer(object):
                 pred, label = self.inference()
 
             if pred.is_consistent:
-                pred = pred.to_consistent(sbp=flow.sbp.broadcast).to_local().numpy()
+                # pred = pred.to_consistent(sbp=flow.sbp.broadcast).to_local().numpy()
+                pred = pred.to_local().numpy()
             else:
                 pred = pred.numpy()
 
             if label.is_consistent:
-                label = label.to_consistent(sbp=flow.sbp.broadcast).to_local().numpy()
+                # label = label.to_consistent(sbp=flow.sbp.broadcast).to_local().numpy()
+                label = label.to_local().numpy()
             else:
                 label = label.numpy()
 
