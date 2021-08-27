@@ -3,8 +3,11 @@ from collections import namedtuple
 
 
 class Printer(object):
-    def __init__(self, field_names):
+    def __init__(self, field_names, print_format="table"):
+        assert print_format in ("table", "normal")
+
         self.field_names_ = field_names
+        self.format_ = print_format
         self.records_ = []
         self.handlers_ = dict()
         self.str_lens_ = dict()
@@ -34,7 +37,10 @@ class Printer(object):
         assert isinstance(str_len, int)
         self.str_lens_[field] = str_len
 
-    def print_field_names(self):
+    def reset_records(self):
+        self.records_ = []
+
+    def print_table_title(self):
         fields = ""
         sep = ""
 
@@ -54,20 +60,33 @@ class Printer(object):
 
     def print(self):
         df = pd.DataFrame(self.records_)
-        record = ""
-
+        fields = []
         for fname in self.field_names_:
             assert fname in self.handlers_
             handler = self.handlers_[fname]
             field_value = handler(df[fname])
+            fields.append(field_value)
 
-            str_len = self.str_lens_[fname]
-            record += "| {} ".format(str(field_value).ljust(str_len))
+        if self.format_ == "table":
+            if not self.title_printed_:
+                self.print_table_title()
 
-        record += "|"
+            record = ""
+            for i, str_len in enumerate(self.str_lens_.values()):
+                record += "| {} ".format(str(fields[i]).ljust(str_len))
 
-        if not self.title_printed_:
-            self.print_field_names()
+            record += "|"
+            print(record)
 
-        print(record)
-        self.records_ = []
+        elif self.format_ == "normal":
+            record = ""
+
+            for i, fval in enumerate(fields):
+                fname = self.field_names_[i]
+                record += f"{fname}: {fval}, "
+
+            print(record)
+        else:
+            raise ValueError
+
+        self.reset_records()

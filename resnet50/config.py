@@ -178,6 +178,13 @@ def parse_args(ignore_unknown_args=False):
         dest="print_interval",
         help="print loss every n iteration",
     )
+    parser.add_argument(
+        "--print-format",
+        type=str,
+        default="normal",
+        choices=["normal", "table"],
+        dest="print_format",
+    )
 
     parser.add_argument("--graph", action="store_true", help="Run model in graph mode.")
     parser.add_argument("--ddp", action="store_true", help="Run model in ddp mode.")

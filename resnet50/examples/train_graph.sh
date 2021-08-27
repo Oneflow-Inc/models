@@ -9,14 +9,16 @@ export PYTHONUNBUFFERED=1
 echo PYTHONUNBUFFERED=$PYTHONUNBUFFERED
 export NCCL_LAUNCH_MODE=PARALLEL
 echo NCCL_LAUNCH_MODE=$NCCL_LAUNCH_MODE
-export NCCL_DEBUG=INFO
+# export NCCL_DEBUG=INFO
 
 OFRECORD_PATH="/dataset/ImageNet/ofrecord/"
 
-CHECKPOINT_SAVE_PATH="graph_checkpoints"
+CHECKPOINT_SAVE_PATH="./graph_checkpoints"
 if [ ! -d "$CHECKPOINT_SAVE_PATH" ]; then
     mkdir $CHECKPOINT_SAVE_PATH
 fi
+
+CHECKPOINT_LOAD_PATH="./init_ckpt_by_lazy"
 
 OFRECORD_PART_NUM=256
 LEARNING_RATE=0.768
@@ -35,6 +37,7 @@ python3 -m oneflow.distributed.launch \
     --master_addr $MASTER_ADDR \
     $SRC_DIR/train.py \
         --save $CHECKPOINT_SAVE_PATH \
+        --load $CHECKPOINT_LOAD_PATH \
         --ofrecord-path $OFRECORD_PATH \
         --ofrecord-part-num $OFRECORD_PART_NUM \
         --num-devices-per-node $DEVICE_NUM_PER_NODE \

@@ -23,7 +23,7 @@ from utils.printer import Printer
 
 
 class Trainer(object):
-    def __init__(self):
+    def __init__(self, print_ranks=[0]):
         args = get_args()
 
         self.cur_epoch_ = 0
@@ -37,6 +37,7 @@ class Trainer(object):
 
         self.rank_ = flow.env.get_rank()
         self.world_size_ = flow.env.get_world_size()
+        self.print_ranks_ = print_ranks
 
         self.with_graph_ = args.graph
         self.with_ddp_ = args.ddp
@@ -62,7 +63,9 @@ class Trainer(object):
         self.optimizer = make_optimizer(args, self.model)
         self.lr_scheduler = make_lr_scheduler(args, self.optimizer)
 
-        self.metric = Metric(self.rank_, args.print_interval)
+        self.metric = Metric(
+            self.rank_, args.print_interval, print_format=args.print_format
+        )
 
         if self.with_graph_:
             self.train_graph = make_train_graph(
@@ -74,7 +77,16 @@ class Trainer(object):
             )
             self.eval_graph = make_eval_graph(self.model, self.val_data_loader)
 
+    def rprint(self, *args):
+        if self.rank_ not in self.print_ranks_:
+            return
+
+        print(*args)
+
     def init_model(self):
+        self.rprint("***** Model Init *****")
+        start_t = time.perf_counter()
+
         if self.is_consistent_:
             placement = flow.placement("cuda", {0: range(self.world_size_)})
             self.model = self.model.to_consistent(
@@ -91,11 +103,17 @@ class Trainer(object):
         if self.with_ddp_:
             self.model = ddp(self.model)
 
+        end_t = time.perf_counter()
+        self.rprint(
+            f"***** Model Init Finish, time escapled: {end_t - start_t:.5f} s *****"
+        )
+
     def init_parameters(self):
         # raise NotImplementedError
         pass
 
     def load_state_dict(self):
+        self.rprint(f"Loading states from {self.load_path_}")
         if self.is_consistent_:
             state_dict = flow.load(self.load_path_, consistent_src_rank=0)
         elif self.rank_ == 0:
@@ -130,6 +148,7 @@ class Trainer(object):
 
             loss_np = loss.to_local().numpy() if loss.is_consistent else loss.numpy()
             self.metric.step(
+                rank=self.rank_,
                 epoch=self.cur_epoch_,
                 iter=self.cur_iter_,
                 loss=loss_np.item(),
@@ -154,6 +173,7 @@ class Trainer(object):
 
             loss_np = loss.to_local().numpy() if loss.is_consistent else loss.numpy()
             self.metric.step(
+                rank=self.rank_,
                 epoch=self.cur_epoch_,
                 iter=self.cur_iter_,
                 loss=loss_np.item(),
@@ -205,6 +225,7 @@ class Trainer(object):
         top1_acc = correct_of / num_samples
 
         self.metric.print(
+            rank=self.rank_,
             epoch=self.cur_epoch_,
             iter=self.cur_iter_,
             loss=0.0,
@@ -217,10 +238,10 @@ class Trainer(object):
         if self.save_path_ is None:
             return
 
+        self.rprint(f"Saving states to {self.save_path_}")
         acc = acc or 0
         save_path = os.path.join(
-            self.save_path_,
-            "epoch_{}_val_acc_{}".format(self.cur_epoch_, acc),
+            self.save_path_, "epoch_{}_val_acc_{}".format(self.cur_epoch_, acc),
         )
         state_dict = self.model.state_dict()
 
@@ -245,30 +266,45 @@ def _mean(s):
 
 
 class Metric(object):
-    def __init__(self, rank, print_interval):
+    def __init__(
+        self, rank, print_interval, print_only_on_rank=None, print_format="normal"
+    ):
         self.rank_ = rank
         self.print_interval_ = print_interval
+        self.print_only_on_rank_ = print_only_on_rank
         self.step_ = 0
 
-        if self.rank_ == 0:
-            self.p_ = Printer(("epoch", "iter", "job", "loss", "top1"))
+        self.p_ = Printer(
+            ("rank", "epoch", "iter", "job", "loss", "top1"), print_format
+        )
 
-            self.p_.register_handler("epoch", _last)
-            self.p_.register_handler("iter", _last)
-            self.p_.register_handler("job", _last)
-            self.p_.register_handler("loss", _mean)
-            self.p_.register_handler("top1", _last_f)
+        self.p_.register_handler("rank", _last)
+        self.p_.register_handler("epoch", _last)
+        self.p_.register_handler("iter", _last)
+        self.p_.register_handler("job", _last)
+        self.p_.register_handler("loss", _mean)
+        self.p_.register_handler("top1", _last_f)
 
-            self.p_.register_str_len("epoch", 5)
-            self.p_.register_str_len("iter", 8)
-            self.p_.register_str_len("job", 7)
-            self.p_.register_str_len("loss", 10)
-            self.p_.register_str_len("top1", 10)
+        self.p_.register_str_len("rank", 5)
+        self.p_.register_str_len("epoch", 5)
+        self.p_.register_str_len("iter", 8)
+        self.p_.register_str_len("job", 7)
+        self.p_.register_str_len("loss", 10)
+        self.p_.register_str_len("top1", 10)
 
-            self.p_.finish()
+        self.p_.finish()
+
+    def skip(self):
+        if (
+            self.print_only_on_rank_ is not None
+            and self.print_only_on_rank_ != self.rank_
+        ):
+            return True
+
+        return False
 
     def step(self, **kwargs):
-        if self.rank_ != 0:
+        if self.skip():
             return
 
         self.p_.record(**kwargs)
@@ -279,7 +315,7 @@ class Metric(object):
             self.step_ = 0
 
     def print(self, **kwargs):
-        if self.rank_ != 0:
+        if self.skip():
             return
 
         self.p_.record(**kwargs)
