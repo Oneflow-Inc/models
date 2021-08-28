@@ -36,4 +36,3 @@ python3 $SRC_DIR/train.py \
     --train-batch-size $TRAIN_BATCH_SIZE \
     --val-batch-size $VAL_BATCH_SIZE \
     --save $CHECKPOINT_SAVE_PATH \
-    --load $CHECKPOINT_LOAD_PATH \

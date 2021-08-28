@@ -29,6 +29,7 @@ class Trainer(object):
         self.rank_ = flow.env.get_rank()
         self.world_size_ = flow.env.get_world_size()
         self.print_ranks_ = print_ranks
+        args.legacy_init_ = args.legacy_init
         self.metric_local_ = args.metric_local
         self.metric_train_acc_ = args.metric_train_acc
         self.metric_one_rank_ = args.metric_one_rank
@@ -116,8 +117,20 @@ class Trainer(object):
         )
 
     def init_parameters(self):
-        # raise NotImplementedError
-        pass
+        if not self.legacy_init_:
+            return
+
+        for m in self.model.modules():
+            # NOTE(zwx): legacy BatchNorm initializer in Benchmark seems wrong, so don't follow it
+            if isinstance(m, flow.nn.Conv2d):
+                flow.nn.init.kaiming_normal_(
+                    m.weight, mode="fan_in", nonlinearity="relu"
+                )
+            elif isinstance(m, flow.nn.Linear):
+                flow.nn.init.kaiming_normal_(
+                    m.weight, mode="fan_in", nonlinearity="relu"
+                )
+                flow.nn.init.constant_(m.bias, 0)
 
     def load_state_dict(self):
         self.rprint(f"Loading states from {self.load_path_}")

@@ -36,7 +36,6 @@ python3 -m oneflow.distributed.launch \
     --master_addr $MASTER_ADDR \
     $SRC_DIR/train.py \
         --save $CHECKPOINT_SAVE_PATH \
-        --load $CHECKPOINT_LOAD_PATH \
         --ofrecord-path $OFRECORD_PATH \
         --ofrecord-part-num $OFRECORD_PART_NUM \
         --num-devices-per-node $DEVICE_NUM_PER_NODE \

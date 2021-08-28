@@ -119,6 +119,9 @@ def parse_args(ignore_unknown_args=False):
         help="the epochs to warmp-up lr to scaled large-batch value",
     )
     parser.add_argument(
+        "--legacy-init", action="store_true", dest="legacy_init"
+    )
+    parser.add_argument(
         "--use-fp16", action="store_true", help="Run model in fp16 mode."
     )
     parser.add_argument(
