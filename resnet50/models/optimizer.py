@@ -18,10 +18,7 @@ def make_optimizer(args, model):
     return optimizer
 
 
-def make_grad_scaler(args):
-    if not args.use_fp16:
-        return None
-
+def make_grad_scaler():
     return flow.amp.GradScaler(
         init_scale=2 ** 30, growth_factor=2.0, backoff_factor=0.5, growth_interval=2000,
     )
@@ -36,7 +33,8 @@ def make_lr_scheduler(args, optimizer):
     warmup_batches = args.batches_per_epoch * args.warmup_epochs
     total_batches = args.batches_per_epoch * args.num_epochs
     # TODO(zwx): These's no need that decay_batches minus warmup_batches
-    decay_batches = total_batches - warmup_batches
+    # decay_batches = total_batches - warmup_batches
+    decay_batches = total_batches
 
     lr_scheduler = flow.optim.lr_scheduler.CosineDecayLR(
         optimizer, decay_steps=decay_batches
