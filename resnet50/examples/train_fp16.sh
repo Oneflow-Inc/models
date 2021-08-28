@@ -46,6 +46,6 @@ python3 -m oneflow.distributed.launch \
         --train-batch-size $TRAIN_BATCH_SIZE \
         --val-batch-size $VAL_BATCH_SIZE \
         --graph \
-        --use_fp16 \
+        --use-fp16 \
         --metric-local True \
         --metric-train-acc True \
