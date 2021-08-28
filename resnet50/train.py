@@ -30,6 +30,8 @@ class Trainer(object):
         self.world_size_ = flow.env.get_world_size()
         self.print_ranks_ = print_ranks
         self.metric_local_ = args.metric_local
+        self.metric_train_acc_ = args.metric_train_acc
+        self.metric_one_rank_ = args.metric_one_rank
 
         self.cur_epoch_ = 0
         self.cur_iter_ = 0
@@ -68,6 +70,7 @@ class Trainer(object):
             self.rank_,
             args.print_interval,
             print_format=args.print_format,
+            print_only_on_rank=0 if self.metric_one_rank_ else None,
             persistent_file=args.metric_persistent_file,
         )
 
@@ -151,9 +154,13 @@ class Trainer(object):
             self.cur_iter_ += 1
 
             loss = tton(loss, self.metric_local_).item()
-            pred = tton(pred, self.metric_local_)
-            label = tton(label, self.metric_local_)
-            top1_acc = calc_acc([pred], [label])
+            if self.metric_train_acc_:
+                pred = tton(pred, self.metric_local_)
+                label = tton(label, self.metric_local_)
+                top1_acc = calc_acc([pred], [label])
+            else:
+                top1_acc = 0.0
+
             self.metric.step(
                 rank=self.rank_,
                 epoch=self.cur_epoch_,
@@ -179,9 +186,13 @@ class Trainer(object):
             self.cur_iter_ += 1
 
             loss = tton(loss, self.metric_local_).item()
-            pred = tton(pred, self.metric_local_)
-            label = tton(label, self.metric_local_)
-            top1_acc = calc_acc([pred], [label])
+            if self.metric_train_acc_:
+                pred = tton(pred, self.metric_local_)
+                label = tton(label, self.metric_local_)
+                top1_acc = calc_acc([pred], [label])
+            else:
+                top1_acc = 0.0
+
             self.metric.step(
                 rank=self.rank_,
                 epoch=self.cur_epoch_,

@@ -13,6 +13,15 @@ def get_args():
     return _GLOBAL_ARGS
 
 
+def str2bool(v):
+    if v.lower() in ("yes", "true", "t", "y", "1"):
+        return True
+    elif v.lower() in ("no", "false", "f", "n", "0"):
+        return False
+    else:
+        raise argparse.ArgumentTypeError("Unsupported value encountered.")
+
+
 def parse_args(ignore_unknown_args=False):
     parser = argparse.ArgumentParser(
         description="OneFlow ResNet50 Arguments", allow_abbrev=False
@@ -191,11 +200,12 @@ def parse_args(ignore_unknown_args=False):
         default=None,
         dest="metric_persistent_file",
     )
+    parser.add_argument("--metric-one-rank", action="store_true", dest="metric_one_rank")
     parser.add_argument(
-        "--metric-local",
-        type=bool,
-        default=True,
-        dest="metric_local",
+        "--metric-local", type=str2bool, nargs="?", const=True, dest="metric_local",
+    )
+    parser.add_argument(
+        "--metric-train-acc", type=str2bool, nargs="?", const=True, dest="metric_train_acc",
     )
 
     parser.add_argument("--graph", action="store_true", help="Run model in graph mode.")
@@ -235,6 +245,9 @@ def parse_args(ignore_unknown_args=False):
         args.val_batches_per_epoch = int(
             args.val_samples_per_epoch / args.val_global_batch_size
         )
+
+    if args.metric_local and args.metric_one_rank:
+        raise ValueError("metric_one_rank and metric_local conflict")
 
     if flow.env.get_rank() == 0:
         _print_args(args)

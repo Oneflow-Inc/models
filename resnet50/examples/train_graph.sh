@@ -11,8 +11,6 @@ export NCCL_LAUNCH_MODE=PARALLEL
 echo NCCL_LAUNCH_MODE=$NCCL_LAUNCH_MODE
 # export NCCL_DEBUG=INFO
 
-OFRECORD_PATH="/dataset/ImageNet/ofrecord/"
-
 CHECKPOINT_SAVE_PATH="./graph_checkpoints"
 if [ ! -d "$CHECKPOINT_SAVE_PATH" ]; then
     mkdir $CHECKPOINT_SAVE_PATH
@@ -20,6 +18,7 @@ fi
 
 CHECKPOINT_LOAD_PATH="./init_ckpt_by_lazy"
 
+OFRECORD_PATH="/dataset/ImageNet/ofrecord/"
 OFRECORD_PART_NUM=256
 LEARNING_RATE=0.768
 MOM=0.875
