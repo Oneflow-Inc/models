@@ -29,7 +29,7 @@ class Trainer(object):
         self.rank_ = flow.env.get_rank()
         self.world_size_ = flow.env.get_world_size()
         self.print_ranks_ = print_ranks
-        args.legacy_init_ = args.legacy_init
+        self.legacy_init_ = args.legacy_init
         self.metric_local_ = args.metric_local
         self.metric_train_acc_ = args.metric_train_acc
         self.metric_one_rank_ = args.metric_one_rank
