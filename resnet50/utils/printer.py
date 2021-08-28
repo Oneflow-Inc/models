@@ -8,12 +8,21 @@ class Printer(object):
 
         self.field_names_ = field_names
         self.format_ = print_format
-        self.persistent_file_ = persistent_file
         self.records_ = []
         self.handlers_ = dict()
         self.str_lens_ = dict()
         self.title_printed_ = False
+
+        if persistent_file is not None:
+            self.csv_ = open(persistent_file, "a")
+        else:
+            self.csv_ = None
+
         self.Record = None
+
+    def __def__(self):
+        if self.csv_ is not None:
+            self.csv_.close()
 
     def finish(self):
         err = f"{len(self.field_names_)} vs. {len(self.handlers_)}"
@@ -96,7 +105,7 @@ class Printer(object):
         else:
             raise ValueError
 
-        if self.persistent_file_ is not None:
-            df.to_csv(self.persistent_file_, mode='a', header=False)
+        if self.csv_ is not None:
+            df.to_csv(self.csv_, header=False)
 
         self.reset_records()
