@@ -145,6 +145,8 @@ class Trainer(object):
 
             if not self.skip_eval_:
                 acc = self.eval()
+            else:
+                acc = 0
 
             self.save(acc)
 
