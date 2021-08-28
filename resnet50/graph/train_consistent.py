@@ -14,7 +14,6 @@ import math
 import oneflow as flow
 from oneflow.nn.module import Module
 
-from utils.debug import dump_to_npy
 from utils.ofrecord_data_utils import OFRecordDataLoader
 from models.resnet50 import resnet50
 
@@ -184,7 +183,7 @@ def prepare_modules(args, to_consistent=True):
 
     train_data_loader = OFRecordDataLoader(
         ofrecord_root=args.ofrecord_path,
-        mode="validation",  # "train",
+        mode="train",
         dataset_size=args.train_examples_num,
         batch_size=vars.total_train_batch_size,
         total_batch_size=vars.total_train_batch_size,
@@ -236,19 +235,6 @@ def prepare_modules(args, to_consistent=True):
         load_ckpt()
 
     print(args)
-
-    # flow.save(resnet50_module.state_dict(), "init_ckpt", consistent_dst_rank=0)
-    # exit()
-
-    # print('named_parameters', '*'*100)
-    # for name, param in resnet50_module.named_parameters():
-    #     print(name)
-    # print('named_buffers', '*'*100)
-    # for name, param in resnet50_module.named_buffers():
-    #     print(name)
-    # print('*'*100)
-    # exit()
-
     optimizer = flow.optim.SGD(
         resnet50_module.parameters(),
         lr=args.learning_rate,
@@ -297,8 +283,7 @@ def main(args):
             self.train_data_loader = train_data_loader
             self.resnet50 = resnet50_module
             self.cross_entropy = cross_entropy_loss
-            self.add_optimizer(optimizer)
-            # self.add_optimizer(optimizer, lr_sch=lr_scheduler)
+            self.add_optimizer(optimizer, lr_sch=lr_scheduler)
 
         def build(self):
             image, label = self.train_data_loader()
@@ -348,11 +333,6 @@ def main(args):
             start_t = time.time()
 
             loss, predictions, images, label, logits = resnet50_graph()
-            # dump_to_npy(images, sub=b)
-            # dump_to_npy(label, sub=b)
-            # dump_to_npy(loss, sub=b)
-            # dump_to_npy(logits, sub=b)
-
             end_t = time.time()
 
             if b % args.loss_print_every_n_iter == 0:
@@ -375,20 +355,12 @@ def main(args):
                 of_losses.append(loss_np)
 
                 if vars.rank == 0:
-                    # writer_train_loss.write("%f\n" % l)
-                    # writer_train_loss.flush()
-                    # writer_train_top1_acc.write("%f\n" % (correct_of / total_train_batch_size))
-                    # writer_train_top1_acc.flush()
+
                     print(
                         "{}: epoch {}, iter {}, loss: {:.6f}, top_1: {:.6f}, top_k: {:.6f}, samples/s: {:.3f}".format(
                             "train", epoch, b, loss_np, correct_of / vars.total_train_batch_size, -1, -1
                         )
                     )
-
-            # if b >= 100:
-            #     break
-
-        # break
 
         # begin eval
         print("rank {} epoch {} train done, start validation".format(vars.rank, epoch))
@@ -438,18 +410,6 @@ def main(args):
             ),
             consistent_dst_rank=0
         )
-
-    # if vars.rank == 0:
-    #     writer = open("graph_of_losses.txt", "w")
-    #     for o in of_losses:
-    #         writer.write("%f\n" % o)
-    #     writer.close()
-
-    #     writer = open("graph/accuracy.txt", "w")
-    #     for o in of_accuracy:
-    #         writer.write("%f\n" % o)
-    #     writer.close()
-
 
 if __name__ == "__main__":
     args = parse_args()
