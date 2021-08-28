@@ -1,5 +1,5 @@
 ## Introduction
-A simple and effective road semantic segmentation model, including detailed annotations, easy to use, very suitable for novices to get started.This repo is based on this [Python blog.](https://github.com/Yannnnnnnnnnnn/learnPyTorch/blob/master/road%20segmentation%20(camvid).ipynb)
+A simple and effective road semantic segmentation model, easy to use, very suitable for novices to get started.This repo is based on this [Python blog.](https://github.com/Yannnnnnnnnnnn/learnPyTorch/blob/master/road%20segmentation%20(camvid).ipynb)
 
 ## Installation
 
