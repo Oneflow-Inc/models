@@ -3,7 +3,7 @@ import numpy as np
 import os
 import random
 
-def load_image(image_path='data/fish.jpg'):
+def load_image(image_path='data/jeep.jpg'):
     rgb_mean = [123.68, 116.779, 103.939]
     rgb_std = [58.393, 57.12, 57.375]
     im = Image.open(image_path)
