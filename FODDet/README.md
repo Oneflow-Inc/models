@@ -26,11 +26,11 @@ The code requires the following libraries:
 
 ## Training Scripts 
 
- ` sh train_oneflow.sh`
+ ` bash train_oneflow.sh`
 
 ## Test Images
 
- ` sh test_oneflow.sh`
+ ` bash test_oneflow.sh`
 
 ## Demonstration
 The following shows some results of road image segmentation.
