@@ -36,7 +36,7 @@ def make_lr_scheduler(args, optimizer):
     warmup_batches = args.batches_per_epoch * args.warmup_epochs
     total_batches = args.batches_per_epoch * args.num_epochs
     # TODO(zwx): These's no need that decay_batches minus warmup_batches
-    decay_batches = total_batches - warmup_batches
+    decay_batches = total_batches# - warmup_batches
 
     lr_scheduler = flow.optim.lr_scheduler.CosineDecayLR(
         optimizer, decay_steps=decay_batches
