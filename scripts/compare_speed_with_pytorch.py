@@ -84,6 +84,7 @@ def test(
         buf = "\n".join(lines)
         with tempfile.NamedTemporaryFile("w", suffix=".py") as f:
             f.write(buf)
+            f.flush()
             python_module = import_file(f.name)
 
         import torch
