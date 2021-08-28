@@ -26,6 +26,11 @@ class Trainer(object):
     def __init__(self, print_ranks=[0]):
         args = get_args()
 
+        self.rank_ = flow.env.get_rank()
+        self.world_size_ = flow.env.get_world_size()
+        self.print_ranks_ = print_ranks
+        self.metric_local_ = args.metric_local
+
         self.cur_epoch_ = 0
         self.cur_iter_ = 0
         self.num_epochs_ = args.num_epochs
@@ -34,10 +39,6 @@ class Trainer(object):
         self.load_path_ = args.load
         self.save_path_ = args.save
         self.skip_eval_ = args.skip_eval
-
-        self.rank_ = flow.env.get_rank()
-        self.world_size_ = flow.env.get_world_size()
-        self.print_ranks_ = print_ranks
 
         self.with_graph_ = args.graph
         self.with_ddp_ = args.ddp
@@ -149,12 +150,15 @@ class Trainer(object):
             loss, pred, label = self.train_graph()
             self.cur_iter_ += 1
 
-            top1_acc = calc_acc([tton(pred)], [tton(label)])
+            loss = tton(loss, self.metric_local_).item()
+            pred = tton(pred, self.metric_local_)
+            label = tton(label, self.metric_local_)
+            top1_acc = calc_acc([pred], [label])
             self.metric.step(
                 rank=self.rank_,
                 epoch=self.cur_epoch_,
                 iter=self.cur_iter_,
-                loss=tton(loss).item(),
+                loss=loss,
                 top1=top1_acc,
                 job="train",
             )
@@ -174,12 +178,15 @@ class Trainer(object):
 
             self.cur_iter_ += 1
 
-            top1_acc = calc_acc([tton(pred)], [tton(label)])
+            loss = tton(loss, self.metric_local_).item()
+            pred = tton(pred, self.metric_local_)
+            label = tton(label, self.metric_local_)
+            top1_acc = calc_acc([pred], [label])
             self.metric.step(
                 rank=self.rank_,
                 epoch=self.cur_epoch_,
                 iter=self.cur_iter_,
-                loss=tton(loss).item(),
+                loss=loss,
                 top1=top1_acc,
                 job="train",
             )
@@ -209,8 +216,8 @@ class Trainer(object):
             else:
                 pred, label = self.inference()
 
-            preds.append(tton(pred))
-            labels.append(tton(label))
+            preds.append(tton(pred, self.metric_local_))
+            labels.append(tton(label, self.metric_local_))
 
         top1_acc = calc_acc(preds, labels)
 

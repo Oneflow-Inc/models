@@ -191,6 +191,12 @@ def parse_args(ignore_unknown_args=False):
         default=None,
         dest="metric_persistent_file",
     )
+    parser.add_argument(
+        "--metric-local",
+        type=bool,
+        default=True,
+        dest="metric_local",
+    )
 
     parser.add_argument("--graph", action="store_true", help="Run model in graph mode.")
     parser.add_argument("--ddp", action="store_true", help="Run model in ddp mode.")
