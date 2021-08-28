@@ -35,7 +35,8 @@ class TrainGraph(flow.nn.Graph):
         pred = logits.softmax()
         loss = self.cross_entropy(logits, label.to("cuda"))
         loss.backward()
-        return loss, pred, label
+        # NOTE(zwx): return cuda label to bypass copy d2h bug
+        return loss, pred, label.to("cuda")
 
 
 class EvalGraph(flow.nn.Graph):
@@ -55,4 +56,5 @@ class EvalGraph(flow.nn.Graph):
         image, label = self.data_loader()
         logits = self.model(image.to("cuda"))
         predictions = logits.softmax()
-        return predictions, label
+        # NOTE(zwx): return cuda label to bypass copy d2h bug
+        return predictions, label.to("cuda")
