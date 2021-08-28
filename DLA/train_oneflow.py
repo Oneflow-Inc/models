@@ -1,4 +1,3 @@
-
 import oneflow as flow
 import argparse
 import numpy as np
@@ -7,6 +6,7 @@ import time
 from models.dla import DLA
 from utils.ofrecord_data_utils import OFRecordDataLoader
 from visdom import Visdom
+
 viz = Visdom()
 viz.line([[0.]], [0], win='train', opts=dict(title='train-loss', legend=['loss']))
 viz_val = Visdom()
@@ -77,7 +77,7 @@ def main(args):
 
     of_losses = []
     all_samples = len(val_data_loader) * args.val_batch_size
-    print_interval = 100
+    args.print_interval = 100
 
     for epoch in range(args.epochs):
         dla_module.train()
@@ -95,7 +95,7 @@ def main(args):
             of_sgd.step()
             of_sgd.zero_grad()
             end_t = time.time()
-            if b % print_interval == 0:
+            if b % args.print_interval == 0:
                 l = loss.numpy()[0]
                 of_losses.append(l)
                 print('epoch {} train iter {} oneflow loss {}, train time : {}'.format(epoch, b, l, end_t - start_t))
