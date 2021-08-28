@@ -1,6 +1,6 @@
 set -aux
 
-OFRECORD_PATH=".DLAdataset_ofrecord/ofrecord/trainData"
+OFRECORD_PATH="./DLAdataset_ofrecord/ofrecord/trainData"
 if [ ! -d "$OFRECORD_PATH" ]; then
     wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/datasets/models/DLA/DLAdataset_ofrecord.zip
     unzip DLAdataset_ofrecord.zip
