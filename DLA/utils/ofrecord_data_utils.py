@@ -6,7 +6,6 @@ class OFRecordDataLoader(object):
         ofrecord_root: str = "./ofrecord",
 
         mode: str = "train", # "val"
-        #mode: str = "val",  # "train"
         dataset_size: int = 9469, 
         batch_size: int = 1,
     ):
