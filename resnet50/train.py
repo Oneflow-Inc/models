@@ -35,6 +35,7 @@ class Trainer(object):
         self.meter_step = 0
         self.is_consistent = (self.world_size > 1 and not self.ddp) or self.graph
         self.is_train = False
+        self.meter_lr = self.graph is False
 
         self.init_logger()
 
@@ -136,6 +137,8 @@ class Trainer(object):
         self.logger.register_metric("epoch", log.IterationMeter(), "epoch: {}/{}")
         self.logger.register_metric("iter", log.IterationMeter(), "iter: {}/{}")
         self.logger.register_metric("loss", log.AverageMeter(), "loss: {:.5f}", True)
+        if self.meter_lr:
+            self.logger.register_metric("lr", log.IterationMeter(), "lr: {:.6f}")
         self.logger.register_metric("top1", log.AverageMeter(), "top1: {:.5f}", True)
         self.logger.register_metric(
             "throughput", log.ThroughputMeter(), "throughput: {:.2f}", True
@@ -147,6 +150,7 @@ class Trainer(object):
         epoch_pg=None,
         iter_pg=None,
         loss=None,
+        lr=None,
         top1=None,
         num_samples=1,
         do_print=False,
@@ -156,6 +160,9 @@ class Trainer(object):
         self.logger.meter("iter", iter_pg or (self.cur_iter, self.batches_per_epoch))
         if loss is not None:
             self.logger.meter("loss", loss)
+
+        if lr is not None and self.meter_lr:
+            self.logger.meter("lr", lr)
 
         if top1 is not None:
             self.logger.meter("top1", top1)
@@ -167,12 +174,20 @@ class Trainer(object):
 
     def meter_train_iter(self, loss, top1):
         assert self.is_train is True
+        lr = None
+        if self.meter_lr:
+            lr = self.optimizer.param_groups[0]["lr"]
+
         do_print = (
-            self.cur_iter == self.print_interval
+            self.cur_iter % self.print_interval == 0
             or self.cur_iter == self.batches_per_epoch
         )
         self.meter(
-            loss=loss, top1=top1, num_samples=self.train_batch_size, do_print=do_print
+            loss=loss,
+            lr=lr,
+            top1=top1,
+            num_samples=self.train_batch_size,
+            do_print=do_print,
         )
 
     def __call__(self):
