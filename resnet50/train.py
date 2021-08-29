@@ -116,7 +116,7 @@ class Trainer(object):
                 flow.nn.init.constant_(m.bn3.weight, 0)
 
     def load_state_dict(self):
-        self.logger.print(f"Loading states from {self.load_path}")
+        self.logger.print(f"Loading states from {self.load_path}", print_ranks=[0])
         if self.is_consistent:
             state_dict = flow.load(self.load_path, consistent_src_rank=0)
         elif self.rank == 0:
