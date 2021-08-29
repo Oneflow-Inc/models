@@ -35,7 +35,7 @@ class TrainGraph(flow.nn.Graph):
         pred = logits.softmax()
         loss = self.cross_entropy(logits, label.to("cuda"))
         loss.backward()
-        return loss, pred, label
+        return loss, pred, label.to("cuda")
 
 
 class EvalGraph(flow.nn.Graph):
@@ -55,4 +55,4 @@ class EvalGraph(flow.nn.Graph):
         image, label = self.data_loader()
         logits = self.model(image.to("cuda"))
         predictions = logits.softmax()
-        return predictions, label
+        return predictions, label.to("cuda")
