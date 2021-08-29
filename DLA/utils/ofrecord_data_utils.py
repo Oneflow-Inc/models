@@ -11,14 +11,14 @@ class OFRecordDataLoader(object):
     ):
         channel_last = False
         output_layout = "NHWC" if channel_last else "NCHW"
-        self.train_record_reader = flow.nn.OfrecordReader(
+        self.train_record_reader = flow.nn.OFRecordReader(
                                         os.path.join(ofrecord_root, mode),
                                         batch_size=batch_size,
                                         data_part_num=1,
                                         part_name_suffix_length=-1,
                                         random_shuffle=True if mode == "train" else False,
                                         shuffle_after_epoch=True if mode == "train" else False)
-        self.record_label_decoder = flow.nn.OfrecordRawDecoder("class/label", shape=(), dtype=flow.int32)
+        self.record_label_decoder = flow.nn.OFRecordRawDecoder("class/label", shape=(), dtype=flow.int32)
 
         color_space = 'RGB'
         height = 224
