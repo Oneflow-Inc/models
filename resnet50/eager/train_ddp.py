@@ -6,7 +6,9 @@ import time
 import shutil
 from tqdm import tqdm
 
-sys.path.append('./')
+sys.path.append(
+    os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
+)
 
 import oneflow as flow
 from oneflow.nn.parallel import DistributedDataParallel as ddp
@@ -162,8 +164,8 @@ def save_logs(training_info, file_path):
 
 
 def main(args):
-    rank = flow.framework.distribute.get_rank()
-    world_size = flow.framework.distribute.get_world_size()
+    rank = flow.env.get_rank()
+    world_size = flow.env.get_world_size()
 
     # Data Setup
     train_data_loader = OFRecordDataLoader(
@@ -248,4 +250,3 @@ def main(args):
 if __name__ == "__main__":
     args = _parse_args()
     main(args)
-
