@@ -215,6 +215,17 @@ class Trainer(object):
                 loss, pred, label = self.train_graph()
             else:
                 loss, pred, label = self.forward()
+                if self.world_size > 1:
+                    # allreduce loss and divide world_size
+                    assert loss.is_local
+                    loss = loss.to_consistent(
+                        placement=flow.placement("cuda", {0: range(self.world_size)}),
+                        sbp=flow.sbp.partial_sum,
+                    )
+                    loss = loss.to_consistent(sbp=flow.sbp.broadcast)
+                    loss = loss.to_local()
+                    loss = loss / self.world_size
+
                 loss.backward()
                 self.optimizer.step()
                 self.optimizer.zero_grad()
