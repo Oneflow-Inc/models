@@ -86,6 +86,9 @@ class Trainer(object):
         if self.ddp:
             self.model = ddp(self.model)
 
+        if self.save_init:
+            self.save("init")
+
         end_t = time.perf_counter()
         self.logger.print(
             f"***** Model Init Finish, time escapled: {end_t - start_t:.5f} s *****",
@@ -116,7 +119,7 @@ class Trainer(object):
                 flow.nn.init.constant_(m.bn3.weight, 0)
 
     def load_state_dict(self):
-        self.logger.print(f"Loading states from {self.load_path}", print_ranks=[0])
+        self.logger.print(f"Loading model from {self.load_path}", print_ranks=[0])
         if self.is_consistent:
             state_dict = flow.load(self.load_path, consistent_src_rank=0)
         elif self.rank == 0:
@@ -202,7 +205,8 @@ class Trainer(object):
             else:
                 acc = 0
 
-            self.save(acc)
+            save_dir = f"epoch_{self.cur_epoch}_val_acc_{acc}"
+            self.save(save_dir)
             self.cur_epoch += 1
             self.cur_iter = 0
 
@@ -288,15 +292,12 @@ class Trainer(object):
 
         return loss, pred, label
 
-    def save(self, acc):
+    def save(self, subdir):
         if self.save_path is None:
             return
 
-        self.logger.print(f"Saving states to {self.save_path}", print_ranks=[0])
-        acc = acc or 0
-        save_path = os.path.join(
-            self.save_path, "epoch_{}_val_acc_{}".format(self.cur_epoch, acc),
-        )
+        save_path = os.path.join(self.save_path, subdir)
+        self.logger.print(f"Saving model to {save_path}", print_ranks=[0])
         state_dict = self.model.state_dict()
 
         if self.is_consistent:

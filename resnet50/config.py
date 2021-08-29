@@ -34,6 +34,12 @@ def parse_args(ignore_unknown_args=False):
         help="root dir of saving checkpoint",
     )
     parser.add_argument(
+        "--save-init",
+        action="store_true",
+        dest="save_init",
+        help="save right on init model finished",
+    )
+    parser.add_argument(
         "--load",
         type=str,
         default=None,
