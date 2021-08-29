@@ -8,8 +8,8 @@ def make_train_graph(model, cross_entropy, data_loader, optimizer, lr_scheduler=
     return TrainGraph(model, cross_entropy, data_loader, optimizer, lr_scheduler)
 
 
-def make_eval_graph(model, data_loader):
-    return EvalGraph(model, data_loader)
+def make_eval_graph(model, data_loader, cross_entropy):
+    return EvalGraph(model, data_loader, cross_entropy)
 
 
 class TrainGraph(flow.nn.Graph):
@@ -31,16 +31,17 @@ class TrainGraph(flow.nn.Graph):
 
     def build(self):
         image, label = self.data_loader()
-        logits = self.model(image.to("cuda"))
+        image = image.to("cuda")
+        label = label.to("cuda")
+        logits = self.model(image)
         pred = logits.softmax()
-        loss = self.cross_entropy(logits, label.to("cuda"))
+        loss = self.cross_entropy(logits, label)
         loss.backward()
-        # NOTE(zwx): return cuda label to bypass copy d2h bug
-        return loss, pred, label.to("cuda")
+        return loss, pred, label
 
 
 class EvalGraph(flow.nn.Graph):
-    def __init__(self, model, data_loader):
+    def __init__(self, model, data_loader, cross_entropy):
         super().__init__()
 
         args = get_args()
@@ -51,10 +52,13 @@ class EvalGraph(flow.nn.Graph):
 
         self.data_loader = data_loader
         self.model = model
+        self.cross_entropy = cross_entropy
 
     def build(self):
         image, label = self.data_loader()
-        logits = self.model(image.to("cuda"))
-        predictions = logits.softmax()
-        # NOTE(zwx): return cuda label to bypass copy d2h bug
-        return predictions, label.to("cuda")
+        image = image.to("cuda")
+        label = label.to("cuda")
+        logits = self.model(image)
+        pred = logits.softmax()
+        loss = self.cross_entropy(logits, label)
+        return loss, pred, label

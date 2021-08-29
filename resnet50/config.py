@@ -30,10 +30,15 @@ def parse_args(ignore_unknown_args=False):
         "--save",
         type=str,
         default="./checkpoints",
+        dest="save_path",
         help="root dir of saving checkpoint",
     )
     parser.add_argument(
-        "--load", type=str, default=None, help="root dir of loading checkpoint"
+        "--load",
+        type=str,
+        default=None,
+        dest="load_path",
+        help="root dir of loading checkpoint",
     )
     parser.add_argument(
         "--ofrecord-path",
@@ -118,9 +123,7 @@ def parse_args(ignore_unknown_args=False):
         dest="warmup_epochs",
         help="the epochs to warmp-up lr to scaled large-batch value",
     )
-    parser.add_argument(
-        "--legacy-init", action="store_true", dest="legacy_init"
-    )
+    parser.add_argument("--legacy-init", action="store_true", dest="legacy_init")
     parser.add_argument(
         "--use-fp16", action="store_true", help="Run model in fp16 mode."
     )
@@ -198,17 +201,20 @@ def parse_args(ignore_unknown_args=False):
         dest="print_format",
     )
     parser.add_argument(
-        "--metric-persistent-file",
-        type=str,
-        default=None,
-        dest="metric_persistent_file",
-    )
-    parser.add_argument("--metric-one-rank", action="store_true", dest="metric_one_rank")
-    parser.add_argument(
-        "--metric-local", type=str2bool, nargs="?", const=True, dest="metric_local",
+        "--metric-local",
+        type=str2bool,
+        default=True,
+        nargs="?",
+        const=True,
+        dest="metric_local",
     )
     parser.add_argument(
-        "--metric-train-acc", type=str2bool, nargs="?", const=True, dest="metric_train_acc",
+        "--metric-train-acc",
+        type=str2bool,
+        default=True,
+        nargs="?",
+        const=True,
+        dest="metric_train_acc",
     )
 
     parser.add_argument("--graph", action="store_true", help="Run model in graph mode.")
@@ -225,8 +231,14 @@ def parse_args(ignore_unknown_args=False):
     if args.ddp and args.graph:
         raise ValueError("graph and ddp can't be set at the same time")
 
+    if args.use_fp16 and not args.graph:
+        raise ValueError("NOT support fp16 in eager mode")
+
     if args.channels_last:
         raise ValueError("NOT support channels_last yet")
+
+    if args.ddp and not args.metric_local:
+        raise ValueError("metric_local must be set to True when with ddp")
 
     world_size = flow.env.get_world_size()
     if args.train_global_batch_size is None:
@@ -248,9 +260,6 @@ def parse_args(ignore_unknown_args=False):
         args.val_batches_per_epoch = int(
             args.val_samples_per_epoch / args.val_global_batch_size
         )
-
-    if args.metric_local and args.metric_one_rank:
-        raise ValueError("metric_one_rank and metric_local conflict")
 
     if flow.env.get_rank() == 0:
         _print_args(args)
