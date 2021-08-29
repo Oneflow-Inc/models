@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 
+
 def visualize(**images):
     """PLot images in one row."""
     n = len(images)
@@ -8,6 +9,6 @@ def visualize(**images):
         plt.subplot(1, n, i + 1)
         plt.xticks([])
         plt.yticks([])
-        plt.title(' '.join(name.split('_')).title())
+        plt.title(" ".join(name.split("_")).title())
         plt.imshow(image)
     plt.show()

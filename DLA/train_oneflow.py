@@ -8,72 +8,78 @@ from utils.ofrecord_data_utils import OFRecordDataLoader
 from visdom import Visdom
 
 viz = Visdom()
-viz.line([[0.]], [0], win='train', opts=dict(title='train-loss', legend=['loss']))
+viz.line([[0.0]], [0], win="train", opts=dict(title="train-loss", legend=["loss"]))
 viz_val = Visdom()
-viz_val.line([[0.]], [0], win='val', opts=dict(title='val-acc', legend=['acc']))
+viz_val.line([[0.0]], [0], win="val", opts=dict(title="val-acc", legend=["acc"]))
+
 
 def _parse_args():
     parser = argparse.ArgumentParser("flags for train dla")
     parser.add_argument(
-        "--save_checkpoint_path", type=str, default="./checkpoints", help="save checkpoint root dir"
+        "--save_checkpoint_path",
+        type=str,
+        default="./checkpoints",
+        help="save checkpoint root dir",
     )
     parser.add_argument(
         "--load_checkpoint", type=str, default="", help="load checkpoint"
-
     )
     parser.add_argument(
-        "--ofrecord_path", type=str, default="./DLAdataset_ofrecord/ofrecord/trainData", help="dataset path"
+        "--ofrecord_path",
+        type=str,
+        default="./DLAdataset_ofrecord/ofrecord/trainData",
+        help="dataset path",
     )
     # training hyper-parameters
     parser.add_argument(
         "--learning_rate", type=float, default=0.001, help="learning rate"
     )
-    parser.add_argument(
-        "--mom", type=float, default=0.9, help="momentum"
-    )
-    parser.add_argument(
-        "--epochs", type=int, default=1200, help="training epochs"
-    )
+    parser.add_argument("--mom", type=float, default=0.9, help="momentum")
+    parser.add_argument("--epochs", type=int, default=1200, help="training epochs")
     parser.add_argument(
         "--train_batch_size", type=int, default=32, help="train batch size"
     )
-    parser.add_argument(
-        "--val_batch_size", type=int, default=32, help="val batch size"
-    )
+    parser.add_argument("--val_batch_size", type=int, default=32, help="val batch size")
 
     return parser.parse_args()
+
 
 def main(args):
     flow.enable_eager_execution()
     flow.InitEagerGlobalSession()
 
     train_data_loader = OFRecordDataLoader(
-                            ofrecord_root = args.ofrecord_path,
-                            mode = "train",
-                            dataset_size = 1400, # NOTE(Liang Depeng): needs to explictly set the dataset size
-                            batch_size = args.train_batch_size)
+        ofrecord_root=args.ofrecord_path,
+        mode="train",
+        dataset_size=1400,  # NOTE(Liang Depeng): needs to explictly set the dataset size
+        batch_size=args.train_batch_size,
+    )
 
     val_data_loader = OFRecordDataLoader(
-                            ofrecord_root = args.ofrecord_path,
-                            mode = "val",
-                            dataset_size = 200,
-                            batch_size = args.val_batch_size)
+        ofrecord_root=args.ofrecord_path,
+        mode="val",
+        dataset_size=200,
+        batch_size=args.val_batch_size,
+    )
 
     # oneflow init
     start_t = time.time()
-    dla_module = DLA(num_classes=10, levels=[1, 1, 1, 2, 2, 1],
-                channels=[16, 32, 64, 128, 256, 512])
+    dla_module = DLA(
+        num_classes=10, levels=[1, 1, 1, 2, 2, 1], channels=[16, 32, 64, 128, 256, 512]
+    )
     if args.load_checkpoint != "":
         dla_module.load_state_dict(flow.load(args.load_checkpoint))
     end_t = time.time()
-    print('init time : {}'.format(end_t - start_t))
+    print("init time : {}".format(end_t - start_t))
 
     of_cross_entropy = flow.nn.CrossEntropyLoss()
 
-    dla_module.to('cuda')
-    of_cross_entropy.to('cuda')
+    dla_module.to("cuda")
+    of_cross_entropy.to("cuda")
 
-    of_sgd = flow.optim.SGD(dla_module.parameters(), lr=args.learning_rate, momentum=args.mom)
+    of_sgd = flow.optim.SGD(
+        dla_module.parameters(), lr=args.learning_rate, momentum=args.mom
+    )
 
     of_losses = []
     all_samples = len(val_data_loader) * args.val_batch_size
@@ -84,11 +90,11 @@ def main(args):
 
         for b in range(len(train_data_loader)):
             image, label = train_data_loader.get_batch()
-        
-            # oneflow train 
+
+            # oneflow train
             start_t = time.time()
-            image = image.to('cuda')
-            label = label.to('cuda')
+            image = image.to("cuda")
+            label = label.to("cuda")
             logits = dla_module(image)
             loss = of_cross_entropy(logits, label)
             loss.backward()
@@ -98,8 +104,17 @@ def main(args):
             if b % args.print_interval == 0:
                 l = loss.numpy()[0]
                 of_losses.append(l)
-                print('epoch {} train iter {} oneflow loss {}, train time : {}'.format(epoch, b, l, end_t - start_t))
-                viz.line([[l]], [(epoch) * 400 + (b+100)], win='train-loss', update='append')
+                print(
+                    "epoch {} train iter {} oneflow loss {}, train time : {}".format(
+                        epoch, b, l, end_t - start_t
+                    )
+                )
+                viz.line(
+                    [[l]],
+                    [(epoch) * 400 + (b + 100)],
+                    win="train-loss",
+                    update="append",
+                )
         print("epoch %d train done, start validation" % epoch)
 
         dla_module.eval()
@@ -108,7 +123,7 @@ def main(args):
             image, label = val_data_loader.get_batch()
 
             start_t = time.time()
-            image = image.to('cuda')
+            image = image.to("cuda")
             with flow.no_grad():
                 logits = dla_module(image)
                 predictions = logits.softmax()
@@ -122,13 +137,20 @@ def main(args):
             end_t = time.time()
 
         print("epoch %d, oneflow top1 val acc: %f" % (epoch, correct_of / all_samples))
-        viz_val.line([[correct_of / all_samples]], [epoch], win='val', update='append')
-        flow.save(dla_module.state_dict(), os.path.join(args.save_checkpoint_path, "epoch_%d_val_acc_%f" % (epoch, correct_of / all_samples)))
+        viz_val.line([[correct_of / all_samples]], [epoch], win="val", update="append")
+        flow.save(
+            dla_module.state_dict(),
+            os.path.join(
+                args.save_checkpoint_path,
+                "epoch_%d_val_acc_%f" % (epoch, correct_of / all_samples),
+            ),
+        )
 
     writer = open("of_losses.txt", "w")
     for o in of_losses:
         writer.write("%f\n" % o)
     writer.close()
+
 
 if __name__ == "__main__":
     args = _parse_args()

@@ -8,9 +8,7 @@ from models.ghostnet import ghostnet
 from utils.imagenet1000_clsidx_to_labels import clsidx_2_labels
 from utils.numpy_data_utils import load_image
 
-model_dict = {
-    "ghostnet": ghostnet
-}
+model_dict = {"ghostnet": ghostnet}
 
 
 def _parse_args():
@@ -23,10 +21,7 @@ def _parse_args():
     )
     parser.add_argument("--image_path", type=str, default="", help="input image path")
     parser.add_argument(
-        "--model",
-        type=str,
-        default="ghostnet",
-        help="choose from ghostnet",
+        "--model", type=str, default="ghostnet", help="choose from ghostnet",
     )
     return parser.parse_args()
 
