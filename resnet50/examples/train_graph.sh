@@ -18,7 +18,7 @@ fi
 
 CHECKPOINT_LOAD_PATH="./init_ckpt_by_lazy"
 
-OFRECORD_PATH="/dataset/ImageNet/ofrecord/"
+OFRECORD_PATH="/DATA/disk1/ImageNet/ofrecord/"
 OFRECORD_PART_NUM=256
 LEARNING_RATE=0.768
 MOM=0.875
@@ -45,3 +45,8 @@ python3 -m oneflow.distributed.launch \
         --train-batch-size $TRAIN_BATCH_SIZE \
         --val-batch-size $VAL_BATCH_SIZE \
         --graph \
+        --metric-local True \
+        --use-gpu-decode
+        # --print-interval 1
+        # --metric-one-rank 0
+        # --metric-train-acc False
