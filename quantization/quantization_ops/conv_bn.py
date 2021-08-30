@@ -71,7 +71,7 @@ class QConvBN(QModule):
             x = self.qi.fake_quantize_tensor(x)
 
         if self.training:
-            y = flow.F.conv2d(
+            y = flow.nn.functional.conv2d(
                 x,
                 self.conv_module.weight,
                 self.conv_module.bias,
@@ -102,7 +102,7 @@ class QConvBN(QModule):
 
         self.qw.update(weight.data)
 
-        x = flow.F.conv2d(
+        x = flow.nn.functional.conv2d(
             x,
             self.qw.fake_quantize_tensor(weight),
             bias,

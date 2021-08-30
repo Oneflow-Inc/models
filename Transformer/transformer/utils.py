@@ -57,7 +57,7 @@ def _scaled_dot_product_attention(
         attn += attn_mask
     attn = flow.softmax(attn, dim=-1)
     if dropout_p > 0.0:
-        attn = flow.F.dropout(attn, p=dropout_p)
+        attn = flow.nn.functional.dropout(attn, p=dropout_p)
     # (B, Nt, Ns) x (B, Ns, E) -> (B, Nt, E)
     output = flow.bmm(attn, v)
     return output, attn

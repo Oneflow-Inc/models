@@ -74,7 +74,7 @@ class QLinear(QModule):
 
         self.qw.update(self.fc_module.weight)
         x = (
-            flow.F.matmul(
+            flow._C.matmul(
                 x,
                 self.qw.fake_quantize_tensor(self.fc_module.weight),
                 transpose_a=False,

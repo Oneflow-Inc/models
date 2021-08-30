@@ -52,7 +52,7 @@ class QConv2d(QModule):
 
         self.qw.update(self.conv_module.weight)
 
-        x = flow.F.conv2d(
+        x = flow.nn.functional.conv2d(
             x,
             self.qw.fake_quantize_tensor(self.conv_module.weight),
             self.conv_module.bias,
