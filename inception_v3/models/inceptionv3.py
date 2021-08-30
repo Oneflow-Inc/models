@@ -113,7 +113,7 @@ class Inception3(nn.Module):
                     values_shape = []
                     for i in range(len(m.weight.size())):
                         values_shape.append(m.weight.size()[i])
-                    values = values.reshape(values_shape)
+                    values = values.reshape(tuple(values_shape))
                     values = flow.Tensor(values)
                     with flow.no_grad():
                         m.weight = flow.nn.Parameter(values)
