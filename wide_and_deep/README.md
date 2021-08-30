@@ -16,35 +16,25 @@
 └── wide_and_deep_module.py     #Wide&Deep模型定义
 ```
 ## 参数说明
-|参数名|解释|默认值|
+|参数名|参数说明|默认值|
 |-----|---|------|
-|batch_size||16384|
-|ctrl_port|ctrl_port for multinode job|50051|
-|data_dir||/dataset/wdl_ofrecord/ofrecord|
-|dataset_format|ofrecord or onerec|ofrecord|
-|deep_dropout_rate||0.5|
-|deep_embedding_vec_size||16|
-|deep_vocab_size||1603616|
-|gpu_num_per_node||8|
-|hf_deep_vocab_size||800000|
-|hf_wide_vocab_size||800000|
-|hidden_size||1024|
-|hidden_units_num||7|
-|learning_rate||0.001|
-|loss_print_every_n_iter||100|
-|max_iter||30000|
-|model_load_dir||1024|
-|model_save_dir||7|
-|node_ips|nodes ip list for training, devided by ",", length >= num_nodes|['192.168.1.13', '192.168.1.14']|
-|num_dataloader_thread_per_gpu||2|
-|num_deep_sparse_fields||26|
-|num_dense_fields||13|
-|num_nodes|node/machine number for training|1|
-|print_interval||1000|
-|save_initial_model||False|
-|save_initial_model|save initial model parameters or not.|False|
-|use_single_dataloader_thread|use single dataloader threads per node or not.|False|
-|wide_vocab_size||1603616|
+|batch_size|批次大小|16384|
+|data_dir|数据所在目录|/dataset/wdl_ofrecord/ofrecord|
+|dataset_format|ofrecord格式数据或者onerec格式数据|ofrecord|
+|deep_dropout_rate|模型deep结构dropout参数|0.5|
+|deep_embedding_vec_size|模型deep结构的embedding维度|16|
+|deep_vocab_size|模型deep结构的embedding词表大小|1603616|
+|wide_vocab_size|模型wide结构的embedding词表大小|1603616|
+|hidden_size|模型deep结构nn层神经元个数|1024|
+|hidden_units_num|模型deep结构nn层数量|7|
+|learning_rate|模型的学习率参数|0.001|
+|max_iter|最大训练批次次数|30000|
+|model_load_dir|模型加载目录||
+|model_save_dir|模型保存目录||
+|num_deep_sparse_fields|sparse id特征的个数|26|
+|num_dense_fields|dense特征的个数|13|
+|print_interval|每隔多少批次打印模型训练loss并进行验证|1000|
+|save_initial_model|是否保存模型初始时的参数|False|
 
 ## 运行前准备
 ### 环境
@@ -55,7 +45,7 @@
 [Criteo](https://figshare.com/articles/dataset/Kaggle_Display_Advertising_Challenge_dataset/5732310)数据集是Criteo Labs发布的在线广告数据集。 它包含数百万个展示广告的功能值和点击反馈，该数据可作为点击率(CTR)预测的基准。 每个广告都有描述数据的功能。 数据集具有40个属性，第一个属性是标签，其中值1表示已单击广告，而值0表示未单击广告。 该属性包含13个整数列和26个类别列。
 
 ### ofrecord格式的数据准备
-可见how_to_make_ofrecord_for_wdl.md
+可见[how_to_make_ofrecord_for_wdl](https://github.com/Oneflow-Inc/OneFlow-Benchmark/blob/master/ClickThroughRate/WideDeepLearning/how_to_make_ofrecord_for_wdl.md)
 
 ## 启动Oneflow训练
 ### Eager模式训练脚本
