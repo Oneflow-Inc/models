@@ -1,5 +1,6 @@
 # Wide&Deep
-[Wide&Deep](https://ai.googleblog.com/2016/06/wide-deep-learning-better-together-with.html)模型
+[Wide&Deep](https://ai.googleblog.com/2016/06/wide-deep-learning-better-together-with.html)是一个结合了深度神经网络与线性模型的用于CTR推荐的一个工业应用模型，其模型结构如下，本项目基于该结构，在Crioteo数据集上，使用Oneflow实现了Graph模式与Eager模式的训练。
+![1](https://1.bp.blogspot.com/-Dw1mB9am1l8/V3MgtOzp3uI/AAAAAAAABGs/mP-3nZQCjWwdk6qCa5WraSpK8A7rSPj3ACLcB/s1600/image04.png)
 ## 目录说明
 ```
 .
@@ -45,15 +46,26 @@
 |use_single_dataloader_thread|use single dataloader threads per node or not.|False|
 |wide_vocab_size||1603616|
 
-## 环境
-运行Wide&Deep模型前需要安装[OneFlow](https://github.com/Oneflow-Inc/oneflow),和[scikit-learn](https://scikit-learn.org/stable/install.html) 用于计算评价指标，以及[numpy](https://numpy.org/)。
+## 运行前准备
+### 环境
+运行Wide&Deep模型前需要安装[OneFlow](https://github.com/Oneflow-Inc/oneflow), [scikit-learn](https://scikit-learn.org/stable/install.html) 用于计算评价指标，以及[numpy](https://numpy.org/)。
 
 
-## 数据集
+### 数据集
 [Criteo](https://figshare.com/articles/dataset/Kaggle_Display_Advertising_Challenge_dataset/5732310)数据集是Criteo Labs发布的在线广告数据集。 它包含数百万个展示广告的功能值和点击反馈，该数据可作为点击率(CTR)预测的基准。 每个广告都有描述数据的功能。 数据集具有40个属性，第一个属性是标签，其中值1表示已单击广告，而值0表示未单击广告。 该属性包含13个整数列和26个类别列。
 
-## ofrecord格式的数据准备
+### ofrecord格式的数据准备
 可见how_to_make_ofrecord_for_wdl.md
+
+## 启动Oneflow训练
+### Eager模式训练脚本
+```
+bash eager_train.sh
+```
+### Graph模式训练脚本
+```
+bash graph_train.sh
+```
 
 
 
