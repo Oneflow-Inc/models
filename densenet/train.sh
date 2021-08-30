@@ -20,7 +20,7 @@ VAL_BATCH_SIZE=16
 # LOAD PREVIOUS CHECKPOINT 
 # LOAD_CHECKPOINT="/PATH/TO/CHECKPOINT"
 
-CUDA_VISIBLE_DEVICES=1 python3 train.py \
+python3 train.py \
     --save_checkpoint_path $CHECKPOINT_PATH \
     --ofrecord_path $OFRECORD_PATH \
     --learning_rate $LEARNING_RATE \
