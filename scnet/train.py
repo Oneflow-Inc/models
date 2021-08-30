@@ -81,7 +81,7 @@ def main(args):
 
     of_losses = []
     all_samples = len(val_data_loader) * args.val_batch_size
-    print_interval = 100
+    print_interval = 20
 
     for epoch in range(args.epochs):
         res50_module.train()
