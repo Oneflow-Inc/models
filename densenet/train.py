@@ -19,7 +19,7 @@ def _parse_args():
     parser.add_argument(
         "--load_checkpoint",
         type=str,
-        default="./densenet_121_oneflow_model",
+        default="",
         help="load checkpoint",
     )
     parser.add_argument(
@@ -77,7 +77,7 @@ def main(args):
 
     of_losses = []
     all_samples = len(val_data_loader) * args.val_batch_size
-    print_interval = 100
+    print_interval = 20
 
     for epoch in range(args.epochs):
         densenet121_module.train()
