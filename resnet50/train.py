@@ -61,10 +61,9 @@ class Trainer(object):
                 self.train_data_loader,
                 self.optimizer,
                 self.lr_scheduler,
+                return_pred_and_label=self.metric_train_acc,
             )
-            self.eval_graph = make_eval_graph(
-                self.model, self.val_data_loader, self.cross_entropy
-            )
+            self.eval_graph = make_eval_graph(self.model, self.val_data_loader)
 
     def init_model(self):
         self.logger.print("***** Model Init *****", print_ranks=[0])
@@ -231,7 +230,7 @@ class Trainer(object):
             self.cur_iter += 1
 
             loss = tton(loss, self.metric_local).item()
-            if self.metric_train_acc:
+            if pred is not None and label is not None:
                 pred = tton(pred, self.metric_local)
                 label = tton(label, self.metric_local)
                 top1_acc = calc_acc([pred], [label])
@@ -247,17 +246,17 @@ class Trainer(object):
         preds, labels = [], []
         for _ in range(self.val_batches_per_epoch):
             if self.graph:
-                loss, pred, label = self.eval_graph()
+                pred, label = self.eval_graph()
             else:
-                loss, pred, label = self.inference()
+                pred, label = self.inference()
 
             preds.append(tton(pred, self.metric_local))
             labels.append(tton(label, self.metric_local))
-            self.logger.meter("loss", tton(loss, self.metric_local).item())
 
         top1_acc = calc_acc(preds, labels)
         self.meter(
             iter_pg=(self.val_batches_per_epoch, self.val_batches_per_epoch),
+            loss=0.0,
             top1=top1_acc,
             num_samples=self.val_batch_size * self.val_batches_per_epoch,
             do_print=True,
@@ -269,9 +268,12 @@ class Trainer(object):
         image = image.to("cuda")
         label = label.to("cuda")
         logits = self.model(image)
-        pred = logits.softmax()
         loss = self.cross_entropy(logits, label)
-        return loss, pred, label
+        if self.metric_train_acc:
+            pred = logits.softmax()
+            return loss, pred, label
+        else:
+            return loss, None, None
 
     def inference(self):
         image, label = self.val_data_loader()
@@ -279,10 +281,9 @@ class Trainer(object):
         label = label.to("cuda")
         with flow.no_grad():
             logits = self.model(image)
-            loss = self.cross_entropy(logits, label)
             pred = logits.softmax()
 
-        return loss, pred, label
+        return pred, label
 
     def save(self, subdir):
         if self.save_path is None:

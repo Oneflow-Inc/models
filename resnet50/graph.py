@@ -5,18 +5,31 @@ from models.optimizer import make_grad_scaler
 from models.optimizer import make_static_grad_scaler
 
 
-def make_train_graph(model, cross_entropy, data_loader, optimizer, lr_scheduler=None):
-    return TrainGraph(model, cross_entropy, data_loader, optimizer, lr_scheduler)
+def make_train_graph(
+    model, cross_entropy, data_loader, optimizer, lr_scheduler=None, *args, **kwargs
+):
+    return TrainGraph(
+        model, cross_entropy, data_loader, optimizer, lr_scheduler, *args, **kwargs
+    )
 
 
-def make_eval_graph(model, data_loader, cross_entropy):
-    return EvalGraph(model, data_loader, cross_entropy)
+def make_eval_graph(model, data_loader):
+    return EvalGraph(model, data_loader)
 
 
 class TrainGraph(flow.nn.Graph):
-    def __init__(self, model, cross_entropy, data_loader, optimizer, lr_scheduler=None):
+    def __init__(
+        self,
+        model,
+        cross_entropy,
+        data_loader,
+        optimizer,
+        lr_scheduler=None,
+        return_pred_and_label=True,
+    ):
         super().__init__()
         args = get_args()
+        self.return_pred_and_label = return_pred_and_label
 
         if args.use_fp16:
             self.config.enable_amp(True)
@@ -37,14 +50,18 @@ class TrainGraph(flow.nn.Graph):
         image = image.to("cuda")
         label = label.to("cuda")
         logits = self.model(image)
-        pred = logits.softmax()
         loss = self.cross_entropy(logits, label)
+        if self.return_pred_and_label:
+            pred = logits.softmax()
+        else:
+            pred = None
+            label = None
         loss.backward()
         return loss, pred, label
 
 
 class EvalGraph(flow.nn.Graph):
-    def __init__(self, model, data_loader, cross_entropy):
+    def __init__(self, model, data_loader):
         super().__init__()
 
         args = get_args()
@@ -55,7 +72,6 @@ class EvalGraph(flow.nn.Graph):
 
         self.data_loader = data_loader
         self.model = model
-        self.cross_entropy = cross_entropy
 
     def build(self):
         image, label = self.data_loader()
@@ -63,5 +79,4 @@ class EvalGraph(flow.nn.Graph):
         label = label.to("cuda")
         logits = self.model(image)
         pred = logits.softmax()
-        loss = self.cross_entropy(logits, label)
-        return loss, pred, label
+        return pred, label
