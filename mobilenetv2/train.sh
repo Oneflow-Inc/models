@@ -1,7 +1,6 @@
 set -aux
 
-# OFRECORD_PATH="ofrecord"
-OFRECORD_PATH="/home/rentianhe/code/OneFlow-Models/eval_infer/models/densenet/ofrecord"
+OFRECORD_PATH="ofrecord"
 if [ ! -d "$OFRECORD_PATH" ]; then
     wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/datasets/imagenette_ofrecord.tar.gz
     tar zxf imagenette_ofrecord.tar.gz
