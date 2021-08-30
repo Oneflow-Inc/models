@@ -1,6 +1,7 @@
 set -aux
 
-OFRECORD_PATH="ofrecord"
+# OFRECORD_PATH="ofrecord"
+OFRECORD_PATH="/home/rentianhe/code/OneFlow-Models/eval_infer/models/densenet/ofrecord"
 if [ ! -d "$OFRECORD_PATH" ]; then
     wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/datasets/imagenette_ofrecord.tar.gz
     tar zxf imagenette_ofrecord.tar.gz
@@ -13,12 +14,12 @@ fi
 
 LEARNING_RATE=0.001
 MOM=0.9
-EPOCH=1000
+EPOCH=20
 TRAIN_BATCH_SIZE=16
 VAL_BATCH_SIZE=16
 
 # LOAD PREVIOUS CHECKPOINT 
-# LOAD_CHECKPOINT=$CHECKPOINT_PATH/epoch_2_val_acc_0.111168
+# LOAD_CHECKPOINT="PATH/TO/CHECKPOINT"
 
 python3 train.py \
     --save_checkpoint_path $CHECKPOINT_PATH \
