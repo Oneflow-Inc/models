@@ -1,7 +1,18 @@
 from image import *
+
+
 class listDataset(object):
-    def __init__(self, root, shape=None, shuffle=True, transform=None, train=False, seen=0, batch_size=1,
-                 num_workers=4):
+    def __init__(
+        self,
+        root,
+        shape=None,
+        shuffle=True,
+        transform=None,
+        train=False,
+        seen=0,
+        batch_size=1,
+        num_workers=4,
+    ):
         if train:
             root = root * 4
         random.shuffle(root)
@@ -18,7 +29,7 @@ class listDataset(object):
         return self.nSamples
 
     def __getitem__(self, index):
-        assert index <= len(self), 'index range error'
+        assert index <= len(self), "index range error"
         img_path = self.lines[index]
         img, target = load_data(img_path, self.train)
         if self.transform is not None:
