@@ -6,19 +6,23 @@ from image import *
 from model import CSRNet
 from matplotlib import cm as c
 
-parser = argparse.ArgumentParser(description='Oneflow CSRNet')
-parser.add_argument('modelPath', metavar='MODELPATH',type=str,
-                    help='path to bestmodel')
-parser.add_argument('picPath', metavar='PICPATH',type=str,
-                    help='path to testPic')
-parser.add_argument('picDensity', metavar='PICDensity',type=str,
-                    help='path to PICDensity')
+parser = argparse.ArgumentParser(description="Oneflow CSRNet")
+parser.add_argument(
+    "modelPath", metavar="MODELPATH", type=str, help="path to bestmodel"
+)
+parser.add_argument("picPath", metavar="PICPATH", type=str, help="path to testPic")
+parser.add_argument(
+    "picDensity", metavar="PICDensity", type=str, help="path to PICDensity"
+)
+
 
 def main():
-    transform = ST.Compose([
-        ST.ToNumpyForVal(), ST.Normalize(mean=[0.485, 0.456, 0.406],
-                                         std=[0.229, 0.224, 0.225]),
-    ])
+    transform = ST.Compose(
+        [
+            ST.ToNumpyForVal(),
+            ST.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        ]
+    )
     global args
     args = parser.parse_args()
     model = CSRNet()
@@ -26,7 +30,7 @@ def main():
     # checkpoint = flow.load('checkpoint/Shanghai_BestModelA/shanghaiA_bestmodel')
     checkpoint = flow.load(args.modelPath)
     model.load_state_dict(checkpoint)
-    img = transform(Image.open(args.picPath).convert('RGB'))
+    img = transform(Image.open(args.picPath).convert("RGB"))
     img = flow.Tensor(img)
     img = img.to("cuda")
     output = model(img.unsqueeze(0))
@@ -36,8 +40,8 @@ def main():
     plt.title("Predicted Count")
     plt.imshow(temp, cmap=c.jet)
     plt.show()
-    temp = h5py.File(args.picDensity, 'r')
-    temp_1 = np.asarray(temp['density'])
+    temp = h5py.File(args.picDensity, "r")
+    temp_1 = np.asarray(temp["density"])
     plt.title("Original Count")
     plt.imshow(temp_1, cmap=c.jet)
     print("Original Count : ", int(np.sum(temp_1)) + 1)
@@ -47,5 +51,6 @@ def main():
     plt.imshow(plt.imread(args.picPath))
     plt.show()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()
