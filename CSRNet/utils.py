@@ -4,23 +4,28 @@ import shutil
 import numpy as np
 import os
 
+
 def save_net(fname, net):
-    with h5py.File(fname, 'w') as h5f:
+    with h5py.File(fname, "w") as h5f:
         for k, v in net.state_dict().items():
             h5f.create_dataset(k, data=v.cpu().numpy())
+
+
 def load_net(fname, net):
-    with h5py.File(fname, 'r') as h5f:
-        for k, v in net.state_dict().items():        
+    with h5py.File(fname, "r") as h5f:
+        for k, v in net.state_dict().items():
             param = flow.Tensor(np.asarray(h5f[k]))
             v.copy_(param)
-def save_checkpoint(state, is_best,task_id, filename='checkpoints/'):
 
-    del_file(filename+str(int(task_id) - 1))
-    flow.save(state['state_dict'], filename+task_id)
+
+def save_checkpoint(state, is_best, task_id, filename="checkpoints/"):
+
+    del_file(filename + str(int(task_id) - 1))
+    flow.save(state["state_dict"], filename + task_id)
     if is_best:
-        file_path= 'checkpoints/model_best'
+        file_path = "checkpoints/model_best"
         del_file(file_path)
-        shutil.copytree(filename+task_id, file_path)
+        shutil.copytree(filename + task_id, file_path)
 
 
 def del_file(filepath):

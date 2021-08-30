@@ -163,9 +163,7 @@ def _vgg(arch: str, cfg: str, batch_norm: bool, pretrained, model_path) -> VGG:
     return model
 
 
-def vgg16(
-    pretrained=False, model_path="/"
-) -> VGG:
+def vgg16(pretrained=False, model_path="/") -> VGG:
     r"""VGG 16-layer model (configuration "D")
     `"Very Deep Convolutional Networks For Large-Scale Image Recognition" <https://arxiv.org/pdf/1409.1556.pdf>`_.
     The required minimum input size of the model is 32x32.
@@ -185,9 +183,7 @@ def vgg16_bn() -> VGG:
     return _vgg("vgg16_bn", "D", True)
 
 
-def vgg19(
-    pretrained=False, model_path="pre_model/"
-) -> VGG:
+def vgg19(pretrained=False, model_path="pre_model/") -> VGG:
     r"""VGG 19-layer model (configuration "E")
     `"Very Deep Convolutional Networks For Large-Scale Image Recognition" <https://arxiv.org/pdf/1409.1556.pdf>`_.
     The required minimum input size of the model is 32x32.
