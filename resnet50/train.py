@@ -200,13 +200,14 @@ class Trainer(object):
         self.logger.meter("throughput", time.perf_counter())
         for _ in range(self.num_epochs):
             self.train_one_epoch()
-            if not self.skip_eval:
-                acc = self.eval()
-            else:
-                acc = 0
+            # if not self.skip_eval:
+            #     acc = self.eval()
+            # else:
+            #     acc = 0
+            acc = 0
 
-            save_dir = f"epoch_{self.cur_epoch}_val_acc_{acc}"
-            self.save(save_dir)
+            # save_dir = f"epoch_{self.cur_epoch}_val_acc_{acc}"
+            # self.save(save_dir)
             self.cur_epoch += 1
             self.cur_iter = 0
 
@@ -214,7 +215,8 @@ class Trainer(object):
         self.model.train()
         self.is_train = True
 
-        for _ in range(self.batches_per_epoch):
+        # for _ in range(self.batches_per_epoch):
+        for _ in range(20):
             if self.graph:
                 loss, pred, label = self.train_graph()
             else:

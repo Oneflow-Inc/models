@@ -70,10 +70,10 @@ class LabelSmoothLoss(flow.nn.Module):
         self.off_value = self.smooth_rate / self.num_classes
 
     def forward(self, input, label):
-        onehot_label = flow.F.one_hot(label, self.num_classes, self.on_value, self.off_value)
+        onehot_label = flow._C.one_hot(label, self.num_classes, self.on_value, self.off_value)
         # NOTE(zwx): manual way has bug
         # log_prob = input.softmax(dim=-1).log()
         # onehot_label = flow.F.cast(onehot_label, log_prob.dtype)
         # loss = flow.mul(log_prob * -1, onehot_label).sum(dim=-1).mean()
-        loss = flow.F.softmax_cross_entropy(input, onehot_label.to(dtype=input.dtype))
+        loss = flow._C.softmax_cross_entropy(input, onehot_label.to(dtype=input.dtype))
         return loss.mean()

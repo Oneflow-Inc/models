@@ -195,7 +195,7 @@ def parse_args(ignore_unknown_args=False):
     parser.add_argument(
         "--print-interval",
         type=int,
-        default=100,
+        default=1,
         dest="print_interval",
         help="print loss every n iteration",
     )
