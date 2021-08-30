@@ -7,6 +7,8 @@ import numbers
 import collections
 import numpy as np
 from PIL import Image, ImageOps
+
+
 class Compose(object):
     """Composes several transforms together.
     Args:
@@ -29,40 +31,43 @@ class Compose(object):
     def randomize_parameters(self):
         for t in self.transforms:
             t.randomize_parameters()
+
+
 class ToNumpy(object):
     def __init__(self, norm_value=255):
         self.norm_value = norm_value
+
     def __call__(self, pic):
         # handle PIL Image\
         if isinstance(pic, np.ndarray):
             # handle numpy array
-            pic=np.transpose(pic,[2,0,1])
-            pic=pic.astype(np.float)
-            pic=pic/self.norm_value
+            pic = np.transpose(pic, [2, 0, 1])
+            pic = pic.astype(np.float)
+            pic = pic / self.norm_value
             return pic
-        if pic.mode == 'I':
+        if pic.mode == "I":
             img = np.array(pic, np.int32, copy=False)
-        elif pic.mode == 'I;16':
+        elif pic.mode == "I;16":
             img = np.array(pic, np.int16, copy=False)
         else:
 
-            img=np.frombuffer(pic.tobytes(),dtype=np.uint8)
+            img = np.frombuffer(pic.tobytes(), dtype=np.uint8)
         # PIL image mode: 1, L, P, I, F, RGB, YCbCr, RGBA, CMYK
-        if pic.mode == 'YCbCr':
+        if pic.mode == "YCbCr":
             nchannel = 3
-        elif pic.mode == 'I;16':
+        elif pic.mode == "I;16":
             nchannel = 1
         else:
             nchannel = len(pic.mode)
-        img=np.reshape(img,[1,pic.size[1], pic.size[0], nchannel])
-        img=np.transpose(img,[0,3,1,2])
-        #img=flow.reshape(img,shape=[pic.size[1], pic.size[0], nchannel])
+        img = np.reshape(img, [1, pic.size[1], pic.size[0], nchannel])
+        img = np.transpose(img, [0, 3, 1, 2])
+        # img=flow.reshape(img,shape=[pic.size[1], pic.size[0], nchannel])
         # put it from HWC to CHW format
         # yikes, this transpose takes 80% of the loading time/CPU
 
-        if img.dtype==np.uint8:
-            img=img.astype(np.float)
-            img=img/self.norm_value
+        if img.dtype == np.uint8:
+            img = img.astype(np.float)
+            img = img / self.norm_value
             return img
         else:
             return img
@@ -87,20 +92,22 @@ class Normalize(object):
         self.std = std
 
     def __call__(self, numpy):
-  
-        # TODO: make efficient
-        index=min(len(numpy),len(self.mean),len(self.std))
 
-        numpy=np.array(numpy)
+        # TODO: make efficient
+        index = min(len(numpy), len(self.mean), len(self.std))
+
+        numpy = np.array(numpy)
         numpy.flags.writeable = True
 
-        for i in range(0,index):
-            numpy[i]=numpy[i]-self.mean[i]
-            numpy[i]=numpy[i]/self.std[i]
+        for i in range(0, index):
+            numpy[i] = numpy[i] - self.mean[i]
+            numpy[i] = numpy[i] / self.std[i]
         return numpy
 
     def randomize_parameters(self):
         pass
+
+
 class Scale(object):
     """Rescale the input PIL.Image to the given size.
     Args:
@@ -114,9 +121,9 @@ class Scale(object):
     """
 
     def __init__(self, size, interpolation=Image.BILINEAR):
-        assert isinstance(size,
-                          int) or (isinstance(size, collections.Iterable) and
-                                   len(size) == 2)
+        assert isinstance(size, int) or (
+            isinstance(size, collections.Iterable) and len(size) == 2
+        )
         self.size = size
         self.interpolation = interpolation
 
@@ -144,6 +151,7 @@ class Scale(object):
 
     def randomize_parameters(self):
         pass
+
 
 class RandomCrop(object):
     """Crops the given PIL.Image at a random location.
@@ -176,6 +184,8 @@ class RandomCrop(object):
     def randomize_parameters(self):
         self.tl_x = random.random()
         self.tl_y = random.random()
+
+
 class CenterCrop(object):
     """Crops the given PIL.Image at the center.
     Args:
@@ -199,15 +209,15 @@ class CenterCrop(object):
         """
         w, h = img.size
         th, tw = self.size
-        x1 = int(round((w - tw) / 2.))
-        y1 = int(round((h - th) / 2.))
+        x1 = int(round((w - tw) / 2.0))
+        y1 = int(round((h - th) / 2.0))
         return img.crop((x1, y1, x1 + tw, y1 + th))
 
     def randomize_parameters(self):
         pass
 
-class CornerCrop(object):
 
+class CornerCrop(object):
     def __init__(self, size, crop_position=None):
         self.size = size
         if crop_position is None:
@@ -215,34 +225,34 @@ class CornerCrop(object):
         else:
             self.randomize = False
         self.crop_position = crop_position
-        self.crop_positions = ['c', 'tl', 'tr', 'bl', 'br']
+        self.crop_positions = ["c", "tl", "tr", "bl", "br"]
 
     def __call__(self, img):
         image_width = img.size[0]
         image_height = img.size[1]
 
-        if self.crop_position == 'c':
+        if self.crop_position == "c":
             th, tw = (self.size, self.size)
-            x1 = int(round((image_width - tw) / 2.))
-            y1 = int(round((image_height - th) / 2.))
+            x1 = int(round((image_width - tw) / 2.0))
+            y1 = int(round((image_height - th) / 2.0))
             x2 = x1 + tw
             y2 = y1 + th
-        elif self.crop_position == 'tl':
+        elif self.crop_position == "tl":
             x1 = 0
             y1 = 0
             x2 = self.size
             y2 = self.size
-        elif self.crop_position == 'tr':
+        elif self.crop_position == "tr":
             x1 = image_width - self.size
             y1 = 0
             x2 = image_width
             y2 = self.size
-        elif self.crop_position == 'bl':
+        elif self.crop_position == "bl":
             x1 = 0
             y1 = image_height - self.size
             x2 = self.size
             y2 = image_height
-        elif self.crop_position == 'br':
+        elif self.crop_position == "br":
             x1 = image_width - self.size
             y1 = image_height - self.size
             x2 = image_width
@@ -254,9 +264,10 @@ class CornerCrop(object):
 
     def randomize_parameters(self):
         if self.randomize:
-            self.crop_position = self.crop_positions[random.randint(
-                0,
-                len(self.crop_positions) - 1)]
+            self.crop_position = self.crop_positions[
+                random.randint(0, len(self.crop_positions) - 1)
+            ]
+
 
 class RandomHorizontalFlip(object):
     """Horizontally flip the given PIL.Image randomly with a probability of 0.5."""
@@ -287,11 +298,13 @@ class MultiScaleCornerCrop(object):
         interpolation: Default: PIL.Image.BILINEAR
     """
 
-    def __init__(self,
-                 scales,
-                 size,
-                 interpolation=Image.BILINEAR,
-                 crop_positions=['c', 'tl', 'tr', 'bl', 'br']):
+    def __init__(
+        self,
+        scales,
+        size,
+        interpolation=Image.BILINEAR,
+        crop_positions=["c", "tl", "tr", "bl", "br"],
+    ):
         self.scales = scales
         self.size = size
         self.interpolation = interpolation
@@ -305,7 +318,7 @@ class MultiScaleCornerCrop(object):
         image_width = img.size[0]
         image_height = img.size[1]
 
-        if self.crop_position == 'c':
+        if self.crop_position == "c":
             center_x = image_width // 2
             center_y = image_height // 2
             box_half = crop_size // 2
@@ -313,22 +326,22 @@ class MultiScaleCornerCrop(object):
             y1 = center_y - box_half
             x2 = center_x + box_half
             y2 = center_y + box_half
-        elif self.crop_position == 'tl':
+        elif self.crop_position == "tl":
             x1 = 0
             y1 = 0
             x2 = crop_size
             y2 = crop_size
-        elif self.crop_position == 'tr':
+        elif self.crop_position == "tr":
             x1 = image_width - crop_size
             y1 = 0
             x2 = image_width
             y2 = crop_size
-        elif self.crop_position == 'bl':
+        elif self.crop_position == "bl":
             x1 = 0
             y1 = image_height - crop_size
             x2 = crop_size
             y2 = image_height
-        elif self.crop_position == 'br':
+        elif self.crop_position == "br":
             x1 = image_width - crop_size
             y1 = image_height - crop_size
             x2 = image_width
@@ -340,11 +353,12 @@ class MultiScaleCornerCrop(object):
 
     def randomize_parameters(self):
         self.scale = self.scales[random.randint(0, len(self.scales) - 1)]
-        self.crop_position = self.crop_positions[random.randint(
-            0,
-            len(self.scales) - 1)]
-class MultiScaleRandomCrop(object):
+        self.crop_position = self.crop_positions[
+            random.randint(0, len(self.scales) - 1)
+        ]
 
+
+class MultiScaleRandomCrop(object):
     def __init__(self, scales, size, interpolation=Image.BILINEAR):
         self.scales = scales
         self.size = size
@@ -371,6 +385,7 @@ class MultiScaleRandomCrop(object):
         self.tl_x = random.random()
         self.tl_y = random.random()
 
+
 class Random2DTranslation(object):
     """
     With a probability, first increase image size to (1 + 1/8), and then perform random crop.
@@ -380,6 +395,7 @@ class Random2DTranslation(object):
         width (int): target width.
         p (float): probability of performing this transformation. Default: 0.5.
     """
+
     def __init__(self, size, p=0.5, interpolation=Image.BILINEAR):
         if isinstance(size, numbers.Number):
             self.size = (int(size), int(size))
@@ -400,8 +416,11 @@ class Random2DTranslation(object):
         """
         if not self.cropping:
             return img.resize((self.width, self.height), self.interpolation)
-        
-        new_width, new_height = int(round(self.width * 1.125)), int(round(self.height * 1.125))
+
+        new_width, new_height = (
+            int(round(self.width * 1.125)),
+            int(round(self.height * 1.125)),
+        )
         resized_img = img.resize((new_width, new_height), self.interpolation)
         x_maxrange = new_width - self.width
         y_maxrange = new_height - self.height
@@ -418,37 +437,38 @@ class Random2DTranslation(object):
 class ToNumpyForVal(object):
     def __init__(self, norm_value=255):
         self.norm_value = norm_value
+
     def __call__(self, pic):
         # handle PIL Image\
         if isinstance(pic, np.ndarray):
             # handle numpy array
-            pic=np.transpose(pic,[2,0,1])
-            pic=pic.astype(np.float)
-            pic=pic/self.norm_value
+            pic = np.transpose(pic, [2, 0, 1])
+            pic = pic.astype(np.float)
+            pic = pic / self.norm_value
             return pic
-        if pic.mode == 'I':
+        if pic.mode == "I":
             img = np.array(pic, np.int32, copy=False)
-        elif pic.mode == 'I;16':
+        elif pic.mode == "I;16":
             img = np.array(pic, np.int16, copy=False)
         else:
 
-            img=np.frombuffer(pic.tobytes(),dtype=np.uint8)
+            img = np.frombuffer(pic.tobytes(), dtype=np.uint8)
         # PIL image mode: 1, L, P, I, F, RGB, YCbCr, RGBA, CMYK
-        if pic.mode == 'YCbCr':
+        if pic.mode == "YCbCr":
             nchannel = 3
-        elif pic.mode == 'I;16':
+        elif pic.mode == "I;16":
             nchannel = 1
         else:
             nchannel = len(pic.mode)
-        img=np.reshape(img,[pic.size[1], pic.size[0], nchannel])
-        img=np.transpose(img,[2,0,1])
-        #img=flow.reshape(img,shape=[pic.size[1], pic.size[0], nchannel])
+        img = np.reshape(img, [pic.size[1], pic.size[0], nchannel])
+        img = np.transpose(img, [2, 0, 1])
+        # img=flow.reshape(img,shape=[pic.size[1], pic.size[0], nchannel])
         # put it from HWC to CHW format
         # yikes, this transpose takes 80% of the loading time/CPU
 
-        if img.dtype==np.uint8:
-            img=img.astype(np.float)
-            img=img/self.norm_value
+        if img.dtype == np.uint8:
+            img = img.astype(np.float)
+            img = img / self.norm_value
             return img
         else:
             return img
