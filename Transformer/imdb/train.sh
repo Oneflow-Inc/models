@@ -17,7 +17,7 @@ NHEAD=8
 NUM_LAYERS=4
 DIM_FF=1024
 
-IMDB_PATH="../../imdb"
+IMDB_PATH="../datasets/imdb"
 LOAD_DIR="."
 SAVE_DIR="best_model"
 
