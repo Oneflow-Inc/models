@@ -22,13 +22,15 @@ def save_model(module: nn.Module, checkpoint_path: str, epoch: int, acc: float):
 
 def train(epoch, iter_per_epoch, graph, print_interval):
     total_loss = []
+    total_lml_loss = []
+    total_ns_loss = []
     total_correct = 0
     total_element = 0
     for i in range(iter_per_epoch):
 
         start_t = time.time()
 
-        next_sent_output, next_sent_labels, loss = graph()
+        next_sent_output, next_sent_labels, loss, lml_loss, ns_loss = graph()
 
         # Waiting for sync
         loss = flow.cast(loss, dtype=flow.float64).numpy().item()
@@ -43,6 +45,8 @@ def train(epoch, iter_per_epoch, graph, print_interval):
             .item()
         )
         total_loss.append(loss)
+        total_lml_loss.append(lml_loss)
+        total_ns_loss.append(ns_loss)
         total_correct += correct
         total_element += next_sent_labels.nelement()
 
@@ -58,7 +62,7 @@ def train(epoch, iter_per_epoch, graph, print_interval):
             epoch, (i + 1), np.mean(total_loss), total_correct * 100.0 / total_element
         )
     )
-    return total_loss
+    return total_loss, total_lml_loss, total_ns_loss
 
 
 def validation(
@@ -141,7 +145,7 @@ def main():
     parser.add_argument("--attention-probs-dropout-prob", type=float, default=0.1)
     parser.add_argument("--hidden-dropout-prob", type=float, default=0.1)
     parser.add_argument("--hidden-size-per-head", type=int, default=64)
-    parser.add_argument("-e", "--epochs", type=int, default=10, help="Number of epochs")
+    parser.add_argument("-e", "--epochs", type=int, default=1, help="Number of epochs")
 
     parser.add_argument(
         "--with-cuda",
@@ -153,7 +157,7 @@ def main():
         "--cuda_devices", type=int, nargs="+", default=None, help="CUDA device ids"
     )
 
-    parser.add_argument("--lr", type=float, default=1e-3, help="Learning rate of adam")
+    parser.add_argument("--lr", type=float, default=1e-4, help="Learning rate of adam")
     parser.add_argument(
         "--adam-weight-decay", type=float, default=0.01, help="Weight_decay of adam"
     )
@@ -185,7 +189,7 @@ def main():
     print("Creating Dataloader")
     train_data_loader = OfRecordDataLoader(
         ofrecord_dir=args.ofrecord_path,
-        mode='test',
+        mode="test",
         dataset_size=1024,
         batch_size=args.train_batch_size,
         data_part_num=1,
@@ -195,7 +199,7 @@ def main():
 
     test_data_loader = OfRecordDataLoader(
         ofrecord_dir=args.ofrecord_path,
-        mode='test',
+        mode="test",
         dataset_size=1024,
         batch_size=args.val_batch_size,
         data_part_num=1,
@@ -212,23 +216,26 @@ def main():
         args.atten_heads,
         args.intermediate_size,
         nn.GELU(),
-        0.,# args.hidden_dropout_prob,
-        0.,# args.attention_probs_dropout_prob,
+        0.0,  # args.hidden_dropout_prob,
+        0.0,  # args.attention_probs_dropout_prob,
         args.max_position_embeddings,
         args.type_vocab_size,
     )
 
     # Load the same initial parameters with lazy model.
-    load_params_from_lazy(bert_model.state_dict(), flow.load(
-        "../../OneFlow-Benchmark/LanguageModeling/BERT/snapshots/snapshot_snapshot_1"
-    ))
-    
+    load_params_from_lazy(
+        bert_model.state_dict(),
+        flow.load(
+            "../../OneFlow-Benchmark/LanguageModeling/BERT/snapshots/snapshot_snapshot_1"
+        ),
+    )
+
     bert_model.to(device)
 
-    optimizer = flow.optim.Adam(
+    optimizer = flow.optim.AdamW(
         bert_model.parameters(),
         lr=args.lr,
-        weight_decay=args.adam_weight_decay,
+        # weight_decay=args.adam_weight_decay,
         betas=(args.adam_beta1, args.adam_beta2),
     )
 
@@ -277,7 +284,7 @@ def main():
             self.masked_lm_criterion = partial(
                 get_masked_lm_loss, max_prediction_per_seq=20
             )
-            self.add_optimizer(optimizer, lr_sch=cosine_annealing_lr)
+            self.add_optimizer(optimizer)#, lr_sch=cosine_annealing_lr)
             self._train_data_loader = train_data_loader
 
         def build(self):
@@ -316,7 +323,7 @@ def main():
             total_loss = next_sentence_loss + masked_lm_loss
 
             total_loss.backward()
-            return seq_relationship_scores, next_sentence_labels, total_loss
+            return seq_relationship_scores, next_sentence_labels, total_loss, masked_lm_loss, next_sentence_loss
 
     bert_graph = BertGraph()
 
@@ -354,16 +361,23 @@ def main():
     bert_eval_graph = BertEvalGraph()
 
     train_total_losses = []
+    train_lml_losses = []
+    train_ns_losses = []
     for epoch in range(args.epochs):
         # Train
         bert_model.train()
-        train_total_loss = train(
-            epoch, len(train_data_loader), bert_graph, args.print_interval
+        train_total_loss, lml_loss, ns_loss = train(
+            epoch, 2000, #len(train_data_loader), 
+            bert_graph, args.print_interval
         )
 
         train_total_losses.extend(train_total_loss)
+        train_lml_losses.extend(lml_loss)
+        train_ns_losses.extend(ns_loss)
 
-    Reporter.write2file(train_total_losses, "bert_graph_loss1.txt")
+    Reporter.write2file(train_total_losses, "bert_graph_loss.txt")
+    Reporter.write2file(train_lml_losses, "bert_graph_lml_loss.txt")
+    Reporter.write2file(train_ns_losses, "bert_graph_ns_loss.txt")
     # Eval
     # bert_model.eval()
     # val_acc = validation(

@@ -32,8 +32,8 @@ class BertEmbeddings(nn.Module):
 
         input_embeds = self.word_embeddings(input_ids)
 
-        if position_ids is None: 
-            position_ids = self.position_ids[:, : self.seq_length]  
+        if position_ids is None:
+            position_ids = self.position_ids[:, : self.seq_length]
         position_embeds = self.position_embeddings(position_ids)
 
         token_type_embeds = self.token_type_embeddings(token_type_ids)
@@ -277,7 +277,6 @@ class BertModel(nn.Module):
 
         self.pooler = BertPooler(hidden_size)
 
-
     def get_input_embeddings(self):
         return self.embeddings.word_embeddings
 
@@ -412,11 +411,13 @@ class BertForPreTraining(nn.Module):
 
     def set_output_embeddings(self, new_embeddings):
         self.cls.predictions.decoder = new_embeddings
-    
+
     def init_weights(self):
         self.apply(self._init_weights)
 
-        self.clone_weights(self.get_output_embeddings(), self.bert.get_input_embeddings())
+        self.clone_weights(
+            self.get_output_embeddings(), self.bert.get_input_embeddings()
+        )
 
     def _init_weights(self, module):
         """Initialize the weights"""
@@ -433,7 +434,7 @@ class BertForPreTraining(nn.Module):
         elif isinstance(module, nn.LayerNorm):
             module.bias.data.fill_(0.0)
             module.weight.data.fill_(1.0)
-    
+
     def clone_weights(self, output_embeddings, input_embeddings):
         """
         Tie the weights between the input embeddings and the output embeddings.
