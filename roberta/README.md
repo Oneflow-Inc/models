@@ -66,8 +66,8 @@ tar zxf SST-2.tar.gz
 - flow_roberta-base  <br>
 We complete this by moving the weights from already_trained roberta model from transformers. For more details, see weights_transform. 
 ```bash
-wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/nlp/roberta_pretrain_oneflow.tar.gz
-tar zxf roberta_pretrain_oneflow.tar.gz
+wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/nlp/roberta/flow_roberta-base.tar.gz
+tar zxf flow_roberta-base.tar.gz
 ```
 - pretrain_model_SST-2 <br>
 ```bash
@@ -121,20 +121,20 @@ TASK="SST-2"
 
 We complete Multi-Genre Natural Language Inference task based on MNLI dataset in order to test our model.
 ```bash
-wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/datasets/models/NLP/SST-2.tar.gz
-tar zxf SST-2.tar.gz
+wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/nlp/roberta/MNLI.tar.gz
+tar zxf MNLI.tar.gz
 ```
 ### Pertrain model
 - flow_roberta-base  <br>
 We complete this by moving the weights from already_trained roberta model from transformers. For more details, see weights_transform. 
 ```bash
-wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/nlp/roberta_pretrain_oneflow.tar.gz
-tar zxf roberta_pretrain_oneflow.tar.gz
+wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/nlp/roberta/flow_roberta-base.tar.gz
+tar zxf flow_roberta-base.tar.gz
 ```
 - pretrain_model_MNLI <br>
 ```bash
-wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/nlp/pretrain_model_SST-2.tar.gz
-tar zxf pretrain_model_SST-2.tar.gz
+wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/nlp/roberta/pretrain_model_MNLI.tar.gz
+tar zxf pretrain_model_MNLI.tar.gz
 ```
 
 ### Traininig
