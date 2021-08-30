@@ -1,11 +1,27 @@
 import oneflow.nn as nn
 import oneflow as flow
 from vgg import vgg16, VGG_WITH_FEATURES
+
+
 class CSRNet(nn.Module):
     def __init__(self, load_weights=False):
         super(CSRNet, self).__init__()
         self.seen = 0
-        self.frontend_feat = [64, 64, 'M', 128, 128, 'M', 256, 256, 256, 'M', 512, 512, 512]
+        self.frontend_feat = [
+            64,
+            64,
+            "M",
+            128,
+            128,
+            "M",
+            256,
+            256,
+            256,
+            "M",
+            512,
+            512,
+            512,
+        ]
         self.backend_feat = [512, 512, 512, 256, 128, 64]
         self.frontend = make_layers(self.frontend_feat)
         self.backend = make_layers(self.backend_feat, in_channels=512, dilation=True)
@@ -13,19 +29,21 @@ class CSRNet(nn.Module):
 
         if not load_weights:
             mod = vgg16(pretrained=True)
-            pretrain_models = flow.load('vgg_imagenet_pretrain_model/vgg16_oneflow_model')
+            pretrain_models = flow.load(
+                "vgg_imagenet_pretrain_model/vgg16_oneflow_model"
+            )
             mod.load_state_dict(pretrain_models)
-            self._initialize_weights()          
+            self._initialize_weights()
             for i in range(len(self.frontend.state_dict().items())):
                 src = list(mod.state_dict().items())[i][1]
                 dst = list(self.frontend.state_dict().items())[i][1].copy_(src)
 
-
-    def forward(self,x):
+    def forward(self, x):
         x = self.frontend(x)
         x = self.backend(x)
         x = self.output_layer(x)
         return x
+
     def _initialize_weights(self):
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -35,19 +53,21 @@ class CSRNet(nn.Module):
             elif isinstance(m, nn.BatchNorm2d):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
-            
-                
-def make_layers(cfg, in_channels = 3,batch_norm=False,dilation = False):
+
+
+def make_layers(cfg, in_channels=3, batch_norm=False, dilation=False):
     if dilation:
         d_rate = 2
     else:
         d_rate = 1
     layers = []
     for v in cfg:
-        if v == 'M':
+        if v == "M":
             layers += [nn.MaxPool2d(kernel_size=2, stride=2)]
         else:
-            conv2d = nn.Conv2d(in_channels, v, kernel_size=3, padding=d_rate,dilation = d_rate)
+            conv2d = nn.Conv2d(
+                in_channels, v, kernel_size=3, padding=d_rate, dilation=d_rate
+            )
             if batch_norm:
                 layers += [conv2d, nn.BatchNorm2d(v), nn.ReLU(inplace=True)]
             else:
@@ -55,5 +75,6 @@ def make_layers(cfg, in_channels = 3,batch_norm=False,dilation = False):
             in_channels = v
     return nn.Sequential(*layers)
 
-if __name__=="__main__":
+
+if __name__ == "__main__":
     model = CSRNet()
