@@ -403,8 +403,8 @@ def _get_clones(module, N):
 
 def _get_activation_fn(activation):
     if activation == "relu":
-        return flow.F.relu
+        return flow.nn.functional.relu
     elif activation == "gelu":
-        return flow.F.gelu
+        return flow.nn.functional.gelu
 
     raise RuntimeError("activation should be relu/gelu, not {}".format(activation))

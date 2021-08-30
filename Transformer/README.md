@@ -19,9 +19,10 @@ Also, We found out that `oneflow.nn.LayerNorm` suffers from some problems so tha
 We use Imdb dataset to test our model first.
 
 ```bash
+mkdir datasets; cd datasets;
 wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/datasets/models/Imdb_ofrecord.tar.gz
 tar zxf Imdb_ofrecord.tar.gz
-```
+``
 
 ### Traininig
 
@@ -47,7 +48,7 @@ NHEAD=8
 NUM_LAYERS=4
 DIM_FF=1024
 
-IMDB_PATH="../../imdb"
+IMDB_PATH="../datasets/imdb"
 LOAD_DIR="."
 SAVE_DIR="best_model"
 ```
