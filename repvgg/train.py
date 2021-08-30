@@ -27,13 +27,11 @@ def _parse_args():
         "--learning_rate", type=float, default=0.001, help="learning rate"
     )
     parser.add_argument("--mom", type=float, default=0.9, help="momentum")
-    parser.add_argument("--epochs", type=int, default=100,
-                        help="training epochs")
+    parser.add_argument("--epochs", type=int, default=100, help="training epochs")
     parser.add_argument(
         "--train_batch_size", type=int, default=32, help="train batch size"
     )
-    parser.add_argument("--val_batch_size", type=int,
-                        default=32, help="val batch size")
+    parser.add_argument("--val_batch_size", type=int, default=32, help="val batch size")
 
     return parser.parse_args()
 
@@ -122,8 +120,7 @@ def main(args):
                     correct_of += 1
             end_t = time.time()
 
-        print("epoch %d, oneflow top1 val acc: %f" %
-              (epoch, correct_of / all_samples))
+        print("epoch %d, oneflow top1 val acc: %f" % (epoch, correct_of / all_samples))
 
         flow.save(
             repVGGA0.state_dict(),
