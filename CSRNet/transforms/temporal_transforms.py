@@ -6,7 +6,6 @@ import numpy as np
 
 
 class LoopPadding(object):
-
     def __init__(self, size):
         self.size = size
 
@@ -32,7 +31,7 @@ class TemporalCenterCrop(object):
         size (int): Desired output size of the crop.
     """
 
-    def __init__(self, size, padding=True, pad_method='loop'):
+    def __init__(self, size, padding=True, pad_method="loop"):
         self.size = size
         self.padding = padding
         self.pad_method = pad_method
@@ -52,7 +51,7 @@ class TemporalCenterCrop(object):
         out = list(frame_indices[begin_index:end_index])
 
         if self.padding == True:
-            if self.pad_method == 'loop':
+            if self.pad_method == "loop":
                 while len(out) < self.size:
                     for index in out:
                         if len(out) >= self.size:
@@ -96,7 +95,7 @@ class TemporalRandomCrop(object):
             rand_end = len(frame_indices) - (self.size - 1) * self.stride - 1
             begin_index = random.randint(0, rand_end)
             end_index = begin_index + (self.size - 1) * self.stride + 1
-            out = frame_indices[begin_index:end_index:self.stride]
+            out = frame_indices[begin_index : end_index : self.stride]
         elif len(frame_indices) >= self.size:
             index = np.random.choice(len(frame_indices), size=self.size, replace=False)
             index.sort()
@@ -121,7 +120,7 @@ class TemporalBeginCrop(object):
 
     def __init__(self, size=4):
         self.size = size
-        
+
     def __call__(self, frame_indices):
         frame_indices = list(frame_indices)
 
