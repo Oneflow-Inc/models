@@ -24,6 +24,10 @@ def make_grad_scaler():
     )
 
 
+def make_static_grad_scaler():
+    return flow.amp.StaticGradScaler(flow.env.get_world_size())
+
+
 def make_lr_scheduler(args, optimizer):
     assert args.lr_decay_type in ("none", "cosine")
 

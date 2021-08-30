@@ -44,7 +44,7 @@ class Trainer(object):
         if self.use_fp16 and self.num_nodes * self.num_devices_per_node > 1:
             flow.boxing.nccl.enable_use_buffer_to_fuse_all_reduce(False)
 
-        self.model = resnet50(zero_init_residual=True)
+        self.model = resnet50(zero_init_residual=self.zero_init_residual)
         self.init_model()
         self.cross_entropy = make_cross_entropy(args)
 

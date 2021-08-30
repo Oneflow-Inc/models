@@ -2,6 +2,7 @@ import oneflow as flow
 
 from config import get_args
 from models.optimizer import make_grad_scaler
+from models.optimizer import make_static_grad_scaler
 
 
 def make_train_graph(model, cross_entropy, data_loader, optimizer, lr_scheduler=None):
@@ -20,6 +21,8 @@ class TrainGraph(flow.nn.Graph):
         if args.use_fp16:
             self.config.enable_amp(True)
             self.set_grad_scaler(make_grad_scaler())
+        elif args.scale_grad:
+            self.set_grad_scaler(make_static_grad_scaler())
 
         self.config.allow_fuse_add_to_output(True)
         self.config.allow_fuse_model_update_ops(True)
