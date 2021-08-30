@@ -52,7 +52,6 @@ def evaluate(
         encoder_outputs = flow.cat(encoder_outputs, dim=0)
 
         decoder_input = flow.tensor([[SOS_token]]).to(device)
-        print(decoder_input.size())
         decoder_hidden = encoder_hidden
         decoded_words = []
         decoder_attentions = flow.zeros((max_length, max_length)).to(device)
