@@ -8,10 +8,7 @@ import time
 from models.ghostnet import ghostnet
 from utils.ofrecord_data_utils import OFRecordDataLoader
 
-model_dict = {
-    "ghostnet": ghostnet
-}
-
+model_dict = {"ghostnet": ghostnet}
 
 
 def _parse_args():
@@ -39,10 +36,7 @@ def _parse_args():
     )
     parser.add_argument("--val_batch_size", type=int, default=32, help="val batch size")
     parser.add_argument(
-        "--model",
-        type=str,
-        default="ghostnet",
-        help="choose a model from ghost_net",
+        "--model", type=str, default="ghostnet", help="choose a model from ghost_net",
     )
 
     return parser.parse_args()
@@ -50,7 +44,7 @@ def _parse_args():
 
 def main(args):
 
-    #flow.InitEagerGlobalSession()
+    # flow.InitEagerGlobalSession()
 
     train_data_loader = OFRecordDataLoader(
         ofrecord_root=args.ofrecord_path,

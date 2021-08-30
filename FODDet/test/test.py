@@ -11,10 +11,10 @@ checkpoint_path = ".../result/UNetmodel-i"
 checkpoint = flow.load(checkpoint_path)
 net.load_state_dict(checkpoint)
 
-device='cpu'
-net.to('cpu')
+device = "cpu"
+net.to("cpu")
 
-test_dataset= dataloader.Dataset(
+test_dataset = dataloader.Dataset(
     dataloader.x_test_dir,
     dataloader.y_test_dir,
     augmentation=dataloader.get_test_augmentation(),
@@ -23,8 +23,8 @@ test_dataset= dataloader.Dataset(
 for image, mask in test_dataset:
     show_image = image
     with flow.no_grad():
-        image = image / 255.
-        image = image.astype('float32')
+        image = image / 255.0
+        image = image.astype("float32")
         image = flow.tensor(image, dtype=float32)
         image = image.permute(2, 0, 1)
         image = image.to(device)

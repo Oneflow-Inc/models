@@ -33,11 +33,17 @@ def sync(x):
 
 
 def gpu_memory_used():
-    output = subprocess.check_output(['nvidia-smi', '--query-compute-apps=pid,used_gpu_memory', '--format=csv,noheader'])
-    output = output.decode('utf-8').strip()
+    output = subprocess.check_output(
+        [
+            "nvidia-smi",
+            "--query-compute-apps=pid,used_gpu_memory",
+            "--format=csv,noheader",
+        ]
+    )
+    output = output.decode("utf-8").strip()
     my_pid = os.getpid()
     mem_used_by_me = 0
-    for line in output.split('\n'):
+    for line in output.split("\n"):
         pid, mem_used = map(int, re.split(",? ", line)[:2])
         if pid == my_pid:
             mem_used_by_me += mem_used
@@ -150,9 +156,13 @@ def test(
     if test_oneflow:
         gpu_memory_used_by_oneflow = gpu_memory_used()
 
-        print_rank_0(f"{framework_name} GPU used (rank 0): {gpu_memory_used_by_oneflow} MiB")
+        print_rank_0(
+            f"{framework_name} GPU used (rank 0): {gpu_memory_used_by_oneflow} MiB"
+        )
     else:
-        print_rank_0(f"{framework_name} GPU used (rank 0, estimated): {gpu_memory_used() - gpu_memory_used_by_oneflow} MiB")
+        print_rank_0(
+            f"{framework_name} GPU used (rank 0, estimated): {gpu_memory_used() - gpu_memory_used_by_oneflow} MiB"
+        )
     if ddp and not test_oneflow:
         import torch.distributed as dist
 

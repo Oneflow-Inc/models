@@ -1,5 +1,6 @@
 import os
-os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 import cv2
 import numpy as np
 
@@ -9,16 +10,16 @@ import albumentations as albu
 import oneflow.utils.data as data
 from oneflow._oneflow_internal import float32
 
-DATA_DIR = '.../data/CamVid'
+DATA_DIR = ".../data/CamVid"
 
-x_train_dir = os.path.join(DATA_DIR, 'train')
-y_train_dir = os.path.join(DATA_DIR, 'train_labels')
+x_train_dir = os.path.join(DATA_DIR, "train")
+y_train_dir = os.path.join(DATA_DIR, "train_labels")
 
-x_valid_dir = os.path.join(DATA_DIR, 'valid')
-y_valid_dir = os.path.join(DATA_DIR, 'valid_labels')
+x_valid_dir = os.path.join(DATA_DIR, "valid")
+y_valid_dir = os.path.join(DATA_DIR, "valid_labels")
 
-x_test_dir = os.path.join(DATA_DIR, 'test')
-y_test_dir = os.path.join(DATA_DIR, 'test_labels')
+x_test_dir = os.path.join(DATA_DIR, "test")
+y_test_dir = os.path.join(DATA_DIR, "test_labels")
 
 
 class Dataset(flow.utils.data.Dataset):
@@ -33,11 +34,9 @@ class Dataset(flow.utils.data.Dataset):
         preprocessing (albumentations.Compose): data preprocessing
             (e.g. noralization, shape manipulation, etc.)
     """
+
     def __init__(
-            self,
-            images_dir,
-            masks_dir,
-            augmentation=None,
+        self, images_dir, masks_dir, augmentation=None,
     ):
         self.ids = os.listdir(images_dir)
         self.images_fps = [os.path.join(images_dir, image_id) for image_id in self.ids]
@@ -50,13 +49,13 @@ class Dataset(flow.utils.data.Dataset):
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         mask = cv2.imread(self.masks_fps[i], 0)
 
-        mask = (mask == 17)
-        mask = mask.astype('float')
+        mask = mask == 17
+        mask = mask.astype("float")
 
         # apply augmentations
         if self.augmentation:
             sample = self.augmentation(image=image, mask=mask)
-            image, mask = sample['image'], sample['mask']
+            image, mask = sample["image"], sample["mask"]
 
         return image, mask.reshape(1, 320, 320)
 
@@ -64,12 +63,13 @@ class Dataset(flow.utils.data.Dataset):
         return len(self.ids)
 
 
-
 def get_training_augmentation():
     train_transform = [
         albu.HorizontalFlip(p=0.5),
         albu.Resize(height=320, width=320, always_apply=True),
-        albu.ShiftScaleRotate(scale_limit=0.1, rotate_limit=20, shift_limit=0.1, p=1, border_mode=0),
+        albu.ShiftScaleRotate(
+            scale_limit=0.1, rotate_limit=20, shift_limit=0.1, p=1, border_mode=0
+        ),
     ]
     return albu.Compose(train_transform)
 
@@ -82,10 +82,9 @@ def get_test_augmentation():
 
 
 augmented_dataset = Dataset(
-    x_train_dir,
-    y_train_dir,
-    augmentation=get_training_augmentation(),
+    x_train_dir, y_train_dir, augmentation=get_training_augmentation(),
 )
+
 
 class DoubleConv(nn.Module):
     """(convolution => [BN] => ReLU) * 2"""
@@ -98,7 +97,7 @@ class DoubleConv(nn.Module):
             nn.ReLU(inplace=True),
             nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1),
             nn.BatchNorm2d(out_channels),
-            nn.ReLU(inplace=True)
+            nn.ReLU(inplace=True),
         )
 
     def forward(self, x):
@@ -111,8 +110,7 @@ class Down(nn.Module):
     def __init__(self, in_channels, out_channels):
         super().__init__()
         self.maxpool_conv = nn.Sequential(
-            nn.MaxPool2d(2),
-            DoubleConv(in_channels, out_channels)
+            nn.MaxPool2d(2), DoubleConv(in_channels, out_channels)
         )
 
     def forward(self, x):
@@ -126,9 +124,11 @@ class Up(nn.Module):
         super().__init__()
 
         if bilinear:
-            self.up = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
+            self.up = nn.Upsample(scale_factor=2, mode="bilinear", align_corners=True)
         else:
-            self.up = nn.ConvTranspose2d(in_channels // 2, in_channels // 2, kernel_size=2, stride=2)
+            self.up = nn.ConvTranspose2d(
+                in_channels // 2, in_channels // 2, kernel_size=2, stride=2
+            )
 
         self.conv = DoubleConv(in_channels, out_channels)
 
@@ -137,7 +137,9 @@ class Up(nn.Module):
         diffY = x2.size()[2] - x1.size()[2]
         diffX = x2.size()[3] - x1.size()[3]
 
-        constantpad= nn.ConstantPad2d([diffX // 2, diffX - diffX // 2, diffY // 2, diffY - diffY // 2])
+        constantpad = nn.ConstantPad2d(
+            [diffX // 2, diffX - diffX // 2, diffY // 2, diffY - diffY // 2]
+        )
         x1 = constantpad(x1)
 
         x = flow.cat([x2, x1], dim=1)
@@ -159,7 +161,6 @@ class UNet(nn.Module):
         self.n_channels = n_channels
         self.n_classes = n_classes
         self.bilinear = bilinear
-
 
         self.inc = DoubleConv(n_channels, 32)
         self.down1 = Down(32, 64)
@@ -188,23 +189,20 @@ class UNet(nn.Module):
         return logits
 
 
-
 train_dataset = Dataset(
-    x_train_dir,
-    y_train_dir,
-    augmentation=get_training_augmentation(),
+    x_train_dir, y_train_dir, augmentation=get_training_augmentation(),
 )
-batch_size=8
+batch_size = 8
 train_loader = data.DataLoader(train_dataset, batch_size, shuffle=True)
 
 net = UNet(n_channels=3, n_classes=1)
-net.to('cuda:0')
+net.to("cuda:0")
 
-lr=0.001
+lr = 0.001
 optimizer = flow.optim.RMSprop(net.parameters(), lr, weight_decay=1e-8)
 
 criterion = nn.BCELoss()
-epoch=50
+epoch = 50
 
 for i in range(epoch):
 
@@ -214,7 +212,7 @@ for i in range(epoch):
     for data in train_loader:
         images, labels = data
         images = images.permute(0, 3, 1, 2)
-        images = images / 255.
+        images = images / 255.0
         images = images.to("cuda", dtype=float32)
         labels = labels.to("cuda", dtype=float32)
 
@@ -225,11 +223,8 @@ for i in range(epoch):
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
-        print(
-            'epoch', i,
-            'loss: ', loss.numpy()[0]
-        )
-    filename="UNetmodel-"+str(i)
-    save_checkpoint_path=".../result/"
-    flow.save(net.state_dict(), save_checkpoint_path+filename)
+        print("epoch", i, "loss: ", loss.numpy()[0])
+    filename = "UNetmodel-" + str(i)
+    save_checkpoint_path = ".../result/"
+    flow.save(net.state_dict(), save_checkpoint_path + filename)
     print("save net successfully!")
