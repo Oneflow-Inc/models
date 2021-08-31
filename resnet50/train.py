@@ -18,6 +18,7 @@ from models.data import make_data_loader
 from models.optimizer import make_optimizer
 from models.optimizer import make_lr_scheduler
 from models.optimizer import make_cross_entropy
+from models.accuracy import Accuracy
 import utils.logger as log
 
 
@@ -53,6 +54,7 @@ class Trainer(object):
 
         self.optimizer = make_optimizer(args, self.model)
         self.lr_scheduler = make_lr_scheduler(args, self.optimizer)
+        self.acc = Accuracy()
 
         if self.graph:
             self.train_graph = make_train_graph(
@@ -221,11 +223,11 @@ class Trainer(object):
 
             self.cur_iter += 1
 
-            loss = tton(loss, self.metric_local).item()
+            loss = tol(loss, self.metric_local)
             if pred is not None and label is not None:
-                pred = tton(pred, self.metric_local)
-                label = tton(label, self.metric_local)
-                top1_acc = calc_acc([pred], [label])
+                pred = tol(pred, self.metric_local)
+                label = tol(label, self.metric_local)
+                top1_acc = self.acc([pred], [label])
             else:
                 top1_acc = 0
 
@@ -235,7 +237,6 @@ class Trainer(object):
         loss, pred, label = self.forward()
 
         if loss.is_consistent and self.scale_grad:
-            assert self.ddp is False
             # NOTE(zwx): scale init grad with world_size
             # because consistent_tensor.mean() include dividor numel * world_size
             loss = loss / self.world_size
@@ -314,6 +315,17 @@ class Trainer(object):
             flow.save(state_dict, save_path)
         else:
             return
+
+
+def tol(tensor, pure_local=True):
+    """ to local """
+    if tensor.is_consistent:
+        if pure_local:
+            tensor = tensor.to_local()
+        else:
+            tensor = tensor.to_consistent(sbp=flow.sbp.broadcast).to_local()
+
+    return tensor
 
 
 def tton(tensor, local_only=True):

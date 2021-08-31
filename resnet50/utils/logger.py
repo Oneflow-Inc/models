@@ -1,3 +1,6 @@
+import numpy as np
+import oneflow as flow
+
 _GLOBAL_LOGGER = None
 
 
@@ -67,23 +70,52 @@ class IterationMeter(object):
         return self.val
 
 
+def _zeros_by_val(val):
+    ret = 0
+    if isinstance(val, flow.Tensor):
+        ret = flow.zeros_like(val)
+    elif isinstance(val, np.ndarray):
+        ret = np.zeros_like(val)
+    elif isinstance(val, int):
+        ret = 0
+    elif isinstance(val, float):
+        ret = 0.0
+    else:
+        raise ValueError
+    return ret
+
+
 class AverageMeter(object):
     def __init__(self):
         self.reset()
 
     def reset(self):
+        self.sum = None
         self.n = 0
-        self.sum = 0
 
     def record(self, val, n=1):
         self.n += n
-        self.sum += val * n
+
+        if self.sum is None:
+            self.sum = _zeros_by_val(val)
+
+        if n == 1:
+            self.sum += val
+        else:
+            self.sum += val * n
 
     def get(self):
         if self.n == 0:
             return 0
 
-        return self.sum / self.n
+        avg = self.sum / self.n
+        if isinstance(avg, flow.Tensor):
+            # NOTE(zwx): sync happen here
+            return avg.numpy().item()
+        elif isinstance(avg, np.ndarray):
+            return avg.item()
+        else:
+            return avg
 
 
 class RunningMeter(object):
