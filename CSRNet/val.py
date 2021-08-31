@@ -53,8 +53,7 @@ def main():
         groundtruth = np.asarray(gt_file["density"])
         with flow.no_grad():
             output = model(img.unsqueeze(0))
-
-        mae = abs(output.detach().to("cpu").sum().numpy() - np.sum(groundtruth))[0]
+        mae = abs(output.sum().numpy() - np.sum(groundtruth))
         MAE.append(mae)
     avg_MAE = sum(MAE) / len(MAE)
     print("test result: MAE:{:2f}".format(avg_MAE))

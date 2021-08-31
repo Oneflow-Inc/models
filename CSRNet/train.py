@@ -122,7 +122,7 @@ def train(train_list, model, criterion, optimizer, epoch):
         output = flow.Tensor(output, device="cuda")
         target = flow.Tensor(target, device="cuda").unsqueeze(0)
         loss = criterion(output, target)
-        losses.update(loss.numpy()[0], img.size(0))
+        losses.update(loss.numpy(), img.size(0))
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
@@ -167,7 +167,7 @@ def validate(val_list, model, criterion):
         img = flow.Tensor(img, dtype=flow.float32, device="cuda")
         with flow.no_grad():
             output = model(img).to("cuda")
-        mae += abs(output.data.sum().numpy()[0] - target.sum())
+        mae += abs(output.data.sum().numpy() - target.sum())
     mae = mae / len(test_loader)
     print(" * MAE {mae:.3f} ".format(mae=mae))
     return mae
