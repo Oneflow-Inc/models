@@ -35,7 +35,7 @@ class CycleGANModel:
         )
         self.optimizers = [self.optimizer_G, self.optimizer_D]
         self.schedulers = [
-            flow.optim.lr_scheduler.CosineAnnealingLR(optimizer, steps=100, alpha=0.0)
+            flow.optim.lr_scheduler.CosineDecayLR(optimizer, decay_steps=100, alpha=0.0)
             for optimizer in self.optimizers
         ]
 
@@ -186,7 +186,7 @@ class CycleGANModel:
             % (
                 epoch,
                 iter,
-                self.loss_D_A.numpy()[0] + self.loss_D_B.numpy()[0],
-                self.loss_G.numpy()[0],
+                self.loss_D_A.numpy() + self.loss_D_B.numpy(),
+                self.loss_G.numpy(),
             )
         )
