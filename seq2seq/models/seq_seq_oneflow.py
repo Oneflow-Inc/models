@@ -55,14 +55,4 @@ class AttnDecoderRNN_oneflow(nn.Module):
 
     def init_Hidden(self):
         return flow.zeros([1, self.hidden_size])
-
-# import numpy as np
-# decoder = AttnDecoderRNN_oneflow(100,100)
-# x = np.random.rand(1,100)
-# hidden = np.random.rand(1,256)
-# encoder_output = np.random.rand(10,256)
-
-# x = flow.tensor(x, dtype = flow.float32)
-# hidden = flow.tensor(hidden,dtype = flow.float32)
-# encoder_output = flow.tensor(encoder_output,dtype = flow.float32)
-# decoder(x, hidden, encoder_output)
+    
