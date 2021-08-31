@@ -16,7 +16,7 @@ HIDDEN_SIZE=256
 SAVE_PER_EPOCHS=5
 LOAD_DIR="."
 SAVE_DIR="pretrain_model"
-IMDB_PATH="../imdb"
+IMDB_PATH="./imdb"
 
 
 python3 train_bilstm.py \
