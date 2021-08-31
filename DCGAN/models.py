@@ -32,7 +32,7 @@ class Generator(flow.nn.Module):
 
     def forward(self, x):
         # (n, 256, 7, 7)
-        x1 = self.input_fc(x).reshape((-1, self.dim, 7, 7))
+        x1 = self.input_fc(x).reshape(*(-1, self.dim, 7, 7))
         y = self.model(x1)
 
         return y
@@ -54,7 +54,7 @@ class Discriminator(flow.nn.Module):
 
     def forward(self, x):
         b = x.shape[0]
-        x1 = self.model(x).reshape((b, -1))
+        x1 = self.model(x).reshape(*(b, -1))
         y = flow.sigmoid(self.fc(x1))
         return y.flatten()
 
