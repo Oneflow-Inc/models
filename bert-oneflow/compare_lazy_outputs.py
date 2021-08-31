@@ -91,16 +91,16 @@ if __name__ == "__main__":
     load_params_from_lazy(bert_module.state_dict(), lazy_state_dict)
 
     # Copy word embedding weights to decoder fc.
-    bert_module.clone_weights(
-        bert_module.get_output_embeddings(), bert_module.bert.get_input_embeddings()
-    )
+    # bert_module.clone_weights(
+    # bert_module.get_output_embeddings(), bert_module.bert.get_input_embeddings()
+    # )
 
     assert id(bert_module.cls.predictions.decoder.weight) == id(
         bert_module.bert.embeddings.word_embeddings.weight
     )
 
     with open(
-        "../../OneFlow-Benchmark/LanguageModeling/BERT/lazy_input_output.pickle", 'rb'
+        "../../OneFlow-Benchmark/LanguageModeling/BERT/lazy_input_output.pickle", "rb"
     ) as handle:
         lazy_info = pickle.load(handle)
 
@@ -156,3 +156,4 @@ if __name__ == "__main__":
         ns_logit_prob, seq_relationship_scores.view(-1, 2).numpy()
     ), "next sentence output head is not equal!"
 
+    print("All values are matched!")

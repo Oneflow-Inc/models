@@ -14,13 +14,13 @@ def _FullyConnected(
     weight_initializer=flow.truncated_normal(0.02),
 ):
     weight_blob = flow.get_variable(
-        name=name + '-weight',
+        name=name + "-weight",
         shape=[input_size, units],
         dtype=input_blob.dtype,
         initializer=weight_initializer,
     )
     bias_blob = flow.get_variable(
-        name=name + '-bias',
+        name=name + "-bias",
         shape=[units],
         dtype=input_blob.dtype,
         initializer=flow.constant_initializer(0.0),
