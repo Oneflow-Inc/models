@@ -116,9 +116,13 @@ def test(
 
     if ddp:
         if test_oneflow:
-            m = torch.nn.parallel.DistributedDataParallel(m, broadcast_buffers=ddp_broadcast_buffers)
+            m = torch.nn.parallel.DistributedDataParallel(
+                m, broadcast_buffers=ddp_broadcast_buffers
+            )
         else:
-            m = torch.nn.parallel.DistributedDataParallel(m, device_ids=[rank], broadcast_buffers=ddp_broadcast_buffers)
+            m = torch.nn.parallel.DistributedDataParallel(
+                m, device_ids=[rank], broadcast_buffers=ddp_broadcast_buffers
+            )
 
     def run_model(m, x):
         if disable_backward:
