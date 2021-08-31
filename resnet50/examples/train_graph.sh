@@ -10,6 +10,7 @@ echo PYTHONUNBUFFERED=$PYTHONUNBUFFERED
 export NCCL_LAUNCH_MODE=PARALLEL
 echo NCCL_LAUNCH_MODE=$NCCL_LAUNCH_MODE
 # export NCCL_DEBUG=INFO
+# export ONEFLOW_DEBUG_MODE=True
 
 CHECKPOINT_SAVE_PATH="./graph_checkpoints"
 if [ ! -d "$CHECKPOINT_SAVE_PATH" ]; then
@@ -44,9 +45,5 @@ python3 -m oneflow.distributed.launch \
         --num-epochs $EPOCH \
         --train-batch-size $TRAIN_BATCH_SIZE \
         --val-batch-size $VAL_BATCH_SIZE \
+        --use-gpu-decode \
         --graph \
-        --metric-local True \
-        --use-gpu-decode
-        # --print-interval 1
-        # --metric-one-rank 0
-        # --metric-train-acc False
