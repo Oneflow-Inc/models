@@ -107,8 +107,6 @@ class DCGAN(flow.nn.Module):
         # init training include optimizer, model, loss
         self.generator = Generator(self.z_dim).to(self.device)
         self.discriminator = Discriminator().to(self.device)
-        self.generator.load_state_dict(flow.load("generator_oneflow/"))
-        self.discriminator.load_state_dict(flow.load("discriminator_oneflow/"))
         if args.load != "":
             self.generator.load_state_dict(flow.load(args.load))
             self.discriminator.load_state_dict(flow.load(args.load))
