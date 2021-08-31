@@ -17,10 +17,7 @@ def _parse_args():
         help="save checkpoint root dir",
     )
     parser.add_argument(
-        "--load_checkpoint",
-        type=str,
-        default="",
-        help="load checkpoint",
+        "--load_checkpoint", type=str, default="", help="load checkpoint",
     )
     parser.add_argument(
         "--ofrecord_path", type=str, default="./ofrecord", help="dataset path"

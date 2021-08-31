@@ -4,6 +4,7 @@ import math
 import numpy as np
 import oneflow as flow
 import oneflow.nn as nn
+import oneflow.nn.functional as F
 
 from utils.data_utils import flip, sinc, act_fun
 
@@ -152,7 +153,7 @@ class SincConv_fast(nn.Module):
 
         self.filters = (band_pass).reshape(self.out_channels, 1, self.kernel_size)
 
-        output = flow.F.conv1d(
+        output = F.conv1d(
             waveforms,
             self.filters,
             stride=[self.stride],
