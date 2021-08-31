@@ -64,6 +64,8 @@ def test(
     times=DEFAULT_TIMES,
     no_verbose=False,
     ddp=False,
+    ddp_broadcast_buffers=False,
+    show_memory=True,
 ):
     framework_name = "OneFlow" if test_oneflow else "PyTorch"
     if test_oneflow:
@@ -114,9 +116,9 @@ def test(
 
     if ddp:
         if test_oneflow:
-            m = torch.nn.parallel.DistributedDataParallel(m)
+            m = torch.nn.parallel.DistributedDataParallel(m, broadcast_buffers=ddp_broadcast_buffers)
         else:
-            m = torch.nn.parallel.DistributedDataParallel(m, device_ids=[rank])
+            m = torch.nn.parallel.DistributedDataParallel(m, device_ids=[rank], broadcast_buffers=ddp_broadcast_buffers)
 
     def run_model(m, x):
         if disable_backward:
@@ -150,19 +152,20 @@ def test(
         print_rank_0(f"{framework_name}: {time_per_run_ms:.1f}ms")
     else:
         print_rank_0(
-            f"{framework_name} {module_name} time: {time_per_run_ms:.1f}ms (= {total_time_ms:.1f}ms / {times}, input_shape={input_shape}, backward is {'disabled' if disable_backward else 'enabled'})"
+            f"{framework_name} {module_name} time: {time_per_run_ms:.1f}ms (= {total_time_ms:.1f}ms / {times}, input_shape={input_shape}{', backward is disabled' if disable_backward else ''}{', ddp' if ddp else ''}{', ddp_broadcast_buffers is disabled' if not ddp_broadcast_buffers else ''}{f', world size={flow.env.get_world_size()}' if flow.env.get_world_size() != 1 else ''})"
         )
-    global gpu_memory_used_by_oneflow
-    if test_oneflow:
-        gpu_memory_used_by_oneflow = gpu_memory_used()
+    if show_memory:
+        global gpu_memory_used_by_oneflow
+        if test_oneflow:
+            gpu_memory_used_by_oneflow = gpu_memory_used()
 
-        print_rank_0(
-            f"{framework_name} GPU used (rank 0): {gpu_memory_used_by_oneflow} MiB"
-        )
-    else:
-        print_rank_0(
-            f"{framework_name} GPU used (rank 0, estimated): {gpu_memory_used() - gpu_memory_used_by_oneflow} MiB"
-        )
+            print_rank_0(
+                f"{framework_name} GPU used (rank 0): {gpu_memory_used_by_oneflow} MiB"
+            )
+        else:
+            print_rank_0(
+                f"{framework_name} GPU used (rank 0, estimated): {gpu_memory_used() - gpu_memory_used_by_oneflow} MiB"
+            )
     if ddp and not test_oneflow:
         import torch.distributed as dist
 
@@ -180,39 +183,50 @@ if __name__ == "__main__":
     parser.add_argument("--disable-backward", action="store_true")
     parser.add_argument("--no-verbose", action="store_true")
     parser.add_argument("--ddp", action="store_true")
+    parser.add_argument("--ddp-no-broadcast-buffers", action="store_true")
+    parser.add_argument("--only-oneflow", action="store_true")
+    parser.add_argument("--only-pytorch", action="store_true")
+    parser.add_argument("--no-show-memory", action="store_true")
 
     args = parser.parse_args()
     input_shape = list(map(int, args.input_shape.split("x")))
 
     global test_oneflow
 
-    # NOTE: PyTorch must run after OneFlow for correct memory usage
-    test_oneflow = True
-    oneflow_time = test(
-        args.model_path,
-        args.module_name,
-        input_shape,
-        disable_backward=args.disable_backward,
-        times=args.times,
-        no_verbose=args.no_verbose,
-        ddp=args.ddp,
-    )
-
-    test_oneflow = False
-    pytorch_time = test(
-        args.model_path,
-        args.module_name,
-        input_shape,
-        disable_backward=args.disable_backward,
-        times=args.times,
-        no_verbose=args.no_verbose,
-        ddp=args.ddp,
-    )
-
-    relative_speed = pytorch_time / oneflow_time
-    if args.no_verbose:
-        print_rank_0(f"Relative speed: {relative_speed:.2f}")
-    else:
-        print_rank_0(
-            f"Relative speed: {relative_speed:.2f} (= {pytorch_time:.1f}ms / {oneflow_time:.1f}ms)"
+    if not args.only_pytorch:
+        # NOTE: PyTorch must run after OneFlow for correct memory usage
+        test_oneflow = True
+        oneflow_time = test(
+            args.model_path,
+            args.module_name,
+            input_shape,
+            disable_backward=args.disable_backward,
+            times=args.times,
+            no_verbose=args.no_verbose,
+            ddp=args.ddp,
+            ddp_broadcast_buffers=not args.ddp_no_broadcast_buffers,
+            show_memory=not args.no_show_memory,
         )
+
+    if not args.only_oneflow:
+        test_oneflow = False
+        pytorch_time = test(
+            args.model_path,
+            args.module_name,
+            input_shape,
+            disable_backward=args.disable_backward,
+            times=args.times,
+            no_verbose=args.no_verbose,
+            ddp=args.ddp,
+            ddp_broadcast_buffers=not args.ddp_no_broadcast_buffers,
+            show_memory=not args.no_show_memory,
+        )
+
+    if not args.only_pytorch and not args.only_oneflow:
+        relative_speed = pytorch_time / oneflow_time
+        if args.no_verbose:
+            print_rank_0(f"Relative speed: {relative_speed:.2f}")
+        else:
+            print_rank_0(
+                f"Relative speed: {relative_speed:.2f} (= {pytorch_time:.1f}ms / {oneflow_time:.1f}ms)"
+            )
