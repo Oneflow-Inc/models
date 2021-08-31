@@ -3,8 +3,9 @@
 """
 import argparse
 import os
-import numpy as np
+import pickle
 
+import numpy as np
 import oneflow as flow
 import oneflow.nn as nn
 import oneflow.optim as optim
@@ -23,7 +24,7 @@ def get_args():
     parser.add_argument("--epochs", type=int, default=1000)
     parser.add_argument("--rate", type=float, default=0.9)
     parser.add_argument("--lr", type=float, default=1e-4)
-    parser.add_argument("--pretrained_model", type=str, default="None")
+    parser.add_argument("--pretrained_model", type=None, default=None)
     parser.add_argument("--datasets_path", type=str, default="speech_data")
     parser.add_argument("--output_path", type=str, default="save_models")
     parser.add_argument(
@@ -109,7 +110,12 @@ def train(opt):
             samples_processed += batch_size
 
         # evaluate
-        decoder = GreedyDecoder()
+        int_encoder = opt.int_encoder
+        with open(int_encoder, "rb") as f:
+            int_to_char = pickle.load(f)["index2char"]
+
+        decoder = GreedyDecoder(int_to_char)
+
         wer = 0
         start_index = 0
         for step in range(eval_total_steps):

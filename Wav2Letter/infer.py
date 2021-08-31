@@ -3,6 +3,7 @@
 """
 import os
 import argparse
+import pickle
 
 import oneflow as flow
 
@@ -41,7 +42,11 @@ def infer(opt):
     model.to("cuda")
     model.load_state_dict(flow.load(os.path.join(models_path, "model.pth")))
 
-    decoder = GreedyDecoder()
+    int_encoder = opt.int_encoder
+    with open(int_encoder, "rb") as f:
+        int_to_char = pickle.load(f)["index2char"]
+
+    decoder = GreedyDecoder(int_to_char)
 
     inputs = inputs.transpose(1, 2)
 
