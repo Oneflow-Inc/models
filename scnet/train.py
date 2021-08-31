@@ -9,12 +9,7 @@ from models.resnet50 import resnet50
 from models.scloss import scloss
 
 from utils.ofrecord_data_utils import OFRecordDataLoader
-from visdom import Visdom
 
-viz = Visdom()
-viz.line([[0.0]], [0], win="train", opts=dict(title="train-loss", legend=["loss"]))
-viz_val = Visdom()
-viz_val.line([[0.0]], [0], win="val", opts=dict(title="val-acc", legend=["acc"]))
 
 
 def _parse_args():
@@ -106,12 +101,6 @@ def main(args):
                         epoch, b, l, end_t - start_t
                     )
                 )
-                viz.line(
-                    [[l]],
-                    [(epoch) * 400 + (b + 100)],
-                    win="train-loss",
-                    update="append",
-                )
         print("epoch %d train done, start validation" % epoch)
 
         res50_module.eval()
@@ -133,7 +122,6 @@ def main(args):
             end_t = time.time()
 
         print("epoch %d, oneflow top1 val acc: %f" % (epoch, correct_of / all_samples))
-        viz_val.line([[correct_of / all_samples]], [epoch], win="val", update="append")
         flow.save(
             res50_module.state_dict(),
             os.path.join(
