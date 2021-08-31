@@ -55,4 +55,3 @@ class AttnDecoderRNN_oneflow(nn.Module):
 
     def init_Hidden(self):
         return flow.zeros([1, self.hidden_size])
-    
