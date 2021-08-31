@@ -9,7 +9,7 @@ import oneflow.nn as nn
 import shutil
 
 from model import LSTMText
-from utils import pad_sequences, load_imdb_data, colored_string
+from imdb.utils import *
 
 time_map = {}
 
@@ -155,7 +155,7 @@ if __name__ == "__main__":
     parser.add_argument("--model_save_every_n_epochs", type=int, default=5)
     parser.add_argument("--n_epochs", type=int, default=30)
     parser.add_argument("--model_save_dir", type=str, default="./save")
-    parser.add_argument("--imdb_path", type=str, default="../imdb")
+    parser.add_argument("--imdb_path", type=str, default="./imdb")
 
     args = parser.parse_args()
     args.emb_num = 50000

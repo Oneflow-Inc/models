@@ -15,7 +15,7 @@ parser.add_argument("--hidden_size", type=int, default=256)
 parser.add_argument("--nfc", type=int, default=128)
 parser.add_argument("--sequence_length", type=int, default=128)
 parser.add_argument("--model_load_dir", type=str, default="pretrain_model")
-parser.add_argument("--imdb_path", type=str, default="../imdb")
+parser.add_argument("--imdb_path", type=str, default="./imdb")
 parser.add_argument("--text", type=str, default="This film is too bad.")
 
 args = parser.parse_args()
