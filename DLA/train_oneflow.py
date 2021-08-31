@@ -5,12 +5,6 @@ import os
 import time
 from models.dla import DLA
 from utils.ofrecord_data_utils import OFRecordDataLoader
-from visdom import Visdom
-
-viz = Visdom()
-viz.line([[0.0]], [0], win="train", opts=dict(title="train-loss", legend=["loss"]))
-viz_val = Visdom()
-viz_val.line([[0.0]], [0], win="val", opts=dict(title="val-acc", legend=["acc"]))
 
 
 def _parse_args():
@@ -45,8 +39,6 @@ def _parse_args():
 
 
 def main(args):
-    flow.enable_eager_execution()
-    flow.InitEagerGlobalSession()
 
     train_data_loader = OFRecordDataLoader(
         ofrecord_root=args.ofrecord_path,
@@ -102,18 +94,12 @@ def main(args):
             of_sgd.zero_grad()
             end_t = time.time()
             if b % args.print_interval == 0:
-                l = loss.numpy()[0]
+                l = loss.numpy()
                 of_losses.append(l)
                 print(
                     "epoch {} train iter {} oneflow loss {}, train time : {}".format(
                         epoch, b, l, end_t - start_t
                     )
-                )
-                viz.line(
-                    [[l]],
-                    [(epoch) * 400 + (b + 100)],
-                    win="train-loss",
-                    update="append",
                 )
         print("epoch %d train done, start validation" % epoch)
 
@@ -137,7 +123,6 @@ def main(args):
             end_t = time.time()
 
         print("epoch %d, oneflow top1 val acc: %f" % (epoch, correct_of / all_samples))
-        viz_val.line([[correct_of / all_samples]], [epoch], win="val", update="append")
         flow.save(
             dla_module.state_dict(),
             os.path.join(

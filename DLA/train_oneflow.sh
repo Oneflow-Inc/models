@@ -13,14 +13,14 @@ fi
 
 LEARNING_RATE=0.001
 MOM=0.9
-EPOCH=4
+EPOCH=1200
 TRAIN_BATCH_SIZE=32
 VAL_BATCH_SIZE=32
 
 # LOAD PREVIOUS CHECKPOINT 
 # LOAD_CHECKPOINT=$pretrain_model/
 
-python train_oneflow.py \
+python3 train_oneflow.py \
     --save_checkpoint_path $CHECKPOINT_PATH \
     --ofrecord_path $OFRECORD_PATH \
     --learning_rate $LEARNING_RATE \
