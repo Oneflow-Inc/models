@@ -152,7 +152,7 @@ def test(
         print_rank_0(f"{framework_name}: {time_per_run_ms:.1f}ms")
     else:
         print_rank_0(
-            f"{framework_name} {module_name} time: {time_per_run_ms:.1f}ms (= {total_time_ms:.1f}ms / {times}, input_shape={input_shape}, backward is {'disabled' if disable_backward else 'enabled'})"
+            f"{framework_name} {module_name} time: {time_per_run_ms:.1f}ms (= {total_time_ms:.1f}ms / {times}, input_shape={input_shape}{', backward is disabled' if disable_backward else ''}{', ddp' if ddp else ''}{', ddp_broadcast_buffers is disabled' if not ddp_broadcast_buffers else ''}{f', world size={flow.env.get_world_size()}' if flow.env.get_world_size() != 1 else ''})"
         )
     if show_memory:
         global gpu_memory_used_by_oneflow
