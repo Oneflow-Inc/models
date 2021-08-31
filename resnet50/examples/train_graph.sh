@@ -1,5 +1,5 @@
 # set -aux
-# nohup bash examples/train_graph.sh > graph_resnet50_fp32_training_performance_test.log  2>&1 &
+# bash examples/train_graph.sh > profile_graph_gpu_decoder_resnet50_fp32_1n1g_bz96_20iter.log
 
 DEVICE_NUM_PER_NODE=1
 MASTER_ADDR=127.0.0.1
@@ -30,13 +30,7 @@ VAL_BATCH_SIZE=50
 # SRC_DIR=/path/to/models/resnet50
 SRC_DIR=$(realpath $(dirname $0)/..)
 
-# /home/luyang/nsight-systems-2019.4.2/bin/nsys profile -o profile_graph_resnet50_fp32_1n1g_bz96_20iter.qdrep \
-# python3 -m oneflow.distributed.launch \
-#     --nproc_per_node $DEVICE_NUM_PER_NODE \
-#     --nnodes $NUM_NODES \
-#     --node_rank $NODE_RANK \
-#     --master_addr $MASTER_ADDR \
-/home/luyang/nsight-systems-2021.2.1/bin/nsys profile -o profile_graph_resnet50_fp32_1n1g_bz96_20iter_try2.qdrep \
+/home/luyang/nsight-systems-2021.2.1/bin/nsys profile -o profile_graph_gpu_decoder_resnet50_fp32_1n1g_bz96_20iter.qdrep \
 python3 \
     $SRC_DIR/train.py \
         --save $CHECKPOINT_SAVE_PATH \
@@ -48,6 +42,9 @@ python3 \
         --num-epochs $EPOCH \
         --train-batch-size $TRAIN_BATCH_SIZE \
         --val-batch-size $VAL_BATCH_SIZE \
-        --metric-local=True \
-        --graph
-
+        --graph \
+        --metric-local True \
+        --use-gpu-decode
+        # --print-interval 1
+        # --metric-one-rank 0
+        # --metric-train-acc False

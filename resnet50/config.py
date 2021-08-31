@@ -60,6 +60,9 @@ def parse_args(ignore_unknown_args=False):
         dest="ofrecord_part_num",
         help="ofrecord data part number",
     )
+    parser.add_argument(
+        "--use-gpu-decode", action="store_true", help="Use gpu decode."
+    )
 
     # training hyper-parameters
     parser.add_argument(
@@ -149,6 +152,20 @@ def parse_args(ignore_unknown_args=False):
         default=24,
         dest="nccl_fusion_max_ops",
         help="Maximum number of ops of NCCL fusion, set to 0 to compatible with previous version of OneFlow.",
+    )
+    parser.add_argument(
+        "--zero-init-residual",
+        type=str2bool,
+        default=True,
+        nargs="?",
+        const=True,
+        dest="zero_init_residual",
+    )
+    parser.add_argument(
+        "--scale-grad",
+        action="store_true",
+        dest="scale_grad",
+        help="scale init grad with world_size"
     )
 
     # for data process
