@@ -59,7 +59,7 @@ def evaluate(
         for di in range(max_length):
             decoder_output, decoder_hidden, decoder_attention = decoder(
                 decoder_input, decoder_hidden, encoder_outputs
-            )            
+            )
             decoder_attentions[di] = decoder_attention.squeeze(0).data
 
             topv, topi = decoder_output.data.topk(1)
