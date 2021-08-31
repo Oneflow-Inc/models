@@ -1,6 +1,6 @@
 set -aux
 
-# PRETRAIN_MODEL_PATH="./densenet_121_oneflow_model"
+PRETRAIN_MODEL_PATH="./densenet_121_oneflow_model"
 IMAGE_PATH="data/fish.jpg"
 # IMAGE_PATH="data/tiger.jpg"
 # IMAGE_PATH="data/ILSVRC2012_val_00020287.JPEG"
