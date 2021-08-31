@@ -19,11 +19,9 @@ if [ ! -d "$MODEL_PATH" ]; then
 fi
 
 if [ ! -d "${Data_PATH}" ]; then
-
-  wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/datasets/models/CSRNet/Shanghai_dataset.rar
-  unrar x Shanghai_dataset
+  wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/datasets/models/CSRNet/Shanghai_dataset.zip
+  unzip Shanghai_dataset.zip
   mv Shanghai_dataset ${Data_PATH}
-
 fi
 
 python3 train.py part_A_train.json part_A_val.json  kk/ 0 0  

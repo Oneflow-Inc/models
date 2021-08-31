@@ -35,7 +35,7 @@ def main():
     img = img.to("cuda")
     output = model(img.unsqueeze(0))
     print("Predicted Count : ", int(output.detach().to("cpu").sum().numpy()))
-    temp = output.detach().reshape((output.detach().shape[2], output.detach().shape[3]))
+    temp = output.view(output.shape[2], output.shape[3])
     temp = temp.numpy()
     plt.title("Predicted Count")
     plt.imshow(temp, cmap=c.jet)
