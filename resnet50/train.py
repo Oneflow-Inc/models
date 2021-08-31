@@ -217,15 +217,7 @@ class Trainer(object):
             if self.graph:
                 loss, pred, label = self.train_graph()
             else:
-                loss, pred, label = self.forward()
-
-                loss = loss / self.world_size
-                loss.backward()
-
-                self.optimizer.step()
-                self.optimizer.zero_grad()
-                if self.lr_scheduler:
-                    self.lr_scheduler.step()
+                loss, pred, label = self.train_eager()
 
             self.cur_iter += 1
 
@@ -238,6 +230,29 @@ class Trainer(object):
                 top1_acc = 0
 
             self.meter_train_iter(loss, top1_acc)
+
+    def train_eager(self):
+        loss, pred, label = self.forward()
+
+        if loss.is_consistent and self.scale_grad:
+            assert self.ddp is False
+            # NOTE(zwx): scale init grad with world_size
+            # because consistent_tensor.mean() include dividor numel * world_size
+            loss = loss / self.world_size
+            loss.backward()
+            for param_group in self.optimizer.param_groups:
+                for param in param_group.parameters:
+                    param.grad /= self.world_size
+        else:
+            loss.backward()
+            loss = loss / self.world_size
+
+        self.optimizer.step()
+        self.optimizer.zero_grad()
+        if self.lr_scheduler:
+            self.lr_scheduler.step()
+
+        return loss, pred, label
 
     def eval(self):
         self.model.eval()

@@ -263,6 +263,9 @@ def parse_args(ignore_unknown_args=False):
     if args.ddp and not args.metric_local:
         raise ValueError("metric_local must be set to True when with ddp")
 
+    if args.ddp and args.scale_grad:
+        raise ValueError("scale_grad is unavailable with ddp")
+
     world_size = flow.env.get_world_size()
     if args.train_global_batch_size is None:
         args.train_global_batch_size = args.train_batch_size * world_size
