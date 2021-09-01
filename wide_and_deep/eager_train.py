@@ -2,7 +2,6 @@ import os
 import time
 import numpy as np
 from sklearn.metrics import roc_auc_score
-
 import oneflow as flow
 
 from config import get_args
@@ -65,7 +64,6 @@ if __name__ == '__main__':
         train_loss.backward()
         opt.step()
         opt.zero_grad()
-        time.sleep(0.1) #keep it before bug fixed
         if (i+1) % args.print_interval == 0:
             l = sum(losses) / len(losses)
             losses = []

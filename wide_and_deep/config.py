@@ -51,7 +51,6 @@ def get_args(print_args=True):
     parser.add_argument('--num_wide_sparse_fields', type=int, default=2)
     parser.add_argument('--num_deep_sparse_fields', type=int, default=26)
     parser.add_argument('--max_iter', type=int, default=30000)
-    parser.add_argument('--loss_print_every_n_iter', type=int, default=100)
     parser.add_argument('--gpu_num_per_node', type=int, default=8)
     parser.add_argument('--num_nodes', type=int, default=1,
                         help='node/machine number for training')

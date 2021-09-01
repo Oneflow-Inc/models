@@ -29,10 +29,12 @@
 |hidden_units_num|模型deep结构nn层数量|7|
 |learning_rate|模型的学习率参数|0.001|
 |max_iter|最大训练批次次数|30000|
+|model_load_dir|模型加载目录||
 |model_save_dir|模型保存目录||
 |num_deep_sparse_fields|sparse id特征的个数|26|
 |num_dense_fields|dense特征的个数|13|
 |print_interval|每隔多少批次打印模型训练loss并进行验证|1000|
+|save_initial_model|是否保存模型初始时的参数|False|
 
 ## 运行前准备
 ### 环境
