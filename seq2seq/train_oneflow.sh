@@ -23,4 +23,4 @@ python3 train_oneflow.py \
     --hidden_size $HIDDDEN_SIZE \
     --n_iters $N_ITERS \
     --lr $LR \
-    --drop $DROP \
+    --drop $DROP 

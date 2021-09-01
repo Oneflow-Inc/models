@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import oneflow as flow
 
+
 class Generator(flow.nn.Module):
     def __init__(self, z_dim=100, dim=256) -> None:
         super().__init__()
@@ -31,7 +32,7 @@ class Generator(flow.nn.Module):
 
     def forward(self, x):
         # (n, 256, 7, 7)
-        x1 = self.input_fc(x).reshape((-1, self.dim, 7, 7))
+        x1 = self.input_fc(x).reshape(*(-1, self.dim, 7, 7))
         y = self.model(x1)
 
         return y
@@ -53,46 +54,46 @@ class Discriminator(flow.nn.Module):
 
     def forward(self, x):
         b = x.shape[0]
-        x1 = self.model(x).reshape((b, -1))
+        x1 = self.model(x).reshape(*(b, -1))
         y = flow.sigmoid(self.fc(x1))
         return y.flatten()
 
+
 class DiscriminatorTrainGraph(flow.nn.Graph):
+    def __init__(self, d, g, optimizer, loss):
+        super().__init__()
+        self.discriminator = d
+        self.generator = g
+        self.add_optimizer(optimizer)
+        self.of_cross_entropy = loss
 
-        def __init__(self, d, g, optimizer, loss):
-            super().__init__()
-            self.discriminator = d
-            self.generator = g
-            self.add_optimizer(optimizer)
-            self.of_cross_entropy = loss
-        
-        def build(self, images, label1, label0, z):
-            g_out = self.generator(z)
+    def build(self, images, label1, label0, z):
+        g_out = self.generator(z)
 
-            cat = flow.cat((images, g_out), dim=0)
+        cat = flow.cat((images, g_out), dim=0)
 
-            result = self.discriminator(cat)
-            d_logits = result[:images.shape[0]]
-            g_logits = result[images.shape[0]:]
+        result = self.discriminator(cat)
+        d_logits = result[: images.shape[0]]
+        g_logits = result[images.shape[0] :]
 
-            d_loss_real = self.of_cross_entropy(d_logits, label1)
-            
-            # train D with all-fake batch
-            d_loss_fake = self.of_cross_entropy(g_logits, label0)
+        d_loss_real = self.of_cross_entropy(d_logits, label1)
 
-            d_loss = d_loss_fake + d_loss_real
+        # train D with all-fake batch
+        d_loss_fake = self.of_cross_entropy(g_logits, label0)
 
-            d_loss.backward()
-            return (
-                d_loss,
-                d_loss_fake,
-                d_loss_real,
-                d_logits,
-                g_logits,
-            )
+        d_loss = d_loss_fake + d_loss_real
+
+        d_loss.backward()
+        return (
+            d_loss,
+            d_loss_fake,
+            d_loss_real,
+            d_logits,
+            g_logits,
+        )
+
 
 class GeneratorTrainGraph(flow.nn.Graph):
-
     def __init__(self, d, g, optimizer, loss):
         super().__init__()
         self.discriminator = d
@@ -107,8 +108,8 @@ class GeneratorTrainGraph(flow.nn.Graph):
         g_loss.backward()
         return (g_loss, g_out, g_logits)
 
+
 class GeneratorEvalGraph(flow.nn.Graph):
-    
     def __init__(self, g):
         super().__init__()
         self.generator = g

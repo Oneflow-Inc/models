@@ -8,7 +8,7 @@ NHEAD=8
 NUM_LAYERS=4
 DIM_FF=1024
 LOAD_DIR="best_model"
-IMDB_PATH="../../imdb"
+IMDB_PATH="../datasets/imdb"
 TEXT="It is awesome! It is nice. The director does a good job!"
 
 if [ ! -d "$LOAD_DIR" ]; then
@@ -26,5 +26,5 @@ python3 infer_transformer_imdb.py \
     --n_encoder_layers $NUM_LAYERS \
     --dim_feedforward $DIM_FF \
     --load_dir $LOAD_DIR \
-    --imdb_path "$IMDB_PATH" \ 
+    --imdb_path "$IMDB_PATH" \
     --text "$TEXT"

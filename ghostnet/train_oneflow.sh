@@ -1,10 +1,9 @@
 set -aux
 
-OFRECORD_PATH="./ofrecord/hustcolor"
-
+OFRECORD_PATH="ofrecord"
 if [ ! -d "$OFRECORD_PATH" ]; then
-    wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/datasets/models/scnet/ofrecord.zip
-    unzip ofrecord.zip
+    wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/datasets/imagenette_ofrecord.tar.gz
+    tar zxf imagenette_ofrecord.tar.gz
 fi
 
 CHECKPOINT_PATH="checkpoints"
@@ -17,8 +16,12 @@ MOM=0.9
 EPOCH=1000
 TRAIN_BATCH_SIZE=16
 VAL_BATCH_SIZE=16
+MODEL=ghostnet
 
-python train_oneflow.py \
+# LOAD_CHECKPOINT="$CHECKPOINT_PATH/your_pretrain_model" 
+# LOAD PREVIOUS CHECKPOINT
+
+python3 train_oneflow.py \
     --save_checkpoint_path $CHECKPOINT_PATH \
     --ofrecord_path $OFRECORD_PATH \
     --learning_rate $LEARNING_RATE \
@@ -26,6 +29,7 @@ python train_oneflow.py \
     --epochs $EPOCH \
     --train_batch_size $TRAIN_BATCH_SIZE \
     --val_batch_size $VAL_BATCH_SIZE \
-    # --load_checkpoint $LOAD_CHECKPOINT
+    --model $MODEL \
+    #--load_checkpoint $LOAD_CHECKPOINT
 
 

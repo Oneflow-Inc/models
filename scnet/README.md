@@ -8,14 +8,11 @@ Scnet is a vehicle color classification network based on scloss, which can be ea
 The Vehicle Color recognition Dataset contains 15601 vehicle images in eight colors, which are black, blue, cyan, gray, green, red, white and yellow. The images are taken in the frontal view captured by a high-definition camera with the resolution of 1920×1080 on the urban road. The collected data set is very challenging due to the noise caused by illumination variation, haze, and over exposure.[Datasets](https://oneflow-public.oss-cn-beijing.aliyuncs.com/datasets/models/scnet/ofrecord.zip) in the OfRecord format are provided.
 
 ### Run Oneflow Training script
-Visdom is installed to visualize the training model, and you can enter http://localhost:8097/ get the training curve.
-
 ```
 pip3 install -r requirements.txt --user
-python -m visdom.server
 ```
 ```bash
-bash train_oneflow.sh
+bash train.sh
 ```
 ## Inference on Single Image
 ### Download pretrained model

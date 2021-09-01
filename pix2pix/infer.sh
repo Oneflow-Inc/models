@@ -8,6 +8,6 @@ if [ ! -d "$MODEL_PATH" ]; then
   rm pix2pix_g_200.zip
 fi
 
-python infer.py \
+python3 infer.py \
     --model_path $MODEL_PATH \
     --image_path $IMAGE_PATH \

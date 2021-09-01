@@ -17,7 +17,7 @@ import math
 # Some functions in torch.nn.functional
 
 
-def pad(input, padding, mode='constant'):
+def pad(input, padding, mode="constant"):
     origin_dim = input.dim()
     for i in range(4 - origin_dim):
         input = input.unsqueeze(0)
@@ -43,11 +43,11 @@ def linear(input, weight, bias=None):
 
 
 def _scaled_dot_product_attention(
-        q: Tensor,
-        k: Tensor,
-        v: Tensor,
-        attn_mask: Optional[Tensor] = None,
-        dropout_p: float = 0.0,
+    q: Tensor,
+    k: Tensor,
+    v: Tensor,
+    attn_mask: Optional[Tensor] = None,
+    dropout_p: float = 0.0,
 ) -> Tuple[Tensor, Tensor]:
     B, Nt, E = q.shape
     q = q / math.sqrt(E)
@@ -57,18 +57,14 @@ def _scaled_dot_product_attention(
         attn += attn_mask
     attn = flow.softmax(attn, dim=-1)
     if dropout_p > 0.0:
-        attn = flow.F.dropout(attn, p=dropout_p)
+        attn = flow.nn.functional.dropout(attn, p=dropout_p)
     # (B, Nt, Ns) x (B, Ns, E) -> (B, Nt, E)
     output = flow.bmm(attn, v)
     return output, attn
 
 
 def _in_projection_packed(
-        q: Tensor,
-        k: Tensor,
-        v: Tensor,
-        w: Tensor,
-        b: Optional[Tensor] = None,
+    q: Tensor, k: Tensor, v: Tensor, w: Tensor, b: Optional[Tensor] = None,
 ) -> List[Tensor]:
     E = q.size(-1)
     if k is v:
@@ -103,27 +99,36 @@ def _in_projection_packed(
 
 
 def _in_projection(
-        q: Tensor,
-        k: Tensor,
-        v: Tensor,
-        w_q: Tensor,
-        w_k: Tensor,
-        w_v: Tensor,
-        b_q: Optional[Tensor] = None,
-        b_k: Optional[Tensor] = None,
-        b_v: Optional[Tensor] = None,
+    q: Tensor,
+    k: Tensor,
+    v: Tensor,
+    w_q: Tensor,
+    w_k: Tensor,
+    w_v: Tensor,
+    b_q: Optional[Tensor] = None,
+    b_k: Optional[Tensor] = None,
+    b_v: Optional[Tensor] = None,
 ) -> Tuple[Tensor, Tensor, Tensor]:
     Eq, Ek, Ev = q.size(-1), k.size(-1), v.size(-1)
     assert w_q.shape == (
-        Eq, Eq), f"expecting query weights shape of {(Eq, Eq)}, but got {w_q.shape}"
+        Eq,
+        Eq,
+    ), f"expecting query weights shape of {(Eq, Eq)}, but got {w_q.shape}"
     assert w_k.shape == (
-        Eq, Ek), f"expecting key weights shape of {(Eq, Ek)}, but got {w_k.shape}"
+        Eq,
+        Ek,
+    ), f"expecting key weights shape of {(Eq, Ek)}, but got {w_k.shape}"
     assert w_v.shape == (
-        Eq, Ev), f"expecting value weights shape of {(Eq, Ev)}, but got {w_v.shape}"
+        Eq,
+        Ev,
+    ), f"expecting value weights shape of {(Eq, Ev)}, but got {w_v.shape}"
     assert b_q is None or b_q.shape == (
-        Eq,), f"expecting query bias shape of {(Eq,)}, but got {b_q.shape}"
+        Eq,
+    ), f"expecting query bias shape of {(Eq,)}, but got {b_q.shape}"
     assert b_k is None or b_k.shape == (
-        Eq,), f"expecting key bias shape of {(Eq,)}, but got {b_k.shape}"
+        Eq,
+    ), f"expecting key bias shape of {(Eq,)}, but got {b_k.shape}"
     assert b_v is None or b_v.shape == (
-        Eq,), f"expecting value bias shape of {(Eq,)}, but got {b_v.shape}"
+        Eq,
+    ), f"expecting value bias shape of {(Eq,)}, but got {b_v.shape}"
     return linear(q, w_q, b_q), linear(k, w_k, b_k), linear(v, w_v, b_v)

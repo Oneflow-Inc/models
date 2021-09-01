@@ -10,4 +10,4 @@ if [ ! -d "$MODEL_PATH" ]; then
   unzip DCGAN_g.zip 
 fi
 
-python3 test_of_dcgan.py --model_path $MODEL_PATH --save_path $SAVE_PATH
+python3 test/test_of_dcgan.py --model_path $MODEL_PATH --save_path $SAVE_PATH

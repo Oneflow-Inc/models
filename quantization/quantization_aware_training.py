@@ -27,28 +27,37 @@ def _parse_args():
         "--learning_rate", type=float, default=0.001, help="learning rate"
     )
     parser.add_argument("--mom", type=float, default=0.9, help="momentum")
-    parser.add_argument("--epochs", type=int, default=100,
-                        help="training epochs")
+    parser.add_argument("--epochs", type=int, default=100, help="training epochs")
     parser.add_argument(
         "--train_batch_size", type=int, default=32, help="train batch size"
     )
-    parser.add_argument("--val_batch_size", type=int,
-                        default=32, help="val batch size")
-    parser.add_argument("--quantization_bit", type=int,
-                        default=8, help="quantization bit")
-    parser.add_argument("--quantization_scheme", type=str,
-                        default="symmetric", help="quantization scheme")
-    parser.add_argument("--quantization_formula", type=str,
-                        default="google", help="quantization formula")
-    parser.add_argument("--per_layer_quantization", type=bool,
-                        default=True, help="per_layer_quantization")
+    parser.add_argument("--val_batch_size", type=int, default=32, help="val batch size")
+    parser.add_argument(
+        "--quantization_bit", type=int, default=8, help="quantization bit"
+    )
+    parser.add_argument(
+        "--quantization_scheme",
+        type=str,
+        default="symmetric",
+        help="quantization scheme",
+    )
+    parser.add_argument(
+        "--quantization_formula",
+        type=str,
+        default="google",
+        help="quantization formula",
+    )
+    parser.add_argument(
+        "--per_layer_quantization",
+        type=bool,
+        default=True,
+        help="per_layer_quantization",
+    )
 
     return parser.parse_args()
 
 
 def main(args):
-
-    
 
     train_data_loader = OFRecordDataLoader(
         ofrecord_root=args.ofrecord_path,
@@ -67,8 +76,12 @@ def main(args):
     # oneflow init
     start_t = time.time()
     quantization_module = QuantizationAlexNet()
-    quantization_module.quantize(quantization_bit=args.quantization_bit, quantization_scheme=args.quantization_scheme,
-                                 quantization_formula=args.quantization_formula, per_layer_quantization=args.per_layer_quantization)
+    quantization_module.quantize(
+        quantization_bit=args.quantization_bit,
+        quantization_scheme=args.quantization_scheme,
+        quantization_formula=args.quantization_formula,
+        per_layer_quantization=args.per_layer_quantization,
+    )
     if args.load_checkpoint != "":
         print("load_checkpoint >>>>>>>>> ", args.load_checkpoint)
         quantization_module.load_state_dict(flow.load(args.load_checkpoint))
@@ -135,8 +148,7 @@ def main(args):
                     correct_of += 1
             end_t = time.time()
 
-        print("epoch %d, oneflow top1 val acc: %f" %
-              (epoch, correct_of / all_samples))
+        print("epoch %d, oneflow top1 val acc: %f" % (epoch, correct_of / all_samples))
 
         flow.save(
             quantization_module.state_dict(),

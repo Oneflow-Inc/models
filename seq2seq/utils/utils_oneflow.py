@@ -78,7 +78,7 @@ def indexesFromSentence(lang, sentence):
 def tensorFromSentence(lang, sentence):
     indexes = indexesFromSentence(lang, sentence)
     indexes.append(EOS_token)
-    return flow.tensor(indexes, dtype=flow.long, device=device).reshape([-1, 1])
+    return flow.tensor(indexes, dtype=flow.long, device=device).reshape(-1, 1)
 
 
 def tensorsFromPair(pair, input_lang, output_lang):

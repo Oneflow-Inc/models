@@ -20,7 +20,10 @@ def _parse_args():
         "--load_checkpoint", type=str, default="", help="load checkpoint"
     )
     parser.add_argument(
-        "--ofrecord_path", type=str, default="/data/imagenet/ofrecord/", help="dataset path"
+        "--ofrecord_path",
+        type=str,
+        default="/data/imagenet/ofrecord/",
+        help="dataset path",
     )
     # training hyper-parameters
     parser.add_argument(
@@ -32,7 +35,9 @@ def _parse_args():
         "--train_batch_size", type=int, default=128, help="train batch size"
     )
     parser.add_argument("--val_batch_size", type=int, default=32, help="val batch size")
-    parser.add_argument("--results", type=str, default="./results", help="tensorboard file path")
+    parser.add_argument(
+        "--results", type=str, default="./results", help="tensorboard file path"
+    )
     parser.add_argument("--tag", type=str, default="default", help="tag of experiment")
     return parser.parse_args()
 
@@ -83,7 +88,7 @@ def main(args):
             self.cross_entropy = of_cross_entropy
             self.add_optimizer(of_sgd)
             self.train_data_loader = train_data_loader
-        
+
         def build(self):
             image, label = self.train_data_loader()
             image = image.to("cuda")
@@ -100,7 +105,7 @@ def main(args):
             super().__init__()
             self.alexnet = alexnet_module
             self.val_data_loader = val_data_loader
-        
+
         def build(self):
             image, label = self.val_data_loader()
             image = image.to("cuda")
@@ -115,7 +120,6 @@ def main(args):
     of_accuracy = []
     all_samples = len(val_data_loader) * args.val_batch_size
     print_interval = 20
-
 
     for epoch in range(args.epochs):
         alexnet_module.train()

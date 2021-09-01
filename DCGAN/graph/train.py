@@ -7,8 +7,23 @@ import matplotlib
 matplotlib.use("agg")
 import oneflow as flow
 
-from utils import make_dirs, load_mnist, download_mnist, to_numpy, to_tensor, save_to_gif, save_images
-from models import Generator, Discriminator, GeneratorTrainGraph, DiscriminatorTrainGraph, GeneratorEvalGraph
+from utils import (
+    make_dirs,
+    load_mnist,
+    download_mnist,
+    to_numpy,
+    to_tensor,
+    save_to_gif,
+    save_images,
+)
+from models import (
+    Generator,
+    Discriminator,
+    GeneratorTrainGraph,
+    DiscriminatorTrainGraph,
+    GeneratorEvalGraph,
+)
+
 
 def _parse_args():
     parser = argparse.ArgumentParser(description="oneflow DCGAN")
@@ -46,7 +61,6 @@ def _parse_args():
     return parser.parse_args()
 
 
-
 class DCGAN(flow.nn.Module):
     def __init__(self, args):
         super().__init__()
@@ -73,8 +87,6 @@ class DCGAN(flow.nn.Module):
         self.val_images_path = os.path.join(self.images_path, "val_images")
         make_dirs(self.checkpoint_path, self.train_images_path, self.val_images_path)
 
-    
-    
     def train(self, epochs=1, save=True):
         # init dataset
         x, _ = load_mnist(self.data_dir)
@@ -100,9 +112,13 @@ class DCGAN(flow.nn.Module):
         self.optimizerD = flow.optim.Adam(self.discriminator.parameters(), lr=self.lr)
 
         self.of_cross_entropy = flow.nn.BCELoss().to(self.device)
-        
-        G_train_graph = GeneratorTrainGraph(self.discriminator, self.generator, self.optimizerG, self.of_cross_entropy)
-        D_train_graph = DiscriminatorTrainGraph(self.discriminator, self.generator, self.optimizerD, self.of_cross_entropy)
+
+        G_train_graph = GeneratorTrainGraph(
+            self.discriminator, self.generator, self.optimizerG, self.of_cross_entropy
+        )
+        D_train_graph = DiscriminatorTrainGraph(
+            self.discriminator, self.generator, self.optimizerD, self.of_cross_entropy
+        )
         self.G_eval_graph = GeneratorEvalGraph(self.generator)
         for epoch_idx in range(epochs):
             self.generator.train()
@@ -116,30 +132,26 @@ class DCGAN(flow.nn.Module):
                 ).to(self.device)
                 # one-side label smooth
                 if self.label_smooth != 0:
-                    (
-                        d_loss,
-                        d_loss_fake,
-                        d_loss_real,
-                        D_x,
-                        D_gz1,
-                    ) = D_train_graph(images, label1_smooth, label0, self.generate_noise())
+                    (d_loss, d_loss_fake, d_loss_real, D_x, D_gz1,) = D_train_graph(
+                        images, label1_smooth, label0, self.generate_noise()
+                    )
                 else:
-                    (
-                        d_loss,
-                        d_loss_fake,
-                        d_loss_real,
-                        D_x,
-                        D_gz1,
-                    ) = D_train_graph(images, label1, label0, self.generate_noise())
-                (
-                    d_loss,
-                    d_loss_fake,
-                    d_loss_real,
-                    D_x,
-                    D_gz1,
-                ) = (to_numpy(d_loss), to_numpy(d_loss_fake), to_numpy(d_loss_real), to_numpy(D_x), to_numpy(D_gz1))
+                    (d_loss, d_loss_fake, d_loss_real, D_x, D_gz1,) = D_train_graph(
+                        images, label1, label0, self.generate_noise()
+                    )
+                (d_loss, d_loss_fake, d_loss_real, D_x, D_gz1,) = (
+                    to_numpy(d_loss),
+                    to_numpy(d_loss_fake),
+                    to_numpy(d_loss_real),
+                    to_numpy(D_x),
+                    to_numpy(D_gz1),
+                )
                 g_loss, g_out, D_gz2 = G_train_graph(label1, self.generate_noise())
-                g_loss, g_out, D_gz2 = to_numpy(g_loss), to_numpy(g_out, False), to_numpy(D_gz2)
+                g_loss, g_out, D_gz2 = (
+                    to_numpy(g_loss),
+                    to_numpy(g_out, False),
+                    to_numpy(D_gz2),
+                )
 
                 if (batch_idx + 1) % 100 == 0:
                     self.G_loss.append(g_loss)
@@ -191,10 +203,12 @@ class DCGAN(flow.nn.Module):
             save_to_gif(self.train_images_path)
             save_to_gif(self.val_images_path)
             np.save(
-                os.path.join(self.path, "g_loss_{}_graph.npy".format(epochs)), self.G_loss
+                os.path.join(self.path, "g_loss_{}_graph.npy".format(epochs)),
+                self.G_loss,
             )
             np.save(
-                os.path.join(self.path, "d_loss_{}_graph.npy".format(epochs)), self.D_loss
+                os.path.join(self.path, "d_loss_{}_graph.npy".format(epochs)),
+                self.D_loss,
             )
 
     def generate_noise(self):
@@ -209,6 +223,7 @@ class DCGAN(flow.nn.Module):
             self.eval_size,
             os.path.join(self.val_images_path, "image_{:02d}.png".format(epoch_idx)),
         )
+
 
 def main(args):
     np.random.seed(0)

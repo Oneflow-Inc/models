@@ -13,7 +13,7 @@ class OFRecordDataLoader(object):
     ):
         channel_last = False
         output_layout = "NHWC" if channel_last else "NCHW"
-        self.train_record_reader = flow.nn.OfrecordReader(
+        self.train_record_reader = flow.nn.OFRecordReader(
             os.path.join(ofrecord_root, mode),
             batch_size=batch_size,
             data_part_num=1,
@@ -30,8 +30,7 @@ class OFRecordDataLoader(object):
         width = 224
 
         self.record_image_decoder = (
-            flow.nn.OFRecordImageDecoderRandomCrop(
-                "encoded", color_space=color_space)
+            flow.nn.OFRecordImageDecoderRandomCrop("encoded", color_space=color_space)
             if mode == "train"
             else flow.nn.OFRecordImageDecoder("encoded", color_space=color_space)
         )
@@ -44,8 +43,7 @@ class OFRecordDataLoader(object):
             )
         )
 
-        self.flip = flow.nn.CoinFlip(
-            batch_size=batch_size) if mode == "train" else None
+        self.flip = flow.nn.CoinFlip(batch_size=batch_size) if mode == "train" else None
 
         rgb_mean = [123.68, 116.779, 103.939]
         rgb_std = [58.393, 57.12, 57.375]

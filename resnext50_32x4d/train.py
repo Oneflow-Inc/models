@@ -38,8 +38,6 @@ def _parse_args():
 
 def main(args):
 
-    
-
     train_data_loader = OFRecordDataLoader(
         ofrecord_root=args.ofrecord_path,
         mode="train",
@@ -75,7 +73,7 @@ def main(args):
 
     of_losses = []
     all_samples = len(val_data_loader) * args.val_batch_size
-    print_interval = 100
+    print_interval = 20
 
     for epoch in range(args.epochs):
         resnext50_32x4d_module.train()

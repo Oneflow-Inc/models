@@ -6,6 +6,7 @@ import time
 from tqdm import tqdm
 
 import sys
+
 sys.path.append(".")
 from models.resnet50 import resnet50
 from utils.ofrecord_data_utils import OFRecordDataLoader
@@ -35,12 +36,15 @@ def _parse_args():
         "--train_batch_size", type=int, default=16, help="train batch size"
     )
     parser.add_argument("--val_batch_size", type=int, default=4, help="val batch size")
-    parser.add_argument("--results", type=str, default="./results", help="tensorboard file path")
+    parser.add_argument(
+        "--results", type=str, default="./results", help="tensorboard file path"
+    )
     parser.add_argument("--tag", type=str, default="default", help="tag of experiment")
     parser.add_argument(
         "--print_interval", type=int, default=10, help="print info frequency"
     )
     return parser.parse_args()
+
 
 def setup(args):
     train_data_loader = OFRecordDataLoader(
@@ -79,17 +83,17 @@ def setup(args):
     criterion = criterion.to("cuda")
 
     class ModelTrainGraph(flow.nn.Graph):
-            def __init__(self):
-                super().__init__()
-                self.graph_model = graph_model
-                self.criterion = criterion
-                self.add_optimizer(graph_optimizer)
+        def __init__(self):
+            super().__init__()
+            self.graph_model = graph_model
+            self.criterion = criterion
+            self.add_optimizer(graph_optimizer)
 
-            def build(self, image, label):
-                logits = self.graph_model(image)
-                loss = self.criterion(logits, label)
-                loss.backward()
-                return loss
+        def build(self, image, label):
+            logits = self.graph_model(image)
+            loss = self.criterion(logits, label)
+            loss.backward()
+            return loss
 
     class ModelEvalGraph(flow.nn.Graph):
         def __init__(self):
@@ -105,13 +109,15 @@ def setup(args):
     model_train_graph = ModelTrainGraph()
     model_eval_graph = ModelEvalGraph()
 
-    dic = { "train_dataloader": train_data_loader,
-            "val_dataloader": val_data_loader,
-            "eager": [eager_model, eager_optimizer, criterion],
-            "graph": [graph_model, model_train_graph, model_eval_graph]
+    dic = {
+        "train_dataloader": train_data_loader,
+        "val_dataloader": val_data_loader,
+        "eager": [eager_model, eager_optimizer, criterion],
+        "graph": [graph_model, model_train_graph, model_eval_graph],
     }
 
     return dic
+
 
 class Trainer(object):
     def __init__(self, args):
@@ -148,13 +154,12 @@ class Trainer(object):
         eager_model, eager_optimizer, criterion = compare_dic["eager"]
         graph_model, model_train_graph, model_eval_graph = compare_dic["graph"]
 
-
         all_samples = len(val_data_loader) * self.args.val_batch_size
         print_interval = self.args.print_interval
 
         print("start training")
         for epoch in range(self.args.epochs):
-            # train        
+            # train
             eager_model.train()
             graph_model.train()
             start_training_time = time.time()
@@ -168,7 +173,7 @@ class Trainer(object):
                 # oneflow graph train
                 graph_iter_start_time = time.time()
                 graph_loss = model_train_graph(image, label)
-                graph_loss.numpy() # for synchronize CPU and GPU, get accurate running time
+                graph_loss.numpy()  # for synchronize CPU and GPU, get accurate running time
                 graph_iter_end_time = time.time()
 
                 # oneflow eager train
@@ -191,7 +196,7 @@ class Trainer(object):
                 total_eager_iter_time += eager_iter_time
 
                 if b % print_interval == 0:
-                    gl, el = graph_loss.numpy(), eager_loss.numpy()    
+                    gl, el = graph_loss.numpy(), eager_loss.numpy()
                     print(
                         "epoch {} train iter {} ; graph loss {} eager loss {};  graph train time: {}  eager train time {}".format(
                             epoch, b, gl, el, graph_iter_time, eager_iter_time
@@ -202,10 +207,13 @@ class Trainer(object):
                     self.eager_losses.append(el)
                     self.eager_train_step_time_list.append(eager_iter_time)
 
-
             end_training_time = time.time()
-            self.graph_train_epoch_time_list.append(end_training_time - start_training_time- total_eager_iter_time)
-            self.eager_train_epoch_time_list.append(end_training_time - start_training_time- total_graph_iter_time)
+            self.graph_train_epoch_time_list.append(
+                end_training_time - start_training_time - total_eager_iter_time
+            )
+            self.eager_train_epoch_time_list.append(
+                end_training_time - start_training_time - total_graph_iter_time
+            )
             print("epoch %d train done, start validation" % epoch)
 
             # validate
@@ -241,20 +249,29 @@ class Trainer(object):
                     if eager_clsidxs[i] == label_nd[i]:
                         eager_correct += 1
             eval_end_time = time.time()
-            self.graph_eval_epoch_time_list.append(eval_end_time - eval_start_time - total_eager_infer_time)
-            self.eager_eval_epoch_time_list.append(eval_end_time - eval_start_time - total_graph_infer_time)
-            graph_top1_acc, eager_top1_acc = graph_correct / all_samples, eager_correct / all_samples
+            self.graph_eval_epoch_time_list.append(
+                eval_end_time - eval_start_time - total_eager_infer_time
+            )
+            self.eager_eval_epoch_time_list.append(
+                eval_end_time - eval_start_time - total_graph_infer_time
+            )
+            graph_top1_acc, eager_top1_acc = (
+                graph_correct / all_samples,
+                eager_correct / all_samples,
+            )
             self.graph_acc.append(graph_top1_acc)
             self.eager_acc.append(eager_top1_acc)
-            print("epoch %d, graph top1 val acc: %f, eager top1 val acc: %f" % (epoch, graph_top1_acc, eager_top1_acc))
-
+            print(
+                "epoch %d, graph top1 val acc: %f, eager top1 val acc: %f"
+                % (epoch, graph_top1_acc, eager_top1_acc)
+            )
 
     def save_report(self,):
         print("***** Save Report *****")
         # folder setup
         report_path = os.path.join(self.args.results)
         os.makedirs(report_path, exist_ok=True)
-        
+
         # calculate absolute loss difference
         abs_loss_diff = abs(np.array(self.eager_losses) - np.array(self.graph_losses))
 
@@ -265,16 +282,20 @@ class Trainer(object):
         acc_corr = calc_corr(self.eager_acc, self.graph_acc)
 
         # training time compare
-        train_time_compare = time_compare(self.graph_train_epoch_time_list, self.eager_train_epoch_time_list)
+        train_time_compare = time_compare(
+            self.graph_train_epoch_time_list, self.eager_train_epoch_time_list
+        )
 
         # validate time compare
-        val_time_compare = time_compare(self.graph_eval_epoch_time_list, self.eager_eval_epoch_time_list)
+        val_time_compare = time_compare(
+            self.graph_eval_epoch_time_list, self.eager_eval_epoch_time_list
+        )
 
         # eager graph model diff compare
         model_diff_compare = np.array(self.eager_graph_model_diff_list)
 
         # save report
-        save_path = os.path.join(report_path, 'check_report.txt')
+        save_path = os.path.join(report_path, "check_report.txt")
         writer = open(save_path, "w")
         writer.write("Check Report\n")
         writer.write("Model: Resnet50\n")
@@ -283,11 +304,22 @@ class Trainer(object):
         writer.write("Loss Correlation: %.4f\n\n" % loss_corr)
         writer.write("Max Loss Difference: %.4f\n" % abs_loss_diff.max())
         writer.write("Min Loss Difference: %.4f\n" % abs_loss_diff.min())
-        writer.write("Loss Difference Range: (%.4f, %.4f)\n\n" % (abs_loss_diff.min(), abs_loss_diff.max()))
-        writer.write("Model Param Difference Range: (%.4f, %.4f)\n\n" % (model_diff_compare.min(), model_diff_compare.max()))
+        writer.write(
+            "Loss Difference Range: (%.4f, %.4f)\n\n"
+            % (abs_loss_diff.min(), abs_loss_diff.max())
+        )
+        writer.write(
+            "Model Param Difference Range: (%.4f, %.4f)\n\n"
+            % (model_diff_compare.min(), model_diff_compare.max())
+        )
         writer.write("Accuracy Correlation: %.4f\n\n" % acc_corr)
-        writer.write("Train Time Compare: %.4f (Eager) : %.4f (Graph)\n\n" % (1.0, train_time_compare))
-        writer.write("Val Time Compare: %.4f (Eager) : %.4f (Graph)" % (1.0, val_time_compare))
+        writer.write(
+            "Train Time Compare: %.4f (Eager) : %.4f (Graph)\n\n"
+            % (1.0, train_time_compare)
+        )
+        writer.write(
+            "Val Time Compare: %.4f (Eager) : %.4f (Graph)" % (1.0, val_time_compare)
+        )
         writer.close()
         print("Report saved to: ", save_path)
 
@@ -296,33 +328,71 @@ class Trainer(object):
         training_results_path = os.path.join(self.args.results, self.args.tag)
         os.makedirs(training_results_path, exist_ok=True)
         print("***** Save Results *****")
-        save_results(self.graph_losses, os.path.join(training_results_path, 'graph_losses.txt'))
-        save_results(self.eager_losses, os.path.join(training_results_path, 'eager_losses.txt'))
-        
-        save_results(self.graph_acc, os.path.join(training_results_path, 'graph_acc.txt'))
-        save_results(self.eager_acc, os.path.join(training_results_path, 'eager_acc.txt'))
-        
-        save_results(self.graph_train_step_time_list, os.path.join(training_results_path, 'graph_train_step_time_list.txt'))
-        save_results(self.eager_train_step_time_list, os.path.join(training_results_path, 'eager_train_step_time_list.txt'))
-        
-        save_results(self.graph_train_epoch_time_list, os.path.join(training_results_path, 'graph_train_epoch_time_list.txt'))
-        save_results(self.eager_train_epoch_time_list, os.path.join(training_results_path, 'eager_train_epoch_time_list.txt'))
-        
-        save_results(self.graph_eval_epoch_time_list, os.path.join(training_results_path, 'graph_eval_epoch_time_list.txt'))
-        save_results(self.eager_eval_epoch_time_list, os.path.join(training_results_path, 'eager_eval_epoch_time_list.txt'))
-        
-        save_results(self.eager_graph_model_diff_list, os.path.join(training_results_path, 'eager_graph_model_diff_list.txt'))
+        save_results(
+            self.graph_losses, os.path.join(training_results_path, "graph_losses.txt")
+        )
+        save_results(
+            self.eager_losses, os.path.join(training_results_path, "eager_losses.txt")
+        )
+
+        save_results(
+            self.graph_acc, os.path.join(training_results_path, "graph_acc.txt")
+        )
+        save_results(
+            self.eager_acc, os.path.join(training_results_path, "eager_acc.txt")
+        )
+
+        save_results(
+            self.graph_train_step_time_list,
+            os.path.join(training_results_path, "graph_train_step_time_list.txt"),
+        )
+        save_results(
+            self.eager_train_step_time_list,
+            os.path.join(training_results_path, "eager_train_step_time_list.txt"),
+        )
+
+        save_results(
+            self.graph_train_epoch_time_list,
+            os.path.join(training_results_path, "graph_train_epoch_time_list.txt"),
+        )
+        save_results(
+            self.eager_train_epoch_time_list,
+            os.path.join(training_results_path, "eager_train_epoch_time_list.txt"),
+        )
+
+        save_results(
+            self.graph_eval_epoch_time_list,
+            os.path.join(training_results_path, "graph_eval_epoch_time_list.txt"),
+        )
+        save_results(
+            self.eager_eval_epoch_time_list,
+            os.path.join(training_results_path, "eager_eval_epoch_time_list.txt"),
+        )
+
+        save_results(
+            self.eager_graph_model_diff_list,
+            os.path.join(training_results_path, "eager_graph_model_diff_list.txt"),
+        )
 
         print("Results saved to: ", training_results_path)
+
 
 def compare_model_params(eager_model, graph_model):
     num_params = len(eager_model.state_dict().keys())
     sum_diff = 0.0
     for key in eager_model.state_dict():
-        mean_single_diff = (eager_model.state_dict()[key] - graph_model.graph_model.state_dict()[key]._origin).abs().mean()
+        mean_single_diff = (
+            (
+                eager_model.state_dict()[key]
+                - graph_model.graph_model.state_dict()[key]._origin
+            )
+            .abs()
+            .mean()
+        )
         sum_diff += mean_single_diff
     mean_diff = float(sum_diff.numpy() / num_params)
     return mean_diff
+
 
 def save_results(training_info, file_path):
     writer = open(file_path, "w")
@@ -330,10 +400,12 @@ def save_results(training_info, file_path):
         writer.write("%f\n" % info)
     writer.close()
 
+
 # report helpers
 def square(lst):
     res = list(map(lambda x: x ** 2, lst))
     return res
+
 
 # calculate correlation
 def calc_corr(a, b):
@@ -351,6 +423,7 @@ def calc_corr(a, b):
 
     corr_factor = cov_ab / (σ_a * σ_b)
     return corr_factor
+
 
 def time_compare(a, b):
     return np.divide(a, b).mean()

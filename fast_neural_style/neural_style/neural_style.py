@@ -111,9 +111,9 @@ def train(args):
                     e + 1,
                     count,
                     images_num,
-                    agg_content_loss[0] / (i + 1),
-                    agg_style_loss[0] / (i + 1),
-                    (agg_content_loss[0] + agg_style_loss[0]) / (i + 1),
+                    agg_content_loss / (i + 1),
+                    agg_style_loss / (i + 1),
+                    (agg_content_loss + agg_style_loss) / (i + 1),
                 )
                 print(mesg)
 
