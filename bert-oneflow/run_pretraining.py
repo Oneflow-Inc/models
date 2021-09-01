@@ -22,7 +22,7 @@ def save_model(module: nn.Module, checkpoint_path: str, epoch: int, acc: float):
 
 def train(epoch, iter_per_epoch, graph, print_interval):
     total_loss = []
-    total_lml_loss = []
+    total_mlm_loss = []
     total_ns_loss = []
     total_correct = 0
     total_element = 0
@@ -30,10 +30,10 @@ def train(epoch, iter_per_epoch, graph, print_interval):
 
         start_t = time.time()
 
-        next_sent_output, next_sent_labels, loss, lml_loss, ns_loss = graph()
+        next_sent_output, next_sent_labels, loss, mlm_loss, ns_loss = graph()
 
         # Waiting for sync
-        loss = flow.cast(loss, dtype=flow.float64).numpy().item()
+        loss = loss.numpy().item()
         end_t = time.time()
 
         # next sentence prediction accuracy
@@ -45,8 +45,8 @@ def train(epoch, iter_per_epoch, graph, print_interval):
             .item()
         )
         total_loss.append(loss)
-        total_lml_loss.append(lml_loss)
-        total_ns_loss.append(ns_loss)
+        total_mlm_loss.append(mlm_loss.numpy().item())
+        total_ns_loss.append(ns_loss.numpy().item())
         total_correct += correct
         total_element += next_sent_labels.nelement()
 
@@ -62,7 +62,7 @@ def train(epoch, iter_per_epoch, graph, print_interval):
             epoch, (i + 1), np.mean(total_loss), total_correct * 100.0 / total_element
         )
     )
-    return total_loss, total_lml_loss, total_ns_loss
+    return total_loss, total_mlm_loss, total_ns_loss
 
 
 def validation(
@@ -226,13 +226,13 @@ def main():
     load_params_from_lazy(
         bert_model.state_dict(),
         flow.load(
-            "../../OneFlow-Benchmark/LanguageModeling/BERT/snapshots/snapshot_snapshot_1"
+            "../../OneFlow-Benchmark/LanguageModeling/BERT/initial_model"
         ),
     )
 
     bert_model.to(device)
 
-    optimizer = flow.optim.AdamW(
+    optimizer = flow.optim.Adam(
         bert_model.parameters(),
         lr=args.lr,
         # weight_decay=args.adam_weight_decay,
@@ -240,8 +240,8 @@ def main():
     )
 
     steps = args.epochs * len(train_data_loader)
-    cosine_annealing_lr = flow.optim.lr_scheduler.CosineAnnealingLR(
-        optimizer, steps=steps
+    cosine_annealing_lr = flow.optim.lr_scheduler.CosineDecayLR(
+        optimizer, decay_steps=steps
     )
 
     ns_criterion = nn.CrossEntropyLoss(reduction="mean")
@@ -367,7 +367,7 @@ def main():
         # Train
         bert_model.train()
         train_total_loss, lml_loss, ns_loss = train(
-            epoch, 2000, #len(train_data_loader), 
+            epoch, 1000, #len(train_data_loader), 
             bert_graph, args.print_interval
         )
 
@@ -375,9 +375,14 @@ def main():
         train_lml_losses.extend(lml_loss)
         train_ns_losses.extend(ns_loss)
 
-    Reporter.write2file(train_total_losses, "bert_graph_loss.txt")
-    Reporter.write2file(train_lml_losses, "bert_graph_lml_loss.txt")
-    Reporter.write2file(train_ns_losses, "bert_graph_ns_loss.txt")
+
+    save_dir = "temp"
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+
+    Reporter.write2file(train_total_losses, os.path.join(save_dir, "bert_graph_loss.txt"))
+    Reporter.write2file(train_lml_losses, os.path.join(save_dir, "bert_graph_lml_loss.txt"))
+    Reporter.write2file(train_ns_losses, os.path.join(save_dir, "bert_graph_ns_loss.txt"))
     # Eval
     # bert_model.eval()
     # val_acc = validation(
