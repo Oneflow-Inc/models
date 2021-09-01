@@ -40,10 +40,9 @@ def _parse_args():
     )
     parser.add_argument(
         "--dataset", 
-        choices=['imagenette', 'imagenet2012'], 
+        choices=['imagenette'], 
         type=str, default="imagenette", 
         help='imagenette'
-             'imagenet2012'
     )
     parser.add_argument(
         "--save_checkpoint_path",
@@ -77,8 +76,6 @@ def _parse_args():
 def build_model(args):
     if args.dataset == 'imagenette':
         num_classes = 10
-    elif args.dataset == 'imagenet2012':
-        num_classes = 1000
     
     if args.model == 'mnasnet0_5':
         return mnasnet0_5(num_classes = num_classes)
