@@ -432,8 +432,8 @@ class BertForPreTraining(nn.Module):
             if module.padding_idx is not None:
                 module.weight.data[module.padding_idx].zero_()
         elif isinstance(module, nn.LayerNorm):
-            module.bias.data.fill_(0.0)
             module.weight.data.fill_(1.0)
+            module.bias.data.fill_(0.0)
 
     def clone_weights(self, output_embeddings, input_embeddings):
         """

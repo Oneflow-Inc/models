@@ -1,8 +1,8 @@
+#!/usr/bin/python3
 import argparse
 import os
 import time
 from functools import partial
-from compare_lazy_outputs import load_params_from_lazy
 
 import numpy as np
 import oneflow as flow
@@ -10,7 +10,6 @@ from oneflow import nn
 
 from modeling import BertForPreTraining
 from utils.ofrecord_data_utils import OfRecordDataLoader
-from utils.reporter import Reporter
 
 
 def save_model(module: nn.Module, checkpoint_path: str, epoch: int, acc: float):
@@ -21,19 +20,17 @@ def save_model(module: nn.Module, checkpoint_path: str, epoch: int, acc: float):
 
 
 def train(epoch, iter_per_epoch, graph, print_interval):
-    total_loss = []
-    total_lml_loss = []
-    total_ns_loss = []
+    total_loss = 0
     total_correct = 0
     total_element = 0
     for i in range(iter_per_epoch):
 
         start_t = time.time()
 
-        next_sent_output, next_sent_labels, loss, lml_loss, ns_loss = graph()
+        next_sent_output, next_sent_labels, loss = graph()
 
         # Waiting for sync
-        loss = flow.cast(loss, dtype=flow.float64).numpy().item()
+        loss = loss.numpy().item()
         end_t = time.time()
 
         # next sentence prediction accuracy
@@ -44,25 +41,22 @@ def train(epoch, iter_per_epoch, graph, print_interval):
             .numpy()
             .item()
         )
-        total_loss.append(loss)
-        total_lml_loss.append(lml_loss)
-        total_ns_loss.append(ns_loss)
+        total_loss += loss
         total_correct += correct
         total_element += next_sent_labels.nelement()
 
         if (i + 1) % print_interval == 0:
             print(
                 "Epoch {}, train iter {}, loss {:.3f}, iter time: {:.3f}s".format(
-                    epoch, (i + 1), np.mean(total_loss), end_t - start_t
+                    epoch, (i + 1), total_loss / (i + 1), end_t - start_t
                 )
             )
 
     print(
         "Epoch {}, train iter {}, loss {:.3f}, total accuracy {:.2f}".format(
-            epoch, (i + 1), np.mean(total_loss), total_correct * 100.0 / total_element
+            epoch, (i + 1), total_loss / (i + 1), total_correct * 100.0 / total_element
         )
     )
-    return total_loss, total_lml_loss, total_ns_loss
 
 
 def validation(
@@ -107,45 +101,50 @@ def main():
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
-        "--ofrecord-path",
+        "--ofrecord_path",
         type=str,
         default="wiki_ofrecord_seq_len_128_example",
         help="Path to ofrecord dataset",
     )
     parser.add_argument(
-        "--train-batch-size", type=int, default=32, help="Training batch size"
+        "--train_batch_size", type=int, default=32, help="Training batch size"
     )
     parser.add_argument(
-        "--val-batch-size", type=int, default=32, help="Validation batch size"
+        "--val_batch_size", type=int, default=32, help="Validation batch size"
     )
 
     parser.add_argument(
-        "--hidden-size", type=int, default=768, help="Hidden size of transformer model",
+        "--hidden_size", type=int, default=768, help="Hidden size of transformer model",
     )
     parser.add_argument(
-        "--hidden-layers", type=int, default=12, help="Number of layers"
+        "--num_hidden_layers", type=int, default=12, help="Number of layers"
     )
     parser.add_argument(
-        "-a", "--atten-heads", type=int, default=12, help="Number of attention heads"
+        "-a",
+        "--num_attention_heads",
+        type=int,
+        default=12,
+        help="Number of attention heads",
     )
     parser.add_argument(
-        "--intermediate-size",
+        "--intermediate_size",
         type=int,
         default=3072,
         help="intermediate size of bert encoder",
     )
-    parser.add_argument("--max-position-embeddings", type=int, default=512)
+    parser.add_argument("--max_position_embeddings", type=int, default=512)
     parser.add_argument(
-        "-s", "--seq-length", type=int, default=128, help="Maximum sequence len"
+        "-s", "--seq_length", type=int, default=128, help="Maximum sequence len"
     )
     parser.add_argument(
-        "--vocab-size", type=int, default=30522, help="Total number of vocab"
+        "--vocab_size", type=int, default=30522, help="Total number of vocab"
     )
-    parser.add_argument("--type-vocab-size", type=int, default=2)
-    parser.add_argument("--attention-probs-dropout-prob", type=float, default=0.1)
-    parser.add_argument("--hidden-dropout-prob", type=float, default=0.1)
-    parser.add_argument("--hidden-size-per-head", type=int, default=64)
-    parser.add_argument("-e", "--epochs", type=int, default=1, help="Number of epochs")
+    parser.add_argument("--type_vocab_size", type=int, default=2)
+    parser.add_argument("--attention_probs_dropout_prob", type=float, default=0.1)
+    parser.add_argument("--hidden_dropout_prob", type=float, default=0.1)
+    parser.add_argument("--hidden_size_per_head", type=int, default=64)
+    parser.add_argument("--max_predictions_per_seq", type=int, default=20)
+    parser.add_argument("-e", "--epochs", type=int, default=10, help="Number of epochs")
 
     parser.add_argument(
         "--with-cuda",
@@ -159,19 +158,19 @@ def main():
 
     parser.add_argument("--lr", type=float, default=1e-4, help="Learning rate of adam")
     parser.add_argument(
-        "--adam-weight-decay", type=float, default=0.01, help="Weight_decay of adam"
+        "--adam_weight_decay", type=float, default=0.01, help="Weight_decay of adam"
     )
     parser.add_argument(
-        "--adam-beta1", type=float, default=0.9, help="Adam first beta value"
+        "--adam_beta1", type=float, default=0.9, help="Adam first beta value"
     )
     parser.add_argument(
-        "--adam-beta2", type=float, default=0.999, help="Adam first beta value"
+        "--adam_beta2", type=float, default=0.999, help="Adam first beta value"
     )
     parser.add_argument(
-        "--print-interval", type=int, default=10, help="Interval of printing"
+        "--print_interval", type=int, default=10, help="Interval of printing"
     )
     parser.add_argument(
-        "--checkpoint-path",
+        "--checkpoint_path",
         type=str,
         default="checkpoints",
         help="Path to model saving",
@@ -189,12 +188,12 @@ def main():
     print("Creating Dataloader")
     train_data_loader = OfRecordDataLoader(
         ofrecord_dir=args.ofrecord_path,
-        mode="test",
+        mode="train",
         dataset_size=1024,
         batch_size=args.train_batch_size,
         data_part_num=1,
         seq_length=args.seq_length,
-        max_predictions_per_seq=20,
+        max_predictions_per_seq=args.max_predictions_per_seq,
     )
 
     test_data_loader = OfRecordDataLoader(
@@ -204,7 +203,7 @@ def main():
         batch_size=args.val_batch_size,
         data_part_num=1,
         seq_length=args.seq_length,
-        max_predictions_per_seq=20,
+        max_predictions_per_seq=args.max_predictions_per_seq,
     )
 
     print("Building BERT Model")
@@ -212,36 +211,26 @@ def main():
         args.vocab_size,
         args.seq_length,
         args.hidden_size,
-        args.hidden_layers,
-        args.atten_heads,
+        args.num_hidden_layers,
+        args.num_attention_heads,
         args.intermediate_size,
         nn.GELU(),
-        0.0,  # args.hidden_dropout_prob,
-        0.0,  # args.attention_probs_dropout_prob,
+        args.hidden_dropout_prob,
+        args.attention_probs_dropout_prob,
         args.max_position_embeddings,
         args.type_vocab_size,
     )
-
-    # Load the same initial parameters with lazy model.
-    load_params_from_lazy(
-        bert_model.state_dict(),
-        flow.load(
-            "../../OneFlow-Benchmark/LanguageModeling/BERT/snapshots/snapshot_snapshot_1"
-        ),
-    )
+    # print(bert_model)
 
     bert_model.to(device)
 
-    optimizer = flow.optim.AdamW(
-        bert_model.parameters(),
-        lr=args.lr,
-        # weight_decay=args.adam_weight_decay,
-        betas=(args.adam_beta1, args.adam_beta2),
+    optimizer = flow.optim.Adam(
+        bert_model.parameters(), lr=args.lr, betas=(args.adam_beta1, args.adam_beta2),
     )
 
     steps = args.epochs * len(train_data_loader)
-    cosine_annealing_lr = flow.optim.lr_scheduler.CosineAnnealingLR(
-        optimizer, steps=steps
+    cosine_annealing_lr = flow.optim.lr_scheduler.CosineDecayLR(
+        optimizer, decay_steps=steps
     )
 
     ns_criterion = nn.CrossEntropyLoss(reduction="mean")
@@ -282,9 +271,9 @@ def main():
             self.bert = bert_model
             self.ns_criterion = ns_criterion
             self.masked_lm_criterion = partial(
-                get_masked_lm_loss, max_prediction_per_seq=20
+                get_masked_lm_loss, max_prediction_per_seq=args.max_predictions_per_seq
             )
-            self.add_optimizer(optimizer)#, lr_sch=cosine_annealing_lr)
+            self.add_optimizer(optimizer, lr_sch=cosine_annealing_lr)
             self._train_data_loader = train_data_loader
 
         def build(self):
@@ -323,7 +312,7 @@ def main():
             total_loss = next_sentence_loss + masked_lm_loss
 
             total_loss.backward()
-            return seq_relationship_scores, next_sentence_labels, total_loss, masked_lm_loss, next_sentence_loss
+            return seq_relationship_scores, next_sentence_labels, total_loss
 
     bert_graph = BertGraph()
 
@@ -360,32 +349,19 @@ def main():
 
     bert_eval_graph = BertEvalGraph()
 
-    train_total_losses = []
-    train_lml_losses = []
-    train_ns_losses = []
     for epoch in range(args.epochs):
         # Train
         bert_model.train()
-        train_total_loss, lml_loss, ns_loss = train(
-            epoch, 2000, #len(train_data_loader), 
-            bert_graph, args.print_interval
-        )
+        train(epoch, len(train_data_loader), bert_graph, args.print_interval)
 
-        train_total_losses.extend(train_total_loss)
-        train_lml_losses.extend(lml_loss)
-        train_ns_losses.extend(ns_loss)
-
-    Reporter.write2file(train_total_losses, "bert_graph_loss.txt")
-    Reporter.write2file(train_lml_losses, "bert_graph_lml_loss.txt")
-    Reporter.write2file(train_ns_losses, "bert_graph_ns_loss.txt")
     # Eval
-    # bert_model.eval()
-    # val_acc = validation(
-    #     epoch, len(test_data_loader), bert_eval_graph, args.print_interval * 10
-    # )
+    bert_model.eval()
+    val_acc = validation(
+        epoch, len(test_data_loader), bert_eval_graph, args.print_interval * 10
+    )
 
-    # print("Saveing model ...")
-    # save_model(bert_model, args.checkpoint_path, epoch, val_acc)
+    print("Saveing model ...")
+    save_model(bert_model, args.checkpoint_path, epoch, val_acc)
 
 
 if __name__ == "__main__":

@@ -1,4 +1,3 @@
-
 import oneflow as flow
 from oneflow import nn
 
@@ -27,8 +26,7 @@ class OfRecordDataLoader(nn.Module):
         blob_confs = {}
 
         def _blob_conf(name, shape, dtype=flow.int32):
-            blob_confs[name] = nn.OfrecordRawDecoder(
-                name, shape=shape, dtype=dtype)
+            blob_confs[name] = nn.OfrecordRawDecoder(name, shape=shape, dtype=dtype)
 
         _blob_conf("input_ids", [seq_length])
         _blob_conf("next_sentence_labels", [1])
@@ -52,9 +50,15 @@ class OfRecordDataLoader(nn.Module):
         input_mask = self.blob_confs["input_mask"](data_record)
         segment_ids = self.blob_confs["segment_ids"](data_record)
         masked_lm_ids = self.blob_confs["masked_lm_ids"](data_record)
-        masked_lm_positions = self.blob_confs["masked_lm_positions"](
-            data_record)
+        masked_lm_positions = self.blob_confs["masked_lm_positions"](data_record)
         masked_lm_weights = self.blob_confs["masked_lm_weights"](data_record)
 
-        return input_ids, next_sent_labels, input_mask, segment_ids, \
-            masked_lm_ids, masked_lm_positions, masked_lm_weights
+        return (
+            input_ids,
+            next_sent_labels,
+            input_mask,
+            segment_ids,
+            masked_lm_ids,
+            masked_lm_positions,
+            masked_lm_weights,
+        )
