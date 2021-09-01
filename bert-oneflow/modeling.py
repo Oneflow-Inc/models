@@ -284,7 +284,7 @@ class BertModel(nn.Module):
         input_shape = input_ids.size()
         seq_length = input_shape[1]
 
-        embedding_outputs = self.embeddings(input_ids, token_type_ids,)
+        embedding_outputs = self.embeddings(input_ids, token_type_ids)
 
         extended_attention_mask = self.get_extended_attention_mask(
             attention_mask, seq_length, seq_length
