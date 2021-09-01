@@ -114,6 +114,7 @@ def merge_param_from_old_version(src,dst):
         dst_file = os.path.join(dst, new_name, 'out')
         copy(src_file, dst_file)
         print(src_file, dst_file)
-        
+
 if __name__ == '__main__':
     walk_compare_npy('output/old_0', 'output/0')
+    
