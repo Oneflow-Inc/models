@@ -132,7 +132,7 @@ checkpoints/
 of_losses.txt
 
 # resnet50
-imagenet*
+imagenet
 *.pth
 ofrecord
 .DS_Store
@@ -142,3 +142,8 @@ SRGAN/data*
 SRGAN_netG_epoch_4_99
 vgg_imagenet_pretrain_model
 result
+
+# quantization
+._data
+*.tar.gz
+imagenette2/

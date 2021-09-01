@@ -85,14 +85,14 @@ def train(
                 decoder_input, decoder_hidden, encoder_outputs
             )
             loss += criterion(decoder_output, target_tensor[di])
-            decoder_input = target_tensor[di]
+            decoder_input = target_tensor[di].unsqueeze(0)
     else:
         for di in range(target_length):
             decoder_output, decoder_hidden, decoder_attention = decoder(
                 decoder_input, decoder_hidden, encoder_outputs
             )
             _, topi = decoder_output.topk(1)
-            decoder_input = topi.squeeze().detach()  # detach from history as input
+            decoder_input = topi.detach()  # detach from history as input
             loss += criterion(decoder_output, target_tensor[di])
             if decoder_input.numpy() == EOS_token:
                 break

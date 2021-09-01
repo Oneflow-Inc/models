@@ -20,4 +20,4 @@ DEVICE='cuda'
 python3 eval_oneflow.py \
     --encoder_path $ENCODER_PATH \
     --decoder_path $DECODER_PATH \
-    --device $DEVICE \
+    --device $DEVICE 

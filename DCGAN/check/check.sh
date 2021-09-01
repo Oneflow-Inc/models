@@ -13,7 +13,7 @@ EPOCH=1
 BATCH_SIZE=256
 SAVE=True
 
-python3 check.py \
+python3 check/check.py \
     -lr $LEARNING_RATE \
     -e $EPOCH \
     --batch_size $BATCH_SIZE \

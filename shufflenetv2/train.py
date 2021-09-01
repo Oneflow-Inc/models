@@ -50,8 +50,6 @@ def _parse_args():
 
 def main(args):
 
-    flow.InitEagerGlobalSession()
-
     train_data_loader = OFRecordDataLoader(
         ofrecord_root=args.ofrecord_path,
         mode="train",

@@ -87,10 +87,10 @@ class Pix2Pix:
                         "{}th epoch, {}th batch, d_fakeloss:{:>8.4f}, d_realloss:{:>8.4f},  ggan_loss:{:>8.4f}, gl1_loss:{:>8.4f}".format(
                             epoch_idx + 1,
                             batch_idx + 1,
-                            d_fake_loss[0],
-                            d_real_loss[0],
-                            g_gan_loss[0],
-                            g_image_loss[0],
+                            d_fake_loss,
+                            d_real_loss,
+                            g_gan_loss,
+                            g_image_loss,
                         )
                     )
 

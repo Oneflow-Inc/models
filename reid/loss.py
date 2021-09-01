@@ -39,7 +39,7 @@ class TripletLoss(flow.nn.Module):
         dist = flow.sqrt(flow.clamp(dist, min=1e-12))
         # For each anchor, find the hardest positive and negative
         mask = targets.expand(n, n).eq(
-            flow.Tensor(flow.transpose(targets.expand(n, n), dim0=1, dim1=0)).to("cuda")
+            flow.transpose(targets.expand(n, n), dim0=1, dim1=0)
         )
         dist_ap, dist_an = [], []
         y1 = flow.zeros((1, n), dtype=flow.float32).to("cuda")
