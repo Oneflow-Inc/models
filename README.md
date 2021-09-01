@@ -61,7 +61,7 @@ Models and examples implement with OneFlow(version >= 0.5.0).
 ### Quantization Aware Training
 * [Quantization](https://github.com/Oneflow-Inc/models/tree/main/quantization)
 
-## Qucik Start
+## Quick Start
 
 ### Install Oneflow 
 https://github.com/Oneflow-Inc/oneflow#install-with-pip-package
