@@ -1,11 +1,9 @@
-import oneflow.experimental as flow
+import oneflow as flow
 
 from utils.dataset import *
 from utils.tensor_utils import *
 from models.rnn_model import RNN
 
-flow.env.init()
-flow.enable_eager_execution()
 
 dataset_path = "./data/names"
 n_categories = processDataset(dataset_path)

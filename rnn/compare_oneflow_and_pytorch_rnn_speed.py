@@ -1,4 +1,4 @@
-import oneflow.experimental as flow
+import oneflow as flow
 
 import numpy as np
 import time
@@ -10,10 +10,10 @@ from models.rnn_model_pytorch import RNN_PYTORCH
 from models.rnn_model import RNN
 
 # shared hyperparameters
-n_hidden = 128
+n_hidden = 5000
 all_letters = string.ascii_letters + " .,;'"
 n_letters = len(all_letters)
-n_categories = 256
+n_categories = 25600
 learning_rate = 0.0005
 
 
@@ -27,16 +27,15 @@ def letterToIndex(letter):
 
 
 def main(args):
-    flow.env.init()
-    flow.enable_eager_execution()
+
     rnn_module = RNN(n_letters, n_hidden, n_categories)
     # Fake data, only for speed test purpose
     test_word = "Depeng"
     category_tensor = flow.Tensor([1], dtype=flow.int64)
-    line_tensor = flow.Tensor(len(test_word), n_letters)
+    line_tensor = flow.Tensor(len(test_word), 1, n_letters)
     flow.nn.init.zeros_(line_tensor)
     for li, letter in enumerate(test_word):
-        line_tensor[li, letterToIndex(letter)] = 1
+        line_tensor[li, 0, letterToIndex(letter)] = 1
     criterion = flow.nn.NLLLoss()
 
     category_tensor_gpu = category_tensor.to("cuda")

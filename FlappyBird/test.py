@@ -3,7 +3,7 @@
 @author: Yizhang Wang <1739601638@qq.com>
 """
 import argparse
-import oneflow.experimental as flow
+import oneflow as flow
 
 from model.deep_q_network import DeepQNetwork
 from game.wrapped_flappy_bird import GameState
@@ -29,8 +29,6 @@ def get_args():
 
 
 def test(opt):
-    flow.env.init()
-    flow.enable_eager_execution()
 
     model = DeepQNetwork()
     pretrain_models = flow.load("{}".format(opt.saved_path))

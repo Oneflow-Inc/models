@@ -46,7 +46,7 @@ face segmentation model. We provide the final compressed dataset, please downloa
 Hyperparameters can be customized, the provided model is trained by run
 
 ```bash
-bash train_oneflow.sh
+bash train.sh
 ```
 
 ## Results

@@ -1,4 +1,4 @@
-import oneflow.experimental as flow
+import oneflow as flow
 
 import os
 
@@ -13,7 +13,7 @@ class OFRecordDataLoader(object):
     ):
         channel_last = False
         output_layout = "NHWC" if channel_last else "NCHW"
-        self.train_record_reader = flow.nn.OfrecordReader(
+        self.train_record_reader = flow.nn.OFRecordReader(
             os.path.join(ofrecord_root, mode),
             batch_size=batch_size,
             data_part_num=1,
@@ -21,7 +21,7 @@ class OFRecordDataLoader(object):
             random_shuffle=True if mode == "train" else False,
             shuffle_after_epoch=True if mode == "train" else False,
         )
-        self.record_label_decoder = flow.nn.OfrecordRawDecoder(
+        self.record_label_decoder = flow.nn.OFRecordRawDecoder(
             "class/label", shape=(), dtype=flow.int32
         )
 
@@ -79,7 +79,7 @@ class OFRecordDataLoader(object):
         train_record = self.train_record_reader()
         label = self.record_label_decoder(train_record)
         image_raw_buffer = self.record_image_decoder(train_record)
-        image = self.resize(image_raw_buffer)
+        image = self.resize(image_raw_buffer)[0]
         rng = self.flip() if self.flip != None else None
         image = self.crop_mirror_norm(image, rng)
 

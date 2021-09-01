@@ -27,11 +27,11 @@ def lineToTensor(line):
     # tensor = torch.zeros(len(line), 1, n_letters)
     # for li, letter in enumerate(line):
     #     tensor[li][0][letterToIndex(letter)] = 1
-    tensor = flow.Tensor(len(line), n_letters)
+    tensor = flow.Tensor(len(line), 1, n_letters)
     flow.nn.init.zeros_(tensor)
     for li, letter in enumerate(line):
         # NOTE(Liang Depeng): oneflow Tensor does not support tensor[li][letterToIndex(letter)] = 1
-        tensor[li, letterToIndex(letter)] = 1
+        tensor[li, 0, letterToIndex(letter)] = 1
     return tensor.to("cuda")
 
 

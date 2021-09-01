@@ -1,13 +1,12 @@
 import numpy as np
 import cv2
 
-import oneflow.experimental as flow
-import oneflow.typing as tp
+import oneflow as flow
 
 
 def gram_matrix(y):
     (b, ch, h, w) = y.shape
-    features = y.reshape((b, ch, w * h))
+    features = y.reshape(b, ch, w * h)
     features_t = features.transpose(1, 2)
     gram = flow.matmul(features, features_t) / (ch * h * w)
     return gram
@@ -17,10 +16,10 @@ def normalize_batch(batch):
     # normalize using imagenet mean and std
     mean = (
         flow.Tensor([119.90508914, 113.98250597, 103.85173186])
-        .reshape((1, 3, 1, 1))
+        .reshape(1, 3, 1, 1)
         .to("cuda")
     )
-    std = flow.Tensor([58.393, 57.12, 57.375]).reshape((1, 3, 1, 1)).to("cuda")
+    std = flow.Tensor([58.393, 57.12, 57.375]).reshape(1, 3, 1, 1).to("cuda")
     return (batch - mean) / std
 
 
