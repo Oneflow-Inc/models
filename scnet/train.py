@@ -11,7 +11,6 @@ from models.scloss import scloss
 from utils.ofrecord_data_utils import OFRecordDataLoader
 
 
-
 def _parse_args():
     parser = argparse.ArgumentParser("flags for train resnet50")
     parser.add_argument(
