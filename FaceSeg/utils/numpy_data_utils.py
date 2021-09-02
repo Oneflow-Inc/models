@@ -10,7 +10,7 @@ def load_image(image_path="data/fish.jpg"):
     rgb_std = [58.393, 57.12, 57.375]
     im = Image.open(image_path)
     im = im.resize((256, 256))
-    im = im.convert("RGB")  # 有的图像是单通道的，不加转换会报错
+    im = im.convert("RGB")
     im = np.array(im).astype("float32")
     im = (im - rgb_mean) / rgb_std
     im = np.transpose(im, (2, 0, 1))
@@ -22,7 +22,7 @@ def image_transform(im):
     rgb_mean = [123.68, 116.779, 103.939]
     rgb_std = [58.393, 57.12, 57.375]
     im = im.resize((256, 256))
-    im = im.convert("RGB")  # 有的图像是单通道的，不加转换会报错
+    im = im.convert("RGB")
     im = np.array(im).astype("float32")
     im = (im - rgb_mean) / rgb_std
     im = np.transpose(im, (2, 0, 1))

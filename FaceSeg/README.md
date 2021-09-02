@@ -41,12 +41,16 @@ We combine several dataset and preprocess them, for training and evaluating our
 face segmentation model. We provide the final compressed dataset, please download dataset from 
 [here](https://oneflow-static.oss-cn-beijing.aliyuncs.com/train_data_zjlab/faceseg_data.zip) , unzip it and put it in `./`
 
+### Backbone 
+Please download pretrained ResNet backbone from [pretrained_resnet_oneflow_model](https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/cv/seg/pretrained_resnet_oneflow_model.zip)
+, unzip it and put it in `./`
+
 ### Run Oneflow Training script
 
 Hyperparameters can be customized, the provided model is trained by run
 
 ```bash
-bash train_oneflow.sh
+bash train.sh
 ```
 
 ## Results

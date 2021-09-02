@@ -38,11 +38,9 @@ class DecoderBlockLinkNet(nn.Module):
 
         self.relu = nn.ReLU(inplace=True)
 
-        # B, C, H, W -> B, C/4, H, W
         self.conv1 = nn.Conv2d(in_channels, in_channels // 4, 1)
         self.norm1 = nn.BatchNorm2d(in_channels // 4)
 
-        # B, C/4, H, W -> B, C/4, 2 * H, 2 * W
         self.deconv2 = nn.ConvTranspose2d(
             in_channels // 4,
             in_channels // 4,
@@ -54,7 +52,6 @@ class DecoderBlockLinkNet(nn.Module):
 
         self.norm2 = nn.BatchNorm2d(in_channels // 4)
 
-        # B, C/4, H, W -> B, C, H, W
         self.conv3 = nn.Conv2d(in_channels // 4, n_filters, 1)
         self.norm3 = nn.BatchNorm2d(n_filters)
 
@@ -110,7 +107,6 @@ class LinkNet34(nn.Module):
     # noinspection PyCallingNonCallable
     def forward(self, x):
         # Encoder
-        # print('shape of input is: '+str(x.shape))
         x = self.firstconv(x)
         x = self.firstbn(x)
         x = self.firstrelu(x)

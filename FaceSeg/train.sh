@@ -2,12 +2,12 @@ set -aux
 
 LEARNING_RATE=0.001
 MOM=0.9
-EPOCH=10
+EPOCH=50
 MODEL_PATH="./pretrained_resnet_oneflow_model"
 DATASET_PATH="./faceseg_data/"
 SAVE_MODEL_NAME="linknet_oneflow_model"
 # LOAD PREVIOUS CHECKPOINT
-# LOAD_CHECKPOINT=$CHECKPOINT_PATH/epoch_2_val_acc_0.111168
+# LOAD_CHECKPOINT="/PATH/TO/CHECKPOINT"
 
 if [ ! -d "$DATASET_PATH" ]; then
     wget https://oneflow-static.oss-cn-beijing.aliyuncs.com/train_data_zjlab/faceseg_data.zip
