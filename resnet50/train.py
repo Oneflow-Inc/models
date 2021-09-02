@@ -144,8 +144,13 @@ class Trainer(object):
         if self.meter_lr:
             self.logger.register_metric("lr", log.IterationMeter(), "lr: {:.6f}")
         self.logger.register_metric("top1", log.AverageMeter(), "top1: {:.5f}", True)
+        time_meter_str = (
+            "throughput: {:.2f}, timestamp: {:.6f}"
+            if self.print_timestamp
+            else "throughput: {:.2f}"
+        )
         self.logger.register_metric(
-            "throughput", log.ThroughputMeter(), "throughput: {:.2f}", True
+            "time", log.TimeMeter(self.print_timestamp), time_meter_str, True
         )
 
     def meter(
@@ -170,7 +175,7 @@ class Trainer(object):
         if top1 is not None:
             self.logger.meter("top1", top1)
 
-        self.logger.meter("throughput", time.perf_counter(), num_samples)
+        self.logger.meter("time", num_samples)
 
         if do_print:
             self.logger.print_metrics()
@@ -197,7 +202,7 @@ class Trainer(object):
         self.train()
 
     def train(self):
-        self.logger.meter("throughput", time.perf_counter())
+        self.logger.meter("time")
         for _ in range(self.num_epochs):
             self.train_one_epoch()
             if not self.skip_eval:

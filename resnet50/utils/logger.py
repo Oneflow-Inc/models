@@ -1,3 +1,4 @@
+import time
 import numpy as np
 import oneflow as flow
 
@@ -136,22 +137,23 @@ class ProgressMeter(object):
         return self.cur, self.total
 
 
-class ThroughputMeter(object):
-    def __init__(self):
+class TimeMeter(object):
+    def __init__(self, return_timestamp=False):
         self.n = 0
         self.bts = None
         self.ets = None
+        self.return_timestamp = return_timestamp
 
     def reset(self):
         self.n = 0
         self.bts = self.ets
 
-    def record(self, ts, n=0):
+    def record(self, n=0):
         self.n += n
         if self.bts is None:
-            self.bts = ts
+            self.bts = time.perf_counter()
         else:
-            self.ets = ts
+            self.ets = time.perf_counter()
 
     def get(self):
         if self.n == 0:
@@ -160,4 +162,8 @@ class ThroughputMeter(object):
         assert self.bts is not None
         assert self.ets is not None
         assert self.ets > self.bts, f"{self.ets} > {self.bts}"
-        return self.n / (self.ets - self.bts)
+        throughput = self.n / (self.ets - self.bts)
+        if self.return_timestamp:
+            return throughput, self.bts
+        else:
+            return throughput

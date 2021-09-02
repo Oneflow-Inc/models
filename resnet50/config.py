@@ -217,11 +217,9 @@ def parse_args(ignore_unknown_args=False):
         help="print loss every n iteration",
     )
     parser.add_argument(
-        "--print-format",
-        type=str,
-        default="normal",
-        choices=["normal", "table"],
-        dest="print_format",
+        "--print-timestamp",
+        action="store_true",
+        dest="print_timestamp",
     )
     parser.add_argument(
         "--metric-local",
