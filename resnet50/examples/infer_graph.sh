@@ -19,3 +19,4 @@ SRC_DIR=$(realpath $(dirname $0)/..)
 python3 $SRC_DIR/infer.py \
     --model $PRETRAIN_MODEL_PATH \
     --image $IMAGE_PATH \
+    --graph \
