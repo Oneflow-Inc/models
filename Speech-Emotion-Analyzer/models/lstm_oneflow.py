@@ -24,8 +24,7 @@ class LSTM(nn.Module):
         # shape of self.hidden: (a, b), where a and b both
         # have shape (num_layers, batch_size, hidden_dim).
         # print('input.shape',input.shape)
-        lstm_out, _ = self.lstm(input.reshape(
-            input.shape[0], self.batch_size, -1))
+        lstm_out, _ = self.lstm(input.reshape(input.shape[0], self.batch_size, -1))
 
         # Only take the output from the final timestep
         # Can pass on the entirety of lstm_out to the next layer if it is a seq2seq prediction
@@ -73,13 +72,12 @@ class CustomLSTM(nn.Module):
             # print('x_t',x_t.shape)
             # batch the computations into a single matrix multiplication
             # NOTE(Xu Zhiqiu): flow does not support view now, use reshape instead
-            gates = flow.matmul(x_t, self.W) + \
-                flow.matmul(h_t, self.U) + self.bias
+            gates = flow.matmul(x_t, self.W) + flow.matmul(h_t, self.U) + self.bias
             i_t, f_t, g_t, o_t = (
                 flow.sigmoid(gates[:, :HS]),
-                flow.sigmoid(gates[:, HS: HS * 2]),
-                flow.tanh(gates[:, HS * 2: HS * 3]),
-                flow.sigmoid(gates[:, HS * 3:]),
+                flow.sigmoid(gates[:, HS : HS * 2]),
+                flow.tanh(gates[:, HS * 2 : HS * 3]),
+                flow.sigmoid(gates[:, HS * 3 :]),
             )
             c_t = f_t * c_t + i_t * g_t
             h_t = o_t * flow.tanh(c_t)
@@ -88,6 +86,6 @@ class CustomLSTM(nn.Module):
         return hidden_seq, (h_t, c_t)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     model = CustomLSTM(312, 128)
     print(model)

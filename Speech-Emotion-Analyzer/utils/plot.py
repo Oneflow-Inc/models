@@ -15,13 +15,14 @@ def play_audio(file_path: str) -> None:
         file_path (str): audio file path
     """
     import pyaudio
+
     p = pyaudio.PyAudio()
-    f = wave.open(file_path, 'rb')
+    f = wave.open(file_path, "rb")
     stream = p.open(
         format=p.get_format_from_width(f.getsampwidth()),
         channels=f.getnchannels(),
         rate=f.getframerate(),
-        output=True
+        output=True,
     )
     data = f.readframes(f.getparams()[3])
     stream.write(data)
@@ -44,8 +45,8 @@ def curve(train: list, val: list, title: str, y_label: str) -> None:
     plt.plot(val)
     plt.title(title)
     plt.ylabel(y_label)
-    plt.xlabel('epoch')
-    plt.legend(['train', 'test'], loc='upper left')
+    plt.xlabel("epoch")
+    plt.legend(["train", "test"], loc="upper left")
     plt.show()
 
 
@@ -66,10 +67,10 @@ def radar(data_prob: np.ndarray, class_labels: list) -> None:
 
     # polar parameters
     ax = fig.add_subplot(111, polar=True)
-    ax.plot(angles, data, 'bo-', linewidth=2)
-    ax.fill(angles, data, facecolor='r', alpha=0.25)
+    ax.plot(angles, data, "bo-", linewidth=2)
+    ax.fill(angles, data, facecolor="r", alpha=0.25)
     ax.set_thetagrids(angles * 180 / np.pi, class_labels)
-    ax.set_title("Emotion Recognition", va='bottom')
+    ax.set_title("Emotion Recognition", va="bottom")
 
     # set the maximum data value of the radar chart
     ax.set_rlim(0, 1)
@@ -116,9 +117,9 @@ def spectrogram(file_path: str) -> None:
     X = np.zeros((len(nn), nfft // 2))
 
     for i, n in enumerate(nn):
-        xseg = x[n - nwin:n]
+        xseg = x[n - nwin : n]
         z = np.fft.fft(window * xseg, nfft)
-        X[i, :] = np.log(np.abs(z[:nfft // 2]))
+        X[i, :] = np.log(np.abs(z[: nfft // 2]))
 
-    plt.imshow(X.T, interpolation='nearest', origin='lower', aspect='auto')
+    plt.imshow(X.T, interpolation="nearest", origin="lower", aspect="auto")
     plt.show()

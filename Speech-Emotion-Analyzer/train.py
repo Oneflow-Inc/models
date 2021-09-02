@@ -11,7 +11,6 @@ from models import lstm_ser, cnn1d_ser
 
 
 class MyDataset(Dataset):
-
     def __init__(self, x_data, y_data, transform=None, target_transform=None):
         self.x_data = x_data
         self.y_data = y_data
@@ -41,27 +40,28 @@ def train_eval(config):
         the trained model and the evaluation results
     """
     # loading the features preprocessed by preprocess.py
-    if (config.feature_method == 'o'):
+    if config.feature_method == "o":
         x_train, x_test, y_train, y_test = of.load_feature(
-            config, config.train_feature_path_opensmile, train=True)
+            config, config.train_feature_path_opensmile, train=True
+        )
 
-    elif (config.feature_method == 'l'):
+    elif config.feature_method == "l":
         x_train, x_test, y_train, y_test = lf.load_feature(
-            config, config.train_feature_path_librosa, train=True)
+            config, config.train_feature_path_librosa, train=True
+        )
 
     n_feats = x_train.shape[1]
     y_train = np.array(y_train)
     y_test = np.array(y_test)
     train_dataset = MyDataset(x_train, y_train)
     test_dataset = MyDataset(x_test, y_test)
-    train_iter = DataLoader(
-        train_dataset, batch_size=config.batch_size, shuffle=True)
-    test_iter = DataLoader(
-        test_dataset, batch_size=config.batch_size, shuffle=True)
+    train_iter = DataLoader(train_dataset, batch_size=config.batch_size, shuffle=True)
+    test_iter = DataLoader(test_dataset, batch_size=config.batch_size, shuffle=True)
 
     # model_cnn1d = cnn1d_ser(1, config.n_kernels, n_feats, config.hidden_size, len(config.class_labels))
-    model_lstm = lstm_ser(n_feats, config.rnn_size, len(
-        config.class_labels), config.batch_size)
+    model_lstm = lstm_ser(
+        n_feats, config.rnn_size, len(config.class_labels), config.batch_size
+    )
     loss_fn = nn.CrossEntropyLoss()
     model_lstm.to("cuda")
     # model_cnn1d.to("cuda")
@@ -80,7 +80,7 @@ def train_eval(config):
             # Compute prediction error
             pred = model(x)
             loss = loss_fn(pred, y)
-            bool_value = (np.argmax(pred.numpy(), 1) == y.numpy())
+            bool_value = np.argmax(pred.numpy(), 1) == y.numpy()
             correct += float(bool_value.sum())
             trian_loss += loss
 
@@ -119,18 +119,18 @@ def train_eval(config):
 
                 test_loss += loss_fn(pred, y)
                 if flag == 0:
-                    bool_value = (np.argmax(pred.numpy(), 1) == y.numpy())
+                    bool_value = np.argmax(pred.numpy(), 1) == y.numpy()
                 else:
                     # print(pred)
-                    bool_value = (
-                        np.argmax(pred.numpy()[0:16], 1) == y.numpy()[0:16])
+                    bool_value = np.argmax(pred.numpy()[0:16], 1) == y.numpy()[0:16]
 
                 correct += float(bool_value.sum())
         test_loss /= num_batches
         print("test_loss", test_loss, "num_batches ", num_batches)
         correct /= size
         print(
-            f"Test Error: \n Accuracy: {(100 * correct):>0.1f}%, Avg loss: {test_loss:>8f}")
+            f"Test Error: \n Accuracy: {(100 * correct):>0.1f}%, Avg loss: {test_loss:>8f}"
+        )
 
         return test_loss, 100 * correct
 
@@ -158,6 +158,6 @@ def train_eval(config):
     return train_loss, test_loss, train_acc, test_acc
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     config = parse_opt()
     train_eval(config)

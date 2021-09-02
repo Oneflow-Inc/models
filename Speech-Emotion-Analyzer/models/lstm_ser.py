@@ -21,7 +21,7 @@ class lstm_ser(nn.Module):
         return logits
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     model = lstm_ser(312, 256, 10, 32)
     model.to("cuda")
     arr = np.random.randn(1, 32, 312)
