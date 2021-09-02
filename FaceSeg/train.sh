@@ -2,7 +2,7 @@ set -aux
 
 LEARNING_RATE=0.001
 MOM=0.9
-EPOCH=10
+EPOCH=50
 MODEL_PATH="./pretrained_resnet_oneflow_model"
 DATASET_PATH="./faceseg_data/"
 SAVE_MODEL_NAME="linknet_oneflow_model"

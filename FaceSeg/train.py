@@ -1,6 +1,7 @@
 import oneflow as flow
 import time
 import argparse
+import numpy
 
 from utils.numpy_data_utils import face_seg
 from models.LinkNet34 import LinkNet34
@@ -106,11 +107,10 @@ def main(args):
             l = loss.numpy()
             of_losses.append(l)
             sys.stdout.write(
-                f"\rEpoch: {epoch} ---- Loss: {round(epoch_loss / (b + 1), 4)} ----- num: {b}"
+                f"\rEpoch: {epoch} ---- Loss: {numpy.round(epoch_loss / (b + 1), 4)} ----- num: {b} "
             )
             sys.stdout.flush()
 
-        print("epoch %d done, start validation" % epoch)
     flow.save(linknet34_module.state_dict(), args.save_model_name)
 
     writer = open("of_losses.txt", "w")
