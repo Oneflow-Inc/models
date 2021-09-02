@@ -52,6 +52,7 @@ Models and examples implement with OneFlow(version >= 0.5.0).
 * [TextCNN](https://github.com/Oneflow-Inc/models/tree/main/TextCNN)
 * [Transformer](https://github.com/Oneflow-Inc/models/tree/main/Transformer)
 * [Bert](https://github.com/Oneflow-Inc/models/tree/main/bert-oneflow)
+* [CPT](https://github.com/Oneflow-Inc/models/tree/main/CPT)
 
 ### Audio
 * [SincNet](https://github.com/Oneflow-Inc/models/tree/main/SincNet)
