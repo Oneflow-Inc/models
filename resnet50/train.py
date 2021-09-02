@@ -147,7 +147,6 @@ class Trainer(object):
         self.logger.register_metric(
             "throughput", log.ThroughputMeter(), "throughput: {:.2f}", True
         )
-        self.logger.meter("throughput", time.perf_counter())
 
     def meter(
         self,
