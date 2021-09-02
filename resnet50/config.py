@@ -60,9 +60,7 @@ def parse_args(ignore_unknown_args=False):
         dest="ofrecord_part_num",
         help="ofrecord data part number",
     )
-    parser.add_argument(
-        "--use-gpu-decode", action="store_true", help="Use gpu decode."
-    )
+    parser.add_argument("--use-gpu-decode", action="store_true", help="Use gpu decode.")
 
     # training hyper-parameters
     parser.add_argument(
@@ -165,7 +163,7 @@ def parse_args(ignore_unknown_args=False):
         "--scale-grad",
         action="store_true",
         dest="scale_grad",
-        help="scale init grad with world_size"
+        help="scale init grad with world_size",
     )
 
     # for data process
@@ -217,9 +215,7 @@ def parse_args(ignore_unknown_args=False):
         help="print loss every n iteration",
     )
     parser.add_argument(
-        "--print-timestamp",
-        action="store_true",
-        dest="print_timestamp",
+        "--print-timestamp", action="store_true", dest="print_timestamp",
     )
     parser.add_argument(
         "--metric-local",
@@ -236,6 +232,13 @@ def parse_args(ignore_unknown_args=False):
         nargs="?",
         const=True,
         dest="metric_train_acc",
+    )
+    parser.add_argument(
+        "--gpu-stat-file",
+        type=str,
+        default=None,
+        dest="gpu_stat_file",
+        help="stat gpu utilization and memory usage when print",
     )
 
     parser.add_argument("--graph", action="store_true", help="Run model in graph mode.")

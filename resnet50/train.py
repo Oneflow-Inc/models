@@ -20,6 +20,7 @@ from models.optimizer import make_lr_scheduler
 from models.optimizer import make_cross_entropy
 from models.accuracy import Accuracy
 import utils.logger as log
+from utils.stat import CudaUtilMemStat
 
 
 class Trainer(object):
@@ -66,6 +67,13 @@ class Trainer(object):
                 return_pred_and_label=self.metric_train_acc,
             )
             self.eval_graph = make_eval_graph(self.model, self.val_data_loader)
+
+        if self.gpu_stat_file is not None:
+            self.gpu_stat = CudaUtilMemStat(
+                f"rank{self.rank}_" + self.gpu_stat_file, only_ordinal=self.rank
+            )
+        else:
+            self.gpu_stat = None
 
     def init_model(self):
         self.logger.print("***** Model Init *****", print_ranks=[0])
@@ -179,6 +187,8 @@ class Trainer(object):
 
         if do_print:
             self.logger.print_metrics()
+            if self.gpu_stat is not None:
+                self.gpu_stat.stat()
 
     def meter_train_iter(self, loss, top1):
         assert self.is_train is True
