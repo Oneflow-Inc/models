@@ -17,7 +17,7 @@ import sys
 sys.path.append(".")
 from modeling import BertForPreTraining
 from utils.ofrecord_data_utils import OfRecordDataLoader
-from utils.polynomial_scheduler import PolynomialLR
+from utils.lr_scheduler import PolynomialLR
 
 
 def save_model(module: nn.Module, checkpoint_path: str, epoch: int, acc: float):
@@ -227,7 +227,7 @@ def main():
     # Load the same initial parameters with lazy model.
     load_params_from_lazy(
         bert_model.state_dict(),
-        flow.load("../../OneFlow-Benchmark/LanguageModeling/BERT/initial_model"),
+        "of_bert_1000000_model_log/snapshot_snapshot_1000000",
     )
 
     bert_model.to(device)
@@ -286,6 +286,7 @@ def main():
 
     ns_criterion = nn.CrossEntropyLoss(reduction="mean")
     mlm_criterion = nn.CrossEntropyLoss(reduction="none")
+
 
     def get_masked_lm_loss(
         logit_blob,

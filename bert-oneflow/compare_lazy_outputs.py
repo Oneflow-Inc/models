@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 import oneflow.nn as nn
 import oneflow as flow
 from modeling import BertForPreTraining
@@ -42,7 +43,9 @@ def change_name_from_lazy_to_eager(lazy_name: str):
     return eager_name
 
 
-def load_params_from_lazy(eager_state_dict, lazy_state_dict):
+def load_params_from_lazy(eager_state_dict, lazy_model_path):
+    print(f"Restroing model from {lazy_model_path}")
+    lazy_state_dict = flow.load(lazy_model_path)
     all_eager_names_list = set(eager_state_dict.keys())
 
     # load regular weights
@@ -80,27 +83,20 @@ def load_params_from_lazy(eager_state_dict, lazy_state_dict):
 
 
 if __name__ == "__main__":
-    lazy_state_dict = flow.load(
-        "../../OneFlow-Benchmark/LanguageModeling/BERT/snapshots/snapshot_snapshot_1"
-    )
+    lazy_model_path = "./of_bert_1000000_model_log/snapshot_snapshot_1000000"
 
     bert_module = BertForPreTraining(
         30522, 128, 768, 12, 12, 3072, nn.GELU(), 0.0, 0.0, 512, 2,
     )
 
-    load_params_from_lazy(bert_module.state_dict(), lazy_state_dict)
-
-    # Copy word embedding weights to decoder fc.
-    # bert_module.clone_weights(
-    # bert_module.get_output_embeddings(), bert_module.bert.get_input_embeddings()
-    # )
+    load_params_from_lazy(bert_module.state_dict(), lazy_model_path)
 
     assert id(bert_module.cls.predictions.decoder.weight) == id(
         bert_module.bert.embeddings.word_embeddings.weight
     )
 
     with open(
-        "../../OneFlow-Benchmark/LanguageModeling/BERT/lazy_input_output.pickle", "rb"
+        "../../OneFlow-Benchmark/LanguageModeling/BERT/lazy_input_output_1.pickle", "rb"
     ) as handle:
         lazy_info = pickle.load(handle)
 
