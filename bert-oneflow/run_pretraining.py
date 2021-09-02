@@ -13,8 +13,11 @@ import numpy as np
 import oneflow as flow
 from oneflow import nn
 
+import sys
+sys.path.append(".")
 from modeling import BertForPreTraining
 from utils.ofrecord_data_utils import OfRecordDataLoader
+from utils.polynomial_scheduler import PolynomialLR
 
 
 def save_model(module: nn.Module, checkpoint_path: str, epoch: int, acc: float):
@@ -162,7 +165,7 @@ def main():
         "--cuda_devices", type=int, nargs="+", default=None, help="CUDA device ids"
     )
 
-    parser.add_argument("--lr", type=float, default=1e-4, help="Learning rate of adam")
+    parser.add_argument("--lr", type=float, default=2e-2, help="Learning rate of adam")
     parser.add_argument(
         "--weight_decay", type=float, default=0.01, help="Weight_decay of adam"
     )
@@ -235,7 +238,7 @@ def main():
         weight_decay: float,
         weight_decay_excludes: List[str],
     ):
-        defaults = {"lr": lr, "weight_decay": weight_decay}
+        defaults = {"lr": lr, "weight_decay": weight_decay, "epsilon": 1e-6}
         params = []
         for module_param_name, value in model.named_parameters():
             if not value.requires_grad:
@@ -251,17 +254,35 @@ def main():
 
         return flow.optim.AdamW(params)
 
-    optimizer = build_adamW_optimizer(
-        bert_model,
-        args.lr,
-        args.weight_decay,
-        weight_decay_excludes=["bias", "LayerNorm", "layer_norm"],
-    )
+    # optimizer = build_adamW_optimizer(
+    #     bert_model,
+    #     args.lr,
+    #     args.weight_decay,
+    #     weight_decay_excludes=["bias", "LayerNorm", "layer_norm"],
+    # )
+
+    optimizer = flow.optim.SGD(
+                    bert_model.parameters(), 
+                    lr=args.lr, 
+                    momentum=0.9)
+
+    # optimizer = flow.optim.Adam(
+    #                 bert_model.parameters(),
+    #                 lr=args.lr,
+    #                 betas=(0.9, 0.999))
 
     steps = args.epochs * len(train_data_loader)
-    cosine_annealing_lr = flow.optim.lr_scheduler.CosineDecayLR(
-        optimizer, decay_steps=steps
-    )
+
+    lr_scheduler = PolynomialLR(
+                    optimizer, 
+                    steps=100, 
+                    end_learning_rate=0.0)
+
+    lr_scheduler = flow.optim.lr_scheduler.WarmUpLR(
+                    lr_scheduler, 
+                    warmup_factor=0, 
+                    warmup_iters=50, 
+                    warmup_method="linear")
 
     ns_criterion = nn.CrossEntropyLoss(reduction="mean")
     mlm_criterion = nn.CrossEntropyLoss(reduction="none")
@@ -303,7 +324,7 @@ def main():
             self.masked_lm_criterion = partial(
                 get_masked_lm_loss, max_predictions_per_seq=args.max_predictions_per_seq
             )
-            self.add_optimizer(optimizer)  # , lr_sch=cosine_annealing_lr)
+            self.add_optimizer(optimizer, lr_sch=lr_scheduler)
             self._train_data_loader = train_data_loader
 
         def build(self):
@@ -388,30 +409,31 @@ def main():
     train_total_losses = []
     train_lml_losses = []
     train_ns_losses = []
+    
     for epoch in range(args.epochs):
         # Train
         bert_model.train()
         train_total_loss, lml_loss, ns_loss = train(
-            epoch, 1000, bert_graph, args.print_interval  # len(train_data_loader),
+            epoch, 100, bert_graph, args.print_interval  # len(train_data_loader),
         )
-
+        
         train_total_losses.extend(train_total_loss)
         train_lml_losses.extend(lml_loss)
         train_ns_losses.extend(ns_loss)
 
-    save_dir = "temp"
+    save_dir = "loss_txt"
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
 
     Reporter.write2file(
-        train_total_losses, os.path.join(save_dir, "bert_graph_loss.txt")
+        train_total_losses, os.path.join(save_dir, "bert_graph_sgd_loss.txt")
     )
-    Reporter.write2file(
-        train_lml_losses, os.path.join(save_dir, "bert_graph_lml_loss.txt")
-    )
-    Reporter.write2file(
-        train_ns_losses, os.path.join(save_dir, "bert_graph_ns_loss.txt")
-    )
+    # Reporter.write2file(
+    #     train_lml_losses, os.path.join(save_dir, "bert_graph_lml_loss.txt")
+    # )
+    # Reporter.write2file(
+    #     train_ns_losses, os.path.join(save_dir, "bert_graph_ns_loss.txt")
+    # )
     # Eval
     # bert_model.eval()
     # val_acc = validation(
