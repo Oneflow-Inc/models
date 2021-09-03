@@ -236,7 +236,7 @@ def main():
 
     if args.do_train:
         print("Create SQuAD training data decoders")
-        test_decoders = SquadDecoder(
+        train_decoders = SquadDecoder(
             args.train_data_dir, batch_size, args.train_data_part_num, args.seq_length
         )
 
@@ -266,7 +266,7 @@ def main():
                 self.criterion = nn.CrossEntropyLoss()
 
                 self.add_optimizer(optimizer, lr_sch=lr_scheduler)
-                self._decoders = test_decoders
+                self._decoders = train_decoders
 
             def build(self):
                 (
@@ -314,6 +314,8 @@ def main():
             args.seq_length,
             is_train=False,
         )
+
+        squad_model.eval()
 
         class SQuADEvalGraph(nn.Graph):
             def __init__(self):
