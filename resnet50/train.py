@@ -34,7 +34,7 @@ class Trainer(object):
 
         self.cur_epoch = 0
         self.cur_iter = 0
-        self.meter_step = 0
+        self.cur_batch = 0
         self.is_consistent = (self.world_size > 1 and not self.ddp) or self.graph
         self.is_train = False
         self.meter_lr = self.graph is False
@@ -215,6 +215,9 @@ class Trainer(object):
         self.logger.meter("time")
         for _ in range(self.num_epochs):
             self.train_one_epoch()
+            if self.cur_batch == self.total_batches:
+                break
+
             if not self.skip_eval:
                 acc = self.eval()
             else:
@@ -246,6 +249,10 @@ class Trainer(object):
                 top1_acc = 0
 
             self.meter_train_iter(loss, top1_acc)
+
+            self.cur_batch += 1
+            if self.cur_batch == self.total_batches:
+                break
 
     def train_eager(self):
         loss, pred, label = self.forward()
