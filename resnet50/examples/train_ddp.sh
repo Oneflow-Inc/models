@@ -18,6 +18,11 @@ if [ ! -d "$CHECKPOINT_SAVE_PATH" ]; then
 fi
 
 CHECKPOINT_LOAD_PATH="./init_ckpt_by_lazy"
+if [ ! -d "$CHECKPOINT_LOAD_PATH" ]; then
+    wget http://oneflow-static.oss-cn-beijing.aliyuncs.com/resnet50_init_ckpt_by_lazy.tgz
+    tar zxf resnet50_init_ckpt_by_lazy.tgz
+    rm -rf $CHECKPOINT_LOAD_PATH/System-Train-TrainStep-TrainNet
+fi
 
 OFRECORD_PATH=/dataset/ImageNet/ofrecord/
 OFRECORD_PART_NUM=256
