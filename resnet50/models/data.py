@@ -8,11 +8,11 @@ def make_data_loader(args, mode, is_consistent=False, synthetic=False):
 
     if mode == "train":
         total_batch_size = args.train_global_batch_size
-        device_batch_size = args.train_batch_size
+        batch_size = args.train_batch_size
         num_samples = args.samples_per_epoch
     else:
         total_batch_size = args.val_global_batch_size
-        device_batch_size = args.val_batch_size
+        batch_size = args.val_batch_size
         num_samples = args.val_samples_per_epoch
 
     placement = None
@@ -24,17 +24,15 @@ def make_data_loader(args, mode, is_consistent=False, synthetic=False):
         sbp = flow.sbp.split(0)
         # NOTE(zwx): consistent view, only consider logical batch size
         batch_size = total_batch_size
-    else:
-        batch_size = device_batch_size
 
     if synthetic:
-        return SyntheticDataLoader(
+        data_loader = SyntheticDataLoader(
             batch_size=batch_size,
-            num_classes=device_batch_size,
-            gen_once=True,
+            num_classes=args.num_classes,
             placement=placement,
             sbp=sbp,
         )
+        return data_loader.to("cuda")
 
     ofrecord_data_loader = OFRecordDataLoader(
         ofrecord_dir=args.ofrecord_path,
@@ -177,13 +175,7 @@ class OFRecordDataLoader(flow.nn.Module):
 
 class SyntheticDataLoader(flow.nn.Module):
     def __init__(
-        self,
-        batch_size,
-        image_size=224,
-        num_classes=1000,
-        gen_once=False,
-        placement=None,
-        sbp=None,
+        self, batch_size, image_size=224, num_classes=1000, placement=None, sbp=None,
     ):
         super().__init__()
 
@@ -192,26 +184,36 @@ class SyntheticDataLoader(flow.nn.Module):
         self.num_classes = num_classes
         self.placement = placement
         self.sbp = sbp
-        self.gen_once = gen_once
-        if gen_once:
-            self.gen_input()
 
-    def gen_input(self):
-        image = np.random.randint(0, high=256, size=self.image_shape).astype(np.float32)
-        label = np.random.randint(
-            0, high=self.num_classes, size=self.label_shape
-        ).astype(np.int32)
-        image = flow.tensor(image, requires_grad=False)
-        label = flow.tensor(label, requires_grad=False)
         if self.placement is not None and self.sbp is not None:
-            self.image = image.to_consistent(placement=self.placement, sbp=self.sbp)
-            self.label = label.to_consistent(placement=self.placement, sbp=self.sbp)
+            self.image = flow.nn.Parameter(
+                flow.randint(
+                    0,
+                    high=256,
+                    size=self.image_shape,
+                    dtype=flow.float32,
+                    placement=self.placement,
+                    sbp=self.sbp,
+                ),
+                requires_grad=False,
+            )
+            self.label = flow.nn.Parameter(
+                flow.randint(
+                    0,
+                    high=self.num_classes,
+                    size=self.label_shape,
+                    placement=self.placement,
+                    sbp=self.sbp,
+                ).to(dtype=flow.int32),
+                requires_grad=False,
+            )
         else:
-            self.image = image.to("cuda")
-            self.label = label.to("cuda")
+            self.image = flow.randint(
+                0, high=256, size=self.image_shape, dtype=flow.float32, device="cuda"
+            )
+            self.label = flow.randint(
+                0, high=self.num_classes, size=self.label_shape, device="cuda",
+            ).to(dtype=flow.int32)
 
     def forward(self):
-        if not self.gen_once:
-            self.gen_input()
-
         return self.image, self.label
