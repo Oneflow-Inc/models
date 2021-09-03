@@ -1,4 +1,4 @@
-set -aux
+# set -aux
 
 PRETRAIN_MODEL_PATH="resnet50_imagenet_pretrain_model"
 IMAGE_PATH="data/fish.jpg"
@@ -13,4 +13,10 @@ if [ ! -d "$PRETRAIN_MODEL_PATH" ]; then
   tar zxf resnet50_imagenet_pretrain_model.tar.gz
 fi
 
-python3 graph/infer.py --model_path $PRETRAIN_MODEL_PATH --image_path $IMAGE_PATH
+# SRC_DIR=/path/to/models/resnet50
+SRC_DIR=$(realpath $(dirname $0)/..)
+
+python3 $SRC_DIR/infer.py \
+    --model $PRETRAIN_MODEL_PATH \
+    --image $IMAGE_PATH \
+    --graph \
