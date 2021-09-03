@@ -18,8 +18,11 @@ import oneflow as flow
 import oneflow.nn as nn
 from modeling import BertModel
 
+
 class SQuAD(nn.Module):
-    def __init__(self, vocab_size,
+    def __init__(
+        self,
+        vocab_size,
         seq_length,
         hidden_size,
         hidden_layers,
@@ -30,7 +33,8 @@ class SQuAD(nn.Module):
         attention_probs_dropout_prob,
         max_position_embeddings,
         type_vocab_size,
-        initializer_range=0.02):
+        initializer_range=0.02,
+    ):
         super().__init__()
         self.bert = BertModel(
             vocab_size,
@@ -49,13 +53,11 @@ class SQuAD(nn.Module):
         self.hidden_size = hidden_size
         self.cls_squad = nn.Linear(hidden_size, 2)
 
-        self.cls_squad.weight.data.normal_(mean=0., std=initializer_range)
+        self.cls_squad.weight.data.normal_(mean=0.0, std=initializer_range)
         self.cls_squad.bias.data.fill_(0)
 
     def forward(self, input_ids, token_type_ids, attention_mask):
-        sequence_output, _ = self.bert(
-            input_ids, token_type_ids, attention_mask
-        )
+        sequence_output, _ = self.bert(input_ids, token_type_ids, attention_mask)
         final_hidden = flow.reshape(sequence_output, [-1, self.hidden_size])
 
         prediction_logits = self.cls_squad(final_hidden)

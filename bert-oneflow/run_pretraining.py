@@ -14,6 +14,7 @@ import oneflow as flow
 from oneflow import nn
 
 import sys
+
 sys.path.append(".")
 from modeling import BertForPreTraining
 from utils.ofrecord_data_utils import OfRecordDataLoader
@@ -226,8 +227,7 @@ def main():
 
     # Load the same initial parameters with lazy model.
     load_params_from_lazy(
-        bert_model.state_dict(),
-        "of_bert_1000000_model_log/snapshot_snapshot_1000000",
+        bert_model.state_dict(), "of_bert_1000000_model_log/snapshot_snapshot_1000000",
     )
 
     bert_model.to(device)
@@ -254,39 +254,23 @@ def main():
 
         return flow.optim.AdamW(params)
 
-    # optimizer = build_adamW_optimizer(
-    #     bert_model,
-    #     args.lr,
-    #     args.weight_decay,
-    #     weight_decay_excludes=["bias", "LayerNorm", "layer_norm"],
-    # )
-
-    optimizer = flow.optim.SGD(
-                    bert_model.parameters(), 
-                    lr=args.lr, 
-                    momentum=0.9)
-
-    # optimizer = flow.optim.Adam(
-    #                 bert_model.parameters(),
-    #                 lr=args.lr,
-    #                 betas=(0.9, 0.999))
+    optimizer = build_adamW_optimizer(
+        bert_model,
+        args.lr,
+        args.weight_decay,
+        weight_decay_excludes=["bias", "LayerNorm", "layer_norm"],
+    )
 
     steps = args.epochs * len(train_data_loader)
 
-    lr_scheduler = PolynomialLR(
-                    optimizer, 
-                    steps=100, 
-                    end_learning_rate=0.0)
+    lr_scheduler = PolynomialLR(optimizer, steps=steps, end_learning_rate=0.0)
 
     lr_scheduler = flow.optim.lr_scheduler.WarmUpLR(
-                    lr_scheduler, 
-                    warmup_factor=0, 
-                    warmup_iters=50, 
-                    warmup_method="linear")
+        lr_scheduler, warmup_factor=0, warmup_iters=50, warmup_method="linear"
+    )
 
     ns_criterion = nn.CrossEntropyLoss(reduction="mean")
     mlm_criterion = nn.CrossEntropyLoss(reduction="none")
-
 
     def get_masked_lm_loss(
         logit_blob,
@@ -410,14 +394,14 @@ def main():
     train_total_losses = []
     train_lml_losses = []
     train_ns_losses = []
-    
+
     for epoch in range(args.epochs):
         # Train
         bert_model.train()
         train_total_loss, lml_loss, ns_loss = train(
             epoch, 100, bert_graph, args.print_interval  # len(train_data_loader),
         )
-        
+
         train_total_losses.extend(train_total_loss)
         train_lml_losses.extend(lml_loss)
         train_ns_losses.extend(ns_loss)
