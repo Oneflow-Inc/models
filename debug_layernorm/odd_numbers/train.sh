@@ -5,6 +5,7 @@ if [ ! -d "$MODEL_PATH" ]; then
     mkdir $MODEL_PATH
 fi
 
+
 BATCH_SIZE=128
 EPOCH=20
 LEARNING_RATE=0.0001
