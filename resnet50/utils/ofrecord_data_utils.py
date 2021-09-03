@@ -30,7 +30,7 @@ class OFRecordDataLoader(nn.Module):
             placement = placement,
             sbp = sbp
         )
-        self.record_label_decoder = flow.nn.OfrecordRawDecoder(
+        self.record_label_decoder = flow.nn.OFRecordRawDecoder(
             "class/label", shape=(), dtype=flow.int32
         )
 

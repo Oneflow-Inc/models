@@ -11,11 +11,10 @@ fi
 LEARNING_RATE=2e-4
 EPOCH=200
 TRAIN_BATCH_SIZE=1
-PATH="./of_pix2pix"
+TRAIN_PATH="./of_pix2pix"
 
-python train.py \
+python3 train.py \
     -lr $LEARNING_RATE \
     -e $EPOCH \
     --batch_size $TRAIN_BATCH_SIZE \
-    --path $PATH \
-
+    --path $TRAIN_PATH \

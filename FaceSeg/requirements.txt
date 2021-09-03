@@ -1,5 +1,4 @@
 numpy
-torch
 Pillow
 opencv-contrib-pythonalbumentations
 albumentations

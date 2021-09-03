@@ -1,4 +1,10 @@
-#CHECKPOINT_LOAD_DIR=""
+set -aux
+
+DATASET_DIR="./datasets/"
+
+if [ ! -d "$DATASET_DIR" ]; then
+    mkdir $DATASET_DIR
+fi
 
 CHECKPOINT_SAVE_DIR="./checkpoints/"
 

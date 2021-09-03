@@ -10,6 +10,7 @@ matplotlib.use("agg")
 import matplotlib.pyplot as plt
 import oneflow as flow
 
+
 def make_dirs(*pathes):
     for path in pathes:
         # dir path
@@ -44,9 +45,9 @@ def load_mnist(data_dir, transpose=True):
     y = trY.astype(int)
 
     seed = 547
-    #np.random.seed(seed)
+    # np.random.seed(seed)
     np.random.shuffle(X)
-    #np.random.seed(seed)
+    # np.random.seed(seed)
     np.random.shuffle(y)
 
     y_vec = np.zeros((len(y), 10), dtype=np.float32)
