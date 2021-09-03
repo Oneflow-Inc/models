@@ -1,18 +1,18 @@
 import os
+import numpy as np
 import oneflow as flow
 
 
-def make_data_loader(args, mode, is_consistent=False):
-    # TODO(zwx): support synthetic data
+def make_data_loader(args, mode, is_consistent=False, synthetic=False):
     assert mode in ("train", "validation")
 
     if mode == "train":
         total_batch_size = args.train_global_batch_size
-        batch_size = args.train_batch_size
+        device_batch_size = args.train_batch_size
         num_samples = args.samples_per_epoch
     else:
         total_batch_size = args.val_global_batch_size
-        batch_size = args.val_batch_size
+        device_batch_size = args.val_batch_size
         num_samples = args.val_samples_per_epoch
 
     placement = None
@@ -24,6 +24,17 @@ def make_data_loader(args, mode, is_consistent=False):
         sbp = flow.sbp.split(0)
         # NOTE(zwx): consistent view, only consider logical batch size
         batch_size = total_batch_size
+    else:
+        batch_size = device_batch_size
+
+    if synthetic:
+        return SyntheticDataLoader(
+            batch_size=batch_size,
+            num_classes=device_batch_size,
+            gen_once=True,
+            placement=placement,
+            sbp=sbp,
+        )
 
     ofrecord_data_loader = OFRecordDataLoader(
         ofrecord_dir=args.ofrecord_path,
@@ -35,7 +46,7 @@ def make_data_loader(args, mode, is_consistent=False):
         channel_last=args.channels_last,
         placement=placement,
         sbp=sbp,
-        use_gpu_decode=args.use_gpu_decode
+        use_gpu_decode=args.use_gpu_decode,
     )
     return ofrecord_data_loader
 
@@ -52,7 +63,7 @@ class OFRecordDataLoader(flow.nn.Module):
         channel_last=False,
         placement=None,
         sbp=None,
-        use_gpu_decode=False
+        use_gpu_decode=False,
     ):
         super().__init__()
 
@@ -102,7 +113,9 @@ class OFRecordDataLoader(flow.nn.Module):
                 self.image_decoder = flow.nn.OFRecordImageDecoderRandomCrop(
                     "encoded", color_space=color_space
                 )
-                self.resize = flow.nn.image.Resize(target_size=[image_width, image_height])
+                self.resize = flow.nn.image.Resize(
+                    target_size=[image_width, image_height]
+                )
             self.flip = flow.nn.CoinFlip(
                 batch_size=self.batch_size, placement=placement, sbp=sbp
             )
@@ -160,3 +173,45 @@ class OFRecordDataLoader(flow.nn.Module):
             image = self.crop_mirror_norm(image)
 
         return image, label
+
+
+class SyntheticDataLoader(flow.nn.Module):
+    def __init__(
+        self,
+        batch_size,
+        image_size=224,
+        num_classes=1000,
+        gen_once=False,
+        placement=None,
+        sbp=None,
+    ):
+        super().__init__()
+
+        self.image_shape = (batch_size, 3, image_size, image_size)
+        self.label_shape = (batch_size,)
+        self.num_classes = num_classes
+        self.placement = placement
+        self.sbp = sbp
+        self.gen_once = gen_once
+        if gen_once:
+            self.gen_input()
+
+    def gen_input(self):
+        image = np.random.randint(0, high=256, size=self.image_shape).astype(np.float32)
+        label = np.random.randint(
+            0, high=self.num_classes, size=self.label_shape
+        ).astype(np.int32)
+        image = flow.tensor(image, requires_grad=False)
+        label = flow.tensor(label, requires_grad=False)
+        if self.placement is not None and self.sbp is not None:
+            self.image = image.to_consistent(placement=self.placement, sbp=self.sbp)
+            self.label = label.to_consistent(placement=self.placement, sbp=self.sbp)
+        else:
+            self.image = image.to("cuda")
+            self.label = label.to("cuda")
+
+    def forward(self):
+        if not self.gen_once:
+            self.gen_input()
+
+        return self.image, self.label
