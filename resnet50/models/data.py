@@ -1,9 +1,9 @@
 import os
+import numpy as np
 import oneflow as flow
 
 
-def make_data_loader(args, mode, is_consistent=False):
-    # TODO(zwx): support synthetic data
+def make_data_loader(args, mode, is_consistent=False, synthetic=False):
     assert mode in ("train", "validation")
 
     if mode == "train":
@@ -25,6 +25,15 @@ def make_data_loader(args, mode, is_consistent=False):
         # NOTE(zwx): consistent view, only consider logical batch size
         batch_size = total_batch_size
 
+    if synthetic:
+        data_loader = SyntheticDataLoader(
+            batch_size=batch_size,
+            num_classes=args.num_classes,
+            placement=placement,
+            sbp=sbp,
+        )
+        return data_loader.to("cuda")
+
     ofrecord_data_loader = OFRecordDataLoader(
         ofrecord_dir=args.ofrecord_path,
         ofrecord_part_num=args.ofrecord_part_num,
@@ -35,7 +44,7 @@ def make_data_loader(args, mode, is_consistent=False):
         channel_last=args.channels_last,
         placement=placement,
         sbp=sbp,
-        use_gpu_decode=args.use_gpu_decode
+        use_gpu_decode=args.use_gpu_decode,
     )
     return ofrecord_data_loader
 
@@ -52,7 +61,7 @@ class OFRecordDataLoader(flow.nn.Module):
         channel_last=False,
         placement=None,
         sbp=None,
-        use_gpu_decode=False
+        use_gpu_decode=False,
     ):
         super().__init__()
 
@@ -102,7 +111,9 @@ class OFRecordDataLoader(flow.nn.Module):
                 self.image_decoder = flow.nn.OFRecordImageDecoderRandomCrop(
                     "encoded", color_space=color_space
                 )
-                self.resize = flow.nn.image.Resize(target_size=[image_width, image_height])
+                self.resize = flow.nn.image.Resize(
+                    target_size=[image_width, image_height]
+                )
             self.flip = flow.nn.CoinFlip(
                 batch_size=self.batch_size, placement=placement, sbp=sbp
             )
@@ -160,3 +171,49 @@ class OFRecordDataLoader(flow.nn.Module):
             image = self.crop_mirror_norm(image)
 
         return image, label
+
+
+class SyntheticDataLoader(flow.nn.Module):
+    def __init__(
+        self, batch_size, image_size=224, num_classes=1000, placement=None, sbp=None,
+    ):
+        super().__init__()
+
+        self.image_shape = (batch_size, 3, image_size, image_size)
+        self.label_shape = (batch_size,)
+        self.num_classes = num_classes
+        self.placement = placement
+        self.sbp = sbp
+
+        if self.placement is not None and self.sbp is not None:
+            self.image = flow.nn.Parameter(
+                flow.randint(
+                    0,
+                    high=256,
+                    size=self.image_shape,
+                    dtype=flow.float32,
+                    placement=self.placement,
+                    sbp=self.sbp,
+                ),
+                requires_grad=False,
+            )
+            self.label = flow.nn.Parameter(
+                flow.randint(
+                    0,
+                    high=self.num_classes,
+                    size=self.label_shape,
+                    placement=self.placement,
+                    sbp=self.sbp,
+                ).to(dtype=flow.int32),
+                requires_grad=False,
+            )
+        else:
+            self.image = flow.randint(
+                0, high=256, size=self.image_shape, dtype=flow.float32, device="cuda"
+            )
+            self.label = flow.randint(
+                0, high=self.num_classes, size=self.label_shape, device="cuda",
+            ).to(dtype=flow.int32)
+
+    def forward(self):
+        return self.image, self.label

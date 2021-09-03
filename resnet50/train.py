@@ -50,8 +50,12 @@ class Trainer(object):
         self.init_model()
         self.cross_entropy = make_cross_entropy(args)
 
-        self.train_data_loader = make_data_loader(args, "train", self.is_consistent)
-        self.val_data_loader = make_data_loader(args, "validation", self.is_consistent)
+        self.train_data_loader = make_data_loader(
+            args, "train", self.is_consistent, self.synthetic_data
+        )
+        self.val_data_loader = make_data_loader(
+            args, "validation", self.is_consistent, self.synthetic_data
+        )
 
         self.optimizer = make_optimizer(args, self.model)
         self.lr_scheduler = make_lr_scheduler(args, self.optimizer)
@@ -212,7 +216,7 @@ class Trainer(object):
         self.train()
 
     def train(self):
-        self.logger.meter("time")
+        self.logger.metric("time").reset()
         for _ in range(self.num_epochs):
             self.train_one_epoch()
             if self.cur_batch == self.total_batches:

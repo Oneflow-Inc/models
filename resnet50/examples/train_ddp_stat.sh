@@ -30,9 +30,8 @@ VAL_BATCH_SIZE=50
 # SRC_DIR=/path/to/models/resnet50
 SRC_DIR=$(realpath $(dirname $0)/..)
 
-nohup python3 $SRC_DIR/utils/stat.py > stat.out 2>&1 &
-# nohup python3 $SRC_DIR/utils/stat.py > stat.out 2>&1 & echo $! > stat.pid
-# kill -9 $(cat stat.pid)
+# nohup python3 $SRC_DIR/utils/stat.py > stat.out 2>&1 &
+nohup python3 $SRC_DIR/utils/stat.py > stat.out 2>&1 & echo $! > stat.pid
 
 python3 -m oneflow.distributed.launch \
     --nproc_per_node $DEVICE_NUM_PER_NODE \
@@ -51,3 +50,5 @@ python3 -m oneflow.distributed.launch \
         --train-batch-size $TRAIN_BATCH_SIZE \
         --val-batch-size $VAL_BATCH_SIZE \
         --ddp \
+
+kill -15 $(cat stat.pid)

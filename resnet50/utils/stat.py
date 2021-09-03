@@ -111,11 +111,13 @@ class StatThread(threading.Thread):
         self.handler = handler
         self.interval = interval
         self.stopped = stop_event
+        self.count = 0
 
     def run(self):
         while not self.stopped.wait(self.interval):
-            # print("run once")
+            print(f"{self.count} th run stat")
             self.handler()
+            self.count += 1
 
 
 if __name__ == "__main__":
