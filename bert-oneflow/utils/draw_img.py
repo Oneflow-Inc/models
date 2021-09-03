@@ -2,6 +2,7 @@ import os
 import argparse
 import matplotlib.pyplot as plt
 
+
 def _parse_args():
     parser = argparse.ArgumentParser("flags for draw image")
     parser.add_argument(
@@ -11,10 +12,7 @@ def _parse_args():
         help="your txt root dir",
     )
     parser.add_argument(
-        "--save_root",
-        type=str,
-        default="./loss_txt/",
-        help="your draw image save dir",
+        "--save_root", type=str, default="./loss_txt/", help="your draw image save dir",
     )
     return parser.parse_args()
 
@@ -22,7 +20,7 @@ def _parse_args():
 # helpers
 def load_data(file_path):
     data = []
-    with open(file_path, 'r') as f:
+    with open(file_path, "r") as f:
         for _line in f.readlines():
             data.append(float(_line.strip()))
     return data
@@ -48,10 +46,10 @@ def draw_and_save(info_dic):
     assert len(txts) == len(labels)
 
     # setup
-    plt.rcParams['figure.dpi'] = 100
+    plt.rcParams["figure.dpi"] = 100
     plt.clf()
-    plt.xlabel(xlabel, fontproperties='Times New Roman')
-    plt.ylabel(ylabel, fontproperties='Times New Roman')
+    plt.xlabel(xlabel, fontproperties="Times New Roman")
+    plt.ylabel(ylabel, fontproperties="Times New Roman")
     if xlim:
         plt.xlim(xlim[0], xlim[1])
     if ylim:
@@ -70,11 +68,13 @@ def draw_and_save(info_dic):
             idxs = [i for i in range(len(data))]
             plt.plot(idxs, data, label=label)
     plt.title(title)
-    plt.legend(loc='upper right', frameon=True, fontsize=8)
+    plt.legend(loc="upper right", frameon=True, fontsize=8)
     plt.savefig(save_path)
 
+
 def add_pth(a, b):
-    return os.path.join(a,b)
+    return os.path.join(a, b)
+
 
 if __name__ == "__main__":
     args = _parse_args()
@@ -84,34 +84,49 @@ if __name__ == "__main__":
 
     # draw and save
     os.makedirs(save_root, exist_ok=True)
-    draw_and_save({ "title": "lazy_graph_sgd_lr0.02_loss_compare",
-                    "save_path": add_pth(save_root, "lazy_graph_sgd.png"),
-                    "txts": ["../../OneFlow-Benchmark/LanguageModeling/BERT/loss_info_sgd.txt", 
-                             "loss_txt/bert_graph_sgd_loss.txt"],
-                    "names": ["lazy_loss", "graph_loss"],
-                    "xlabel": "iter",
-                    "ylabel": "loss",
-                    })
-    draw_and_save({ "title": "lazy_graph_adam_lr1e-3_loss_compare",
-                    "save_path": add_pth(save_root, "lazy_graph_adamw.png"),
-                    "txts": ["../../OneFlow-Benchmark/LanguageModeling/BERT/loss_info_adam.txt", 
-                             "loss_txt/bert_graph_adam_loss.txt"],
-                    "names": ["lazy_loss", "graph_loss"],
-                    "xlabel": "iter",
-                    "ylabel": "loss",
-                    })
-    draw_and_save({ "title": "lazy_graph_adamw_lr1e-3_loss_compare",
-                    "save_path": add_pth(save_root, "lazy_graph_adam.png"),
-                    "txts": ["../../OneFlow-Benchmark/LanguageModeling/BERT/loss_info_adamw_exclude.txt", 
-                             "loss_txt/bert_graph_adamw_exclude_loss.txt"],
-                    "names": ["lazy_loss", "graph_loss"],
-                    "xlabel": "iter",
-                    "ylabel": "loss",
-                    })
-  
+    draw_and_save(
+        {
+            "title": "lazy_graph_sgd_lr0.02_loss_compare",
+            "save_path": add_pth(save_root, "lazy_graph_sgd.png"),
+            "txts": [
+                "../../OneFlow-Benchmark/LanguageModeling/BERT/loss_info_sgd.txt",
+                "loss_txt/bert_graph_sgd_loss.txt",
+            ],
+            "names": ["lazy_loss", "graph_loss"],
+            "xlabel": "iter",
+            "ylabel": "loss",
+        }
+    )
+    draw_and_save(
+        {
+            "title": "lazy_graph_adam_lr1e-3_loss_compare",
+            "save_path": add_pth(save_root, "lazy_graph_adamw.png"),
+            "txts": [
+                "../../OneFlow-Benchmark/LanguageModeling/BERT/loss_info_adam.txt",
+                "loss_txt/bert_graph_adam_loss.txt",
+            ],
+            "names": ["lazy_loss", "graph_loss"],
+            "xlabel": "iter",
+            "ylabel": "loss",
+        }
+    )
+    draw_and_save(
+        {
+            "title": "lazy_graph_adamw_lr1e-3_loss_compare",
+            "save_path": add_pth(save_root, "lazy_graph_adam.png"),
+            "txts": [
+                "../../OneFlow-Benchmark/LanguageModeling/BERT/loss_info_adamw_exclude.txt",
+                "loss_txt/bert_graph_adamw_exclude_loss.txt",
+            ],
+            "names": ["lazy_loss", "graph_loss"],
+            "xlabel": "iter",
+            "ylabel": "loss",
+        }
+    )
+
     # draw_and_save({ "title": "compare_abs_loss",
     #                 "save_path": add_pth(save_root, "compare_abs_loss.png"),
-    #                 "txts": [add_pth(txt_root, "eager_losses.txt"), 
+    #                 "txts": [add_pth(txt_root, "eager_losses.txt"),
     #                         add_pth(txt_root, "graph_losses.txt")],
     #                 "names": ["eager_loss", "graph_loss"],
     #                 "xlabel": "iters",

@@ -43,9 +43,7 @@ class PolynomialLR(LrScheduler):
         last_step=-1,
         verbose=False,
     ):
-        assert (
-            steps > 0
-        ), f"steps must greater than zero, but got {steps}"
+        assert steps > 0, f"steps must greater than zero, but got {steps}"
         self.max_decay_steps = steps
         self.end_learning_rate = end_learning_rate
         self.power = power
@@ -59,15 +57,20 @@ class PolynomialLR(LrScheduler):
             decay_batch = decay_batch * math.ceil(cur_batch / decay_batch)
         else:
             cur_batch = min(cur_batch, decay_batch)
-        return [(base_lr - self.end_learning_rate) * 
-                ((1 - cur_batch / decay_batch) ** (self.power)) +
-                self.end_learning_rate for base_lr in self.base_lrs]
+        return [
+            (base_lr - self.end_learning_rate)
+            * ((1 - cur_batch / decay_batch) ** (self.power))
+            + self.end_learning_rate
+            for base_lr in self.base_lrs
+        ]
 
     def generate_conf_for_graph(self, opt_confs):
         # CosineDecayLR is the same as CosineDecayConf in nn.Graph
         for opt_conf in opt_confs:
             learning_rate_decay_conf = opt_conf.mutable_learning_rate_decay()
-            learning_rate_decay_conf.mutable_polynomial_conf().set_decay_batches(self.max_decay_steps)
+            learning_rate_decay_conf.mutable_polynomial_conf().set_decay_batches(
+                self.max_decay_steps
+            )
             learning_rate_decay_conf.mutable_polynomial_conf().set_end_learning_rate(
                 self.end_learning_rate
             )

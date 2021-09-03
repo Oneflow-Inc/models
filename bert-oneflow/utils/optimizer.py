@@ -5,10 +5,7 @@ from typing import List
 
 
 def build_adamW_optimizer(
-    model: nn.Module,
-    lr: float,
-    weight_decay: float,
-    weight_decay_excludes: List[str],
+    model: nn.Module, lr: float, weight_decay: float, weight_decay_excludes: List[str],
 ):
     defaults = {"lr": lr, "weight_decay": weight_decay}
     params = []
@@ -25,4 +22,3 @@ def build_adamW_optimizer(
         params.append({"params": [value], **hyperparameters})
 
     return flow.optim.AdamW(params)
-
