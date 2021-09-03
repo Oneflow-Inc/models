@@ -32,6 +32,12 @@ class Logger(object):
             "reset_after_print": reset_after_print,
         }
 
+    def metric(self, mkey):
+        if mkey not in self.m:
+            return None
+
+        return self.m[mkey]["meter"]
+
     def meter(self, mkey, *args):
         assert mkey in self.m
         self.m[mkey]["meter"].record(*args)
@@ -139,31 +145,28 @@ class ProgressMeter(object):
 
 class TimeMeter(object):
     def __init__(self, return_timestamp=False):
-        self.n = 0
-        self.bts = None
-        self.ets = None
         self.return_timestamp = return_timestamp
+        self.n = 0
+        self.ets = None
+        self.bts = None
+        self.reset()
 
     def reset(self):
         self.n = 0
-        self.bts = self.ets
-
-    def record(self, n=0):
-        self.n += n
-        if self.bts is None:
+        if self.ets is None:
             self.bts = time.perf_counter()
         else:
-            self.ets = time.perf_counter()
+            self.bts = self.ets
+        self.ets = None
+
+    def record(self, n):
+        self.n += n
 
     def get(self):
-        if self.n == 0:
-            return 0
-
-        assert self.bts is not None
-        assert self.ets is not None
+        self.ets = time.perf_counter()
         assert self.ets > self.bts, f"{self.ets} > {self.bts}"
         throughput = self.n / (self.ets - self.bts)
         if self.return_timestamp:
-            return throughput, self.bts
+            return throughput, self.ets
         else:
             return throughput
