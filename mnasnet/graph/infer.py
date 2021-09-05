@@ -37,7 +37,7 @@ def main(args):
         def __init__(self):
             super().__init__()
             self.model = model
-        
+
         def build(self, image):
             with flow.no_grad():
                 predictions = self.model(image)

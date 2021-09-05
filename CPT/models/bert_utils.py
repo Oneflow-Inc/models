@@ -51,8 +51,9 @@ def prune_linear_layer(layer: nn.Linear, index: flow.Tensor, dim: int = 0) -> nn
             b = layer.bias[index].clone().detach()
     new_size = list(layer.weight.size())
     new_size[dim] = len(index)
-    new_layer = nn.Linear(
-        new_size[1], new_size[0], bias=layer.bias is not None).to(layer.weight.device)
+    new_layer = nn.Linear(new_size[1], new_size[0], bias=layer.bias is not None).to(
+        layer.weight.device
+    )
     new_layer.weight.requires_grad = False
     new_layer.weight.copy_(W.contiguous())
     new_layer.weight.requires_grad = True
@@ -64,11 +65,13 @@ def prune_linear_layer(layer: nn.Linear, index: flow.Tensor, dim: int = 0) -> nn
 
 
 def apply_chunking_to_forward(
-    forward_fn: Callable[..., flow.Tensor], chunk_size: int, chunk_dim: int, *input_tensors
+    forward_fn: Callable[..., flow.Tensor],
+    chunk_size: int,
+    chunk_dim: int,
+    *input_tensors,
 ) -> flow.Tensor:
 
-    assert len(
-        input_tensors) > 0, f"{input_tensors} has to be a tuple/list of tensors"
+    assert len(input_tensors) > 0, f"{input_tensors} has to be a tuple/list of tensors"
     tensor_shape = input_tensors[0].shape[chunk_dim]
 
     assert all(
@@ -76,8 +79,7 @@ def apply_chunking_to_forward(
     ), "All input tenors have to be of the same shape"
 
     # inspect.signature exist since python 3.5 and is a python method -> no problem with backward compatibility
-    num_args_in_forward_chunk_fn = len(
-        inspect.signature(forward_fn).parameters)
+    num_args_in_forward_chunk_fn = len(inspect.signature(forward_fn).parameters)
     if num_args_in_forward_chunk_fn != len(input_tensors):
         raise ValueError(
             f"forward_chunk_fn expects {num_args_in_forward_chunk_fn} arguments, but only {len(input_tensors)} input "
@@ -94,11 +96,15 @@ def apply_chunking_to_forward(
         num_chunks = input_tensors[0].shape[chunk_dim] // chunk_size
 
         # chunk input tensor into tuples
-        input_tensors_chunks = tuple(input_tensor.chunk(
-            num_chunks, dim=chunk_dim) for input_tensor in input_tensors)
+        input_tensors_chunks = tuple(
+            input_tensor.chunk(num_chunks, dim=chunk_dim)
+            for input_tensor in input_tensors
+        )
         # apply forward fn to every tuple
-        output_chunks = tuple(forward_fn(*input_tensors_chunk)
-                              for input_tensors_chunk in zip(*input_tensors_chunks))
+        output_chunks = tuple(
+            forward_fn(*input_tensors_chunk)
+            for input_tensors_chunk in zip(*input_tensors_chunks)
+        )
         # concatenate output at same dimension
         return flow.cat(output_chunks, dim=chunk_dim)
 
@@ -117,7 +123,6 @@ def position_scores(layer, embed):
     l, r, d = embed.shape
 
     layer = layer.unsqueeze(-2)
-    embed = embed.transpose(-2, -
-                            1).unsqueeze(0).unsqueeze(0).expand(b, h, l, d, r)
+    embed = embed.transpose(-2, -1).unsqueeze(0).unsqueeze(0).expand(b, h, l, d, r)
 
     return flow.matmul(layer, embed).squeeze(-2)
