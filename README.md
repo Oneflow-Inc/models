@@ -19,6 +19,7 @@ Models and examples implement with OneFlow(version >= 0.5.0).
 * [DLA](https://github.com/Oneflow-Inc/models/tree/main/DLA)
 * [PoseNet](https://github.com/Oneflow-Inc/models/tree/main/poseNet)
 * [Scnet](https://github.com/Oneflow-Inc/models/tree/main/scnet)
+* [Mnasnet](https://github.com/Oneflow-Inc/models/tree/main/mnasnet)
 
 ### Video Classification
 * [TSN](https://github.com/Oneflow-Inc/models/tree/main/TSN)

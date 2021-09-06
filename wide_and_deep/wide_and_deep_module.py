@@ -23,7 +23,9 @@ class Embedding(nn.Embedding):
 
 
 class Dense(nn.Module):
-    def __init__(self, in_features: int, out_features: int, dropout_rate: float = 0.5) -> None:
+    def __init__(
+        self, in_features: int, out_features: int, dropout_rate: float = 0.5
+    ) -> None:
         super(Dense, self).__init__()
         self.features = nn.Sequential(
             nn.Linear(in_features, out_features),
@@ -44,21 +46,37 @@ class Dense(nn.Module):
 class WideAndDeep(nn.Module):
     def __init__(self, FLAGS) -> None:
         super(WideAndDeep, self).__init__()
-        self.wide_embedding = Embedding(
-            vocab_size=FLAGS.wide_vocab_size, embed_size=1)
-        self.deep_embedding = Embedding(vocab_size=FLAGS.deep_vocab_size,
-                                        embed_size=FLAGS.deep_embedding_vec_size,
-                                        split_axis=1)
-        deep_feature_size = FLAGS.deep_embedding_vec_size * \
-            FLAGS.num_deep_sparse_fields + FLAGS.num_dense_fields
-        self.linear_layers = nn.Sequential(OrderedDict(
-            [(f"fc{i}", Dense(deep_feature_size if i == 0 else FLAGS.hidden_size,
-              FLAGS.hidden_size, FLAGS.deep_dropout_rate)) for i in range(FLAGS.hidden_units_num)]
-        ))
+        self.wide_embedding = Embedding(vocab_size=FLAGS.wide_vocab_size, embed_size=1)
+        self.deep_embedding = Embedding(
+            vocab_size=FLAGS.deep_vocab_size,
+            embed_size=FLAGS.deep_embedding_vec_size,
+            split_axis=1,
+        )
+        deep_feature_size = (
+            FLAGS.deep_embedding_vec_size * FLAGS.num_deep_sparse_fields
+            + FLAGS.num_dense_fields
+        )
+        self.linear_layers = nn.Sequential(
+            OrderedDict(
+                [
+                    (
+                        f"fc{i}",
+                        Dense(
+                            deep_feature_size if i == 0 else FLAGS.hidden_size,
+                            FLAGS.hidden_size,
+                            FLAGS.deep_dropout_rate,
+                        ),
+                    )
+                    for i in range(FLAGS.hidden_units_num)
+                ]
+            )
+        )
         self.deep_scores = nn.Linear(FLAGS.hidden_size, 1)
         self.sigmoid = nn.Sigmoid()
 
-    def forward(self, dense_fields, wide_sparse_fields, deep_sparse_fields) -> flow.Tensor:
+    def forward(
+        self, dense_fields, wide_sparse_fields, deep_sparse_fields
+    ) -> flow.Tensor:
         wide_embedding = self.wide_embedding(wide_sparse_fields)
         wide_scores = flow.sum(wide_embedding, dim=1, keepdim=True)
 
@@ -69,7 +87,9 @@ class WideAndDeep(nn.Module):
         return self.sigmoid(wide_scores + deep_scores)
 
 
-def wide_and_deep(pretrained: bool = False, progress: bool = True, **kwargs: Any) -> WideAndDeep:
+def wide_and_deep(
+    pretrained: bool = False, progress: bool = True, **kwargs: Any
+) -> WideAndDeep:
     r"""WideAndDeep model architecture from the
     `"One weird trick..." <https://arxiv.org/abs/1606.07792>`_ paper.
     Args:
