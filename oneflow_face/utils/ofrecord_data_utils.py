@@ -10,6 +10,7 @@ class OFRecordDataLoader(nn.Module):
         mode: str = "train",  # "val"
         dataset_size: int = 9469,
         batch_size: int = 1,
+        total_batch_size: int = 1,
         data_part_num: int =8 
     ):
         super().__init__()
@@ -19,7 +20,7 @@ class OFRecordDataLoader(nn.Module):
         self.train_record_reader = flow.nn.OfrecordReader(
             os.path.join(ofrecord_root, mode),
             batch_size=batch_size,
-            data_part_num=32,
+            data_part_num=data_part_num,
             part_name_suffix_length=5,
             random_shuffle=True if mode == "train" else False,
             shuffle_after_epoch=True if mode == "train" else False,
@@ -68,10 +69,11 @@ class OFRecordDataLoader(nn.Module):
         )
 
         self.batch_size = batch_size
+        self.total_batch_size=total_batch_size
         self.dataset_size = dataset_size
 
     def __len__(self):
-        return self.dataset_size // self.batch_size
+        return self.dataset_size // self.total_batch_size
 
     def forward(self):
         train_record = self.train_record_reader()
@@ -79,6 +81,7 @@ class OFRecordDataLoader(nn.Module):
         image_raw_buffer = self.record_image_decoder(train_record)
 
         image = self.resize(image_raw_buffer)[0]
+
         rng = self.flip() if self.flip != None else None
         image = self.crop_mirror_norm(image, rng)
 
