@@ -15,6 +15,7 @@ from .bart_utils import (
     init_weights,
     tensor_unique,  # for tensor.unique
 )
+
 # fix LayerNorm bugs
 from .dev_ops import LayerNorm
 
@@ -48,7 +49,10 @@ class BartLearnedPositionalEmbedding(nn.Embedding):
         """`input_ids_shape` is expected to be [bsz x seqlen]."""
         bsz, seq_len = input_ids_shape[:2]
         positions = flow.arange(
-            past_key_values_length, past_key_values_length + seq_len, dtype=flow.long, device=self.weight.device
+            past_key_values_length,
+            past_key_values_length + seq_len,
+            dtype=flow.long,
+            device=self.weight.device,
         )
         return super().forward(positions + self.offset)
 
@@ -132,8 +136,7 @@ class BartAttention(nn.Module):
             past_key_value = (key_states, value_states)
 
         proj_shape = (bsz * self.num_heads, -1, self.head_dim)
-        query_states = self._shape(
-            query_states, tgt_len, bsz).view(*proj_shape)
+        query_states = self._shape(query_states, tgt_len, bsz).view(*proj_shape)
         key_states = key_states.view(*proj_shape)
         value_states = value_states.view(*proj_shape)
 
@@ -153,10 +156,11 @@ class BartAttention(nn.Module):
                 tgt_len,
                 src_len,
             ), f"Attention mask should be of size {(bsz, 1, tgt_len, src_len)}, but is {attention_mask.size()}"
-            attn_weights = attn_weights.view(
-                bsz, self.num_heads, tgt_len, src_len) + attention_mask
-            attn_weights = attn_weights.view(
-                bsz * self.num_heads, tgt_len, src_len)
+            attn_weights = (
+                attn_weights.view(bsz, self.num_heads, tgt_len, src_len)
+                + attention_mask
+            )
+            attn_weights = attn_weights.view(bsz * self.num_heads, tgt_len, src_len)
 
         attn_weights = attn_weights.softmax(dim=-1)
 
@@ -164,10 +168,10 @@ class BartAttention(nn.Module):
             assert layer_head_mask.size() == (
                 self.num_heads,
             ), f"Head mask for a single layer should be of size {(self.num_heads,)}, but is {layer_head_mask.size()}"
-            attn_weights = layer_head_mask.view(
-                1, -1, 1, 1) * attn_weights.view(bsz, self.num_heads, tgt_len, src_len)
-            attn_weights = attn_weights.view(
-                bsz * self.num_heads, tgt_len, src_len)
+            attn_weights = layer_head_mask.view(1, -1, 1, 1) * attn_weights.view(
+                bsz, self.num_heads, tgt_len, src_len
+            )
+            attn_weights = attn_weights.view(bsz * self.num_heads, tgt_len, src_len)
 
         if output_attentions:
             # this operation is a bit akward, but it's required to
@@ -175,15 +179,17 @@ class BartAttention(nn.Module):
             # In order to do so, attn_weights have to reshaped
             # twice and have to be reused in the following
             attn_weights_reshaped = attn_weights.view(
-                bsz, self.num_heads, tgt_len, src_len)
+                bsz, self.num_heads, tgt_len, src_len
+            )
             attn_weights = attn_weights_reshaped.view(
-                bsz * self.num_heads, tgt_len, src_len)
+                bsz * self.num_heads, tgt_len, src_len
+            )
         else:
             attn_weights_reshaped = None
 
         # with mpu.get_cuda_rng_tracker().fork():
         # prob = self.dropout if self.training else 0
-        # attn_probs = flow.F.dropout(attn_weights, p=prob)    
+        # attn_probs = flow.F.dropout(attn_weights, p=prob)
         # attn_output = flow.bmm(attn_probs, value_states)
         if self.training:
             attn_weights = flow.F.dropout(attn_weights, p=self.dropout)
@@ -207,8 +213,16 @@ class BartAttention(nn.Module):
 
 
 class BartDecoderLayer(nn.Module):
-    def __init__(self, d_model: int = 1024, num_heads: int = 16, ffn_dim: int = 4096, activation: str = "gelu",
-                 attn_dropout: float = 0.0, hidden_dropout: float = 0.0, act_dropout: float = 0.0):
+    def __init__(
+        self,
+        d_model: int = 1024,
+        num_heads: int = 16,
+        ffn_dim: int = 4096,
+        activation: str = "gelu",
+        attn_dropout: float = 0.0,
+        hidden_dropout: float = 0.0,
+        act_dropout: float = 0.0,
+    ):
         super(BartDecoderLayer, self).__init__()
         self.embed_dim = d_model
 
@@ -224,10 +238,7 @@ class BartDecoderLayer(nn.Module):
 
         self.self_attn_layer_norm = LayerNorm(self.embed_dim)
         self.encoder_attn = BartAttention(
-            self.embed_dim,
-            num_heads,
-            dropout=attn_dropout,
-            is_decoder=True,
+            self.embed_dim, num_heads, dropout=attn_dropout, is_decoder=True,
         )
         self.encoder_attn_layer_norm = LayerNorm(self.embed_dim)
         self.fc1 = nn.Linear(self.embed_dim, ffn_dim)
@@ -250,11 +261,18 @@ class BartDecoderLayer(nn.Module):
 
         # Self Attention
         # decoder uni-directional self-attention cached key/values tuple is at positions 1,2
-        self_attn_past_key_value = past_key_value[:
-                                                  2] if past_key_value is not None else None
+        self_attn_past_key_value = (
+            past_key_value[:2] if past_key_value is not None else None
+        )
         # add present self-attn cache to positions 1,2 of present_key_value tuple
         hidden_states, self_attn_weights, present_key_value = self.self_attn(
-            hidden_states, None, self_attn_past_key_value, attention_mask, layer_head_mask, output_attentions)
+            hidden_states,
+            None,
+            self_attn_past_key_value,
+            attention_mask,
+            layer_head_mask,
+            output_attentions,
+        )
         if self.training:
             hidden_states = flow.F.dropout(hidden_states, p=self.dropout)
         hidden_states = residual + hidden_states
@@ -267,10 +285,21 @@ class BartDecoderLayer(nn.Module):
             residual = hidden_states
 
             # cross_attn cached key/values tuple is at positions 3,4 of present_key_value tuple
-            cross_attn_past_key_value = past_key_value[-2:
-                                                       ] if past_key_value is not None else None
-            hidden_states, cross_attn_weights, cross_attn_present_key_value = self.encoder_attn(
-                hidden_states, encoder_hidden_states, cross_attn_past_key_value, encoder_attention_mask, encoder_layer_head_mask, output_attentions)
+            cross_attn_past_key_value = (
+                past_key_value[-2:] if past_key_value is not None else None
+            )
+            (
+                hidden_states,
+                cross_attn_weights,
+                cross_attn_present_key_value,
+            ) = self.encoder_attn(
+                hidden_states,
+                encoder_hidden_states,
+                cross_attn_past_key_value,
+                encoder_attention_mask,
+                encoder_layer_head_mask,
+                output_attentions,
+            )
             if self.training:
                 hidden_states = flow.F.dropout(hidden_states, p=self.dropout)
             hidden_states = residual + hidden_states
@@ -283,8 +312,7 @@ class BartDecoderLayer(nn.Module):
         residual = hidden_states
         hidden_states = self.activation_fn(self.fc1(hidden_states))
         if self.training:
-            hidden_states = flow.F.dropout(
-                hidden_states, p=self.activation_dropout)
+            hidden_states = flow.F.dropout(hidden_states, p=self.activation_dropout)
         hidden_states = self.fc2(hidden_states)
         if self.training:
             hidden_states = flow.F.dropout(hidden_states, p=self.dropout)
@@ -310,31 +338,53 @@ class BartDecoder(nn.Module):
         embed_tokens (flow.nn.Embedding): output embedding
     """
 
-    def __init__(self, d_model: int = 1024, vocab_size: int = 50265, num_layers: int = 12,
-                 decoder_attn_heads: int = 16, decoder_ffn_dim: int = 4096,
-                 max_position_embeddings: int = 1024, activation="gelu", pad_token_id: int = 1,
-                 attn_dropout: float = 0.0, hidden_dropout: float = 0.0, act_dropout=0.0, decoder_layerdrop: float = 0.0,
-                 scale_embedding: bool = False, embed_tokens: Optional[nn.Embedding] = None):
+    def __init__(
+        self,
+        d_model: int = 1024,
+        vocab_size: int = 50265,
+        num_layers: int = 12,
+        decoder_attn_heads: int = 16,
+        decoder_ffn_dim: int = 4096,
+        max_position_embeddings: int = 1024,
+        activation="gelu",
+        pad_token_id: int = 1,
+        attn_dropout: float = 0.0,
+        hidden_dropout: float = 0.0,
+        act_dropout=0.0,
+        decoder_layerdrop: float = 0.0,
+        scale_embedding: bool = False,
+        embed_tokens: Optional[nn.Embedding] = None,
+    ):
         super(BartDecoder, self).__init__()
         self.dropout = hidden_dropout
         self.layerdrop = decoder_layerdrop
         self.padding_idx = pad_token_id
         self.max_target_positions = max_position_embeddings
-        self.embed_scale = math.sqrt(
-            d_model) if scale_embedding else 1.0
+        self.embed_scale = math.sqrt(d_model) if scale_embedding else 1.0
         self.num_layers = num_layers
 
         if embed_tokens is not None:
             self.embed_tokens = embed_tokens
         else:
-            self.embed_tokens = nn.Embedding(
-                vocab_size, d_model, self.padding_idx)
+            self.embed_tokens = nn.Embedding(vocab_size, d_model, self.padding_idx)
 
         self.embed_positions = BartLearnedPositionalEmbedding(
-            max_position_embeddings, d_model)
+            max_position_embeddings, d_model
+        )
         self.layers = nn.ModuleList(
-            [BartDecoderLayer(d_model, decoder_attn_heads, decoder_ffn_dim, activation, attn_dropout, hidden_dropout, act_dropout)
-             for _ in range(num_layers)])
+            [
+                BartDecoderLayer(
+                    d_model,
+                    decoder_attn_heads,
+                    decoder_ffn_dim,
+                    activation,
+                    attn_dropout,
+                    hidden_dropout,
+                    act_dropout,
+                )
+                for _ in range(num_layers)
+            ]
+        )
         self.layernorm_embedding = LayerNorm(d_model)
 
         self.init_weights()
@@ -343,22 +393,29 @@ class BartDecoder(nn.Module):
 
         self.apply(init_weights)
 
-    def _prepare_decoder_attention_mask(self, attention_mask, input_shape, inputs_embeds, past_key_values_length):
+    def _prepare_decoder_attention_mask(
+        self, attention_mask, input_shape, inputs_embeds, past_key_values_length
+    ):
         # create causal mask
         # [bsz, seq_len] -> [bsz, 1, tgt_seq_len, src_seq_len]
         combined_attention_mask = None
         if input_shape[-1] > 1:
             combined_attention_mask = _make_causal_mask(
-                input_shape, inputs_embeds.dtype, inputs_embeds.device, past_key_values_length=past_key_values_length
+                input_shape,
+                inputs_embeds.dtype,
+                inputs_embeds.device,
+                past_key_values_length=past_key_values_length,
             )
 
         if attention_mask is not None:
             # [bsz, seq_len] -> [bsz, 1, tgt_seq_len, src_seq_len]
             expanded_attn_mask = _expand_mask(
-                attention_mask, inputs_embeds.dtype, tgt_len=input_shape[-1])
+                attention_mask, inputs_embeds.dtype, tgt_len=input_shape[-1]
+            )
             combined_attention_mask = (
-                expanded_attn_mask if combined_attention_mask is None else expanded_attn_mask +
-                combined_attention_mask
+                expanded_attn_mask
+                if combined_attention_mask is None
+                else expanded_attn_mask + combined_attention_mask
             )
 
         return combined_attention_mask
@@ -380,7 +437,8 @@ class BartDecoder(nn.Module):
         # retrieve input_ids and inputs_embeds
         if input_ids is not None and inputs_embeds is not None:
             raise ValueError(
-                "You cannot specify both decoder_input_ids and decoder_inputs_embeds at the same time")
+                "You cannot specify both decoder_input_ids and decoder_inputs_embeds at the same time"
+            )
         elif input_ids is not None:
             input_shape = input_ids.size()
             input_ids = input_ids.view(-1, input_shape[-1])
@@ -388,10 +446,13 @@ class BartDecoder(nn.Module):
             input_shape = inputs_embeds.size()[:-1]
         else:
             raise ValueError(
-                "You have to specify either decoder_input_ids or decoder_inputs_embeds")
+                "You have to specify either decoder_input_ids or decoder_inputs_embeds"
+            )
 
         # past_key_values_length
-        past_key_values_length = past_key_values[0][0].shape[2] if past_key_values is not None else 0
+        past_key_values_length = (
+            past_key_values[0][0].shape[2] if past_key_values is not None else 0
+        )
 
         if inputs_embeds is None:
             inputs_embeds = self.embed_tokens(input_ids) * self.embed_scale
@@ -404,7 +465,8 @@ class BartDecoder(nn.Module):
         if encoder_hidden_states is not None and encoder_attention_mask is not None:
             # [bsz, seq_len] -> [bsz, 1, tgt_seq_len, src_seq_len]
             encoder_attention_mask = _expand_mask(
-                encoder_attention_mask, inputs_embeds.dtype, tgt_len=input_shape[-1])
+                encoder_attention_mask, inputs_embeds.dtype, tgt_len=input_shape[-1]
+            )
 
         # embed positions
         positions = self.embed_positions(input_shape, past_key_values_length)
@@ -418,8 +480,9 @@ class BartDecoder(nn.Module):
         # decoder layers
         all_hidden_states = () if output_hidden_states else None
         all_self_attns = () if output_attentions else None
-        all_cross_attentions = () if (
-            output_attentions and encoder_hidden_states is not None) else None
+        all_cross_attentions = (
+            () if (output_attentions and encoder_hidden_states is not None) else None
+        )
         next_decoder_cache = () if use_cache else None
 
         # check if head_mask has a correct number of layers specified if desired
@@ -435,15 +498,25 @@ class BartDecoder(nn.Module):
             if self.training and (dropout_probability < self.layerdrop):
                 continue
 
-            past_key_value = past_key_values[idx] if past_key_values is not None else None
+            past_key_value = (
+                past_key_values[idx] if past_key_values is not None else None
+            )
 
-            layer_outputs = decoder_layer(hidden_states, attention_mask, encoder_hidden_states, encoder_attention_mask, (head_mask[idx] if head_mask is not None else None), (
-                encoder_head_mask[idx] if encoder_head_mask is not None else None), past_key_value, output_attentions, use_cache)
+            layer_outputs = decoder_layer(
+                hidden_states,
+                attention_mask,
+                encoder_hidden_states,
+                encoder_attention_mask,
+                (head_mask[idx] if head_mask is not None else None),
+                (encoder_head_mask[idx] if encoder_head_mask is not None else None),
+                past_key_value,
+                output_attentions,
+                use_cache,
+            )
             hidden_states = layer_outputs[0]
 
             if use_cache:
-                next_decoder_cache += (
-                    layer_outputs[3 if output_attentions else 1],)
+                next_decoder_cache += (layer_outputs[3 if output_attentions else 1],)
 
             if output_attentions:
                 all_self_attns += (layer_outputs[1],)
@@ -458,25 +531,66 @@ class BartDecoder(nn.Module):
         next_cache = next_decoder_cache if use_cache else None
 
         # last_hidden_state, past_key_value, hidden_states, attentions, cross_attentions
-        return hidden_states, next_cache, all_hidden_states, all_self_attns, all_cross_attentions
+        return (
+            hidden_states,
+            next_cache,
+            all_hidden_states,
+            all_self_attns,
+            all_cross_attentions,
+        )
 
 
 class CPT(nn.Module):
-    def __init__(self, d_model: int = 1024, vocab_size: int = 50265,
-                 num_encoder_layers: int = 12, num_decoder_layers: int = 12,
-                 encoder_attn_heads: int = 16, decoder_attn_heads: int = 16,
-                 encoder_ffn_dim: int = 4096, decoder_ffn_dim: int = 4096,
-                 max_position_embeddings: int = 1024, activation="gelu", pad_token_id: int = 1,
-                 attn_dropout: float = 0.0, hidden_dropout: float = 0.0, act_dropout=0.0,
-                 decoder_layerdrop: float = 0.0, scale_embedding: bool = False,
-                 decoder_start_token_id=2, encoder_layernorm_eps=1e-12):
+    def __init__(
+        self,
+        d_model: int = 1024,
+        vocab_size: int = 50265,
+        num_encoder_layers: int = 12,
+        num_decoder_layers: int = 12,
+        encoder_attn_heads: int = 16,
+        decoder_attn_heads: int = 16,
+        encoder_ffn_dim: int = 4096,
+        decoder_ffn_dim: int = 4096,
+        max_position_embeddings: int = 1024,
+        activation="gelu",
+        pad_token_id: int = 1,
+        attn_dropout: float = 0.0,
+        hidden_dropout: float = 0.0,
+        act_dropout=0.0,
+        decoder_layerdrop: float = 0.0,
+        scale_embedding: bool = False,
+        decoder_start_token_id=2,
+        encoder_layernorm_eps=1e-12,
+    ):
         super(CPT, self).__init__()
-        self.encoder = Bert(vocab_size=vocab_size, hidden_size=d_model, num_layers=num_encoder_layers, nheads=encoder_attn_heads,
-                            intermediate_size=encoder_ffn_dim, hidden_dropout=act_dropout, attn_dropout=act_dropout, add_pooling_layer=False,
-                            layer_norm_eps=encoder_layernorm_eps)
+        self.encoder = Bert(
+            vocab_size=vocab_size,
+            hidden_size=d_model,
+            num_layers=num_encoder_layers,
+            nheads=encoder_attn_heads,
+            intermediate_size=encoder_ffn_dim,
+            hidden_dropout=act_dropout,
+            attn_dropout=act_dropout,
+            add_pooling_layer=False,
+            layer_norm_eps=encoder_layernorm_eps,
+        )
         self.shared = self.encoder.get_input_embeddings()
-        self.decoder = BartDecoder(d_model, vocab_size, num_decoder_layers, decoder_attn_heads, decoder_ffn_dim, max_position_embeddings,
-                                   activation, pad_token_id, attn_dropout, hidden_dropout, act_dropout, decoder_layerdrop, scale_embedding, self.shared)
+        self.decoder = BartDecoder(
+            d_model,
+            vocab_size,
+            num_decoder_layers,
+            decoder_attn_heads,
+            decoder_ffn_dim,
+            max_position_embeddings,
+            activation,
+            pad_token_id,
+            attn_dropout,
+            hidden_dropout,
+            act_dropout,
+            decoder_layerdrop,
+            scale_embedding,
+            self.shared,
+        )
         self.d_model = d_model
         self.vocab_size = vocab_size
         self.num_decoder_layers = num_decoder_layers
@@ -501,10 +615,11 @@ class CPT(nn.Module):
             def __init__(self, encoder):
                 super().__init__()
                 self.encoder = encoder
-            
+
             def forward(self, *args, **kwargs):
-                kwargs['output_hidden_states'] = True                
+                kwargs["output_hidden_states"] = True
                 return self.encoder(*args, **kwargs)
+
         return _Encoder(self.encoder)
 
     def get_decoder(self):
@@ -535,10 +650,26 @@ class CPT(nn.Module):
             )
 
         if encoder_outputs is None:
-            encoder_outputs = self.encoder(input_ids, attention_mask, flow.ones_like(
-                input_ids), None, head_mask, inputs_embeds, None, None, None, None, output_attentions, True)
+            encoder_outputs = self.encoder(
+                input_ids,
+                attention_mask,
+                flow.ones_like(input_ids),
+                None,
+                head_mask,
+                inputs_embeds,
+                None,
+                None,
+                None,
+                None,
+                output_attentions,
+                True,
+            )
             # last_hidden_states, hidden_states, attentions
-            encoder_outputs = (encoder_outputs[0], encoder_outputs[3], encoder_outputs[4])
+            encoder_outputs = (
+                encoder_outputs[0],
+                encoder_outputs[3],
+                encoder_outputs[4],
+            )
         # If the user passed a tuple for encoder_outputs
         elif isinstance(encoder_outputs, (tuple, list)):
             encoder_outputs = (
@@ -551,16 +682,31 @@ class CPT(nn.Module):
             encoder_hidden_states = encoder_outputs
             encoder_outputs = (encoder_outputs,)
         else:
-            encoder_hidden_states = encoder_outputs[1][-self.num_decoder_layers - 1] if encoder_outputs[1] is not None else None
-
+            encoder_hidden_states = (
+                encoder_outputs[1][-self.num_decoder_layers - 1]
+                if encoder_outputs[1] is not None
+                else None
+            )
 
         # decoder outputs consists of (dec_features, past_key_value, dec_hidden, dec_attn)
-        decoder_outputs = self.decoder(decoder_input_ids, decoder_attention_mask, encoder_hidden_states, attention_mask,
-                                       decoder_head_mask, head_mask, past_key_values, decoder_inputs_embeds, use_cache, output_attentions, output_hidden_states)
+        decoder_outputs = self.decoder(
+            decoder_input_ids,
+            decoder_attention_mask,
+            encoder_hidden_states,
+            attention_mask,
+            decoder_head_mask,
+            head_mask,
+            past_key_values,
+            decoder_inputs_embeds,
+            use_cache,
+            output_attentions,
+            output_hidden_states,
+        )
 
         # last_hidden_state, past_key_values, decoder_hidden_states, decoder_attentions, cross_attentnions
         # encoder_last_hidden_state, encoder_hidden_states, encoder_attentions
         return decoder_outputs + encoder_outputs
+
 
 class BartDecoderWrapper(nn.Module):
     """
@@ -568,23 +714,51 @@ class BartDecoderWrapper(nn.Module):
     used in combination with the :class:`~transformers.EncoderDecoderModel` framework.
     """
 
-    def __init__(self, d_model: int = 1024, vocab_size: int = 50265, num_layers: int = 12,
-                 decoder_attn_heads: int = 16, decoder_ffn_dim: int = 4096,
-                 max_position_embeddings: int = 1024, activation="gelu", pad_token_id: int = 1,
-                 attn_dropout: float = 0.0, hidden_dropout: float = 0.0, act_dropout=0.0,
-                 decoder_layerdrop: float = 0.0, scale_embedding: bool = False,
-                 embed_tokens: Optional[nn.Embedding] = None):
+    def __init__(
+        self,
+        d_model: int = 1024,
+        vocab_size: int = 50265,
+        num_layers: int = 12,
+        decoder_attn_heads: int = 16,
+        decoder_ffn_dim: int = 4096,
+        max_position_embeddings: int = 1024,
+        activation="gelu",
+        pad_token_id: int = 1,
+        attn_dropout: float = 0.0,
+        hidden_dropout: float = 0.0,
+        act_dropout=0.0,
+        decoder_layerdrop: float = 0.0,
+        scale_embedding: bool = False,
+        embed_tokens: Optional[nn.Embedding] = None,
+    ):
         super(BartDecoderWrapper, self).__init__()
-        self.decoder = BartDecoder(d_model, vocab_size, num_layers, decoder_attn_heads, decoder_ffn_dim, max_position_embeddings,
-                                   activation, pad_token_id, attn_dropout, hidden_dropout, act_dropout, decoder_layerdrop, scale_embedding, embed_tokens)
+        self.decoder = BartDecoder(
+            d_model,
+            vocab_size,
+            num_layers,
+            decoder_attn_heads,
+            decoder_ffn_dim,
+            max_position_embeddings,
+            activation,
+            pad_token_id,
+            attn_dropout,
+            hidden_dropout,
+            act_dropout,
+            decoder_layerdrop,
+            scale_embedding,
+            embed_tokens,
+        )
 
     def forward(self, *args, **kwargs):
         return self.decoder(*args, **kwargs)
 
+
 class BartClassificationHead(nn.Module):
     """Head for sentence-level classification tasks."""
 
-    def __init__(self, input_dim: int, inner_dim: int, num_classes: int, pooler_dropout: float):
+    def __init__(
+        self, input_dim: int, inner_dim: int, num_classes: int, pooler_dropout: float
+    ):
         super().__init__()
         self.dense = nn.Linear(input_dim, inner_dim)
         self.dropout = nn.Dropout(p=pooler_dropout)
@@ -598,18 +772,43 @@ class BartClassificationHead(nn.Module):
         hidden_states = self.out_proj(hidden_states)
         return hidden_states
 
-class CPTForCausalLM(nn.Module):
 
-    def __init__(self, d_model: int = 1024, vocab_size: int = 50265, num_layers: int = 12,
-                 decoder_attn_heads: int = 16, decoder_ffn_dim: int = 4096,
-                 max_position_embeddings: int = 1024, activation="gelu", pad_token_id: int = 1,
-                 attn_dropout: float = 0.0, hidden_dropout: float = 0.0, act_dropout=0.0,
-                 decoder_layerdrop: float = 0.0, scale_embedding: bool = False,
-                 embed_tokens: Optional[nn.Embedding] = None):
+class CPTForCausalLM(nn.Module):
+    def __init__(
+        self,
+        d_model: int = 1024,
+        vocab_size: int = 50265,
+        num_layers: int = 12,
+        decoder_attn_heads: int = 16,
+        decoder_ffn_dim: int = 4096,
+        max_position_embeddings: int = 1024,
+        activation="gelu",
+        pad_token_id: int = 1,
+        attn_dropout: float = 0.0,
+        hidden_dropout: float = 0.0,
+        act_dropout=0.0,
+        decoder_layerdrop: float = 0.0,
+        scale_embedding: bool = False,
+        embed_tokens: Optional[nn.Embedding] = None,
+    ):
         super(CPTForCausalLM, self).__init__()
 
-        self.model = BartDecoderWrapper(d_model, vocab_size, num_layers, decoder_attn_heads, decoder_ffn_dim, max_position_embeddings,
-                                        activation, pad_token_id, attn_dropout, hidden_dropout, act_dropout, decoder_layerdrop, scale_embedding, embed_tokens)
+        self.model = BartDecoderWrapper(
+            d_model,
+            vocab_size,
+            num_layers,
+            decoder_attn_heads,
+            decoder_ffn_dim,
+            max_position_embeddings,
+            activation,
+            pad_token_id,
+            attn_dropout,
+            hidden_dropout,
+            act_dropout,
+            decoder_layerdrop,
+            scale_embedding,
+            embed_tokens,
+        )
 
         self.lm_head = nn.Linear(d_model, vocab_size, bias=False)
 
@@ -656,19 +855,31 @@ class CPTForCausalLM(nn.Module):
     ):
 
         # decoder outputs consists of (dec_features, layer_state, dec_hidden, dec_attn)
-        outputs = self.model.decoder(input_ids, attention_mask, encoder_hidden_states, encoder_attention_mask, head_mask,
-                                     encoder_head_mask, past_key_values, inputs_embeds, use_cache, output_attentions, output_hidden_states)
+        outputs = self.model.decoder(
+            input_ids,
+            attention_mask,
+            encoder_hidden_states,
+            encoder_attention_mask,
+            head_mask,
+            encoder_head_mask,
+            past_key_values,
+            inputs_embeds,
+            use_cache,
+            output_attentions,
+            output_hidden_states,
+        )
         logits = self.lm_head(outputs[0])
 
         loss = None
         if labels is not None:
             loss_fct = CrossEntropyLoss()
-            loss = loss_fct(
-                logits.view(-1, self.vocab_size), labels.view(-1))
+            loss = loss_fct(logits.view(-1, self.vocab_size), labels.view(-1))
 
         return (loss, logits) + outputs[1:]
 
-    def prepare_inputs_for_generation(self, input_ids, past=None, attention_mask=None, use_cache=None, **kwargs):
+    def prepare_inputs_for_generation(
+        self, input_ids, past=None, attention_mask=None, use_cache=None, **kwargs
+    ):
         # if model is used as a decoder in encoder-decoder model, the decoder attention mask is created on the fly
         if attention_mask is None:
             attention_mask = input_ids.new_ones(input_ids.shape)
@@ -687,27 +898,61 @@ class CPTForCausalLM(nn.Module):
     def _reorder_cache(past, beam_idx):
         reordered_past = ()
         for layer_past in past:
-            reordered_past += (tuple(past_state.index_select(0, beam_idx)
-                               for past_state in layer_past),)
+            reordered_past += (
+                tuple(
+                    past_state.index_select(0, beam_idx) for past_state in layer_past
+                ),
+            )
         return reordered_past
 
 
 class CPTForMaskedLM(nn.Module):
-    def __init__(self, cls_mode: int = 2, d_model: int = 1024, vocab_size: int = 50265,
-                 num_encoder_layers: int = 12, num_decoder_layers: int = 12,
-                 encoder_attn_heads: int = 16, decoder_attn_heads: int = 16,
-                 encoder_ffn_dim: int = 4096, decoder_ffn_dim: int = 4096,
-                 max_position_embeddings: int = 1024, activation="gelu",
-                 pad_token_id: int = 1, attn_dropout: float = 0.0,
-                 hidden_dropout: float = 0.0, act_dropout=0.0,
-                 decoder_layerdrop: float = 0.0, scale_embedding: bool = False, 
-                 decoder_start_token_id=2):
+    def __init__(
+        self,
+        cls_mode: int = 2,
+        d_model: int = 1024,
+        vocab_size: int = 50265,
+        num_encoder_layers: int = 12,
+        num_decoder_layers: int = 12,
+        encoder_attn_heads: int = 16,
+        decoder_attn_heads: int = 16,
+        encoder_ffn_dim: int = 4096,
+        decoder_ffn_dim: int = 4096,
+        max_position_embeddings: int = 1024,
+        activation="gelu",
+        pad_token_id: int = 1,
+        attn_dropout: float = 0.0,
+        hidden_dropout: float = 0.0,
+        act_dropout=0.0,
+        decoder_layerdrop: float = 0.0,
+        scale_embedding: bool = False,
+        decoder_start_token_id=2,
+    ):
         super(CPTForMaskedLM, self).__init__()
-        self.model = CPT(d_model, vocab_size, num_encoder_layers, num_decoder_layers, encoder_attn_heads, decoder_attn_heads, encoder_ffn_dim, decoder_ffn_dim, max_position_embeddings,
-                          activation, pad_token_id, attn_dropout, hidden_dropout, act_dropout, decoder_layerdrop, scale_embedding, decoder_start_token_id)
+        self.model = CPT(
+            d_model,
+            vocab_size,
+            num_encoder_layers,
+            num_decoder_layers,
+            encoder_attn_heads,
+            decoder_attn_heads,
+            encoder_ffn_dim,
+            decoder_ffn_dim,
+            max_position_embeddings,
+            activation,
+            pad_token_id,
+            attn_dropout,
+            hidden_dropout,
+            act_dropout,
+            decoder_layerdrop,
+            scale_embedding,
+            decoder_start_token_id,
+        )
         self.cls_mode = cls_mode
 
-        self.register_buffer("final_logits_bias", flow.zeros((1, self.model.shared.num_embeddings)))
+        self.register_buffer(
+            "final_logits_bias", flow.zeros((1, self.model.shared.num_embeddings))
+        )
         self.lm_head = nn.Linear(d_model, self.model.shared.num_embeddings, bias=False)
 
         self.init_weights()
@@ -730,14 +975,27 @@ class CPTForMaskedLM(nn.Module):
         use_cache=None,
         output_attentions=None,
         output_hidden_states=None,
-    ):   
+    ):
         if input_ids is None and inputs_embeds is not None:
             raise NotImplementedError(
                 f"Passing input embeddings is currently not supported for {self.__class__.__name__}"
             )
-            
-        outputs = self.model(input_ids, attention_mask, decoder_input_ids, decoder_attention_mask, head_mask, decoder_head_mask,
-                             encoder_outputs, None, inputs_embeds, decoder_inputs_embeds, use_cache, output_attentions, output_hidden_states)
+
+        outputs = self.model(
+            input_ids,
+            attention_mask,
+            decoder_input_ids,
+            decoder_attention_mask,
+            head_mask,
+            decoder_head_mask,
+            encoder_outputs,
+            None,
+            inputs_embeds,
+            decoder_inputs_embeds,
+            use_cache,
+            output_attentions,
+            output_hidden_states,
+        )
 
         hidden_states = outputs[0]
         enc_hidden_states = outputs[5]
@@ -748,23 +1006,51 @@ class CPTForMaskedLM(nn.Module):
         return (enc_logits, dec_logits) + outputs[1:]
 
 
-
 class CPTForConditionalGeneration(nn.Module):
-    def __init__(self, d_model: int = 1024, vocab_size: int = 50265,
-                 num_encoder_layers: int = 12, num_decoder_layers: int = 12,
-                 encoder_attn_heads: int = 16, decoder_attn_heads: int = 16,
-                 encoder_ffn_dim: int = 4096, decoder_ffn_dim: int = 4096,
-                 max_position_embeddings: int = 1024, activation="gelu", pad_token_id: int = 1,
-                 attn_dropout: float = 0.0, hidden_dropout: float = 0.0, act_dropout=0.0,
-                 decoder_layerdrop: float = 0.0, scale_embedding: bool = False,
-                 decoder_start_token_id=2):
+    def __init__(
+        self,
+        d_model: int = 1024,
+        vocab_size: int = 50265,
+        num_encoder_layers: int = 12,
+        num_decoder_layers: int = 12,
+        encoder_attn_heads: int = 16,
+        decoder_attn_heads: int = 16,
+        encoder_ffn_dim: int = 4096,
+        decoder_ffn_dim: int = 4096,
+        max_position_embeddings: int = 1024,
+        activation="gelu",
+        pad_token_id: int = 1,
+        attn_dropout: float = 0.0,
+        hidden_dropout: float = 0.0,
+        act_dropout=0.0,
+        decoder_layerdrop: float = 0.0,
+        scale_embedding: bool = False,
+        decoder_start_token_id=2,
+    ):
         super(CPTForConditionalGeneration, self).__init__()
-        self.model = CPT(d_model, vocab_size, num_encoder_layers, num_decoder_layers, encoder_attn_heads, decoder_attn_heads, encoder_ffn_dim, decoder_ffn_dim, max_position_embeddings,
-                          activation, pad_token_id, attn_dropout, hidden_dropout, act_dropout, decoder_layerdrop, scale_embedding, decoder_start_token_id)
-        self.register_buffer("final_logits_bias", flow.zeros(
-            (1, self.model.shared.num_embeddings)))
-        self.lm_head = nn.Linear(
-            d_model, self.model.shared.num_embeddings, bias=False)
+        self.model = CPT(
+            d_model,
+            vocab_size,
+            num_encoder_layers,
+            num_decoder_layers,
+            encoder_attn_heads,
+            decoder_attn_heads,
+            encoder_ffn_dim,
+            decoder_ffn_dim,
+            max_position_embeddings,
+            activation,
+            pad_token_id,
+            attn_dropout,
+            hidden_dropout,
+            act_dropout,
+            decoder_layerdrop,
+            scale_embedding,
+            decoder_start_token_id,
+        )
+        self.register_buffer(
+            "final_logits_bias", flow.zeros((1, self.model.shared.num_embeddings))
+        )
+        self.lm_head = nn.Linear(d_model, self.model.shared.num_embeddings, bias=False)
 
         self.pad_token_id = pad_token_id
         self.decoder_start_token_id = decoder_start_token_id
@@ -793,7 +1079,9 @@ class CPTForConditionalGeneration(nn.Module):
             new_bias = self.final_logits_bias[:, :new_num_tokens]
         else:
             extra_bias = flow.zeros(
-                (1, new_num_tokens - old_num_tokens), device=self.final_logits_bias.device)
+                (1, new_num_tokens - old_num_tokens),
+                device=self.final_logits_bias.device,
+            )
             new_bias = flow.cat([self.final_logits_bias, extra_bias], dim=1)
         self.register_buffer("final_logits_bias", new_bias)
 
@@ -827,20 +1115,34 @@ class CPTForConditionalGeneration(nn.Module):
                     labels, self.pad_token_id, self.decoder_start_token_id
                 )
 
-        outputs = self.model(input_ids, attention_mask, decoder_input_ids, decoder_attention_mask, head_mask, decoder_head_mask,
-                             encoder_outputs, past_key_values, inputs_embeds, decoder_inputs_embeds, use_cache, output_attentions, output_hidden_states)
-        
+        outputs = self.model(
+            input_ids,
+            attention_mask,
+            decoder_input_ids,
+            decoder_attention_mask,
+            head_mask,
+            decoder_head_mask,
+            encoder_outputs,
+            past_key_values,
+            inputs_embeds,
+            decoder_inputs_embeds,
+            use_cache,
+            output_attentions,
+            output_hidden_states,
+        )
+
         lm_logits = self.lm_head(outputs[0]) + self.final_logits_bias
 
         masked_lm_loss = None
         if labels is not None:
             loss_fct = CrossEntropyLoss()
             masked_lm_loss = loss_fct(
-                lm_logits.view(-1, self.vocab_size), labels.view(-1))
+                lm_logits.view(-1, self.vocab_size), labels.view(-1)
+            )
 
         # loss, logits, past_key_values, decoder_hidden_states, decoder_attentions, cross_attentions
         # encoder_last_hidden_state, encoder_hidden_states, encoder_attentions
-        return (masked_lm_loss, lm_logits, ) + outputs[1:]
+        return (masked_lm_loss, lm_logits,) + outputs[1:]
 
     def prepare_inputs_for_generation(
         self,
@@ -849,7 +1151,7 @@ class CPTForConditionalGeneration(nn.Module):
         attention_mask=None,
         head_mask=None,
         use_cache=None,
-        encoder_outputs=None
+        encoder_outputs=None,
     ):
         # cut decoder_input_ids if past is used
         if past is not None:
@@ -875,29 +1177,40 @@ class CPTForConditionalGeneration(nn.Module):
         encoder_outputs=None,
         **model_kwargs,
     ):
-        expanded_return_idx = (flow.arange(input_ids.shape[0]).view(-1, 1).repeat(1, expand_size)
-                               .view(-1).to(input_ids.device))
+        expanded_return_idx = (
+            flow.arange(input_ids.shape[0])
+            .view(-1, 1)
+            .repeat(1, expand_size)
+            .view(-1)
+            .to(input_ids.device)
+        )
         input_ids = input_ids.index_select(0, expanded_return_idx)
 
         if "token_type_ids" in model_kwargs:
             token_type_ids = model_kwargs["token_type_ids"]
             model_kwargs["token_type_ids"] = token_type_ids.index_select(
-                0, expanded_return_idx)
+                0, expanded_return_idx
+            )
 
         if attention_mask is not None:
             model_kwargs["attention_mask"] = attention_mask.index_select(
-                0, expanded_return_idx)
+                0, expanded_return_idx
+            )
 
         if is_encoder_decoder:
             assert encoder_outputs is not None
             device = encoder_outputs.last_hidden_state.device
-            encoder_outputs["hidden_states"] = tuple(h.index_select(0, expanded_return_idx.to(device))
-                                                     for h in encoder_outputs["hidden_states"])
+            encoder_outputs["hidden_states"] = tuple(
+                h.index_select(0, expanded_return_idx.to(device))
+                for h in encoder_outputs["hidden_states"]
+            )
             model_kwargs["encoder_outputs"] = encoder_outputs
         return input_ids, model_kwargs
 
     def prepare_decoder_input_ids_from_labels(self, labels: flow.Tensor):
-        return shift_tokens_right(labels, self.pad_token_id, self.decoder_start_token_id)
+        return shift_tokens_right(
+            labels, self.pad_token_id, self.decoder_start_token_id
+        )
 
     @staticmethod
     def _reorder_cache(past, beam_idx):
@@ -905,27 +1218,60 @@ class CPTForConditionalGeneration(nn.Module):
         for layer_past in past:
             # cached cross_attention states don't have to be reordered -> they are always the same
             reordered_past += (
-                tuple(past_state.index_select(0, beam_idx)
-                      for past_state in layer_past[:2]) + layer_past[2:],
+                tuple(
+                    past_state.index_select(0, beam_idx)
+                    for past_state in layer_past[:2]
+                )
+                + layer_past[2:],
             )
         return reordered_past
 
 
 class CPTForSequenceClassification(nn.Module):
-    def __init__(self, cls_mode: int = 2, num_labels: int = 2,
-                 d_model: int = 1024, vocab_size: int = 50265,
-                 num_encoder_layers: int = 12, num_decoder_layers: int = 12,
-                 encoder_attn_heads: int = 16, decoder_attn_heads: int = 16,
-                 encoder_ffn_dim: int = 4096, decoder_ffn_dim: int = 4096,
-                 max_position_embeddings: int = 1024, activation="gelu",
-                 pad_token_id: int = 1, attn_dropout: float = 0.0,
-                 hidden_dropout: float = 0.0, act_dropout=0.0,
-                 classifier_dropout=0.0, decoder_layerdrop: float = 0.0,
-                 scale_embedding: bool = False, decoder_start_token_id=2,
-                 eos_token_id=2):
+    def __init__(
+        self,
+        cls_mode: int = 2,
+        num_labels: int = 2,
+        d_model: int = 1024,
+        vocab_size: int = 50265,
+        num_encoder_layers: int = 12,
+        num_decoder_layers: int = 12,
+        encoder_attn_heads: int = 16,
+        decoder_attn_heads: int = 16,
+        encoder_ffn_dim: int = 4096,
+        decoder_ffn_dim: int = 4096,
+        max_position_embeddings: int = 1024,
+        activation="gelu",
+        pad_token_id: int = 1,
+        attn_dropout: float = 0.0,
+        hidden_dropout: float = 0.0,
+        act_dropout=0.0,
+        classifier_dropout=0.0,
+        decoder_layerdrop: float = 0.0,
+        scale_embedding: bool = False,
+        decoder_start_token_id=2,
+        eos_token_id=2,
+    ):
         super(CPTForSequenceClassification, self).__init__()
-        self.model = CPT(d_model, vocab_size, num_encoder_layers, num_decoder_layers, encoder_attn_heads, decoder_attn_heads, encoder_ffn_dim, decoder_ffn_dim, max_position_embeddings,
-                          activation, pad_token_id, attn_dropout, hidden_dropout, act_dropout, decoder_layerdrop, scale_embedding, decoder_start_token_id)
+        self.model = CPT(
+            d_model,
+            vocab_size,
+            num_encoder_layers,
+            num_decoder_layers,
+            encoder_attn_heads,
+            decoder_attn_heads,
+            encoder_ffn_dim,
+            decoder_ffn_dim,
+            max_position_embeddings,
+            activation,
+            pad_token_id,
+            attn_dropout,
+            hidden_dropout,
+            act_dropout,
+            decoder_layerdrop,
+            scale_embedding,
+            decoder_start_token_id,
+        )
         # Encoder for classification
         if cls_mode == 1:
             cls_dim = d_model
@@ -939,10 +1285,7 @@ class CPTForSequenceClassification(nn.Module):
             raise NotImplementedError
 
         self.cls_head = BartClassificationHead(
-            cls_dim,
-            cls_dim,
-            num_labels,
-            classifier_dropout
+            cls_dim, cls_dim, num_labels, classifier_dropout
         )
         init_weights(self.cls_head.dense)
         init_weights(self.cls_head.out_proj)
@@ -978,8 +1321,21 @@ class CPTForSequenceClassification(nn.Module):
             raise NotImplementedError(
                 f"Passing input embeddings is currently not supported for {self.__class__.__name__}"
             )
-        outputs = self.model(input_ids, attention_mask, decoder_input_ids, decoder_attention_mask, head_mask, decoder_head_mask,
-                             encoder_outputs, None, inputs_embeds, decoder_inputs_embeds, use_cache, output_attentions, output_hidden_states)
+        outputs = self.model(
+            input_ids,
+            attention_mask,
+            decoder_input_ids,
+            decoder_attention_mask,
+            head_mask,
+            decoder_head_mask,
+            encoder_outputs,
+            None,
+            inputs_embeds,
+            decoder_inputs_embeds,
+            use_cache,
+            output_attentions,
+            output_hidden_states,
+        )
 
         hidden_states = outputs[0]
         enc_hidden_states = outputs[5]
@@ -989,11 +1345,10 @@ class CPTForSequenceClassification(nn.Module):
 
         # flow.unique(eos_mask.sum(1))
         if tensor_unique(eos_mask.sum(1)).shape[0] > 1:
-            raise ValueError(
-                "All examples must have the same number of <eos> tokens.")
-        dec_rep = hidden_states[eos_mask, :].view(hidden_states.size(0), -1, hidden_states.size(-1))[
-            :, -1, :
-        ]
+            raise ValueError("All examples must have the same number of <eos> tokens.")
+        dec_rep = hidden_states[eos_mask, :].view(
+            hidden_states.size(0), -1, hidden_states.size(-1)
+        )[:, -1, :]
 
         if self.cls_mode == 1:
             logits = self.cls_head(enc_rep)
@@ -1008,8 +1363,7 @@ class CPTForSequenceClassification(nn.Module):
         loss = None
         if labels is not None:
             loss_fct = CrossEntropyLoss()
-            loss = loss_fct(
-                logits.view(-1, self.num_labels), labels.view(-1))
+            loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
 
         # loss, logits, past_key_values, decoder_hidden_states, decoder_attentions, cross_attentions,
         # encoder_last_hidden_states, encoder_hidden_states, encoder_attentions
@@ -1017,21 +1371,50 @@ class CPTForSequenceClassification(nn.Module):
 
 
 class CPTForQuestionAnswering(nn.Module):
-    def __init__(self, cls_mode=3, d_model: int = 1024, vocab_size: int = 50265,
-                 num_encoder_layers: int = 12, num_decoder_layers: int = 12,
-                 encoder_attn_heads: int = 16, decoder_attn_heads: int = 16,
-                 encoder_ffn_dim: int = 4096, decoder_ffn_dim: int = 4096,
-                 max_position_embeddings: int = 1024, activation="gelu",
-                 pad_token_id: int = 1, attn_dropout: float = 0.0,
-                 hidden_dropout: float = 0.0, act_dropout=0.0,
-                 decoder_layerdrop: float = 0.0, scale_embedding: bool = False,
-                 decoder_start_token_id=2):
+    def __init__(
+        self,
+        cls_mode=3,
+        d_model: int = 1024,
+        vocab_size: int = 50265,
+        num_encoder_layers: int = 12,
+        num_decoder_layers: int = 12,
+        encoder_attn_heads: int = 16,
+        decoder_attn_heads: int = 16,
+        encoder_ffn_dim: int = 4096,
+        decoder_ffn_dim: int = 4096,
+        max_position_embeddings: int = 1024,
+        activation="gelu",
+        pad_token_id: int = 1,
+        attn_dropout: float = 0.0,
+        hidden_dropout: float = 0.0,
+        act_dropout=0.0,
+        decoder_layerdrop: float = 0.0,
+        scale_embedding: bool = False,
+        decoder_start_token_id=2,
+    ):
         super(CPTForQuestionAnswering, self).__init__()
 
         self.num_labels = 2
 
-        self.model = CPT(d_model, vocab_size, num_encoder_layers, num_decoder_layers, encoder_attn_heads, decoder_attn_heads, encoder_ffn_dim, decoder_ffn_dim, max_position_embeddings,
-                          activation, pad_token_id, attn_dropout, hidden_dropout, act_dropout, decoder_layerdrop, scale_embedding, decoder_start_token_id)
+        self.model = CPT(
+            d_model,
+            vocab_size,
+            num_encoder_layers,
+            num_decoder_layers,
+            encoder_attn_heads,
+            decoder_attn_heads,
+            encoder_ffn_dim,
+            decoder_ffn_dim,
+            max_position_embeddings,
+            activation,
+            pad_token_id,
+            attn_dropout,
+            hidden_dropout,
+            act_dropout,
+            decoder_layerdrop,
+            scale_embedding,
+            decoder_start_token_id,
+        )
 
         # Encoder for classification.
         if cls_mode == 1:
@@ -1044,7 +1427,7 @@ class CPTForQuestionAnswering(nn.Module):
             cls_dim = d_model * 2
         else:
             raise NotImplementedError
-        
+
         self.qa_outputs = nn.Linear(cls_dim, self.num_labels)
 
         init_weights(self.qa_outputs)
@@ -1085,8 +1468,21 @@ class CPTForQuestionAnswering(nn.Module):
                 f"Passing input embeddings is currently not supported for {self.__class__.__name__}"
             )
 
-        outputs = self.model(input_ids, attention_mask, decoder_input_ids, decoder_attention_mask, head_mask, decoder_head_mask,
-                             encoder_outputs, None, inputs_embeds, decoder_inputs_embeds, use_cache, output_attentions, output_hidden_states)
+        outputs = self.model(
+            input_ids,
+            attention_mask,
+            decoder_input_ids,
+            decoder_attention_mask,
+            head_mask,
+            decoder_head_mask,
+            encoder_outputs,
+            None,
+            inputs_embeds,
+            decoder_inputs_embeds,
+            use_cache,
+            output_attentions,
+            output_hidden_states,
+        )
 
         hidden_states = outputs[0]
         enc_hidden_states = outputs[0]
@@ -1104,8 +1500,7 @@ class CPTForQuestionAnswering(nn.Module):
         # start_logits, end_logits = logits.split(1, dim=-1)
         # oneflow does not support split.
         split_half = logits.shape[-1] // 2
-        start_logits, end_logits = logits[:, :,
-                                          :split_half], logits[:, :, split_half:]
+        start_logits, end_logits = logits[:, :, :split_half], logits[:, :, split_half:]
         start_logits = start_logits.squeeze(-1)
         end_logits = end_logits.squeeze(-1)
 

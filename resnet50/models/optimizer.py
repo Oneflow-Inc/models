@@ -57,9 +57,11 @@ def make_lr_scheduler(args, optimizer):
 
 def make_cross_entropy(args):
     if args.label_smoothing > 0:
-        cross_entropy = LabelSmoothLoss(num_classes=args.num_classes, smooth_rate=args.label_smoothing)
+        cross_entropy = LabelSmoothLoss(
+            num_classes=args.num_classes, smooth_rate=args.label_smoothing
+        )
     else:
-        cross_entropy = flow.nn.CrossEntropyLoss(reduction='mean')
+        cross_entropy = flow.nn.CrossEntropyLoss(reduction="mean")
 
     return cross_entropy
 
@@ -74,7 +76,9 @@ class LabelSmoothLoss(flow.nn.Module):
         self.off_value = self.smooth_rate / self.num_classes
 
     def forward(self, input, label):
-        onehot_label = flow._C.one_hot(label, self.num_classes, self.on_value, self.off_value)
+        onehot_label = flow._C.one_hot(
+            label, self.num_classes, self.on_value, self.off_value
+        )
         # NOTE(zwx): manual way has bug
         # log_prob = input.softmax(dim=-1).log()
         # onehot_label = flow.F.cast(onehot_label, log_prob.dtype)
