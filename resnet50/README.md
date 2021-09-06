@@ -53,17 +53,28 @@ bash examples/train_graph_distributed_fp16.sh
 #### explaination of command parameters for `train.py` script
 
 ```bash
---channels-last					 	Use the NHWC dataformat.
---ddp								Train resnet50 with eager distributed data parallel.
---graph								Train resnet50 with graph mode.
---use-fp16						 	Whether to enable amp training.
---use-gpu-decode                    Use gpu to decode the data packed in ofrecord, only supported in graph mode. 
---scale-grad					 	Whether to scale gradient when training in fp32 with graph mode. 
---skip-eval						 	Whether to skip the valution and the end of the traning epoch.
---zero-init-residual			  	Whether to zero-initialize the last BN in each residual branch.
---save-init						 	Whether to save the parameters right after the initialization.
---print-timestamp					Whether to print the time stamp.
---synthetic-data					To use the synthetic data, only for testing the throughput, no need to provide the real data.
+--channels-last					 	
+									Use the NHWC dataformat.
+--ddp								
+									Train resnet50 with eager distributed data parallel.
+--graph								
+									Train resnet50 with graph mode.
+--use-fp16						 	
+									Whether to enable amp training.
+--use-gpu-decode                    
+									Use gpu to decode the data packed in ofrecord, only supported in graph mode. 
+--scale-grad					 	
+									Whether to scale gradient when training in fp32 with graph mode. 
+--skip-eval						 	
+									Whether to skip the valution and the end of the traning epoch.
+--zero-init-residual			  	
+									Whether to zero-initialize the last BN in each residual branch.
+--save-init						 	
+									Whether to save the parameters right after the initialization.
+--print-timestamp					
+									Whether to print the time stamp.
+--synthetic-data					
+									To use the synthetic data, only for testing the throughput, no need to provide the real data.
 
 --label-smoothing LABEL_SMOOTHING
 									label smoothing rate.
