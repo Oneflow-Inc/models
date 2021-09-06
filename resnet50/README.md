@@ -9,7 +9,8 @@ For quick start, you can download the [mini-imagenet](https://oneflow-public.oss
 
 ### 2. Train on single device
 
-Oneflow supports both eager and graph executions.
+Oneflow supports execution in eager mode or graph mode.
+
 
 #### Eager Execution
 ```bash
