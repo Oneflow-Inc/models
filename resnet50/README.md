@@ -33,13 +33,13 @@ Oneflow launches the distributed training the same way as Pytorch. For more deta
 
 But for know, we have only tested the distributed training on single node with 8 devices. 
 
-#### Train fp32 Model with Distributed Data Prallel
+#### Train FP32 Model with Distributed Data Prallel
 
 ```
 bash examples/train_ddp_fp32.sh
 ```
 
-#### Graph Training for fp32
+#### Graph Training for FP32
 
 ```
 bash examples/train_graph_distributed_fp32.sh
