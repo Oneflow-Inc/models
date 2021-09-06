@@ -111,6 +111,13 @@ def validation(
 
 
 def main():
+    def str2bool(v):
+        if v.lower() in ("yes", "true", "t", "y", "1"):
+            return True
+        elif v.lower() in ("no", "false", "f", "n", "0"):
+            return False
+        else:
+            raise argparse.ArgumentTypeError("Unsupported value encountered.")
 
     parser = argparse.ArgumentParser()
 
@@ -178,6 +185,13 @@ def main():
         type=str,
         default="checkpoints",
         help="Path to model saving",
+    )
+    parser.add_argument(
+        "--use_fp16",
+        type=str2bool,
+        nargs="?",
+        const=True,
+        help="Whether to use use fp16",
     )
 
     args = parser.parse_args()
@@ -311,6 +325,15 @@ def main():
             )
             self.add_optimizer(optimizer, lr_sch=lr_scheduler)
             self._train_data_loader = train_data_loader
+            if args.use_fp16:
+                self.config.enable_amp(True)
+                grad_scaler = flow.amp.GradScaler(
+                    init_scale=2 ** 30,
+                    growth_factor=2.0,
+                    backoff_factor=0.5,
+                    growth_interval=2000,
+                )
+                self.set_grad_scaler(grad_scaler)
 
         def build(self):
 
@@ -411,7 +434,7 @@ def main():
         os.makedirs(save_dir)
 
     Reporter.write2file(
-        train_total_losses, os.path.join(save_dir, "bert_graph_sgd_loss.txt")
+        train_total_losses, os.path.join(save_dir, "bert_graph_sgd_amp_clip_loss2.txt")
     )
     # Reporter.write2file(
     #     train_lml_losses, os.path.join(save_dir, "bert_graph_lml_loss.txt")
