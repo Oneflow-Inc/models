@@ -24,7 +24,6 @@ def _make_divisible(v, divisor, min_value=None):
 
 
 class LayerNorm(nn.Module):
-
     def __init__(self, features, eps=1e-6):
         super(LayerNorm, self).__init__()
         self.gamma = nn.Parameter(flow.ones(features))
@@ -41,10 +40,17 @@ class ConvBNReLU(nn.Sequential):
     def __init__(self, in_planes, out_planes, kernel_size=3, stride=1, groups=1):
         padding = (kernel_size - 1) // 2
         super(ConvBNReLU, self).__init__(
-            nn.Conv1d(in_planes, out_planes, kernel_size, stride,
-                      padding, groups=groups, bias=False),
+            nn.Conv1d(
+                in_planes,
+                out_planes,
+                kernel_size,
+                stride,
+                padding,
+                groups=groups,
+                bias=False,
+            ),
             nn.BatchNorm1d(out_planes),
-            nn.ReLU6()
+            nn.ReLU6(),
         )
 
 
@@ -61,14 +67,15 @@ class InvertedResidual(nn.Module):
         if expand_ratio != 1:
             # pw
             layers.append(ConvBNReLU(inp, hidden_dim, kernel_size=1))
-        layers.extend([
-            # dw
-            ConvBNReLU(hidden_dim, hidden_dim,
-                       stride=stride, groups=hidden_dim),
-            # pw-linear
-            nn.Conv1d(hidden_dim, oup, 1, 1, 0, bias=False),
-            nn.BatchNorm1d(oup),
-        ])
+        layers.extend(
+            [
+                # dw
+                ConvBNReLU(hidden_dim, hidden_dim, stride=stride, groups=hidden_dim),
+                # pw-linear
+                nn.Conv1d(hidden_dim, oup, 1, 1, 0, bias=False),
+                nn.BatchNorm1d(oup),
+            ]
+        )
         self.conv = nn.Sequential(*layers)
 
     def forward(self, x):
@@ -79,7 +86,13 @@ class InvertedResidual(nn.Module):
 
 
 class MobileNetV2(nn.Module):
-    def __init__(self, num_classes=1000, width_mult=1.0, inverted_residual_setting=None, round_nearest=8):
+    def __init__(
+        self,
+        num_classes=1000,
+        width_mult=1.0,
+        inverted_residual_setting=None,
+        round_nearest=8,
+    ):
         """
         MobileNet V2 main class
 
@@ -108,15 +121,20 @@ class MobileNetV2(nn.Module):
             ]
 
         # only check the first element, assuming user knows t,c,n,s are required
-        if len(inverted_residual_setting) == 0 or len(inverted_residual_setting[0]) != 4:
-            raise ValueError("inverted_residual_setting should be non-empty "
-                             "or a 4-element list, got {}".format(inverted_residual_setting))
+        if (
+            len(inverted_residual_setting) == 0
+            or len(inverted_residual_setting[0]) != 4
+        ):
+            raise ValueError(
+                "inverted_residual_setting should be non-empty "
+                "or a 4-element list, got {}".format(inverted_residual_setting)
+            )
 
         # building first layer
-        input_channel = _make_divisible(
-            input_channel * width_mult, round_nearest)
+        input_channel = _make_divisible(input_channel * width_mult, round_nearest)
         self.last_channel = _make_divisible(
-            last_channel * max(1.0, width_mult), round_nearest)
+            last_channel * max(1.0, width_mult), round_nearest
+        )
         features = [ConvBNReLU(1, input_channel, stride=2)]
         # building inverted residual blocks
         for t, c, n, s in inverted_residual_setting:
@@ -124,11 +142,11 @@ class MobileNetV2(nn.Module):
             for i in range(n):
                 stride = s if i == 0 else 1
                 features.append(
-                    block(input_channel, output_channel, stride, expand_ratio=t))
+                    block(input_channel, output_channel, stride, expand_ratio=t)
+                )
                 input_channel = output_channel
         # building last several layers
-        features.append(ConvBNReLU(
-            input_channel, self.last_channel, kernel_size=1))
+        features.append(ConvBNReLU(input_channel, self.last_channel, kernel_size=1))
         # make it nn.Sequential
         self.features = nn.Sequential(*features)
 
@@ -145,7 +163,7 @@ class MobileNetV2(nn.Module):
         # weight initialization
         for m in self.modules():
             if isinstance(m, nn.Conv1d):
-                nn.init.kaiming_normal_(m.weight, mode='fan_out')
+                nn.init.kaiming_normal_(m.weight, mode="fan_out")
                 if m.bias is not None:
                     nn.init.zeros_(m.bias)
             elif isinstance(m, nn.BatchNorm1d):
@@ -157,7 +175,7 @@ class MobileNetV2(nn.Module):
 
     def forward(self, x):
 
-        if(len(x.shape) == 2):
+        if len(x.shape) == 2:
             print("x.size ", x.size())
             x = self.normalize(x)
             x = x.reshape([x.shape[0], 1, x.shape[1]])
@@ -177,20 +195,22 @@ class AdditiveMarginSoftmax(nn.Module):
         self.m = margin
         self.s = s
         self.epsilon = 0.000000000001
-        print('AMSoftmax m = ' + str(margin))
+        print("AMSoftmax m = " + str(margin))
 
     def forward(self, predicted, target):
 
         # ------------ AM Softmax ------------ #
         predicted = predicted / (predicted.norm(dim=0) + self.epsilon)
-        indexes = flow.Tensor(range(predicted.size(0))
-                              ).long().to(predicted.device)
+        indexes = flow.Tensor(range(predicted.size(0))).long().to(predicted.device)
         cos_theta_y = predicted[indexes, target]
         cos_theta_y_m = cos_theta_y - self.m
-        exp_s = (flow.ones_like(cos_theta_y_m) *
-                 np.e) ** (self.s * cos_theta_y_m)
-        sum_cos_theta_j = ((flow.ones_like(predicted)*np.e) ** (predicted * self.s)).sum(dim=1) - (
-            (flow.ones_like(predicted[indexes, target])*np.e) ** (predicted[indexes, target] * self.s))
-        log = -flow.log(exp_s/(exp_s+sum_cos_theta_j+self.epsilon)).mean()
+        exp_s = (flow.ones_like(cos_theta_y_m) * np.e) ** (self.s * cos_theta_y_m)
+        sum_cos_theta_j = (
+            (flow.ones_like(predicted) * np.e) ** (predicted * self.s)
+        ).sum(dim=1) - (
+            (flow.ones_like(predicted[indexes, target]) * np.e)
+            ** (predicted[indexes, target] * self.s)
+        )
+        log = -flow.log(exp_s / (exp_s + sum_cos_theta_j + self.epsilon)).mean()
 
         return log

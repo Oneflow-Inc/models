@@ -10,8 +10,10 @@ import oneflow as flow
 from model.mnasnet import mnasnet0_5, mnasnet0_75, mnasnet1_0, mnasnet1_3
 from utils.ofrecord_data_utils import OFRecordDataLoader
 
+
 class AverageMeter:
     """Computes and stores the average and current value"""
+
     def __init__(self):
         self.reset()
 
@@ -27,22 +29,22 @@ class AverageMeter:
         self.count += n
         self.avg = self.sum / self.count
 
+
 def _parse_args():
     parser = argparse.ArgumentParser("flags for train mnasnet")
     parser.add_argument(
-        "--model", 
-        choices=['mnasnet0_5', 'mnasnet0_75', 'mnasnet1_0', 'mnasnet1_3'], 
-        type=str, default="mnasnet0_5", 
-        help='mnasnet0_5'
-             'mnasnet0_75'
-             'mnasnet1_0'
-             'mnasnet1_3'
+        "--model",
+        choices=["mnasnet0_5", "mnasnet0_75", "mnasnet1_0", "mnasnet1_3"],
+        type=str,
+        default="mnasnet0_5",
+        help="mnasnet0_5" "mnasnet0_75" "mnasnet1_0" "mnasnet1_3",
     )
     parser.add_argument(
-        "--dataset", 
-        choices=['imagenette'], 
-        type=str, default="imagenette", 
-        help='imagenette'
+        "--dataset",
+        choices=["imagenette"],
+        type=str,
+        default="imagenette",
+        help="imagenette",
     )
     parser.add_argument(
         "--save_checkpoint_path",
@@ -73,23 +75,27 @@ def _parse_args():
 
     return parser.parse_args()
 
-def build_model(args):
-    if args.dataset == 'imagenette':
-        num_classes = 10
-    
-    if args.model == 'mnasnet0_5':
-        return mnasnet0_5(num_classes = num_classes)
-    elif args.model == 'mnasnet0_75':
-        return mnasnet0_75(num_classes = num_classes)
-    elif args.model == 'mnasnet1_0':
-        return mnasnet1_0(num_classes = num_classes)
-    elif args.model == 'mnasnet1_3':
-        return mnasnet1_3(num_classes = num_classes)
 
-def train_one_epoch(args, model, criterion, data_loader, optimizer, epoch, lr_scheduler):
+def build_model(args):
+    if args.dataset == "imagenette":
+        num_classes = 10
+
+    if args.model == "mnasnet0_5":
+        return mnasnet0_5(num_classes=num_classes)
+    elif args.model == "mnasnet0_75":
+        return mnasnet0_75(num_classes=num_classes)
+    elif args.model == "mnasnet1_0":
+        return mnasnet1_0(num_classes=num_classes)
+    elif args.model == "mnasnet1_3":
+        return mnasnet1_3(num_classes=num_classes)
+
+
+def train_one_epoch(
+    args, model, criterion, data_loader, optimizer, epoch, lr_scheduler
+):
     model.train()
     optimizer.zero_grad()
-    
+
     num_steps = len(data_loader)
     batch_time = AverageMeter()
     loss_meter = AverageMeter()
@@ -119,11 +125,25 @@ def train_one_epoch(args, model, criterion, data_loader, optimizer, epoch, lr_sc
 
         # print info
         if steps % args.print_interval == 0:
-            lr = optimizer.param_groups[0]['lr']
-            print("Train:[%d/%d][%d/%d] Time: %.4f(%.4f) Training Loss: %.4f(%.4f) Lr: %.6f" % ((epoch + 1), args.epochs, steps, num_steps, batch_time.val, batch_time.avg, loss_meter.val, loss_meter.avg, lr))
-    
+            lr = optimizer.param_groups[0]["lr"]
+            print(
+                "Train:[%d/%d][%d/%d] Time: %.4f(%.4f) Training Loss: %.4f(%.4f) Lr: %.6f"
+                % (
+                    (epoch + 1),
+                    args.epochs,
+                    steps,
+                    num_steps,
+                    batch_time.val,
+                    batch_time.avg,
+                    loss_meter.val,
+                    loss_meter.avg,
+                    lr,
+                )
+            )
+
     lr_scheduler.step()
     return loss_meter.avg
+
 
 def valid(args, model, criterion, data_loader):
     # Validation
@@ -152,26 +172,25 @@ def valid(args, model, criterion, data_loader):
             all_preds.append(preds)
             all_label.append(label)
         else:
-            all_preds[0] = np.append(
-                all_preds[0], preds, axis=0
-            )
-            all_label[0] = np.append(
-                all_label[0], label, axis=0
-            )
-    
+            all_preds[0] = np.append(all_preds[0], preds, axis=0)
+            all_label[0] = np.append(all_label[0], label, axis=0)
+
     all_preds, all_label = all_preds[0], all_label[0]
     accuracy = simple_accuracy(all_preds, all_label)
 
     print("Validation Results")
     print("Valid Loss: %2.5f" % eval_losses.avg)
     print("Valid Accuracy: %2.5f" % accuracy)
-    return accuracy       
+    return accuracy
+
 
 def simple_accuracy(preds, labels):
     return (preds == labels).mean()
 
+
 def save_checkpoint(model, save_path):
     flow.save(model.state_dict(), save_path)
+
 
 def save_logs(training_info, file_path):
     writer = open(file_path, "w")
@@ -211,7 +230,10 @@ def main(args):
     model.to("cuda")
     criterion.to("cuda")
     optimizer = flow.optim.SGD(
-        model.parameters(), lr=args.learning_rate, momentum=args.mom, weight_decay=args.weight_decay
+        model.parameters(),
+        lr=args.learning_rate,
+        momentum=args.mom,
+        weight_decay=args.weight_decay,
     )
     lr_scheduler = flow.optim.lr_scheduler.StepLR(optimizer, step_size=30, gamma=0.1)
 
@@ -220,16 +242,20 @@ def main(args):
     best_acc = 0.0
     for epoch in range(args.epochs):
         print("***** Runing Training *****")
-        train_loss = train_one_epoch(args, model, criterion, train_data_loader, optimizer, epoch, lr_scheduler)
+        train_loss = train_one_epoch(
+            args, model, criterion, train_data_loader, optimizer, epoch, lr_scheduler
+        )
         print("***** Run Validation *****")
         accuracy = valid(args, model, criterion, val_data_loader)
-        
+
         # save model after each epoch
         print("***** Save Checkpoint *****")
-        save_path = os.path.join(args.save_checkpoint_path, "epoch_%d_val_acc_%f" % (epoch, accuracy))
+        save_path = os.path.join(
+            args.save_checkpoint_path, "epoch_%d_val_acc_%f" % (epoch, accuracy)
+        )
         save_checkpoint(model, save_path)
         print("Save checkpoint to: ", save_path)
-        
+
         # save best model
         if best_acc < accuracy:
             save_path = os.path.join(args.save_checkpoint_path, "best_model")
@@ -237,7 +263,7 @@ def main(args):
                 shutil.rmtree(save_path, True)
             save_checkpoint(model, save_path)
             best_acc = accuracy
-        
+
         loss_list.append(train_loss)
         accuracy_list.append(accuracy)
     print("End Training!")
@@ -249,6 +275,7 @@ def main(args):
     print("Save loss info to: ", "eager/losses.txt")
     save_logs(accuracy_list, "eager/accuracy.txt")
     print("Save acc info to: ", "eager/accuracy.txt")
+
 
 if __name__ == "__main__":
     args = _parse_args()
