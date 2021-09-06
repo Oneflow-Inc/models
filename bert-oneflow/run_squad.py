@@ -15,7 +15,6 @@ limitations under the License.
 """
 
 import os
-import numpy as np
 import math
 
 import oneflow as flow
@@ -28,6 +27,7 @@ from squad import SQuAD
 from squad_util import RawResult, gen_eval_predict_json
 from utils.optimizer import build_adamW_optimizer
 from utils.lr_scheduler import PolynomialLR
+from utils.metric import Metric
 
 parser = config.get_parser()
 parser.add_argument("--num_epochs", type=int, default=3, help="number of epochs")
@@ -166,16 +166,9 @@ class SquadDecoder(nn.Module):
             return (input_ids, input_mask, segment_ids, unique_ids)
 
 
-def squad_finetune(epoch: int, iter_per_epoch: int, model: nn.Graph, print_steps: int):
-
-    total_loss = []
-    for i in range(iter_per_epoch):
-
-        loss = model()
-        total_loss.append(loss.numpy().item())
-
-        if (i + 1) % print_steps == 0:
-            print(f"{epoch}/{i+1}, total loss: {np.mean(total_loss[-10:]):.6f}")
+def squad_finetune(model: nn.Graph):
+    total_loss = model()
+    return {"total_loss": total_loss.numpy()}
 
 
 def squad_eval(num_eval_steps: int, model: nn.Graph, print_steps: int):
@@ -299,7 +292,15 @@ def main():
 
         for epoch in range(args.num_epochs):
             squad_model.train()
-            squad_finetune(epoch, epoch_size, squad_graph, args.loss_print_every_n_iter)
+
+            metric = Metric(
+                desc="train",
+                print_steps=args.loss_print_every_n_iter,
+                batch_size=batch_size,
+                keys=["total_loss"],
+            )
+            for step in range(epoch_size):
+                metric.metric_cb(step, epoch=epoch)(squad_finetune(squad_graph))
 
         if args.save_last_snapshot:
             save_model(squad_model, args.model_save_dir, "last_snapshot")
@@ -310,7 +311,7 @@ def main():
         test_decoders = SquadDecoder(
             args.eval_data_dir,
             eval_batch_size,
-            args.eval_dat_part_num,
+            args.eval_data_part_num,
             args.seq_length,
             is_train=False,
         )
