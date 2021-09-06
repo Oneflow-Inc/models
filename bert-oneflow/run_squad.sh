@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # pretrained model dir
-PRETRAINED_MODEL=of_bert_1000000_model_log/snapshot_snapshot_1000000
+PRETRAINED_MODEL=snapshot_tf_for_graph_snapshot
 
 # squad ofrecord dataset dir
 DATA_ROOT=/dataset/bert/squad/ofrecord
@@ -43,6 +43,7 @@ python3 run_squad.py \
   --batch_size_per_device=16 \
   --eval_batch_size_per_device=16 \
   --num_epoch=3 \
+  --use_fp16 \
   --version_2_with_negative=$version_2_with_negative \
   --loss_print_every_n_iter=20 \
   --do_lower_case=True \
@@ -67,7 +68,7 @@ python3 run_squad.py \
   --predict_file=$SQUAD_TOOL_DIR/dev-${db_version}.json \
   --output_dir=./squad_output 
 
-# evaluate predictions.json to get metrics
-# python3 $SQUAD_TOOL_DIR/evaluate-${db_version}.py \
-#   $SQUAD_TOOL_DIR/dev-${db_version}.json \
-#   ./squad_output/predictions.json
+evaluate predictions.json to get metrics
+python3 $SQUAD_TOOL_DIR/evaluate-${db_version}.py \
+  $SQUAD_TOOL_DIR/dev-${db_version}.json \
+  ./squad_output/predictions.json
