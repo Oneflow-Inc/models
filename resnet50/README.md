@@ -112,7 +112,7 @@ bash examples/train_graph_distributed_fp16.sh
 
 ### 4. Inference on Single Image
 
-#### Download  Pretrain Models for Imagenet
+#### Download Pretrained Models for Imagenet
 
 ```bash
 wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/cv/classification/resnet50_imagenet_pretrain_model.tar.gz
