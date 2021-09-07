@@ -109,9 +109,7 @@ class SincConv_fast(nn.Module):
         self.n_ = (
             2
             * math.pi
-            * flow.Tensor(
-                np.arange(-n, 0).reshape(1, -1) / self.sample_rate
-            )
+            * flow.Tensor(np.arange(-n, 0).reshape(1, -1) / self.sample_rate)
         )
 
     def forward(self, waveforms):
