@@ -59,6 +59,7 @@ Models and examples implement with OneFlow(version >= 0.5.0).
 * [SincNet](https://github.com/Oneflow-Inc/models/tree/main/SincNet)
 * [Wav2Letter](https://github.com/Oneflow-Inc/models/tree/main/Wav2Letter)
 * [SpeakerIdentificationDemo](https://github.com/Oneflow-Inc/models/tree/main/speaker_identification_demo)
+* [AM_MobileNet1D](https://github.com/Oneflow-Inc/models/tree/main/AM_MobileNet1D)
 
 ### Quantization Aware Training
 * [Quantization](https://github.com/Oneflow-Inc/models/tree/main/quantization)
