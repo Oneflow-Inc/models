@@ -46,7 +46,7 @@ class GPTModel(flow.nn.Module):
         # shape sign: (B * S, H) x (H, V) -> (B * S, V)
         # matmul fwd sbp sign: [S(0), B] x [B, S(1)] (wte.T) -> [S(0), S(1)]
         # bwd h.grad sbp sign: [S(0), S(1)] (lgs.grad) x [B, S(0)] (wte) -> [S(0), P] (h.grad)
-        lgs = flow.F.matmul(h, self.embedding.wte, transpose_b=True)
+        lgs = flow._C.matmul(h, self.embedding.wte, transpose_b=True)
         return lgs
 
 
@@ -96,7 +96,7 @@ class Embedding(flow.nn.Module):
         # gather forward sbp sign: [B, S(0)] x [S(0), B] -> [S(0), P]
         # backward sbp sign:
         # [S(0), B] (h.grad) x [S(0), B] (tokens) x [B, S(0)] (wte) -> [P, S(0)] (wte.grad)
-        h = flow.F.gather(wte, tokens, axis=0)
+        h = flow._C.gather(wte, tokens, axis=0)
         # hidden_states shape: (batch_size, sel_len, hidden_size)
         # hidden_states: [S(0), P] -> [S(0), B]
         h = h.to_consistent(sbp=dist.get_hidden_sbp())
@@ -304,7 +304,7 @@ class SelfAttention(flow.nn.Module):
 
         h = h.view(*new_shape)
         q, k, v = (
-            flow.F.transpose(
+            flow._C.transpose(
                 h[:, :, :, (i * self.head_size) : ((i + 1) * self.head_size)],
                 perm=perm,
             )
@@ -317,16 +317,16 @@ class SelfAttention(flow.nn.Module):
         # q * k: batch_matmul
         # shape sign: (b, n, s, h) x (b, n, h, s) (k.T) -> (b, n, s, s)
         # sbp sign: [S(0), S(1)] x [S(0), S(1)] -> [S(0), S(1)]
-        qmk = flow.F.matmul(q, k, transpose_b=True, alpha=(1.0 / self.norm_factor))
+        qmk = flow._C.matmul(q, k, transpose_b=True, alpha=(1.0 / self.norm_factor))
         qmk = self.tril_softmax_dropout(qmk)
         # w * v: batch_matmul
         # shape sign: (b, n, s, s) x (b, n, s, h) -> (b, n, s, h)
         # sbp sign: [S(0), S(1)] x [S(0), S(1)] -> [S(0), S(1)]
-        return flow.F.matmul(qmk, v)
+        return flow._C.matmul(qmk, v)
 
     def tril_softmax_dropout(self, x):
         if self.scale_tril_softmax_dropout_fusion:
-            x = flow.F.fused_scale_tril_softmax_dropout(
+            x = flow._C.fused_scale_tril_softmax_dropout(
                 x,
                 diagonal=0,
                 scale=self.coeff,
@@ -334,18 +334,18 @@ class SelfAttention(flow.nn.Module):
                 rate=self.attention_dropout_rate,
             )
         else:
-            x = flow.F.fused_scale_tril(x, fill_value=float("-inf"), scale=self.coeff,)
-            x = flow.F.softmax(x)
+            x = flow._C.fused_scale_tril(x, fill_value=float("-inf"), scale=self.coeff,)
+            x = flow._C.softmax(x)
             x = self.multihead_attn_dropout(x)
 
         return x
 
     def fused_multihead_attn(self, h):
-        qmk, v = flow.F.fused_self_attention_query_mul_key_and_value(
+        qmk, v = flow._C.fused_self_attention_query_mul_key_and_value(
             h, head_size=self.head_size, alpha=(1.0 / self.norm_factor)
         )
         qmk = self.tril_softmax_dropout(qmk)
-        return flow.F.matmul(qmk, v)
+        return flow._C.matmul(qmk, v)
 
     def forward(self, hidden_states):
         # hidden_states shape: (batch_size, seq_len, hidden_size)
@@ -363,10 +363,10 @@ class SelfAttention(flow.nn.Module):
 
         if self.is_seq_len_dim_leading:
             # (batch_size, num_heads, seq_len, head_size) -> (seq_len, batch_size, num_heads, head_size)
-            h = flow.F.transpose(h, perm=(2, 0, 1, 3))
+            h = flow._C.transpose(h, perm=(2, 0, 1, 3))
         else:
             # (batch_size, num_heads, seq_len, head_size) -> (batch_size, seq_len, num_heads, head_size)
-            h = flow.F.transpose(h, perm=(0, 2, 1, 3))
+            h = flow._C.transpose(h, perm=(0, 2, 1, 3))
 
         h = self.c_proj(h.flatten(2))
         return h
@@ -444,7 +444,7 @@ class LayerNorm(flow.nn.Module):
         assert x.shape[-len(self.normalized_shape) :] == self.normalized_shape
         begin_norm_axis = x.ndim - len(self.normalized_shape)
         begin_params_axis = x.ndim - len(self.normalized_shape)
-        y = flow.F.layer_norm_affine(
+        y = flow._C.layer_norm_affine(
             x,
             self.gamma,
             self.beta,
@@ -493,13 +493,13 @@ class ColumnParallelLinear(flow.nn.Module):
         x = x.to_consistent(grad_sbp=x.sbp)
         # matmul sbp sign: [S(0), B] x [B, S(1)] -> [S(0), S(1)]
         # x.grad sbp sign: [S(0), S(1)] x [B, S(0)] (weight.T) -> [S(0), P]
-        x = flow.F.matmul(x, self.weight)
+        x = flow._C.matmul(x, self.weight)
         if self.need_gelu:
             if self.bias_gelu_fusion:
-                x = flow.F.fused_bias_add_gelu(x, self.bias)
+                x = flow._C.fused_bias_add_gelu(x, self.bias)
             else:
                 x = x + self.bias
-                x = flow.F.gelu(x)
+                x = flow._C.gelu(x)
         else:
             # broadcast_add shape sign: (input_size, output_size) + (output_size, )
             #                                = (input_size, output_size)
@@ -547,11 +547,11 @@ class RowParallelLinear(flow.nn.Module):
         # x.sbp: [S(0), S(1)]
         # matmul sbp sign: [S(0), S(1)] x [B, S(0)] -> [S(0), P]
         # backward x.grad sbp sign: [S(0), B] x [B, S(1)] (weight.T) -> [S(0), S(1)]
-        x = flow.F.matmul(x, self.weight)
+        x = flow._C.matmul(x, self.weight)
         # x.sbp: [S(0), P] -> [S(0), B]
         x = x.to_consistent(sbp=dist.get_hidden_sbp())
         if self.bias_dropout_fusion:
-            x = flow.F.fused_bias_add_dropout(x, self.bias, rate=self.dropout_rate)
+            x = flow._C.fused_bias_add_dropout(x, self.bias, rate=self.dropout_rate)
         else:
             x = x + self.bias
             x = self.dropout(x)
@@ -572,8 +572,8 @@ class ParallelSparseSoftmaxCrossEntropyLoss(flow.nn.Module):
         assert labels.ndim == 2
         assert logits.shape[0:2] == labels.shape
 
-        # loss = flow.F.sparse_softmax_cross_entropy_with_logits(labels, logits)
-        loss = flow.F.sparse_softmax_cross_entropy(
+        # loss = flow._C.sparse_softmax_cross_entropy_with_logits(labels, logits)
+        loss = flow._C.sparse_softmax_cross_entropy(
             logits, labels, depth=logits.shape[-1]
         )
 
