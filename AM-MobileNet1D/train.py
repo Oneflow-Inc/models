@@ -157,7 +157,7 @@ for epoch in range(begin_epochs, N_epochs):
                     count_fr = count_fr + 1
                     count_fr_tot = count_fr_tot + 1
                     if count_fr == Batch_dev:
-                        inp = flow.Tensor(sig_arr, dtype=flow.float32).to("cuda")
+                        inp = flow.Tensor(sig_arr).to("cuda")
 
                         time_begin = time.time()
                         pout[
@@ -170,7 +170,7 @@ for epoch in range(begin_epochs, N_epochs):
                         sig_arr = np.zeros([Batch_dev, 1, wlen])
 
                 if count_fr > 0:
-                    inp = flow.Tensor(sig_arr[0:count_fr], dtype=flow.float32).to(
+                    inp = flow.Tensor(sig_arr[0:count_fr]).to(
                         "cuda"
                     )
 

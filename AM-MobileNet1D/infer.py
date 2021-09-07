@@ -108,7 +108,7 @@ def infer():
                 count_fr = count_fr + 1
                 count_fr_tot = count_fr_tot + 1
                 if count_fr == Batch_dev:
-                    inp = flow.Tensor(sig_arr, dtype=flow.float32).to("cuda")
+                    inp = flow.Tensor(sig_arr).to("cuda")
                     pout[count_fr_tot - Batch_dev : count_fr_tot, :] = MOBILENET_net(
                         inp
                     )
@@ -117,7 +117,7 @@ def infer():
                     sig_arr = np.zeros([Batch_dev, 1, wlen])
 
             if count_fr > 0:
-                inp = flow.Tensor(sig_arr[0:count_fr], dtype=flow.float32).to("cuda")
+                inp = flow.Tensor(sig_arr[0:count_fr]).to("cuda")
 
                 pout[count_fr_tot - count_fr : count_fr_tot, :] = MOBILENET_net(inp)
 

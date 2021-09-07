@@ -38,7 +38,7 @@ class Wav2Letter(nn.Module):
              shape (batch, num_features, frame_len)
 
         Returns:
-            log_probs (torch.Tensor):
+            log_probs (oneflow.Tensor):
                 shape  (batch_size, num_classes, output_len)
         """
         y_pred = self.layers(data_batch)

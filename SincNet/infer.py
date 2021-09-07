@@ -141,7 +141,7 @@ def infer():
         for i in range(snt_te):
             [signal, fs] = sf.read(data_folder + wav_lst_te[i])
 
-            signal = flow.Tensor(signal, dtype=flow.float32).to("cuda")
+            signal = flow.Tensor(signal).to("cuda")
             lab_batch = lab_dict[wav_lst_te[i].lower()]
 
             # split signals into chunks

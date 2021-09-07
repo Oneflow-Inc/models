@@ -179,8 +179,8 @@ def create_batches_rnd(
         sig_batch[i, :] = signal[snt_beg:snt_end] * rand_amp_arr[i]
         lab_batch[i] = lab_dict[wav_lst[snt_id_arr[i]].lower()]
 
-    inp = flow.Tensor(sig_batch, dtype=flow.float32).to("cuda")
-    lab = flow.Tensor(lab_batch, dtype=flow.float32).to("cuda")
+    inp = flow.Tensor(sig_batch).to("cuda")
+    lab = flow.Tensor(lab_batch).to("cuda")
 
     return inp, lab
 
