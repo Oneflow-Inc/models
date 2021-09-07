@@ -58,8 +58,7 @@ class Logger(object):
 
         do_print = self.rank in (print_ranks or self.print_ranks)
         if do_print:
-            print("[{}] {}".format(self.rank, ", ".join(fields)))
-
+            print( time.strftime('%Y-%m-%d %H:%M:%S'), " [{}] {}".format(self.rank, ", ".join(fields)))
     def print(self, *args, print_ranks=None):
         do_print = self.rank in (print_ranks or self.print_ranks)
         if do_print:
