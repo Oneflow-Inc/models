@@ -1,6 +1,6 @@
 # set -aux
 
-DEVICE_NUM_PER_NODE=4
+DEVICE_NUM_PER_NODE=8
 MASTER_ADDR=127.0.0.1
 NUM_NODES=1
 NODE_RANK=0
@@ -11,19 +11,17 @@ export NCCL_LAUNCH_MODE=PARALLEL
 echo NCCL_LAUNCH_MODE=$NCCL_LAUNCH_MODE
 # export NCCL_DEBUG=INFO
 
-CHECKPOINT_SAVE_PATH=ddp_checkpoints
+CHECKPOINT_SAVE_PATH=eager_consistent_checkpoints
 if [ ! -d "$CHECKPOINT_SAVE_PATH" ]; then
     mkdir $CHECKPOINT_SAVE_PATH
 fi
 
-CHECKPOINT_LOAD_PATH="./init_ckpt_by_lazy"
-
-OFRECORD_PATH=/dataset/ImageNet/ofrecord/
+OFRECORD_PATH=/DATA/disk1/ImageNet/ofrecord/
 OFRECORD_PART_NUM=256
-LEARNING_RATE=0.256
+LEARNING_RATE=0.768
 MOM=0.875
 EPOCH=90
-TRAIN_BATCH_SIZE=64
+TRAIN_BATCH_SIZE=96
 VAL_BATCH_SIZE=50
 
 # SRC_DIR=/path/to/models/resnet50
@@ -36,7 +34,6 @@ python3 -m oneflow.distributed.launch \
     --master_addr $MASTER_ADDR \
     $SRC_DIR/train.py \
         --save $CHECKPOINT_SAVE_PATH \
-        --load $CHECKPOINT_LOAD_PATH \
         --ofrecord-path $OFRECORD_PATH \
         --ofrecord-part-num $OFRECORD_PART_NUM \
         --num-devices-per-node $DEVICE_NUM_PER_NODE \
@@ -45,3 +42,4 @@ python3 -m oneflow.distributed.launch \
         --num-epochs $EPOCH \
         --train-batch-size $TRAIN_BATCH_SIZE \
         --val-batch-size $VAL_BATCH_SIZE \
+        --metric-local False

@@ -260,11 +260,11 @@ class Trainer(object):
 
     def train_eager(self):
         loss, pred, label = self.forward()
-
+        
         if loss.is_consistent and self.scale_grad:
             # NOTE(zwx): scale init grad with world_size
             # because consistent_tensor.mean() include dividor numel * world_size
-            loss = loss / self.world_size
+            # loss = loss / self.world_size
             loss.backward()
             for param_group in self.optimizer.param_groups:
                 for param in param_group.parameters:
