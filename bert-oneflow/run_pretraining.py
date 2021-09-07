@@ -20,6 +20,29 @@ from modeling import BertForPreTraining
 from utils.ofrecord_data_utils import OfRecordDataLoader
 from utils.lr_scheduler import PolynomialLR
 
+def ttol(tensor, pure_local=True):
+    """ to local """
+    if tensor.is_consistent:
+        if pure_local:
+            tensor = tensor.to_local()
+        else:
+            tensor = tensor.to_consistent(sbp=flow.sbp.broadcast).to_local()
+
+    return tensor
+
+
+def tton(tensor, local_only=True):
+    """ tensor to numpy """
+    if tensor.is_consistent:
+        if local_only:
+            tensor = tensor.to_local().numpy()
+        else:
+            tensor = tensor.to_consistent(sbp=flow.sbp.broadcast).to_local().numpy()
+    else:
+        tensor = tensor.numpy()
+
+    return tensor
+
 
 def save_model(module: nn.Module, checkpoint_path: str, epoch: int, acc: float):
     flow.save(
@@ -28,7 +51,7 @@ def save_model(module: nn.Module, checkpoint_path: str, epoch: int, acc: float):
     )
 
 
-def train(epoch, iter_per_epoch, graph, print_interval):
+def train(epoch, iter_per_epoch, graph, print_interval, metric_local):
     total_loss = []
     total_mlm_loss = []
     total_ns_loss = []
@@ -40,6 +63,14 @@ def train(epoch, iter_per_epoch, graph, print_interval):
 
         next_sent_output, next_sent_labels, loss, mlm_loss, ns_loss = graph()
 
+        # to local
+        next_sent_output = ttol(next_sent_output, metric_local)
+        next_sent_labels = ttol(next_sent_labels, metric_local)
+        loss = ttol(loss, metric_local)
+        mlm_loss = ttol(mlm_loss, metric_local)
+        ns_loss = ttol(ns_loss, metric_local)
+
+        
         # Waiting for sync
         loss = loss.numpy().item()
         end_t = time.time()
@@ -193,13 +224,45 @@ def main():
         const=True,
         help="Whether to use use fp16",
     )
+    parser.add_argument(
+        "--nccl-fusion-threshold-mb",
+        type=int,
+        default=16,
+        dest="nccl_fusion_threshold_mb",
+        help="NCCL fusion threshold megabytes, set to 0 to compatible with previous version of OneFlow.",
+    )
+    parser.add_argument(
+        "--nccl-fusion-max-ops",
+        type=int,
+        default=24,
+        dest="nccl_fusion_max_ops",
+        help="Maximum number of ops of NCCL fusion, set to 0 to compatible with previous version of OneFlow.",
+    )
+    parser.add_argument(
+        "--use_consistent",
+        type=str2bool,
+        nargs="?",
+        const=True,
+        help="Whether to use use consistent",
+    )
+    parser.add_argument(
+        "--metric-local",
+        type=str2bool,
+        default=True,
+        nargs="?",
+        const=True,
+        dest="metric_local",
+    )
 
     args = parser.parse_args()
 
+    flow.boxing.nccl.set_fusion_threshold_mbytes(args.nccl_fusion_threshold_mb)
+    flow.boxing.nccl.set_fusion_max_ops_num(args.nccl_fusion_max_ops)
+
     if args.with_cuda:
-        device = flow.device("cuda")
+        device = "cuda"
     else:
-        device = flow.device("cpu")
+        device = "cpu"
 
     print("Device is: ", device)
 
@@ -212,6 +275,7 @@ def main():
         data_part_num=1,
         seq_length=args.seq_length,
         max_predictions_per_seq=args.max_predictions_per_seq,
+        consistent=args.use_consistent,
     )
 
     test_data_loader = OfRecordDataLoader(
@@ -222,6 +286,7 @@ def main():
         data_part_num=1,
         seq_length=args.seq_length,
         max_predictions_per_seq=args.max_predictions_per_seq,
+        consistent=args.use_consistent,
     )
 
     print("Building BERT Model")
@@ -241,10 +306,21 @@ def main():
 
     # Load the same initial parameters with lazy model.
     load_params_from_lazy(
-        bert_model.state_dict(), "of_bert_1000000_model_log/snapshot_snapshot_1000000",
+        bert_model.state_dict(), "../../OneFlow-Benchmark/LanguageModeling/BERT/initial_model",
     )
 
-    bert_model.to(device)
+    ns_criterion = nn.CrossEntropyLoss(reduction="mean")
+    mlm_criterion = nn.CrossEntropyLoss(reduction="none")
+
+    if args.use_consistent:
+        placement = flow.placement("cuda", {0: range(flow.env.get_world_size())})
+        bert_model = bert_model.to_consistent(placement=placement, sbp=flow.sbp.broadcast)
+        ns_criterion = ns_criterion.to_consistent(placement=placement, sbp=flow.sbp.broadcast)
+        mlm_criterion = mlm_criterion.to_consistent(placement=placement, sbp=flow.sbp.broadcast)
+    else:
+        bert_model.to(device)
+        ns_criterion.to(device)
+        mlm_criterion.to(device)
 
     def build_adamW_optimizer(
         model: nn.Module,
@@ -267,24 +343,41 @@ def main():
             params.append({"params": [value], **hyperparameters})
 
         return flow.optim.AdamW(params)
+    
+    def build_sgd_optimizer(
+        model: nn.Module,
+        lr: float,
+        momentum: float,
+    ):
+        defaults = {"lr": lr, "momentum": momentum}
+        params = []
+        for module_param_name, value in model.named_parameters():
+            if not value.requires_grad:
+                continue
+            hyperparameters = copy.copy(defaults)
+            params.append({"params": [value], **hyperparameters})
 
-    optimizer = build_adamW_optimizer(
-        bert_model,
-        args.lr,
-        args.weight_decay,
-        weight_decay_excludes=["bias", "LayerNorm", "layer_norm"],
+        return flow.optim.SGD(params)
+
+    # optimizer = build_adamW_optimizer(
+    #     bert_model,
+    #     args.lr,
+    #     args.weight_decay,
+    #     weight_decay_excludes=["bias", "LayerNorm", "layer_norm"],
+    # )
+    optimizer = build_sgd_optimizer(
+        model=bert_model,
+        lr=args.lr,
+        momentum=0.9
     )
 
     steps = args.epochs * len(train_data_loader)
 
-    lr_scheduler = PolynomialLR(optimizer, steps=steps, end_learning_rate=0.0)
+    lr_scheduler = PolynomialLR(optimizer, steps=100, end_learning_rate=0.0)
 
     lr_scheduler = flow.optim.lr_scheduler.WarmUpLR(
         lr_scheduler, warmup_factor=0, warmup_iters=50, warmup_method="linear"
     )
-
-    ns_criterion = nn.CrossEntropyLoss(reduction="mean")
-    mlm_criterion = nn.CrossEntropyLoss(reduction="none")
 
     def get_masked_lm_loss(
         logit_blob,
@@ -334,6 +427,8 @@ def main():
                     growth_interval=2000,
                 )
                 self.set_grad_scaler(grad_scaler)
+            self.config.allow_fuse_add_to_output(True)
+            self.config.allow_fuse_model_update_ops(True)
 
         def build(self):
 
@@ -346,13 +441,14 @@ def main():
                 masked_lm_positions,
                 masked_lm_weights,
             ) = self._train_data_loader()
-            input_ids = input_ids.to(device=device)
-            input_mask = input_mask.to(device=device)
-            segment_ids = segment_ids.to(device=device)
-            next_sentence_labels = next_sentence_labels.to(device=device)
-            masked_lm_ids = masked_lm_ids.to(device=device)
-            masked_lm_positions = masked_lm_positions.to(device=device)
-            masked_lm_weights = masked_lm_weights.to(device=device)
+            if not args.use_consistent:
+                input_ids = input_ids.to(device=device)
+                input_mask = input_mask.to(device=device)
+                segment_ids = segment_ids.to(device=device)
+                next_sentence_labels = next_sentence_labels.to(device=device)
+                masked_lm_ids = masked_lm_ids.to(device=device)
+                masked_lm_positions = masked_lm_positions.to(device=device)
+                masked_lm_weights = masked_lm_weights.to(device=device)
 
             # 1. forward the next_sentence_prediction and masked_lm model
             prediction_scores, seq_relationship_scores = self.bert(
@@ -386,6 +482,9 @@ def main():
             super().__init__()
             self.bert = bert_model
             self._test_data_loader = test_data_loader
+            if args.use_fp16:
+                self.config.enable_amp(True)
+            self.config.allow_fuse_add_to_output(True)
 
         def build(self):
             (
@@ -422,7 +521,7 @@ def main():
         # Train
         bert_model.train()
         train_total_loss, lml_loss, ns_loss = train(
-            epoch, 100, bert_graph, args.print_interval  # len(train_data_loader),
+            epoch, 100, bert_graph, args.print_interval, args.metric_local  # len(train_data_loader),
         )
 
         train_total_losses.extend(train_total_loss)
@@ -434,7 +533,7 @@ def main():
         os.makedirs(save_dir)
 
     Reporter.write2file(
-        train_total_losses, os.path.join(save_dir, "bert_graph_sgd_amp_clip_loss2.txt")
+        train_total_losses, os.path.join(save_dir, "bert_graph_sgd_amp_consistent_loss.txt")
     )
     # Reporter.write2file(
     #     train_lml_losses, os.path.join(save_dir, "bert_graph_lml_loss.txt")
