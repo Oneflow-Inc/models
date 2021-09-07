@@ -12,19 +12,18 @@ echo NCCL_LAUNCH_MODE=$NCCL_LAUNCH_MODE
 # export NCCL_DEBUG=INFO
 # export ONEFLOW_DEBUG_MODE=True
 
-CHECKPOINT_SAVE_PATH="./graph_checkpoints"
+CHECKPOINT_SAVE_PATH="./graph_distributed_fp32_checkpoints"
 if [ ! -d "$CHECKPOINT_SAVE_PATH" ]; then
     mkdir $CHECKPOINT_SAVE_PATH
 fi
 
-CHECKPOINT_LOAD_PATH="./init_ckpt_by_lazy"
+OFRECORD_PATH=PATH_TO_IMAGENET_OFRECORD
 
-OFRECORD_PATH="/dataset/ImageNet/ofrecord/"
 OFRECORD_PART_NUM=256
-LEARNING_RATE=1.536
+LEARNING_RATE=0.768
 MOM=0.875
 EPOCH=50
-TRAIN_BATCH_SIZE=192
+TRAIN_BATCH_SIZE=96
 VAL_BATCH_SIZE=50
 
 # SRC_DIR=/path/to/models/resnet50
@@ -45,7 +44,6 @@ python3 -m oneflow.distributed.launch \
         --num-epochs $EPOCH \
         --train-batch-size $TRAIN_BATCH_SIZE \
         --val-batch-size $VAL_BATCH_SIZE \
+        --use-gpu-decode \
+        --scale-grad \
         --graph \
-        --use-fp16 \
-        --metric-local True \
-        --metric-train-acc True \
