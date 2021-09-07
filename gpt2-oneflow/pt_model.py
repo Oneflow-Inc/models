@@ -1,15 +1,15 @@
 
 import math
 import numpy as np
-import oneflow as flow
-import oneflow.nn as nn
+import torch
+from torch import nn
 
 def gelu(x):
     """
     Implementation of the GELU activation function currently in Google BERT repo (identical to OpenAI GPT). Also see
     the Gaussian Error Linear Units paper: https://arxiv.org/abs/1606.08415
     """
-    return 0.5 * x * (1.0 + flow.tanh(math.sqrt(2.0 / math.pi) * (x + 0.044715 * flow.pow(x, 3.0))))
+    return 0.5 * x * (1.0 + torch.tanh(math.sqrt(2.0 / math.pi) * (x + 0.044715 * torch.pow(x, 3.0))))
 
 class LayerNorm(nn.Module):
     "Construct a layernorm module."
@@ -17,15 +17,15 @@ class LayerNorm(nn.Module):
     def __init__(self, hidden_size, eps=1e-6):
         super(LayerNorm, self).__init__()
         self.eps = eps
-        self.weight = nn.Parameter(flow.ones(hidden_size, dtype=flow.float32))
-        self.bias = nn.Parameter(flow.zeros(hidden_size, dtype=flow.float32))
+        self.weight = nn.Parameter(torch.ones(hidden_size, dtype=torch.float32))
+        self.bias = nn.Parameter(torch.zeros(hidden_size, dtype=torch.float32))
 
     def forward(self, x):
         # pytorch和tensorflow有细微差别，pytorch计算时eps在sqrt外面，tensorflow的eps在sqrt里面
         mean = x.mean(-1, keepdim=True)
         # std = x.std(dim=-1, keepdim=True)
         std = (x - mean).pow(2).mean(-1, keepdim=True)
-        x = (x - mean) / flow.sqrt(std + self.eps)
+        x = (x - mean) / torch.sqrt(std + self.eps)
         return self.weight * x + self.bias
         # return self.weight * (x - mean) / (std + self.eps) + self.bias
 
@@ -40,17 +40,17 @@ class Conv1D(nn.Module):
         nx (:obj:`int`): The number of input features.
     """
     def __init__(self, nf, nx):
-        super(Conv1D, self).__init__()
+        super().__init__()
         self.nf = nf
-        self.weight = nn.Parameter(flow.Tensor(nx, nf))
-        nn.init.normal_(self.weight, mean=0, std=0.02)
-        self.bias = nn.Parameter(flow.zeros(nf))
+        w = torch.empty(nx, nf)
+        nn.init.normal_(w, std=0.02)
+        self.weight = nn.Parameter(w)
+        self.bias = nn.Parameter(torch.zeros(nf))
 
     def forward(self, x):
-        bsz, seq_len, channels = x.size()
-        # size_out = x.size()[:-1] + (self.nf,)
-        x = flow.addmm(self.bias, x.view(-1, channels), self.weight)
-        x = x.view(bsz, seq_len, self.nf)
+        size_out = x.size()[:-1] + (self.nf,)
+        x = torch.addmm(self.bias, x.view(-1, x.size(-1)), self.weight)
+        x = x.view(*size_out)
         return x
 
 class GPT2Attention(nn.Module):
@@ -58,17 +58,19 @@ class GPT2Attention(nn.Module):
         super(GPT2Attention, self).__init__()
         max_positions = config.max_position_embeddings
         
-        bias = np.tril(np.ones((max_positions, max_positions), dtype=np.uint8)).reshape((1, 1, max_positions, max_positions))
         self.register_buffer(
-            "bias", flow.tensor(bias)
+            "bias",
+            torch.tril(torch.ones((max_positions, max_positions), dtype=torch.uint8)).view(
+                1, 1, max_positions, max_positions
+            ),
         )
-        self.register_buffer("masked_bias", flow.tensor(-1e4))
-        # self.bias = nn.Parameter(flow.tensor(bias))
+        self.register_buffer("masked_bias", torch.tensor(-1e4))
         
         self.embed_dim = config.hidden_size
         self.num_heads = config.num_attention_heads
         assert self.embed_dim % self.num_heads == 0
         self.head_dim = self.embed_dim // self.num_heads
+        self.split_size = self.embed_dim
         self.scale_attn_weights = config.scale_attn_weights
 
         self.c_attn = Conv1D(self.embed_dim * 3, self.embed_dim)
@@ -78,31 +80,26 @@ class GPT2Attention(nn.Module):
         self.resid_dropout = nn.Dropout(config.resid_pdrop)
 
     def _attn(self, query, key, value):
-        attn_weights = flow.matmul(query, key.transpose(-2, -1))
+        attn_weights = torch.matmul(query, key.transpose(-2, -1))
 
         if self.scale_attn_weights:
             attn_weights = attn_weights / (float(value.size(-1)) ** 0.5)
 
         query_length, key_length = query.size(-2), key.size(-2)
-        causal_mask = self.bias[:, :, key_length - query_length : key_length, :key_length]
-        causal_mask = flow.broadcast_like(causal_mask.to(attn_weights.dtype), attn_weights).to(flow.int)    # broadcast_like会改变tensor类型
-        masked_bias = self.masked_bias.view(1, 1, 1, 1)
-        masked_bias = flow.broadcast_like(masked_bias, attn_weights)
-        attn_weights = flow.where(causal_mask, attn_weights, masked_bias)
+        causal_mask = self.bias[:, :, key_length - query_length : key_length, :key_length].bool()
+        attn_weights = torch.where(causal_mask, attn_weights, self.masked_bias.to(attn_weights.dtype))
 
         attn_weights = nn.Softmax(dim=-1)(attn_weights)
         attn_weights = self.attn_dropout(attn_weights)
 
-        attn_output = flow.matmul(attn_weights, value)
+        attn_output = torch.matmul(attn_weights, value)
         return attn_output, attn_weights
 
     def _split_heads(self, tensor, num_heads, attn_head_size):
         """
         Splits hidden_size dim into attn_head_size and num_heads
         """
-        bsz, seq_len = tensor.size()[:-1]
-        new_shape = (bsz, seq_len, num_heads, attn_head_size)
-        # new_shape = tensor.size()[:-1] + (num_heads, attn_head_size)
+        new_shape = tensor.size()[:-1] + (num_heads, attn_head_size)
         tensor = tensor.view(*new_shape)
         return tensor.permute(0, 2, 1, 3)  # (batch, head, seq_length, head_features)
 
@@ -110,15 +107,13 @@ class GPT2Attention(nn.Module):
         """
         Merges attn_head_size dim and num_attn_heads dim into hidden_size
         """
-        tensor = tensor.permute(0, 2, 1, 3)
-        bsz, seq_len = tensor.size()[:-2]
-        # new_shape = tensor.size()[:-2] + (num_heads * attn_head_size,)
-        new_shape = (bsz, seq_len, num_heads * attn_head_size)
-        return tensor.view(*new_shape)
+        tensor = tensor.permute(0, 2, 1, 3).contiguous()
+        new_shape = tensor.size()[:-2] + (num_heads * attn_head_size,)
+        return tensor.view(new_shape)
 
     def forward(self, hidden_states, layer_past=None, use_cache=False):
-        hidden_states = self.c_attn(hidden_states)
-        query, key, value = flow.chunk(hidden_states, chunks=3, dim=2)
+        query, key, value = self.c_attn(hidden_states).split(self.split_size, dim=2)
+        # query, key, value = torch.chunk(hidden_states, chunks=3, dim=2)
 
         query = self._split_heads(query, self.num_heads, self.head_dim)
         key = self._split_heads(key, self.num_heads, self.head_dim)
@@ -126,8 +121,8 @@ class GPT2Attention(nn.Module):
 
         if layer_past is not None:
             past_key, past_value = layer_past
-            key = flow.cat((past_key, key), dim=-2)
-            value = flow.cat((past_value, value), dim=-2)
+            key = torch.cat((past_key, key), dim=-2)
+            value = torch.cat((past_value, value), dim=-2)
 
         if use_cache is True:
             present = (key, value)
@@ -215,12 +210,12 @@ class GPT2Model(nn.Module):
         
         if past_key_values is None:
             past_length = 0
-            past_key_values = [None] * len(self.h)
+            past_key_values = tuple([None] * len(self.h))
         else:
             past_length = past_key_values[0][0].size(-2)
 
         if position_ids is None:
-            position_ids = flow.arange(past_length, input_shape[-1] + past_length, dtype=flow.long, device=input_ids.device)
+            position_ids = torch.arange(past_length, input_shape[-1] + past_length, dtype=torch.long, device=input_ids.device)
             position_ids = position_ids.unsqueeze(0).view(-1, input_shape[-1])
         
         inputs_embeds = self.wte(input_ids)
@@ -232,6 +227,8 @@ class GPT2Model(nn.Module):
             hidden_states = hidden_states + token_type_embeds
         
         hidden_states = self.drop(hidden_states)
+
+        output_shape = input_shape + (hidden_states.size(-1),)
 
         presents = () if use_cache else None
         all_attentions = () if output_attentions else None
@@ -249,11 +246,10 @@ class GPT2Model(nn.Module):
                 all_attentions = all_attentions + (outputs[2 if use_cache else 1],)
         
         hidden_states = self.ln_f(hidden_states)
-        output_shape = (input_shape[0], input_shape[1], hidden_states.size(-1))
         hidden_states = hidden_states.view(*output_shape)
         if output_hidden_states:
             all_hidden_states = all_hidden_states + (hidden_states,)
-        
+
         return tuple(v for v in [hidden_states, presents, all_hidden_states, all_attentions] if v is not None)
 
 class LMHead(nn.Module):
@@ -271,31 +267,6 @@ class LMHead(nn.Module):
         lm_logits = self.decoder(h_trunc)
         return lm_logits
 
-class CrossEntropyLoss(nn.Module):
-    def __init__(self, ignore_index=None, reduction='mean'):
-        super().__init__()
-        self.reduction = reduction
-        self.ignore_index = ignore_index
-    
-    def forward(self, logits, target):
-        if logits.dim() == 3:
-            logits = logits.view(-1, logits.view(-1))
-        if target.dim() == 2:
-            target = target.view(-1, 1)
-        lprobs = flow.nn.LogSoftmax(dim=-1)(logits)
-        nll_loss = - flow.gather(lprobs, target, dim=-1)
-        # nll_loss = -lprobs.gather(dim=-1, index=target)
-        if self.ignore_index is not None:
-            pad_mask = target.eq(self.ignore_index)
-            nll_loss = nll_loss.masked_fill(pad_mask, 0.0)
-        else:
-            nll_loss = nll_loss.squeeze(-1)
-        if self.reduction == 'mean':
-            nll_loss = nll_loss.mean()
-        elif self.reduction == 'sum':
-            nll_loss = nll_loss.sum()
-        return nll_loss
-        
 class GPT2LMHeadModel(nn.Module):
     def __init__(self, config):
         super(GPT2LMHeadModel, self).__init__()
@@ -304,34 +275,26 @@ class GPT2LMHeadModel(nn.Module):
         # self.tie_weights()
         # self.lm_head = LMHead(self.transformer, config)
 
-    def get_output_embeddings(self):
-        return self.lm_head
-    
-    def set_output_embeddings(self, new_embeddings):
-        self.lm_head = new_embeddings
-    
     def tie_weights(self):
         self.lm_head.weight = self.transformer.wte.weight
 
-    def forward(self, input_ids, position_ids=None, token_type_ids=None, labels=None, past_key_values=None, use_cache=False, output_attentions=False, output_hidden_states=False):
-        transformer_outputs = self.transformer(input_ids, position_ids, token_type_ids, past_key_values, use_cache, output_attentions, output_hidden_states)        
+    def forward(self, input_ids, position_ids=None, token_type_ids=None, labels=None, past_key_values=None, use_cache=False):
+        transformer_outputs = self.transformer(input_ids, position_ids, token_type_ids, past_key_values, use_cache)        
         hidden_states = transformer_outputs[0]
         lm_logits = self.lm_head(hidden_states)
 
         loss = None
         if labels is not None:
             # Shift so that tokens < n predict n
-            seq_len = lm_logits.size(1)
-            shift_logits = lm_logits[..., :seq_len - 1, :]
-            shift_labels = labels[..., 1:]
-
+            shift_logits = lm_logits[..., :-1, :].contiguous()
+            shift_labels = labels[..., 1:].contiguous()
             # Flatten the tokens
-            loss_fct = nn.NLLLoss()
+            loss_fct = nn.CrossEntropyLoss()
             shift_logits = shift_logits.view(-1, shift_logits.size(-1))
-            lprobs = flow.nn.LogSoftmax(dim=-1)(shift_logits)
-            shift_labels = shift_labels.view(-1,)
-            loss = loss_fct(lprobs, shift_labels)
-        
+            shift_labels = shift_labels.view(-1)
+            loss = loss_fct(shift_logits, shift_labels)
+            # loss = loss_fct(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
+
         # print(shift_logits)
         # print(loss)
         # print(shift_labels)
