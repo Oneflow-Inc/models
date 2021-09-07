@@ -44,28 +44,23 @@ def print_eval_metrics(step, loss, lables_list, predicts_list):
     all_predicts = np.concatenate(predicts_list, axis=0)
     auc = "NaN" if np.isnan(all_predicts).any(
     ) else roc_auc_score(all_labels, all_predicts)
-    print(f"iter {step} eval_loss {loss} auc {auc}")
+    rank=flow.env.get_rank()
+    print(f"device {rank}: iter {step} eval_loss {loss} auc {auc}")
 
 
 if __name__ == '__main__':
     args = get_args()
-    world_size=flow.env.get_world_size()
-    batch_size=args.batch_size
-    distribute_num=int(batch_size/world_size)
     train_dataloader, val_dataloader, wdl_module, loss, opt = prepare_modules(
         args)
 
     losses = []
     wdl_module.train()
     for i in tqdm(range(args.max_iter)):
-        rank_train = flow.env.get_rank()
         labels, dense_fields, wide_sparse_fields, deep_sparse_fields = train_dataloader()
-
-        
-        labels = labels[rank_train*distribute_num:(rank_train+1)*distribute_num].to("cuda").to(dtype=flow.float32)
-        dense_fields = dense_fields[rank_train*distribute_num:(rank_train+1)*distribute_num].to("cuda")
-        wide_sparse_fields = wide_sparse_fields[rank_train*distribute_num:(rank_train+1)*distribute_num].to("cuda")
-        deep_sparse_fields = deep_sparse_fields[rank_train*distribute_num:(rank_train+1)*distribute_num].to("cuda")
+        labels = labels.to("cuda").to(dtype=flow.float32)
+        dense_fields = dense_fields.to("cuda")
+        wide_sparse_fields = wide_sparse_fields.to("cuda")
+        deep_sparse_fields = deep_sparse_fields.to("cuda")
         predicts = wdl_module(
             dense_fields, wide_sparse_fields, deep_sparse_fields)
         train_loss = loss(predicts, labels)
@@ -76,7 +71,8 @@ if __name__ == '__main__':
         if (i+1) % args.print_interval == 0:
             l = sum(losses) / len(losses)
             losses = []
-            print(f"iter {i+1} train_loss {l} time {time.time()}")
+            rank=flow.env.get_rank()
+            print(f"device {rank}: iter {i+1} train_loss {l} time {time.time()}")
             if args.eval_batchs <= 0:
                 continue
 
@@ -85,12 +81,11 @@ if __name__ == '__main__':
             predicts_list = []
             wdl_module.eval()
             for j in range(args.eval_batchs):
-                rank_valid = flow.env.get_rank()
                 labels, dense_fields, wide_sparse_fields, deep_sparse_fields = val_dataloader()
-                labels = labels[rank_valid*distribute_num:(rank_valid+1)*distribute_num].to("cuda").to(dtype=flow.float32)
-                dense_fields = dense_fields[rank_valid*distribute_num:(rank_valid+1)*distribute_num].to("cuda")
-                wide_sparse_fields = wide_sparse_fields[rank_valid*distribute_num:(rank_valid+1)*distribute_num].to("cuda")
-                deep_sparse_fields = deep_sparse_fields[rank_valid*distribute_num:(rank_valid+1)*distribute_num].to("cuda")
+                labels = labels.to(dtype=flow.float32).to("cuda")
+                dense_fields = dense_fields.to("cuda")
+                wide_sparse_fields = wide_sparse_fields.to("cuda")
+                deep_sparse_fields = deep_sparse_fields.to("cuda")
                 predicts = wdl_module(
                     dense_fields, wide_sparse_fields, deep_sparse_fields)
                 eval_loss = loss(predicts, labels)
