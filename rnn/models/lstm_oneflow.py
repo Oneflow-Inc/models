@@ -22,12 +22,12 @@ class LSTM(nn.Module):
         # shape of lstm_out: [input_size, batch_size, hidden_dim]
         # shape of self.hidden: (a, b), where a and b both
         # have shape (num_layers, batch_size, hidden_dim).
-        lstm_out, _ = self.lstm(input.reshape((input.shape[0], self.batch_size, -1)))
+        lstm_out, _ = self.lstm(input.reshape(input.shape[0], self.batch_size, -1))
 
         # Only take the output from the final timestep
         # Can pass on the entirety of lstm_out to the next layer if it is a seq2seq prediction
         # NOTE(Xu Zhiqiu) Negative indexing and view not supported
-        output = lstm_out[lstm_out.shape[0] - 1].reshape((self.batch_size, -1))
+        output = lstm_out[lstm_out.shape[0] - 1].reshape(self.batch_size, -1)
         y_pred = self.linear(output)
         return y_pred
 
@@ -61,7 +61,7 @@ class CustomLSTM(nn.Module):
 
         HS = self.hidden_size
         for t in range(seq_sz):
-            x_t = x[t, :, :].reshape((x.shape[1], x.shape[2]))
+            x_t = x[t, :, :].reshape(x.shape[1], x.shape[2])
             # batch the computations into a single matrix multiplication
             # NOTE(Xu Zhiqiu): flow does not support view now, use reshape instead
             gates = flow.matmul(x_t, self.W) + flow.matmul(h_t, self.U) + self.bias

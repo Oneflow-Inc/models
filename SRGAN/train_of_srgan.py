@@ -187,11 +187,12 @@ if __name__ == "__main__":
             optimizerG.zero_grad()
 
             fake_out = flow.mean(fake_out)
+            real_out = flow.mean(fake_out)
             # loss for current batch before optimization
-            running_results["g_loss"] += g_loss.numpy()[0] * batch_size
-            running_results["d_loss"] += d_loss.numpy()[0] * batch_size
-            running_results["d_score"] += real_out.numpy()[0] * batch_size
-            running_results["g_score"] += fake_out.numpy()[0] * batch_size
+            running_results["g_loss"] += g_loss.numpy() * batch_size
+            running_results["d_loss"] += d_loss.numpy() * batch_size
+            running_results["d_score"] += real_out.numpy() * batch_size
+            running_results["g_score"] += fake_out.numpy() * batch_size
 
             train_bar.set_description(
                 desc="[%d/%d] Loss_D: %.4f Loss_G: %.4f D(x): %.4f D(G(z)): %.4f"

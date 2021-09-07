@@ -1,3 +1,4 @@
+!#/bin/bash
 set -aux
 
 PRETRAIN_MODEL_PATH="resnet50_pretrained_model"
