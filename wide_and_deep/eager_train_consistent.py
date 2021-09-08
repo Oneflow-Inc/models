@@ -3,7 +3,6 @@ import time
 import numpy as np
 from sklearn.metrics import roc_auc_score
 import oneflow as flow
-from tqdm import tqdm
 from config import get_args
 from dataloader_utils_consistent import OFRecordDataLoader
 from wide_and_deep_module import WideAndDeep
@@ -61,7 +60,7 @@ if __name__ == "__main__":
 
     losses = []
     wdl_module.train()
-    for i in tqdm(range(args.max_iter)):
+    for i in range(args.max_iter):
         (
             labels,
             dense_fields,
