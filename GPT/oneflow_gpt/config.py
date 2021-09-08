@@ -1,6 +1,8 @@
 import math
 import argparse
 
+from oneflow_gpt.logger import print_rank_0
+
 _GLOBAL_ARGS = None
 
 
@@ -95,11 +97,6 @@ def _check_model_size(args):
 
 
 def _check_parallel_size(args):
-    if len(args.node_ips) < args.num_nodes:
-        raise ValueError(
-            f"number of node ips {args.node_ips} less than num_nodes {args.num_nodes}"
-        )
-
     world_size = args.num_gpus_per_node * args.num_nodes
     model_parallel_size = (
         args.tensor_model_parallel_size * args.pipeline_model_parallel_size
@@ -218,7 +215,7 @@ def _pad_vocab_size(vocab_size, alignment, tensor_model_parallel_size):
     alignment *= tensor_model_parallel_size
 
     padded_vocab_size = int(math.ceil(vocab_size / alignment)) * alignment
-    print(
+    print_rank_0(
         " > padded vocab (size: {}) with {} dummy tokens "
         "(new size: {})".format(
             vocab_size, padded_vocab_size - vocab_size, padded_vocab_size
@@ -229,14 +226,14 @@ def _pad_vocab_size(vocab_size, alignment, tensor_model_parallel_size):
 
 def _print_args(args):
     """Print arguments."""
-    print("------------------------ arguments ------------------------", flush=True)
+    print_rank_0("------------------------ arguments ------------------------", flush=True)
     str_list = []
     for arg in vars(args):
         dots = "." * (48 - len(arg))
         str_list.append("  {} {} {}".format(arg, dots, getattr(args, arg)))
     for arg in sorted(str_list, key=lambda x: x.lower()):
-        print(arg, flush=True)
-    print("-------------------- end of arguments ---------------------", flush=True)
+        print_rank_0(arg, flush=True)
+    print_rank_0("-------------------- end of arguments ---------------------", flush=True)
 
 
 def _add_network_size_args(parser):
@@ -441,8 +438,8 @@ def _add_learning_rate_args(parser):
     group.add_argument(
         "--lr-decay-style",
         type=str,
-        default="linear",
-        choices=["constant", "linear", "cosine"],
+        default="cosine",
+        choices=["none", "cosine"],
         help="Learning rate decay function.",
     )
     group.add_argument(
@@ -633,6 +630,9 @@ def _add_misc_args(parser):
     )
     group.add_argument(
         "--use-rdma", action="store_true", help="Use rdma.",
+    )
+    group.add_argument(
+        "--graph", action="store_true", help="Use graph mode.",
     )
     return parser
 

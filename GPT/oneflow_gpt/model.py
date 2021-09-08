@@ -1,5 +1,4 @@
 import math
-import numpy as np
 import oneflow as flow
 
 from oneflow_gpt import distribute as dist
@@ -23,6 +22,7 @@ class GPTModel(flow.nn.Module):
             self.seq_length, self.hidden_size, args.padded_vocab_size, dtype
         )
         self.transformer = Transformer(self.hidden_size, dtype)
+        self.logits = Logits()
 
     def forward(self, tokens):
         # tokens shape: (batch_size, seq_length)
@@ -33,20 +33,27 @@ class GPTModel(flow.nn.Module):
 
         hidden_states = self.embedding(tokens)
         h = self.transformer(hidden_states)
-        return self.logits(h)
 
-    def logits(self, hidden_states):
+        assert h.shape[0] == self.batch_size
+        assert h.shape[1] == self.seq_length
+        assert h.shape[2] == self.hidden_size
+        return self.logits(h, self.embedding.wte)
+
+
+class Logits(flow.nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, hidden_states, word_embeddings):
         assert hidden_states.ndim == 3
-        assert hidden_states.shape[0] == self.batch_size
-        assert hidden_states.shape[1] == self.seq_length
-        assert hidden_states.shape[2] == self.hidden_size
 
+        w = word_embeddings.to_consistent(placement=hidden_states.placement)
         # h.grad.sbp: [S(0), P] -> [S(0), B]
         h = hidden_states.to_consistent(grad_sbp=hidden_states.sbp)
         # shape sign: (B * S, H) x (H, V) -> (B * S, V)
         # matmul fwd sbp sign: [S(0), B] x [B, S(1)] (wte.T) -> [S(0), S(1)]
         # bwd h.grad sbp sign: [S(0), S(1)] (lgs.grad) x [B, S(0)] (wte) -> [S(0), P] (h.grad)
-        lgs = flow._C.matmul(h, self.embedding.wte, transpose_b=True)
+        lgs = flow._C.matmul(h, w, transpose_b=True)
         return lgs
 
 
@@ -130,25 +137,57 @@ class Transformer(flow.nn.Module):
     def __init__(self, hidden_size, dtype):
         super().__init__()
         self.hidden_size = hidden_size
+        self.dtype = dtype
 
         args = get_args()
         self.is_seq_len_dim_leading = True if args.multihead_attention_fusion else False
         self.num_layers = args.num_layers
-        self.layers = []
+
+        self._build_layers(args.init_method_std)
+        self.layernorm_f = LayerNorm(-1, (self.hidden_size,), dtype)
+
+    def _build_layers_v2(self, init_method_std):
+        self.layers = flow.nn.ModuleList(
+            [
+                TransformerLayer(
+                    i,
+                    self.hidden_size,
+                    self.is_seq_len_dim_leading,
+                    self.dtype,
+                    init_method=init_method_normal(init_method_std),
+                    output_layer_init_method=scaled_init_method_normal(
+                        init_method_std, self.num_layers
+                    ),
+                )
+                for i in range(self.num_layers)
+            ]
+        )
+
+    def _get_layer_v2(self, layer_idx):
+        return self.layers[layer_idx]
+
+    def _build_layers(self, init_method_std):
         for i in range(self.num_layers):
-            t_layer = TransformerLayer(
-                i,
-                hidden_size,
-                self.is_seq_len_dim_leading,
-                dtype,
-                init_method=init_method_normal(args.init_method_std),
-                output_layer_init_method=scaled_init_method_normal(
-                    args.init_method_std, self.num_layers
+            setattr(
+                self,
+                f"layer_{i}",
+                TransformerLayer(
+                    i,
+                    self.hidden_size,
+                    self.is_seq_len_dim_leading,
+                    self.dtype,
+                    init_method=init_method_normal(init_method_std),
+                    output_layer_init_method=scaled_init_method_normal(
+                        init_method_std, self.num_layers
+                    ),
                 ),
             )
-            self.layers.append(t_layer)
+            setattr(self, f"layer_checkpoint_{i}", ActivationCheckpointing(i))
 
-        self.layernorm_f = LayerNorm(-1, (self.hidden_size,), dtype)
+    def _get_layer(self, layer_idx):
+        layer = getattr(self, f"layer_{layer_idx}")
+        checkpoint = getattr(self, f"layer_checkpoint_{layer_idx}")
+        return layer, checkpoint
 
     def forward(self, hidden_states):
         # hidden_states shape: (batch_size, seq_length, hidden_size)
@@ -162,7 +201,8 @@ class Transformer(flow.nn.Module):
             h = hidden_states
 
         for i in range(self.num_layers):
-            h = self.layers[i](h)
+            layer, checkpoint = self._get_layer(i)
+            h = layer(checkpoint(h))
 
         h = self.layernorm_f(h)
 
@@ -171,6 +211,16 @@ class Transformer(flow.nn.Module):
             h = h.transpose(0, 1)
 
         return h
+
+
+class ActivationCheckpointing(flow.nn.Module):
+    def __init__(self, layer_idx):
+        super().__init__()
+        self.layer_idx = layer_idx
+
+    def forward(self, x):
+        x = x.to_consistent(placement=dist.get_layer_placement(self.layer_idx))
+        return flow._C.identity(x)
 
 
 class TransformerLayer(flow.nn.Module):
@@ -184,8 +234,8 @@ class TransformerLayer(flow.nn.Module):
         output_layer_init_method,
     ):
         super().__init__()
-        self.layer_idx = layer_idx
         self.hidden_size = hidden_size
+        self.layer_idx = layer_idx
 
         args = get_args()
         self.attn = SelfAttention(
@@ -206,8 +256,6 @@ class TransformerLayer(flow.nn.Module):
             output_layer_init_method,
         )
 
-        self.checkpoint_activations = args.checkpoint_activations
-
         self.layernorm_1 = LayerNorm(layer_idx, (self.hidden_size,), dtype)
         self.layernorm_2 = LayerNorm(layer_idx, (self.hidden_size,), dtype)
 
@@ -216,10 +264,7 @@ class TransformerLayer(flow.nn.Module):
         # sbp: [S(0), B]
         assert hidden_states.ndim == 3
         assert hidden_states.shape[-1] == self.hidden_size
-
-        h = hidden_states.to_consistent(
-            placement=dist.get_layer_placement(self.layer_idx)
-        )
+        h = hidden_states
 
         norm1 = self.layernorm_1(h)
         h = h + self.attn(norm1)

@@ -21,7 +21,7 @@ class GPTDataLoader(flow.nn.Module):
             random_seed=args.seed,
             split_sizes=args.split,
             split_index=0,
-            placement=dist.get_layer_placement(-1, "cpu"),
+            placement=dist.get_layer_placement(0, "cpu"),
             sbp=dist.get_nd_sbp([flow.sbp.split(0), flow.sbp.broadcast]),
         )
 
