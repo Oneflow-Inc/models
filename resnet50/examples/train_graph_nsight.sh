@@ -1,6 +1,6 @@
 # set -aux
 # export PYTHONPATH=/home/luyang/Oneflow/oneflow/python:$PYTHONPATH
-# bash examples/train_graph_nsight.sh > nsight_graph_resnet50_fp32_1n1g_bz96_20iter@ba36de99c.log
+# bash examples/train_graph_nsight.sh > nsight_graph_resnet50_fp32_1n1g_bz96_20iter@fdeb09426.log
 DEVICE_NUM_PER_NODE=1
 MASTER_ADDR=127.0.0.1
 NUM_NODES=1
@@ -30,7 +30,7 @@ VAL_BATCH_SIZE=50
 # SRC_DIR=/path/to/models/resnet50
 SRC_DIR=$(realpath $(dirname $0)/..)
 
-/home/luyang/nsight-systems-2021.2.1/bin/nsys profile -o nsight_graph_resnet50_fp32_1n1g_bz96_20iter@ba36de99c.qdrep \
+/home/luyang/nsight-systems-2021.2.1/bin/nsys profile -o nsight_graph_resnet50_fp32_1n1g_bz96_20iter@fdeb09426.qdrep \
 python3 $SRC_DIR/train_nsight_profile.py \
         --save $CHECKPOINT_SAVE_PATH \
         --ofrecord-path $OFRECORD_PATH \
