@@ -308,7 +308,7 @@ class BertModel(nn.Module):
                 (from_seq_length, to_seq_length),
                 dtype=flow.float32,
                 placement=output.placement,
-                sbp=output.sbp,
+                sbp=flow.sbp.broadcast
             )
         else:
             zeros = flow.zeros(

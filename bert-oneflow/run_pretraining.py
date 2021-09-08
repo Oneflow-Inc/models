@@ -63,14 +63,15 @@ def pretrain(graph: nn.Graph, metric_local: bool) -> Dict:
     next_sent_labels = ttol(next_sent_labels, metric_local)
 
     # next sentence prediction accuracy
-    correct = (
-        next_sent_output.argmax(dim=-1)
-        .eq(next_sent_labels.squeeze(1))
-        .sum()
-        .numpy()
-        .item()
-    )
-    pred_acc = np.array(correct / next_sent_labels.nelement())
+    # correct = (
+    #     next_sent_output.argmax(dim=-1)
+    #     .eq(next_sent_labels.squeeze(1))
+    #     .sum()
+    #     .numpy()
+    #     .item()
+    # )
+    # pred_acc = np.array(correct / next_sent_labels.nelement())
+    pred_acc = np.array([0]) 
 
     return {
         "total_loss": tton(loss),
@@ -131,7 +132,8 @@ def main():
     parser.add_argument(
         "--ofrecord_path",
         type=str,
-        default="/dataset/bert_regression_test/0",
+        # default="/dataset/bert_regression_test/0",
+        default="wiki_ofrecord_seq_len_128_example",
         help="Path to ofrecord dataset",
     )
     parser.add_argument(
@@ -248,7 +250,7 @@ def main():
         mode="test",
         dataset_size=1024,
         batch_size=args.train_batch_size,
-        data_part_num=1,
+        data_part_num=2,
         seq_length=args.seq_length,
         max_predictions_per_seq=args.max_predictions_per_seq,
         consistent=args.use_consistent,
@@ -274,8 +276,8 @@ def main():
         args.num_attention_heads,
         args.intermediate_size,
         nn.GELU(),
-        0.0,  # args.hidden_dropout_prob,
-        0.0,  # args.attention_probs_dropout_prob,
+        0.1,  # args.hidden_dropout_prob,
+        0.1,  # args.attention_probs_dropout_prob,
         args.max_position_embeddings,
         args.type_vocab_size,
     )
@@ -411,15 +413,11 @@ def main():
             total_loss = next_sentence_loss + masked_lm_loss
 
             total_loss.backward()
-            return (
-                seq_relationship_scores,
-                next_sentence_labels,
-                total_loss,
-                masked_lm_loss,
-                next_sentence_loss,
-            )
+            return seq_relationship_scores, next_sentence_labels,total_loss,masked_lm_loss, next_sentence_loss
+            
 
     bert_graph = BertGraph()
+    bert_graph._compile()
 
     class BertEvalGraph(nn.Graph):
         def __init__(self):
