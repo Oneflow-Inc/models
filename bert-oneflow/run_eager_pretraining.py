@@ -3,23 +3,17 @@ import argparse
 import os
 import time
 from functools import partial
-from typing import Dict
 from compare_lazy_outputs import load_params_from_lazy
-from utils.reporter import Reporter
-
-import copy
 
 import numpy as np
 import oneflow as flow
 from oneflow import nn
 
-import sys
-
-sys.path.append(".")
 from modeling import BertForPreTraining
 from utils.ofrecord_data_utils import OfRecordDataLoader
 from utils.lr_scheduler import PolynomialLR
 from utils.optimizer import build_adamW_optimizer
+from utils.reporter import Reporter
 from utils.metric import Metric
 
 
@@ -30,63 +24,71 @@ def save_model(module: nn.Module, checkpoint_path: str, epoch: int, acc: float):
     )
 
 
-def pretrain(graph: nn.Graph) -> Dict:
+def pretrain(
+    data_loader,
+    model,
+    ns_criterion,
+    masked_lm_criterion,
+    optimizer,
+    lr_scheduler,
+    device="cuda",
+):
 
-    next_sent_output, next_sent_labels, loss, mlm_loss, nsp_loss = graph()
+    (
+        input_ids,
+        next_sentence_labels,
+        input_mask,
+        segment_ids,
+        masked_lm_ids,
+        masked_lm_positions,
+        masked_lm_weights,
+    ) = data_loader()
+    input_ids = input_ids.to(device=device)
+    input_mask = input_mask.to(device=device)
+    segment_ids = segment_ids.to(device=device)
+    next_sentence_labels = next_sentence_labels.to(device=device)
+    masked_lm_ids = masked_lm_ids.to(device=device)
+    masked_lm_positions = masked_lm_positions.to(device=device)
+    masked_lm_weights = masked_lm_weights.to(device=device)
+
+    # 1. forward the next_sentence_prediction and masked_lm model
+    prediction_scores, seq_relationship_scores = model(
+        input_ids, segment_ids, input_mask
+    )
+
+    # 2-1. loss of is_next classification result
+    next_sentence_loss = ns_criterion(
+        seq_relationship_scores.view(-1, 2), next_sentence_labels.view(-1)
+    )
+
+    masked_lm_loss = masked_lm_criterion(
+        prediction_scores, masked_lm_positions, masked_lm_ids, masked_lm_weights
+    )
+
+    total_loss = next_sentence_loss + masked_lm_loss
+
+    total_loss.backward()
+    optimizer.step()
+    optimizer.zero_grad()
+
+    lr_scheduler.step()
 
     # next sentence prediction accuracy
     correct = (
-        next_sent_output.argmax(dim=-1)
-        .eq(next_sent_labels.squeeze(1))
+        seq_relationship_scores.argmax(dim=-1)
+        .eq(next_sentence_labels.squeeze(1))
         .sum()
         .numpy()
         .item()
     )
-    pred_acc = np.array(correct / next_sent_labels.nelement())
+    pred_acc = np.array(correct / next_sentence_labels.nelement())
 
     return {
-        "total_loss": loss.numpy(),
-        "mlm_loss": mlm_loss.numpy(),
-        "nsp_loss": nsp_loss.numpy(),
+        "total_loss": total_loss.numpy(),
+        "mlm_loss": masked_lm_loss.numpy(),
+        "nsp_loss": next_sentence_loss.numpy(),
         "pred_acc": pred_acc,
     }
-
-
-def validation(
-    epoch: int, iter_per_epoch: int, graph: nn.Graph, print_interval: int
-) -> float:
-    total_correct = 0
-    total_element = 0
-    for i in range(iter_per_epoch):
-
-        start_t = time.time()
-
-        next_sent_output, next_sent_labels = graph()
-
-        next_sent_output = next_sent_output.numpy()
-        next_sent_labels = next_sent_labels.numpy()
-        end_t = time.time()
-
-        # next sentence prediction accuracy
-        correct = (
-            next_sent_output.argmax(axis=-1) == next_sent_labels.squeeze(1)
-        ).sum()
-        total_correct += correct
-        total_element += next_sent_labels.size
-
-        if (i + 1) % print_interval == 0:
-            print(
-                "Epoch {}, val iter {}, val time: {:.3f}s".format(
-                    epoch, (i + 1), end_t - start_t
-                )
-            )
-
-    print(
-        "Epoch {}, val iter {}, total accuracy {:.2f}".format(
-            epoch, (i + 1), total_correct * 100.0 / total_element
-        )
-    )
-    return total_correct / total_element
 
 
 def main():
@@ -180,8 +182,6 @@ def main():
     else:
         device = flow.device("cpu")
 
-    print("Device is: ", device)
-
     print("Creating Dataloader")
     train_data_loader = OfRecordDataLoader(
         ofrecord_dir=args.ofrecord_path,
@@ -190,7 +190,7 @@ def main():
         batch_size=args.train_batch_size,
         data_part_num=1,
         seq_length=args.seq_length,
-        max_predictions_per_seq=args.max_predictions_per_seq,
+        max_predictions_per_seq=20,
     )
 
     test_data_loader = OfRecordDataLoader(
@@ -200,7 +200,7 @@ def main():
         batch_size=args.val_batch_size,
         data_part_num=1,
         seq_length=args.seq_length,
-        max_predictions_per_seq=args.max_predictions_per_seq,
+        max_predictions_per_seq=20,
     )
 
     print("Building BERT Model")
@@ -222,9 +222,6 @@ def main():
     load_params_from_lazy(
         bert_model.state_dict(),
         "../../OneFlow-Benchmark/LanguageModeling/BERT/initial_model",
-    )
-    assert id(bert_model.cls.predictions.decoder.weight) == id(
-        bert_model.bert.embeddings.word_embeddings.weight
     )
 
     bert_model.to(device)
@@ -252,7 +249,7 @@ def main():
         masked_lm_positions,
         masked_lm_labels,
         label_weights,
-        max_predictions_per_seq,
+        max_prediction_per_seq,
     ):
         # gather valid position indices
         logit_blob = flow.gather(
@@ -268,7 +265,7 @@ def main():
         # tensor has a value of 1.0 for every real prediction and 0.0 for the
         # padding predictions.
         pre_example_loss = mlm_criterion(logit_blob, label_id_blob)
-        pre_example_loss = flow.reshape(pre_example_loss, [-1, max_predictions_per_seq])
+        pre_example_loss = flow.reshape(pre_example_loss, [-1, max_prediction_per_seq])
         sum_label_weight = flow.sum(label_weights, dim=-1)
         sum_label_weight = sum_label_weight / label_weights.shape[0]
         numerator = flow.sum(pre_example_loss * label_weights)
@@ -276,107 +273,7 @@ def main():
         loss = numerator / denominator
         return loss
 
-    class BertGraph(nn.Graph):
-        def __init__(self):
-            super().__init__()
-            self.bert = bert_model
-            self.ns_criterion = ns_criterion
-            self.masked_lm_criterion = partial(
-                get_masked_lm_loss, max_predictions_per_seq=args.max_predictions_per_seq
-            )
-            self.add_optimizer(optimizer, lr_sch=lr_scheduler)
-            self._train_data_loader = train_data_loader
-            if args.use_fp16:
-                self.config.enable_amp(True)
-                grad_scaler = flow.amp.GradScaler(
-                    init_scale=2 ** 30,
-                    growth_factor=2.0,
-                    backoff_factor=0.5,
-                    growth_interval=2000,
-                )
-                self.set_grad_scaler(grad_scaler)
-
-        def build(self):
-
-            (
-                input_ids,
-                next_sentence_labels,
-                input_mask,
-                segment_ids,
-                masked_lm_ids,
-                masked_lm_positions,
-                masked_lm_weights,
-            ) = self._train_data_loader()
-            input_ids = input_ids.to(device=device)
-            input_mask = input_mask.to(device=device)
-            segment_ids = segment_ids.to(device=device)
-            next_sentence_labels = next_sentence_labels.to(device=device)
-            masked_lm_ids = masked_lm_ids.to(device=device)
-            masked_lm_positions = masked_lm_positions.to(device=device)
-            masked_lm_weights = masked_lm_weights.to(device=device)
-
-            # 1. forward the next_sentence_prediction and masked_lm model
-            prediction_scores, seq_relationship_scores = self.bert(
-                input_ids, segment_ids, input_mask
-            )
-
-            # 2-1. loss of is_next classification result
-            next_sentence_loss = self.ns_criterion(
-                seq_relationship_scores.view(-1, 2), next_sentence_labels.view(-1)
-            )
-
-            masked_lm_loss = self.masked_lm_criterion(
-                prediction_scores, masked_lm_positions, masked_lm_ids, masked_lm_weights
-            )
-
-            total_loss = next_sentence_loss + masked_lm_loss
-
-            total_loss.backward()
-            return (
-                seq_relationship_scores,
-                next_sentence_labels,
-                total_loss,
-                masked_lm_loss,
-                next_sentence_loss,
-            )
-
-    bert_graph = BertGraph()
-
-    class BertEvalGraph(nn.Graph):
-        def __init__(self):
-            super().__init__()
-            self.bert = bert_model
-            self._test_data_loader = test_data_loader
-
-        def build(self):
-            (
-                input_ids,
-                next_sent_labels,
-                input_masks,
-                segment_ids,
-                masked_lm_ids,
-                masked_lm_positions,
-                masked_lm_weights,
-            ) = self._test_data_loader()
-            input_ids = input_ids.to(device=device)
-            input_masks = input_masks.to(device=device)
-            segment_ids = segment_ids.to(device=device)
-            next_sent_labels = next_sent_labels.to(device=device)
-            masked_lm_ids = masked_lm_ids.to(device=device)
-            masked_lm_positions = masked_lm_positions.to(device)
-
-            with flow.no_grad():
-                # 1. forward the next_sentence_prediction and masked_lm model
-                _, seq_relationship_scores = self.bert(
-                    input_ids, input_masks, segment_ids
-                )
-
-            return seq_relationship_scores, next_sent_labels
-
-    bert_eval_graph = BertEvalGraph()
-
     train_total_losses = []
-
     for epoch in range(args.epochs):
         metric = Metric(
             desc="bert pretrain",
@@ -388,8 +285,18 @@ def main():
         # Train
         bert_model.train()
 
-        for step in range(1000):  # range(len(train_data_loader)):
-            bert_outputs = pretrain(bert_graph)
+        for step in range(1000):
+            bert_outputs = pretrain(
+                train_data_loader,
+                bert_model,
+                ns_criterion,
+                partial(
+                    get_masked_lm_loss,
+                    max_prediction_per_seq=args.max_predictions_per_seq,
+                ),
+                optimizer,
+                lr_scheduler,
+            )
             metric.metric_cb(step, epoch=epoch)(bert_outputs)
 
             train_total_losses.append(bert_outputs["total_loss"])
@@ -397,24 +304,9 @@ def main():
     save_dir = "loss_txt"
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
-
     Reporter.write2file(
-        train_total_losses, os.path.join(save_dir, "bert_graph_loss.txt")
+        train_total_losses, os.path.join(save_dir, "bert_eager_loss.txt")
     )
-    # Reporter.write2file(
-    #     train_lml_losses, os.path.join(save_dir, "bert_graph_lml_loss.txt")
-    # )
-    # Reporter.write2file(
-    #     train_ns_losses, os.path.join(save_dir, "bert_graph_ns_loss.txt")
-    # )
-    # Eval
-    # bert_model.eval()
-    # val_acc = validation(
-    #     epoch, len(test_data_loader), bert_eval_graph, args.print_interval * 10
-    # )
-
-    # print("Saveing model ...")
-    # save_model(bert_model, args.checkpoint_path, epoch, val_acc)
 
 
 if __name__ == "__main__":
