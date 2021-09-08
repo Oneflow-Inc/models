@@ -22,3 +22,17 @@ def build_adamW_optimizer(
         params.append({"params": [value], **hyperparameters})
 
     return flow.optim.AdamW(params)
+
+
+def build_sgd_optimizer(
+    model: nn.Module, lr: float, momentum: float,
+):
+    defaults = {"lr": lr, "momentum": momentum}
+    params = []
+    for module_param_name, value in model.named_parameters():
+        if not value.requires_grad:
+            continue
+        hyperparameters = copy.copy(defaults)
+        params.append({"params": [value], **hyperparameters})
+
+    return flow.optim.SGD(params)

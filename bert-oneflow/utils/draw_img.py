@@ -86,43 +86,43 @@ if __name__ == "__main__":
     os.makedirs(save_root, exist_ok=True)
     draw_and_save(
         {
-            "title": "lazy_graph_sgd_lr0.02_loss_compare",
-            "save_path": add_pth(save_root, "lazy_graph_sgd.png"),
+            "title": "lazy_graph_sgd_lr0.02_consistent_loss_compare",
+            "save_path": add_pth(save_root, "lazy_graph_sgd_amp_consistent.png"),
             "txts": [
-                "../../OneFlow-Benchmark/LanguageModeling/BERT/loss_info_sgd.txt",
-                "loss_txt/bert_graph_sgd_loss.txt",
+                "../../OneFlow-Benchmark/LanguageModeling/BERT/loss_info_sgd_amp.txt",
+                "loss_txt/bert_graph_sgd_amp_consistent_loss.txt",
             ],
             "names": ["lazy_loss", "graph_loss"],
             "xlabel": "iter",
             "ylabel": "loss",
         }
     )
-    draw_and_save(
-        {
-            "title": "lazy_graph_adam_lr1e-3_loss_compare",
-            "save_path": add_pth(save_root, "lazy_graph_adamw.png"),
-            "txts": [
-                "../../OneFlow-Benchmark/LanguageModeling/BERT/loss_info_adam.txt",
-                "loss_txt/bert_graph_adam_loss.txt",
-            ],
-            "names": ["lazy_loss", "graph_loss"],
-            "xlabel": "iter",
-            "ylabel": "loss",
-        }
-    )
-    draw_and_save(
-        {
-            "title": "lazy_graph_adamw_lr1e-3_loss_compare",
-            "save_path": add_pth(save_root, "lazy_graph_adam.png"),
-            "txts": [
-                "../../OneFlow-Benchmark/LanguageModeling/BERT/loss_info_adamw_exclude.txt",
-                "loss_txt/bert_graph_adamw_exclude_loss.txt",
-            ],
-            "names": ["lazy_loss", "graph_loss"],
-            "xlabel": "iter",
-            "ylabel": "loss",
-        }
-    )
+    # draw_and_save(
+    #     {
+    #         "title": "lazy_graph_adam_lr1e-3_loss_compare",
+    #         "save_path": add_pth(save_root, "lazy_graph_adamw.png"),
+    #         "txts": [
+    #             "../../OneFlow-Benchmark/LanguageModeling/BERT/loss_info_adam.txt",
+    #             "loss_txt/bert_graph_adam_loss.txt",
+    #         ],
+    #         "names": ["lazy_loss", "graph_loss"],
+    #         "xlabel": "iter",
+    #         "ylabel": "loss",
+    #     }
+    # )
+    # draw_and_save(
+    #     {
+    #         "title": "lazy_graph_adamw_lr1e-3_loss_compare",
+    #         "save_path": add_pth(save_root, "lazy_graph_adam.png"),
+    #         "txts": [
+    #             "../../OneFlow-Benchmark/LanguageModeling/BERT/loss_info_adamw_exclude.txt",
+    #             "loss_txt/bert_graph_adamw_exclude_loss.txt",
+    #         ],
+    #         "names": ["lazy_loss", "graph_loss"],
+    #         "xlabel": "iter",
+    #         "ylabel": "loss",
+    #     }
+    # )
 
     # draw_and_save({ "title": "compare_abs_loss",
     #                 "save_path": add_pth(save_root, "compare_abs_loss.png"),
