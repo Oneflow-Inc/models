@@ -4,13 +4,13 @@ import json
 import oneflow as flow
 from oneflow.utils.data import Dataset
 
+
 def read_data(task_name, split):
-    fn = os.path.join(task_name, split,
-                      '{}.json'.format(split))
+    fn = os.path.join(task_name, split, "{}.json".format(split))
     input_ids = []
     attention_mask = []
     labels = []
-    with open(fn, 'r') as f:
+    with open(fn, "r") as f:
         result = json.load(f)
         for pack_data in result:
             input_ids.append(pack_data["input_ids"])
@@ -34,6 +34,3 @@ class AFQMCDataset(Dataset):
 
     def __len__(self):
         return self.input_ids.shape[0]
-
-
-

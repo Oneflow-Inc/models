@@ -7,10 +7,7 @@ import shutil
 from tqdm import tqdm
 import oneflow as flow
 
-import sys
-
-sys.path.append(".")
-from models.resnet50 import resnet50
+from model.mnasnet import mnasnet0_5, mnasnet0_75, mnasnet1_0, mnasnet1_3
 from utils.ofrecord_data_utils import OFRecordDataLoader
 
 
@@ -34,7 +31,21 @@ class AverageMeter:
 
 
 def _parse_args():
-    parser = argparse.ArgumentParser("flags for train resnet50")
+    parser = argparse.ArgumentParser("flags for train mnasnet")
+    parser.add_argument(
+        "--model",
+        choices=["mnasnet0_5", "mnasnet0_75", "mnasnet1_0", "mnasnet1_3"],
+        type=str,
+        default="mnasnet0_5",
+        help="mnasnet0_5" "mnasnet0_75" "mnasnet1_0" "mnasnet1_3",
+    )
+    parser.add_argument(
+        "--dataset",
+        choices=["imagenette"],
+        type=str,
+        default="imagenette",
+        help="imagenette",
+    )
     parser.add_argument(
         "--save_checkpoint_path",
         type=str,
@@ -63,6 +74,20 @@ def _parse_args():
     parser.add_argument("--val_batch_size", type=int, default=32, help="val batch size")
 
     return parser.parse_args()
+
+
+def build_model(args):
+    if args.dataset == "imagenette":
+        num_classes = 10
+
+    if args.model == "mnasnet0_5":
+        return mnasnet0_5(num_classes=num_classes)
+    elif args.model == "mnasnet0_75":
+        return mnasnet0_75(num_classes=num_classes)
+    elif args.model == "mnasnet1_0":
+        return mnasnet1_0(num_classes=num_classes)
+    elif args.model == "mnasnet1_3":
+        return mnasnet1_3(num_classes=num_classes)
 
 
 def train_one_epoch(
@@ -193,7 +218,7 @@ def main(args):
     # Model Setup
     print("***** Initialization *****")
     start_t = time.time()
-    model = resnet50()
+    model = build_model(args)
     if args.load_checkpoint != "":
         print("load_checkpoint >>>>>>>>> ", args.load_checkpoint)
         model.load_state_dict(flow.load(args.load_checkpoint))

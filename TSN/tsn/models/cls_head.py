@@ -57,8 +57,7 @@ class ClsHead(nn.Module):
             if self.dropout is not None:
                 x = self.dropout(x)
 
-            shape = (x.shape[0], x.shape[1] * x.shape[2] * x.shape[3])
-            x = x.reshape(shape)
+            x = x.reshape(x.shape[0], x.shape[1] * x.shape[2] * x.shape[3])
             cls_score = self.fc_cls(x)
             return cls_score
         else:
