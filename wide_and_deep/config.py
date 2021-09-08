@@ -25,6 +25,11 @@ def get_args(print_args=True):
         "--dataset_format", type=str, default="ofrecord", help="ofrecord or onerec"
     )
     parser.add_argument(
+        "--model_parallel",
+        action="store_true",
+        help="Use model parallel for embedding table or not.",
+    )
+    parser.add_argument(
         "--ddp",
         action="store_true",
         help="Use Distributed Data Parallel or not.",

@@ -14,5 +14,6 @@ python3 -m oneflow.distributed.launch \
         --print_interval 100 \
         --deep_dropout_rate 0 \
         --eval_batchs 0 \
-        --max_iter 200
+        --max_iter 200 \
+        --model_parallel \
 

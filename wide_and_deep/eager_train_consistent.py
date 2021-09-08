@@ -22,11 +22,13 @@ def prepare_modules(args):
     wdl_module = WideAndDeep(args)
     #model->consistent
     wdl_module = wdl_module.to_consistent(placement=placement, sbp=flow.sbp.broadcast)
-    # wdl_module.deep_embedding = wdl_module.deep_embedding.to_consistent(placement=placement, sbp=flow.sbp.split(0))
-    # wdl_module.wide_embedding = wdl_module.wide_embedding.to_consistent(placement=placement, sbp=flow.sbp.split(0))
+    if args.model_parallel:
+        wdl_module.deep_embedding = wdl_module.deep_embedding.to_consistent(placement=placement, sbp=flow.sbp.split(0))
+        wdl_module.wide_embedding = wdl_module.wide_embedding.to_consistent(placement=placement, sbp=flow.sbp.split(0))
     wdl_module = wdl_module.to("cuda")
     for name, param in wdl_module.named_parameters():
-        print(name, param.placement, param.sbp)
+        if 'embedding.weight' in name:
+            print(name, param.placement, param.sbp)
 
     if args.model_load_dir != "":
         print("load checkpointed model from ", args.model_load_dir)
