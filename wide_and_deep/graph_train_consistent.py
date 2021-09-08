@@ -41,7 +41,6 @@ if __name__ == "__main__":
             dense_fields = dense_fields.to("cuda")
             wide_sparse_fields = wide_sparse_fields.to("cuda")
             deep_sparse_fields = deep_sparse_fields.to("cuda")
-
             predicts = self.module(dense_fields, wide_sparse_fields, deep_sparse_fields)
             loss = self.bce_loss(predicts, labels)
             return predicts, labels, loss

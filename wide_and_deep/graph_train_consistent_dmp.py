@@ -2,28 +2,26 @@ import os
 import time
 import numpy as np
 from sklearn.metrics import roc_auc_score
-import oneflow as flow
 from tqdm import tqdm
+import oneflow as flow
+
 from config import get_args
 from dataloader_utils_consistent import OFRecordDataLoader
-from wide_and_deep_module import WideAndDeep
+from wide_and_deep_module_dmp import WideAndDeep
 from util import dump_to_npy, save_param_npy
 
-   
 world_size = flow.env.get_world_size()
 placement = flow.placement("cpu", {0: range(world_size)})
 
 def prepare_modules(args):
     
-    sbp = flow.sbp.split(0)
+    sbp = flow.sbp.broadcast
     train_dataloader = OFRecordDataLoader(
         args, data_root=args.data_dir, batch_size=args.batch_size,placement=placement,sbp=sbp
     )
     val_dataloader = OFRecordDataLoader(args, data_root=args.data_dir, mode="val",batch_size=args.batch_size,placement=placement,sbp=sbp)
 
     wdl_module = WideAndDeep(args)
-    #model->consistent
-    wdl_module = wdl_module.to_consistent(placement=placement, sbp=flow.sbp.broadcast)
     wdl_module = wdl_module.to("cuda")
 
 
@@ -55,47 +53,72 @@ def print_eval_metrics(step, loss, lables_list, predicts_list):
     print(f"device {rank}: iter {step} eval_loss {loss} auc {auc}")
 
 
+world_size = flow.env.get_world_size()
+placement = flow.placement("cpu", {0: range(world_size)})
 
 if __name__ == "__main__":
     args = get_args()
-    train_dataloader, val_dataloader, wdl_module, loss, opt = prepare_modules(args)
+
+    train_dataloader, val_dataloader, wdl_module, bce_loss, opt = prepare_modules(args)
+
+    class WideAndDeepGraph(flow.nn.Graph):
+        def __init__(self, dataloader):
+            super(WideAndDeepGraph, self).__init__()
+            self.module = wdl_module
+            self.dataloader = dataloader
+            self.bce_loss = bce_loss
+
+        def build(self):
+            with flow.no_grad():
+                return self.graph()
+
+        def graph(self):
+            (
+                labels,
+                dense_fields,
+                wide_sparse_fields,
+                deep_sparse_fields,
+            ) = self.dataloader()
+            labels = labels.to("cuda").to(dtype=flow.float32)
+            dense_fields = dense_fields.to("cuda")
+            wide_sparse_fields = wide_sparse_fields.to("cuda")
+            deep_sparse_fields = deep_sparse_fields.to("cuda")
+            predicts = self.module(dense_fields, wide_sparse_fields, deep_sparse_fields)
+            loss = self.bce_loss(predicts, labels)
+            #predicts是broadcast,labels是broadcast,loss是broadcast(若predicts是split(0)，labels是broadcast，那么to_local后数据len不一样)
+            # print('predicts',predicts)
+            # print('labels',labels)
+            # print('loss',loss)
+
+
+            return predicts, labels, loss
+
+    class WideAndDeepTrainGraph(WideAndDeepGraph):
+        def __init__(self, dataloader):
+            super(WideAndDeepTrainGraph, self).__init__(dataloader)
+            self.add_optimizer(opt)
+
+        def build(self):
+            predicts, labels, loss = self.graph()
+            loss.backward()
+            return predicts, labels, loss
+
+    eval_graph = WideAndDeepGraph(val_dataloader)
+    train_graph = WideAndDeepTrainGraph(train_dataloader)
 
     losses = []
     wdl_module.train()
+
     for i in tqdm(range(args.max_iter)):
-        (
-            labels,
-            dense_fields,
-            wide_sparse_fields,
-            deep_sparse_fields,
-        ) = train_dataloader()
-        ##都是split(0)的
-        labels = labels.to("cuda").to(dtype=flow.float32)
-        dense_fields = dense_fields.to("cuda")
-        wide_sparse_fields = wide_sparse_fields.to("cuda")
-        deep_sparse_fields = deep_sparse_fields.to("cuda")
-        
-        predicts = wdl_module(dense_fields, wide_sparse_fields, deep_sparse_fields)
-        # NOTE(zwx): scale init grad with world_size
-        # because consistent_tensor.mean() include dividor numel * world_size
-        train_loss = loss(predicts, labels)
-        #train_loss是partial_sum
-        train_loss = train_loss / world_size
-        #各个rank 打印local loss
+        predicts, labels, train_loss = train_graph()
+        #train_loss是broadcast
         losses.append(train_loss.to_local().numpy().mean())
-        train_loss.backward()
-        for param_group in opt.param_groups:
-                for param in param_group.parameters:
-                    param.grad /= world_size
-        #这里报错了
-        opt.step()
-        opt.zero_grad()
-       
 
         if (i + 1) % args.print_interval == 0:
             l = sum(losses) / len(losses)
             losses = []
-            print(f"iter {i+1} train_loss {l} time {time.time()}")
+            rank=flow.env.get_rank()
+            print(f"device {rank}: iter {i+1} train_loss {l} time {time.time()}")
             if args.eval_batchs <= 0:
                 continue
 
@@ -104,24 +127,13 @@ if __name__ == "__main__":
             predicts_list = []
             wdl_module.eval()
             for j in range(args.eval_batchs):
-                (
-                    labels,
-                    dense_fields,
-                    wide_sparse_fields,
-                    deep_sparse_fields,
-                ) = val_dataloader()
-                labels = labels.to("cuda").to(dtype=flow.float32)
-                dense_fields = dense_fields.to("cuda")
-                wide_sparse_fields = wide_sparse_fields.to("cuda")
-                deep_sparse_fields = deep_sparse_fields.to("cuda")
-                predicts = wdl_module(
-                    dense_fields, wide_sparse_fields, deep_sparse_fields
-                )
-                eval_loss = loss(predicts, labels)
-                eval_loss = eval_loss / world_size
+                predicts, labels, eval_loss = eval_graph()
+                losses.append(eval_loss.to_local().numpy().mean())
                 eval_loss_acc += eval_loss.to_local().numpy().mean()
-                lables_list.append(labels.numpy())
-                predicts_list.append(predicts.numpy())
+                #print('labels',labels)
+                #print('predicts',predicts)
+                lables_list.append(labels.to_local().numpy())
+                predicts_list.append(predicts.to_local().numpy())
 
             print_eval_metrics(
                 i + 1, eval_loss_acc / args.eval_batchs, lables_list, predicts_list
