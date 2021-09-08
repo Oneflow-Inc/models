@@ -11,14 +11,18 @@ if [ ! -d "$CHECKPOINT_PATH" ]; then
     mkdir $CHECKPOINT_PATH
 fi
 
+MODEL='mnasnet0_5'
+DATASET='imagenette'
 LEARNING_RATE=0.001
 MOM=0.9
 EPOCH=20
 TRAIN_BATCH_SIZE=16
 VAL_BATCH_SIZE=16
-#LOAD_CHECKPOINT="path/to/your_pretrain_model" # LOAD PREVIOUS CHECKPOINT 
 
-python3 eager/train.py \
+
+python3 graph/train.py \
+    --model $MODEL \
+    --dataset $DATASET \
     --save_checkpoint_path $CHECKPOINT_PATH \
     --ofrecord_path $OFRECORD_PATH \
     --learning_rate $LEARNING_RATE \
@@ -26,4 +30,5 @@ python3 eager/train.py \
     --epochs $EPOCH \
     --train_batch_size $TRAIN_BATCH_SIZE \
     --val_batch_size $VAL_BATCH_SIZE \
-    # --load_checkpoint $LOAD_CHECKPOINT
+
+

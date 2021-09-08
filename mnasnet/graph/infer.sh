@@ -1,6 +1,6 @@
 set -aux
 
-PRETRAIN_MODEL_PATH="resnet50_imagenet_pretrain_model"
+PRETRAIN_MODEL_PATH="./weight/mnasnet0_5"
 IMAGE_PATH="data/fish.jpg"
 
 if [ ! -d "data" ]; then
@@ -9,8 +9,11 @@ if [ ! -d "data" ]; then
 fi
 
 if [ ! -d "$PRETRAIN_MODEL_PATH" ]; then
-  wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/cv/classification/resnet50_imagenet_pretrain_model.tar.gz
-  tar zxf resnet50_imagenet_pretrain_model.tar.gz
+    mkdir weight
+    cd weight
+    wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/MNASNet/mnasnet0_5.zip
+    unzip mnasnet0_5.zip
+    cd ..
 fi
 
 python3 graph/infer.py --model_path $PRETRAIN_MODEL_PATH --image_path $IMAGE_PATH

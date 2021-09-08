@@ -9,7 +9,17 @@ from numpy.core.fromnumeric import var
 def npy_compare(lhs_path, rhs_path):
     lhs = np.load(lhs_path)
     rhs = np.load(rhs_path)
+    # if not np.allclose(lhs, rhs):
+    #    print(lhs)
+    #    print(rhs)
     return np.allclose(lhs, rhs)
+
+
+def npy_diff(lhs_path, rhs_path):
+    lhs = np.load(lhs_path)
+    rhs = np.load(rhs_path)
+    diff = np.absolute(lhs - rhs)
+    return diff.mean(), diff.std(), diff.max(), diff.min()
 
 
 def walk_compare_npy(lhs, rhs):
@@ -25,6 +35,51 @@ def walk_compare_npy(lhs, rhs):
             rhs_path = os.path.join(rhs, os.path.relpath(lhs_path, lhs))
             if os.path.exists(rhs_path) and os.path.isfile(rhs_path):
                 if not npy_compare(lhs_path, rhs_path):
+                    mean, std, max_, min_ = npy_diff(lhs_path, rhs_path)
+                    print(lhs_path, f"mean={mean}, std={std}, max={max_}, min={min_}")
+                    diff += 1
+                else:
+                    same += 1
+            else:
+                print("{} ignore".format(lhs_path))
+                ignore += 1
+    print("same:", same)
+    print("diff:", diff)
+    print("ignore:", ignore)
+
+
+import zlib
+
+
+def crc32(filename):
+    with open(filename, "rb") as f:
+        data = f.read()
+        print(filename, zlib.crc32(data))
+        return zlib.crc32(data)
+
+
+def var_compare(lhs_path, rhs_path):
+    lhs = crc32(lhs_path)
+    rhs = crc32(rhs_path)
+    if lhs != rhs:
+        print(lhs)
+        print(rhs)
+    return lhs == rhs
+
+
+def walk_compare_of_variable(lhs, rhs):
+    assert os.path.isdir(lhs)
+    assert os.path.isdir(rhs)
+
+    same = 0
+    diff = 0
+    ignore = 0
+    for root, dirs, files in os.walk(lhs):
+        for name in filter(lambda f: f.endswith("out"), files):
+            lhs_path = os.path.join(root, name)
+            rhs_path = os.path.join(rhs, os.path.relpath(lhs_path, lhs))
+            if os.path.exists(rhs_path) and os.path.isfile(rhs_path):
+                if not var_compare(lhs_path, rhs_path):
                     print("{} False".format(lhs_path))
                     diff += 1
                 else:
@@ -56,7 +111,7 @@ def dump_to_npy(tensor, root="./output", sub="", name=""):
     var_org_name = get_varible_name(tensor) if name == "" else name
     path = os.path.join(root, f"{var_org_name}.npy")
     if not isinstance(tensor, np.ndarray):
-        tensor = tensor.numpy()
+        tensor = tensor.to_local().numpy()
     np.save(path, tensor)
 
 
@@ -89,33 +144,8 @@ def save_param_hist_pngs(module, root="output"):
         param_hist(param.numpy(), name, root=root)
 
 
-def merge_param_from_old_version(src, dst):
-    param_list = [
-        ["deep_embedding.weight", "deep_embedding"],
-        ["wide_embedding.weight", "wide_embedding"],
-        ["linear_layers.fc0.features.0.bias", "fc0-bias"],
-        ["linear_layers.fc0.features.0.weight", "fc0-weight"],
-        ["linear_layers.fc1.features.0.bias", "fc1-bias"],
-        ["linear_layers.fc1.features.0.weight", "fc1-weight"],
-        ["linear_layers.fc2.features.0.bias", "fc2-bias"],
-        ["linear_layers.fc2.features.0.weight", "fc2-weight"],
-        ["linear_layers.fc3.features.0.bias", "fc3-bias"],
-        ["linear_layers.fc3.features.0.weight", "fc3-weight"],
-        ["linear_layers.fc4.features.0.bias", "fc4-bias"],
-        ["linear_layers.fc4.features.0.weight", "fc4-weight"],
-        ["linear_layers.fc5.features.0.bias", "fc5-bias"],
-        ["linear_layers.fc5.features.0.weight", "fc5-weight"],
-        ["linear_layers.fc6.features.0.bias", "fc6-bias"],
-        ["linear_layers.fc6.features.0.weight", "fc6-weight"],
-        ["deep_scores.weight", "deep_scores-weight"],
-        ["deep_scores.bias", "deep_scores-bias"],
-    ]
-    for new_name, old_name in param_list:
-        src_file = os.path.join(src, old_name, "out")
-        dst_file = os.path.join(dst, new_name, "out")
-        copy(src_file, dst_file)
-        print(src_file, dst_file)
-
-
 if __name__ == "__main__":
-    walk_compare_npy("output/old_0", "output/0")
+    # walk_compare_of_variable('init_ckpt', '/ssd/xiexuan/OneFlow-Benchmark/Classification/cnns/loaded_init_ckpt')
+    walk_compare_npy(
+        "output", "/ssd/xiexuan/OneFlow-Benchmark/Classification/cnns/output"
+    )
