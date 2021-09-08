@@ -14,19 +14,25 @@ class OFRecordDataLoader(nn.Module):
         mode: str = "train",  # "val" "test"
     ):
         super(OFRecordDataLoader, self).__init__()
-        assert FLAGS.num_dataloader_thread_per_gpu >= 1
-        self.num_dataloader_thread_per_gpu = FLAGS.num_dataloader_thread_per_gpu
+        self.rank = flow.env.get_rank()
+        self.world_size = flow.env.get_world_size()
+        self.is_consistent = (self.world_size > 1 and not FLAGS.ddp) or self.execution_mode=='graph'
+        placement = flow.placement("cpu", {0: range(self.world_size)}) if self.is_consistent else None
+        sbp = flow.sbp.split(0) if self.is_consistent else None
 
-        if FLAGS.use_single_dataloader_thread:
-            self.devices = ["{}:0".format(i) for i in range(FLAGS.num_nodes)]
-        else:
-            num_dataloader_thread = (
-                FLAGS.num_dataloader_thread_per_gpu * FLAGS.gpu_num_per_node
-            )
-            self.devices = [
-                "{}:0-{}".format(i, num_dataloader_thread - 1)
-                for i in range(FLAGS.num_nodes)
-            ]
+        # assert FLAGS.num_dataloader_thread_per_gpu >= 1
+        # self.num_dataloader_thread_per_gpu = FLAGS.num_dataloader_thread_per_gpu
+
+        # if FLAGS.use_single_dataloader_thread:
+        #     self.devices = ["{}:0".format(i) for i in range(FLAGS.num_nodes)]
+        # else:
+        #     num_dataloader_thread = (
+        #         FLAGS.num_dataloader_thread_per_gpu * FLAGS.gpu_num_per_node
+        #     )
+        #     self.devices = [
+        #         "{}:0-{}".format(i, num_dataloader_thread - 1)
+        #         for i in range(FLAGS.num_nodes)
+        #     ]
 
         self.batch_size = batch_size
         shuffle = mode == "train"
@@ -39,6 +45,8 @@ class OFRecordDataLoader(nn.Module):
             part_name_suffix_length=part_name_suffix_length,
             random_shuffle=shuffle,
             shuffle_after_epoch=shuffle,
+            placement=placement,
+            sbp=sbp,
         )
 
         def _blob_decoder(bn, shape, dtype=flow.int32):

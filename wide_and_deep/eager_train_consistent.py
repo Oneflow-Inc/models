@@ -4,7 +4,7 @@ import numpy as np
 from sklearn.metrics import roc_auc_score
 import oneflow as flow
 from config import get_args
-from dataloader_utils_consistent import OFRecordDataLoader
+from dataloader_utils import OFRecordDataLoader
 from wide_and_deep_module import WideAndDeep
 from util import dump_to_npy, save_param_npy
 
@@ -14,17 +14,19 @@ placement = flow.placement("cpu", {0: range(world_size)})
 
 def prepare_modules(args):
     
-    sbp = flow.sbp.split(0)
     train_dataloader = OFRecordDataLoader(
-        args, data_root=args.data_dir, batch_size=args.batch_size,placement=placement,sbp=sbp
+        args, data_root=args.data_dir, batch_size=args.batch_size
     )
-    val_dataloader = OFRecordDataLoader(args, data_root=args.data_dir, mode="val",batch_size=args.batch_size,placement=placement,sbp=sbp)
+    val_dataloader = OFRecordDataLoader(args, data_root=args.data_dir, mode="val",batch_size=args.batch_size)
 
     wdl_module = WideAndDeep(args)
     #model->consistent
     wdl_module = wdl_module.to_consistent(placement=placement, sbp=flow.sbp.broadcast)
+    # wdl_module.deep_embedding = wdl_module.deep_embedding.to_consistent(placement=placement, sbp=flow.sbp.split(0))
+    # wdl_module.wide_embedding = wdl_module.wide_embedding.to_consistent(placement=placement, sbp=flow.sbp.split(0))
     wdl_module = wdl_module.to("cuda")
-
+    for name, param in wdl_module.named_parameters():
+        print(name, param.placement, param.sbp)
 
     if args.model_load_dir != "":
         print("load checkpointed model from ", args.model_load_dir)

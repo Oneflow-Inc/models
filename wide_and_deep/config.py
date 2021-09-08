@@ -25,6 +25,14 @@ def get_args(print_args=True):
         "--dataset_format", type=str, default="ofrecord", help="ofrecord or onerec"
     )
     parser.add_argument(
+        "--ddp",
+        action="store_true",
+        help="Use Distributed Data Parallel or not.",
+    )
+    parser.add_argument(
+        "--execution_mode", type=str, default="eager", help="graph or eager"
+    )
+    parser.add_argument(
         "--use_single_dataloader_thread",
         action="store_true",
         help="use single dataloader threads per node or not.",
@@ -44,8 +52,8 @@ def get_args(print_args=True):
     parser.add_argument("--eval_batchs", type=int, default=20)
     parser.add_argument("--batch_size", type=int, default=16384)
     parser.add_argument("--learning_rate", type=float, default=1e-3)
-    parser.add_argument("--wide_vocab_size", type=int, default=1603616)
-    parser.add_argument("--deep_vocab_size", type=int, default=1603616)
+    parser.add_argument("--wide_vocab_size", type=int, default=16036160)
+    parser.add_argument("--deep_vocab_size", type=int, default=16036160)
     parser.add_argument("--hf_wide_vocab_size", type=int, default=800000)
     parser.add_argument("--hf_deep_vocab_size", type=int, default=800000)
     parser.add_argument("--deep_embedding_vec_size", type=int, default=16)

@@ -13,5 +13,6 @@ python3 -m oneflow.distributed.launch \
         --model_save_dir ./checkpoints \
         --print_interval 100 \
         --deep_dropout_rate 0 \
-        --max_iter 1000
+        --eval_batchs 0 \
+        --max_iter 200
 
