@@ -21,7 +21,7 @@ if [ ! -d "$DATA_LISTS" ]; then
 fi
 
 if [ ! -d "$DATA_PREPARED" ]; then
-    python utils/TIMIT_preparation.py $TIMIT_FOLDER $DATA_PREPARED $LABEL
+    python3 utils/TIMIT_preparation.py $TIMIT_FOLDER $DATA_PREPARED $LABEL
 fi
 
 echo "Data prepared !"
