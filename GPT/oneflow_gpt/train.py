@@ -108,6 +108,9 @@ class GPTGraph(flow.nn.Graph):
         self.set_pipeline_stage_id()
         self.config.set_gradient_accumulation_steps(args.num_accumulation_steps)
 
+        if args.fp16:
+            self.config.enable_amp(True)
+
     def set_activation_checkpointing(self):
         for module_block in self.model.modules():
             if isinstance(module_block.origin, TransformerLayer):

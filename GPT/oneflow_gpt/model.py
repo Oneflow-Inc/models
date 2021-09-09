@@ -62,6 +62,7 @@ class Embedding(flow.nn.Module):
 
         args = get_args()
         self.dropout = flow.nn.Dropout(p=args.hidden_dropout)
+        self.enable_amp = args.fp16
 
         # word token embedding shape (vocab_size, hidden_size)
         # sbp: [B, S(0)]
@@ -94,8 +95,15 @@ class Embedding(flow.nn.Module):
         assert tokens.ndim == 2
         assert tokens.shape[-1] == self.seq_length
 
+        if self.enable_amp:
+            wte = flow._C.amp_white_identity(self.wte)
+            wpe = flow._C.amp_white_identity(self.wpe)
+        else:
+            wte = self.wte
+            wpe = self.wpe
+
         # wte.grad: [P, S(0)]  -> [B, S(0)]
-        wte = self.wte.to_consistent(grad_sbp=self.wte.sbp)
+        # wte = wte.to_consistent(grad_sbp=self.wte.sbp)
         # gather forward sbp sign: [B, S(0)] x [S(0), B] -> [S(0), P]
         # backward sbp sign:
         # [S(0), B] (h.grad) x [S(0), B] (tokens) x [B, S(0)] (wte) -> [P, S(0)] (wte.grad)
@@ -107,7 +115,7 @@ class Embedding(flow.nn.Module):
         # shape sign: (batch_size, sel_len, hidden_size) + (sel_len, hidden_size)
         #         -> (batch_size, sel_len, hidden_size)
         # sbp sign: [S(0), B] + [B, B] -> [S(0), B]
-        return self.dropout(h + self.wpe)
+        return self.dropout(h + wpe)
 
 
 def init_method_normal(sigma):
@@ -140,25 +148,6 @@ class Transformer(flow.nn.Module):
 
         self._build_layers(args.init_method_std)
         self.layernorm_f = LayerNorm(-1, (self.hidden_size,))
-
-    def _build_layers_v2(self, init_method_std):
-        self.layers = flow.nn.ModuleList(
-            [
-                TransformerLayer(
-                    i,
-                    self.hidden_size,
-                    self.is_seq_len_dim_leading,
-                    init_method=init_method_normal(init_method_std),
-                    output_layer_init_method=scaled_init_method_normal(
-                        init_method_std, self.num_layers
-                    ),
-                )
-                for i in range(self.num_layers)
-            ]
-        )
-
-    def _get_layer_v2(self, layer_idx):
-        return self.layers[layer_idx]
 
     def _build_layers(self, init_method_std):
         for i in range(self.num_layers):
@@ -603,12 +592,9 @@ class ParallelSparseSoftmaxCrossEntropyLoss(flow.nn.Module):
         assert labels.ndim == 2
         assert logits.shape[0:2] == labels.shape
 
-        # loss = flow._C.sparse_softmax_cross_entropy_with_logits(labels, logits)
         loss = flow._C.sparse_softmax_cross_entropy(
             logits, labels, depth=logits.shape[-1]
         )
 
-        # if not logits.has_s1_sbp and logits.is_half_dtype:
-        #     loss = flow.amp_white_identity(loss)
-
+        loss = flow._C.amp_white_identity(loss)
         return loss.mean()

@@ -12,9 +12,9 @@ echo PYTHONUNBUFFERED=$PYTHONUNBUFFERED
 # export NCCL_DEBUG=INFO
 # export ONEFLOW_DEBUG_MODE=True
 
-DATASET=/dataset/Megatron-LM/dummy/gpt_sample_dataset_text_document
+DATASET=/dataset/gpt/gpt_sample_dataset_text_document
 SEQ_LEN=1024
-LAYER_NUM=8
+LAYER_NUM=12
 HIDDEN_SIZE=768
 HEAD_NUM=12
 MBZ=1
@@ -47,8 +47,14 @@ python3 -m oneflow.distributed.launch \
         --num-gpus-per-node $DEVICE_NUM_PER_NODE \
         --num-nodes $NUM_NODES \
         --train-iters 10 \
+        --learning-rate 0.00015 \
+        --min-lr 1.0e-5 \
+        --lr-decay-style cosine \
         --lr-decay-iters 320000 \
+        --lr-warmup-fraction 0.01 \
+        --initial-loss-scale 4294967296 \
+        --weight-decay 1e-2 \
+        --clip-grad 1.0 \
         --no-scale-tril-softmax-dropout-fusion \
-        --no-bias-gelu-fusion \
-        --no-bias-dropout-fusion \
+        --fp16 \
         --graph \
