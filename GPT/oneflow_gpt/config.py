@@ -226,14 +226,18 @@ def _pad_vocab_size(vocab_size, alignment, tensor_model_parallel_size):
 
 def _print_args(args):
     """Print arguments."""
-    print_rank_0("------------------------ arguments ------------------------", flush=True)
+    print_rank_0(
+        "------------------------ arguments ------------------------", flush=True
+    )
     str_list = []
     for arg in vars(args):
         dots = "." * (48 - len(arg))
         str_list.append("  {} {} {}".format(arg, dots, getattr(args, arg)))
     for arg in sorted(str_list, key=lambda x: x.lower()):
         print_rank_0(arg, flush=True)
-    print_rank_0("-------------------- end of arguments ---------------------", flush=True)
+    print_rank_0(
+        "-------------------- end of arguments ---------------------", flush=True
+    )
 
 
 def _add_network_size_args(parser):
@@ -416,6 +420,7 @@ def _add_initialization_args(parser):
         "--init-method-std",
         type=float,
         default=0.02,
+        dest="init_method_std",
         help="Standard deviation of the zero mean normal "
         "distribution used for weight initialization.",
     )
@@ -479,6 +484,7 @@ def _add_checkpointing_args(parser):
         "--save",
         type=str,
         default=None,
+        dest="checkpoint_save_path",
         help="Output directory to save checkpoints to.",
     )
     group.add_argument(
@@ -491,6 +497,7 @@ def _add_checkpointing_args(parser):
         "--load",
         type=str,
         default=None,
+        dest="checkpoint_load_path",
         help="Directory containing a model checkpoint.",
     )
     group.add_argument(

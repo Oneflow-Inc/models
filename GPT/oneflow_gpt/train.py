@@ -18,6 +18,70 @@ from oneflow_gpt.optimizer import make_optimizer, make_lr_scheduler, make_grad_s
 from oneflow_gpt.logger import print_rank_0, print_rank_last
 
 
+class Trainer(object):
+    def __init__(self):
+        args = get_args()
+        self.train_iters = args.train_iters
+        self.save_path = args.checkpoint_save_path
+
+        self.model = GPTModel()
+        self.data_loader = GPTDataLoader()
+        self.cross_entropy = ParallelSparseSoftmaxCrossEntropyLoss()
+        self.optimizer = make_optimizer(args, self.model)
+        self.lr_scheduler = make_lr_scheduler(args, self.optimizer)
+        # self.optimizer = None
+        # self.lr_scheduler = None
+        # NOTE(zwx): grad scaler is not available in eager mode
+        self.grad_scaler = make_grad_scaler(args)
+
+        self.graph = args.graph
+        if self.graph:
+            self.train_graph = GPTGraph(
+                self.model,
+                self.data_loader,
+                self.cross_entropy,
+                self.optimizer,
+                self.lr_scheduler,
+                self.grad_scaler,
+            )
+
+        # self.save("init")
+
+    def __call__(self):
+        iteration = 0
+        while iteration < self.train_iters:
+            if self.graph:
+                loss = self.train_graph()
+            else:
+                loss = self.train_eager()
+
+            print_rank_last(f"iter: {iteration}, loss: {loss.to_local().numpy().mean()}")
+            # print_rank_last(f"iter: {iteration}, data: {data.to_local().numpy()}")
+            # snapshot.step()
+            # iteration = snapshot.iter
+            iteration += 1
+
+    def train_eager(self):
+        data, label = self.data_loader()
+        logits = self.model(data)
+        loss = self.cross_entropy(logits, label)
+        loss.backward()
+        self.optimizer.zero_grad()
+        self.optimizer.step()
+        self.lr_scheduler.step()
+        return loss
+
+    def save(self, subdir):
+        if self.save_path is None:
+            return
+
+        save_path = os.path.join(self.save_path, subdir)
+        print_rank_0(f"Saving model to {save_path}")
+        state_dict = self.model.state_dict()
+
+        flow.save(state_dict, save_path, consistent_dst_rank=0)
+
+
 class GPTGraph(flow.nn.Graph):
     def __init__(
         self,
@@ -79,70 +143,6 @@ class GPTGraph(flow.nn.Graph):
         if self.is_train:
             loss.backward()
         return loss
-
-
-class Trainer(object):
-    def __init__(self):
-        args = get_args()
-        self.train_iters = args.train_iters
-        self.save_path = args.save
-
-        self.model = GPTModel()
-        self.data_loader = GPTDataLoader()
-        self.cross_entropy = ParallelSparseSoftmaxCrossEntropyLoss()
-        self.optimizer = make_optimizer(args, self.model)
-        self.lr_scheduler = make_lr_scheduler(args, self.optimizer)
-        # self.optimizer = None
-        # self.lr_scheduler = None
-        # NOTE(zwx): grad scaler is not available in eager mode
-        self.grad_scaler = make_grad_scaler(args)
-
-        self.graph = args.graph
-        if self.graph:
-            self.train_graph = GPTGraph(
-                self.model,
-                self.data_loader,
-                self.cross_entropy,
-                self.optimizer,
-                self.lr_scheduler,
-                self.grad_scaler,
-            )
-
-        # self.save("init")
-
-    def __call__(self):
-        iteration = 0
-        while iteration < self.train_iters:
-            if self.graph:
-                loss = self.train_graph()
-            else:
-                loss = self.train_eager()
-
-            print_rank_last(f"iter: {iteration}, loss: {loss.to_local().numpy().mean()}")
-            # print_rank_last(f"iter: {iteration}, data: {data.to_local().numpy()}")
-            # snapshot.step()
-            # iteration = snapshot.iter
-            iteration += 1
-
-    def train_eager(self):
-        data, label = self.data_loader()
-        logits = self.model(data)
-        loss = self.cross_entropy(logits, label)
-        loss.backward()
-        self.optimizer.zero_grad()
-        self.optimizer.step()
-        self.lr_scheduler.step()
-        return loss
-
-    def save(self, subdir):
-        if self.save_path is None:
-            return
-
-        save_path = os.path.join(self.save_path, subdir)
-        print_rank_0(f"Saving model to {save_path}")
-        state_dict = self.model.state_dict()
-
-        flow.save(state_dict, save_path, consistent_dst_rank=0)
 
 
 if __name__ == "__main__":

@@ -85,8 +85,8 @@ class Embedding(flow.nn.Module):
             )
         )
 
-        flow.nn.init.normal_(self.wte)
-        flow.nn.init.normal_(self.wpe)
+        flow.nn.init.normal_(self.wte, std=args.init_method_std)
+        flow.nn.init.normal_(self.wpe, std=args.init_method_std)
 
     def forward(self, tokens):
         # tokens shape: (batch_size, seq_len)
