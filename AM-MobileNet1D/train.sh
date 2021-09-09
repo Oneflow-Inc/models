@@ -27,4 +27,4 @@ fi
 echo "Data prepared !"
 echo "Starting training ..."
 
-python train.py --cfg $OPTIONS_PATH
+python3 train.py --cfg $OPTIONS_PATH

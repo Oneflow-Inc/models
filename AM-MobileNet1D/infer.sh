@@ -10,4 +10,4 @@ if [ ! -d "$PRETRAIN_MODELS" ]; then
     rm -fr AM_MobileNet1D.zip
 fi
 
-python infer.py --cfg $OPTIONS_PATH
+python3 infer.py --cfg $OPTIONS_PATH
