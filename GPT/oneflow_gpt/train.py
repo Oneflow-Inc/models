@@ -114,7 +114,7 @@ class Trainer(object):
         iteration = 0
         while iteration < self.train_iters:
             if self.graph:
-                loss, data = self.train_graph()
+                loss = self.train_graph()
             else:
                 loss = self.train_eager()
 
