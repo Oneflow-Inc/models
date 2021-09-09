@@ -53,6 +53,7 @@ class GPTGraph(flow.nn.Graph):
         dist_util = dist.get_dist_util()
 
         self.data_loader.config.stage_id = dist_util.get_layer_stage_id(0)
+        self.data_loader.data_decoder.config.stage_id = dist_util.get_layer_stage_id(0)
 
         for module_block in self.model.modules():
             if isinstance(module_block.origin, Embedding):
@@ -68,6 +69,7 @@ class GPTGraph(flow.nn.Graph):
             else:
                 pass
 
+        self.data_loader.label_decoder.config.stage_id = dist_util.get_layer_stage_id(-1)
         self.cross_entropy.config.stage_id = dist_util.get_layer_stage_id(-1)
 
     def build(self):
@@ -113,7 +115,7 @@ class Trainer(object):
             else:
                 loss = self.train_eager()
 
-            print_rank_last(f"iter: {iteration}, loss: {loss.to_local().numpy()}")
+            print_rank_last(f"iter: {iteration}, loss: {loss.to_local().numpy().mean()}")
             # snapshot.step()
             # iteration = snapshot.iter
             iteration += 1

@@ -11,7 +11,7 @@ class GPTDataLoader(flow.nn.Module):
         assert args.dataset is not None
 
         batch_size = args.global_batch_size // args.num_accumulation_steps
-        self.reader_ = flow.nn.GPTIndexedBinDataReader(
+        self.reader = flow.nn.GPTIndexedBinDataReader(
             data_file_prefix=args.dataset,
             seq_length=args.seq_length,
             num_samples=args.train_samples,
@@ -24,11 +24,29 @@ class GPTDataLoader(flow.nn.Module):
             placement=dist.get_layer_placement(0, "cpu"),
             sbp=dist.get_nd_sbp([flow.sbp.split(0), flow.sbp.broadcast]),
         )
+        self.data_decoder = DataDecoder()
+        self.label_decoder = LabelDecoder()
 
     def forward(self):
-        tokens = self.reader_()
-        tokens = tokens.to("cuda")
-        data = tokens[:, 0:-1]
-        # loss is on pipeline last stage
-        labels = tokens[:, 1:].to_consistent(placement=dist.get_layer_placement(-1))
+        tokens = self.reader()
+        data = self.data_decoder(tokens)
+        labels = self.label_decoder(tokens)
         return data, labels
+
+
+class DataDecoder(flow.nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, tokens):
+        assert tokens.ndim == 2
+        return tokens.to_consistent(placement=dist.get_layer_placement(0))[:, 0:-1]
+
+
+class LabelDecoder(flow.nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, tokens):
+        assert tokens.ndim == 2
+        return tokens.to_consistent(placement=dist.get_layer_placement(-1))[:, 1:]

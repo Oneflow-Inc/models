@@ -541,7 +541,7 @@ class ColumnParallelLinear(flow.nn.Module):
         x = flow._C.matmul(x, self.weight)
         if self.need_gelu:
             if self.bias_gelu_fusion:
-                x = flow._C.fused_bias_add_gelu(x, self.bias)
+                x = flow._C.fused_bias_add_gelu(x, self.bias, axis=x.ndim - 1)
             else:
                 x = x + self.bias
                 x = flow._C.gelu(x)
@@ -596,7 +596,9 @@ class RowParallelLinear(flow.nn.Module):
         # x.sbp: [S(0), P] -> [S(0), B]
         x = x.to_consistent(sbp=dist.get_hidden_sbp())
         if self.bias_dropout_fusion:
-            x = flow._C.fused_bias_add_dropout(x, self.bias, rate=self.dropout_rate)
+            x = flow._C.fused_bias_add_dropout(
+                x, self.bias, p=self.dropout_rate, axis=x.ndim - 1
+            )
         else:
             x = x + self.bias
             x = self.dropout(x)
