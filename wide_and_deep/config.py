@@ -69,6 +69,11 @@ def get_args(print_args=True):
     )
     parser.add_argument("--hidden_units_num", type=int, default=7)
     parser.add_argument("--hidden_size", type=int, default=1024)
+    #以下是分布式相关
+    parser.add_argument("--graph_or_eager", type=str, default='graph', help="graph or eager")
+    parser.add_argument("--mode", type=str, default='dmp', help="ddp or dmp")
+    parser.add_argument("--is_consistent", type=bool, default=True, help="use consistent or not")
+
 
     FLAGS = parser.parse_args()
     if print_args:
