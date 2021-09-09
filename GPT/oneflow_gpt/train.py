@@ -85,6 +85,7 @@ class Trainer(object):
     def __init__(self):
         args = get_args()
         self.train_iters = args.train_iters
+        self.save_path = args.save
 
         self.model = GPTModel()
         self.data_loader = GPTDataLoader()
@@ -107,15 +108,18 @@ class Trainer(object):
                 self.grad_scaler,
             )
 
+        # self.save("init")
+
     def __call__(self):
         iteration = 0
         while iteration < self.train_iters:
             if self.graph:
-                loss = self.train_graph()
+                loss, data = self.train_graph()
             else:
                 loss = self.train_eager()
 
             print_rank_last(f"iter: {iteration}, loss: {loss.to_local().numpy().mean()}")
+            # print_rank_last(f"iter: {iteration}, data: {data.to_local().numpy()}")
             # snapshot.step()
             # iteration = snapshot.iter
             iteration += 1
@@ -130,28 +134,15 @@ class Trainer(object):
         self.lr_scheduler.step()
         return loss
 
+    def save(self, subdir):
+        if self.save_path is None:
+            return
 
-# def train():
-#     args = get_args()
-#     dist_util = dist.get_dist_util()
+        save_path = os.path.join(self.save_path, subdir)
+        print_rank_0(f"Saving model to {save_path}")
+        state_dict = self.model.state_dict()
 
-#     # if dist_util.model_parallel_size > 1:
-#     #     flow.config.nccl_use_compute_stream(True)
-
-#     if args.use_rdma:
-#         flow.config.use_rdma(True)
-
-#     trainer = GPTTrainGraph()
-
-#     print("Training...")
-#     loss = trainer()
-#     print("loss:", loss.to_local().numpy())
-
-#     # iteration = snapshot.iter
-#     # while iteration < args.train_iters:
-#     #     trainer()
-#     #     # snapshot.step()
-#     #     iteration = snapshot.iter
+        flow.save(state_dict, save_path, consistent_dst_rank=0)
 
 
 if __name__ == "__main__":

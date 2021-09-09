@@ -3,6 +3,7 @@ import oneflow as flow
 
 from oneflow_gpt import distribute as dist
 from oneflow_gpt.config import get_args
+from oneflow_gpt.logger import print_rank_0
 
 
 class GPTModel(flow.nn.Module):
@@ -13,15 +14,10 @@ class GPTModel(flow.nn.Module):
         self.seq_length = args.seq_length
         self.hidden_size = args.hidden_size
 
-        if args.fp16:
-            dtype = flow.float16
-        else:
-            dtype = flow.float32
-
         self.embedding = Embedding(
-            self.seq_length, self.hidden_size, args.padded_vocab_size, dtype
+            self.seq_length, self.hidden_size, args.padded_vocab_size
         )
-        self.transformer = Transformer(self.hidden_size, dtype)
+        self.transformer = Transformer(self.hidden_size)
         self.logits = Logits()
 
     def forward(self, tokens):
@@ -58,7 +54,7 @@ class Logits(flow.nn.Module):
 
 
 class Embedding(flow.nn.Module):
-    def __init__(self, seq_length, hidden_size, vocab_size, dtype):
+    def __init__(self, seq_length, hidden_size, vocab_size):
         super().__init__()
         self.seq_length = seq_length
         self.hidden_size = hidden_size
@@ -72,7 +68,7 @@ class Embedding(flow.nn.Module):
         self.wte = flow.nn.Parameter(
             flow.empty(
                 (self.vocab_size, self.hidden_size),
-                dtype=dtype,
+                dtype=flow.float32,
                 placement=dist.get_layer_placement(0),
                 sbp=dist.get_nd_sbp([flow.sbp.broadcast, flow.sbp.split(0)]),
             )
@@ -83,7 +79,7 @@ class Embedding(flow.nn.Module):
         self.wpe = flow.nn.Parameter(
             flow.empty(
                 (self.seq_length, self.hidden_size),
-                dtype=dtype,
+                dtype=flow.float32,
                 placement=dist.get_layer_placement(0),
                 sbp=dist.get_nd_sbp([flow.sbp.broadcast, flow.sbp.broadcast]),
             )
@@ -134,17 +130,16 @@ def scaled_init_method_normal(sigma, num_layers):
 
 
 class Transformer(flow.nn.Module):
-    def __init__(self, hidden_size, dtype):
+    def __init__(self, hidden_size):
         super().__init__()
         self.hidden_size = hidden_size
-        self.dtype = dtype
 
         args = get_args()
         self.is_seq_len_dim_leading = True if args.multihead_attention_fusion else False
         self.num_layers = args.num_layers
 
         self._build_layers(args.init_method_std)
-        self.layernorm_f = LayerNorm(-1, (self.hidden_size,), dtype)
+        self.layernorm_f = LayerNorm(-1, (self.hidden_size,))
 
     def _build_layers_v2(self, init_method_std):
         self.layers = flow.nn.ModuleList(
@@ -153,7 +148,6 @@ class Transformer(flow.nn.Module):
                     i,
                     self.hidden_size,
                     self.is_seq_len_dim_leading,
-                    self.dtype,
                     init_method=init_method_normal(init_method_std),
                     output_layer_init_method=scaled_init_method_normal(
                         init_method_std, self.num_layers
@@ -175,7 +169,6 @@ class Transformer(flow.nn.Module):
                     i,
                     self.hidden_size,
                     self.is_seq_len_dim_leading,
-                    self.dtype,
                     init_method=init_method_normal(init_method_std),
                     output_layer_init_method=scaled_init_method_normal(
                         init_method_std, self.num_layers
@@ -229,7 +222,6 @@ class TransformerLayer(flow.nn.Module):
         layer_idx,
         hidden_size,
         is_seq_len_dim_leading,
-        dtype,
         init_method,
         output_layer_init_method,
     ):
@@ -242,7 +234,6 @@ class TransformerLayer(flow.nn.Module):
             layer_idx,
             hidden_size,
             is_seq_len_dim_leading,
-            dtype,
             args.hidden_dropout,
             init_method,
             output_layer_init_method,
@@ -250,14 +241,13 @@ class TransformerLayer(flow.nn.Module):
         self.mlp = MLP(
             layer_idx,
             hidden_size,
-            dtype,
             args.hidden_dropout,
             init_method,
             output_layer_init_method,
         )
 
-        self.layernorm_1 = LayerNorm(layer_idx, (self.hidden_size,), dtype)
-        self.layernorm_2 = LayerNorm(layer_idx, (self.hidden_size,), dtype)
+        self.layernorm_1 = LayerNorm(layer_idx, (self.hidden_size,))
+        self.layernorm_2 = LayerNorm(layer_idx, (self.hidden_size,))
 
     def forward(self, hidden_states):
         # hidden_states shape: (batch_size, seq_length, hidden_size)
@@ -281,7 +271,6 @@ class SelfAttention(flow.nn.Module):
         layer_idx,
         hidden_size,
         is_seq_len_dim_leading,
-        dtype,
         hidden_dropout_rate,
         init_method,
         output_layer_init_method,
@@ -310,7 +299,6 @@ class SelfAttention(flow.nn.Module):
             layer_idx,
             self.hidden_size,
             self.hidden_size * 3,
-            dtype,
             init_method,
             need_gelu=True,
         )
@@ -319,7 +307,6 @@ class SelfAttention(flow.nn.Module):
             layer_idx,
             self.hidden_size,
             self.hidden_size,
-            dtype,
             output_layer_init_method,
             dropout_rate=hidden_dropout_rate,
         )
@@ -422,7 +409,6 @@ class MLP(flow.nn.Module):
         self,
         layer_idx,
         hidden_size,
-        dtype,
         hidden_dropout_rate,
         init_method,
         output_layer_init_method,
@@ -434,7 +420,6 @@ class MLP(flow.nn.Module):
             layer_idx,
             self.hidden_size,
             self.hidden_size * 4,
-            dtype,
             init_method,
             need_gelu=True,
         )
@@ -443,7 +428,6 @@ class MLP(flow.nn.Module):
             layer_idx,
             self.hidden_size * 4,
             self.hidden_size,
-            dtype,
             output_layer_init_method,
             dropout_rate=hidden_dropout_rate,
         )
@@ -459,7 +443,7 @@ class MLP(flow.nn.Module):
 
 class LayerNorm(flow.nn.Module):
     def __init__(
-        self, layer_idx, normalized_shape, dtype, eps=1e-5,
+        self, layer_idx, normalized_shape, eps=1e-5,
     ):
         super().__init__()
         self.normalized_shape = normalized_shape
@@ -468,7 +452,7 @@ class LayerNorm(flow.nn.Module):
         self.beta = flow.nn.Parameter(
             flow.empty(
                 normalized_shape,
-                dtype=dtype,
+                dtype=flow.float32,
                 placement=dist.get_layer_placement(layer_idx),
                 sbp=dist.get_nd_sbp([flow.sbp.broadcast, flow.sbp.broadcast]),
             )
@@ -478,7 +462,7 @@ class LayerNorm(flow.nn.Module):
         self.gamma = flow.nn.Parameter(
             flow.empty(
                 normalized_shape,
-                dtype=dtype,
+                dtype=flow.float32,
                 placement=dist.get_layer_placement(layer_idx),
                 sbp=dist.get_nd_sbp([flow.sbp.broadcast, flow.sbp.broadcast]),
             )
@@ -502,7 +486,7 @@ class LayerNorm(flow.nn.Module):
 
 class ColumnParallelLinear(flow.nn.Module):
     def __init__(
-        self, layer_idx, input_size, output_size, dtype, init_method, need_gelu=False
+        self, layer_idx, input_size, output_size, init_method, need_gelu=False
     ):
         super().__init__()
         self.need_gelu = need_gelu
@@ -514,7 +498,7 @@ class ColumnParallelLinear(flow.nn.Module):
         self.weight = flow.nn.Parameter(
             flow.empty(
                 (input_size, output_size),
-                dtype=dtype,
+                dtype=flow.float32,
                 placement=dist.get_layer_placement(layer_idx),
                 sbp=dist.get_nd_sbp([flow.sbp.broadcast, flow.sbp.split(1)]),
             )
@@ -525,7 +509,7 @@ class ColumnParallelLinear(flow.nn.Module):
         self.bias = flow.nn.Parameter(
             flow.empty(
                 (output_size,),
-                dtype=dtype,
+                dtype=flow.float32,
                 placement=dist.get_layer_placement(layer_idx),
                 sbp=dist.get_nd_sbp([flow.sbp.broadcast, flow.sbp.split(0)]),
             )
@@ -546,8 +530,8 @@ class ColumnParallelLinear(flow.nn.Module):
                 x = x + self.bias
                 x = flow._C.gelu(x)
         else:
-            # broadcast_add shape sign: (input_size, output_size) + (output_size, )
-            #                                = (input_size, output_size)
+            # broadcast_add shape sign:
+            # (input_size, output_size) + (output_size, ) = (input_size, output_size)
             # bias_add sbp sign: [S(0), S(1)] + [B, S(0)] = [S(0), S(1)]
             x = x + self.bias
 
@@ -556,7 +540,7 @@ class ColumnParallelLinear(flow.nn.Module):
 
 class RowParallelLinear(flow.nn.Module):
     def __init__(
-        self, layer_idx, input_size, output_size, dtype, init_method, dropout_rate,
+        self, layer_idx, input_size, output_size, init_method, dropout_rate,
     ):
         super().__init__()
         self.dropout_rate = dropout_rate
@@ -570,7 +554,7 @@ class RowParallelLinear(flow.nn.Module):
         self.weight = flow.nn.Parameter(
             flow.empty(
                 (input_size, output_size),
-                dtype=dtype,
+                dtype=flow.float32,
                 placement=dist.get_layer_placement(layer_idx),
                 sbp=dist.get_nd_sbp([flow.sbp.broadcast, flow.sbp.split(0)]),
             )
@@ -581,7 +565,7 @@ class RowParallelLinear(flow.nn.Module):
         self.bias = flow.nn.Parameter(
             flow.empty(
                 (output_size,),
-                dtype=dtype,
+                dtype=flow.float32,
                 placement=dist.get_layer_placement(layer_idx),
                 sbp=dist.get_nd_sbp([flow.sbp.broadcast, flow.sbp.broadcast]),
             )
