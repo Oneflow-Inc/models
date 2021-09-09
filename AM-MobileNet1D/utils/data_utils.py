@@ -1,3 +1,4 @@
+import os
 import configparser as ConfigParser
 from optparse import OptionParser
 
@@ -102,7 +103,7 @@ def create_batches_rnd(
     rand_amp_arr = np.random.uniform(1.0 - fact_amp, 1 + fact_amp, batch_size)
 
     for i in range(batch_size):
-        [signal, fs] = sf.read(data_folder + wav_lst[snt_id_arr[i]])
+        [signal, fs] = sf.read(os.path.join(data_folder, wav_lst[snt_id_arr[i]]))
 
         snt_len = signal.shape[0]
         snt_beg = np.random.randint(snt_len - wlen - 1)
