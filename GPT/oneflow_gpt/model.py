@@ -594,7 +594,7 @@ class ParallelSparseSoftmaxCrossEntropyLoss(flow.nn.Module):
     def __init__(self):
         super().__init__()
 
-    def __call__(self, logits, labels):
+    def forward(self, logits, labels):
         # logits shape: (batch_size, seq_length, vocab_size)
         # sbp: [S(0), S(2)]
         # labels shape: (batch_size, seq_length)

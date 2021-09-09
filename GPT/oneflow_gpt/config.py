@@ -574,15 +574,6 @@ def _add_distributed_args(parser):
     group.add_argument(
         "--num-nodes", type=int, default=1, help="node/machine number for training"
     )
-    group.add_argument(
-        "--node-ips",
-        type=_str_list,
-        default=[],
-        help='nodes ip list for training, devided by ",", length >= num_nodes',
-    )
-    group.add_argument(
-        "--ctrl-port", type=int, default=50051, help="ctrl_port for multinode job"
-    )
     return parser
 
 
