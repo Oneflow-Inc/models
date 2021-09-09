@@ -14,7 +14,7 @@ from backbones import get_model
 
 
 
-from dataset import MXFaceDataset, DataLoaderX
+
 
 from utils.utils_callbacks import CallBackVerification, CallBackLogging, CallBackModelCheckpoint
 from utils.utils_config import get_config
@@ -35,6 +35,12 @@ class FC7(flow.nn.Module):
         self.weight = flow.nn.Parameter(flow.empty(output_size,input_size))
         flow.nn.init.normal_(self.weight, mean=0, std=0.01)
 
+        # size = args.device_num_per_node * args.num_nodes
+        # num_local = (config.num_classes + size - 1) // size
+        # num_sample = int(num_local * args.sample_ratio)
+        # args.total_num_sample = num_sample * size
+
+
     def forward(self, x):
         x=self.backbone(x)             
         x=flow.nn.functional.l2_normalize(input=x , dim=1, epsilon=1e-10)
@@ -42,6 +48,7 @@ class FC7(flow.nn.Module):
         weight=weight.transpose(0,1)
         x=flow.matmul(x,weight)
         return x
+
 
 
 
@@ -91,7 +98,7 @@ def main(args):
 
 
     opt_fc7 = flow.optim.SGD(fc7.parameters(),
-        lr=cfg.lr,  momentum=0.1, weight_decay=cfg.weight_decay)
+        lr=cfg.lr,  momentum=0.9, weight_decay=cfg.weight_decay)
 
     
 
@@ -151,7 +158,10 @@ def main(args):
             features_fc7=margin_softmax(features_fc7,label)*64                    
             loss=of_cross_entropy(features_fc7,label)
 
+
+
             loss.backward()
+            
             opt_fc7.step()
             opt_fc7.zero_grad()
             callback_logging(global_step, loss.numpy(), epoch,False, scheduler_pfc.get_last_lr()[0])

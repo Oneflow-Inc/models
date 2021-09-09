@@ -1,7 +1,7 @@
 import oneflow as flow
 import oneflow.nn as nn
 import os
-
+from typing import List, Union
 
 class OFRecordDataLoader(nn.Module):
     def __init__(
@@ -11,7 +11,9 @@ class OFRecordDataLoader(nn.Module):
         dataset_size: int = 9469,
         batch_size: int = 1,
         total_batch_size: int = 1,
-        data_part_num: int =8 
+        data_part_num: int =8 ,
+        placement: flow.placement = None,
+        sbp: Union[flow.sbp.sbp, List[flow.sbp.sbp]] = None,
     ):
         super().__init__()
         channel_last = False
@@ -24,6 +26,8 @@ class OFRecordDataLoader(nn.Module):
             part_name_suffix_length=5,
             random_shuffle=True if mode == "train" else False,
             shuffle_after_epoch=True if mode == "train" else False,
+            placement=placement,
+            sbp=sbp,
         )
         self.record_label_decoder = flow.nn.OfrecordRawDecoder(
             "label", shape=(), dtype=flow.int32
@@ -42,7 +46,7 @@ class OFRecordDataLoader(nn.Module):
             )
         )
 
-        self.flip = flow.nn.CoinFlip(batch_size=batch_size) if mode == "train" else None
+        self.flip = flow.nn.CoinFlip(batch_size=batch_size,placement=placement, sbp=sbp) if mode == "train" else None
 
         rgb_mean =[127.5, 127.5, 127.5]
         rgb_std = [127.5, 127.5, 127.5]

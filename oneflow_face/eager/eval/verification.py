@@ -198,13 +198,23 @@ def evaluate(embeddings, actual_issame, nrof_folds=10, pca=0):
 
 
 ##@flow.no_grad()
-def load_bin(path, image_size,image_num):
+def load_bin(path, image_size,image_num,world_size=1,is_consistent=False):
     color_space = "RGB"
     val_dataset_dir=path
 
     val_batch_size=image_num
-    val_data_part_num=1
+    val_data_part_num=world_size
     mode="val"
+
+    placement = None
+    sbp = None
+    # if is_consistent:
+    #     world_size = flow.env.get_world_size()
+    #     placement = flow.placement("cpu", {0: range(world_size)})
+    #     sbp = flow.sbp.split(0)
+    #     # NOTE(zwx): consistent view, only consider logical batch size
+    #     batch_size = image_num
+
     ofrecord = flow.nn.OfrecordReader(
         val_dataset_dir,
         batch_size=val_batch_size,
@@ -212,7 +222,13 @@ def load_bin(path, image_size,image_num):
         part_name_suffix_length=1,
         random_shuffle=False,
         shuffle_after_epoch=False,
+        placement=placement,
+        sbp=sbp,
     )
+
+
+
+
     image_reader = flow.nn.OFRecordImageDecoder( "encoded", color_space=color_space)
     
     record_image_decoder = flow.nn.OFRecordImageDecoder("encoded", color_space=color_space)
@@ -245,7 +261,7 @@ def load_bin(path, image_size,image_num):
 
 
 #@flow.no_grad()
-def test(data_set, backbone, batch_size, nfolds=10):
+def test(data_set, backbone, batch_size, nfolds=10,is_consistent=False):
     print('testing verification..')
     data_list = data_set[0]
     issame_list = data_set[1]
@@ -263,7 +279,10 @@ def test(data_set, backbone, batch_size, nfolds=10):
             img = ((_data / 255) - 0.5) / 0.5
             with flow.no_grad():
                 net_out: flow.Tensor = backbone(img.to("cuda"))
-            _embeddings = net_out.detach().numpy()
+            if is_consistent:
+                _embeddings = net_out.to_local().numpy()
+            else:
+                _embeddings = net_out.detach().numpy()
             time_now = datetime.datetime.now()
             diff = time_now - time0
             time_consumed += diff.total_seconds()

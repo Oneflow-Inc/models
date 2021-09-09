@@ -11,12 +11,8 @@ sys.path.append("..")
 import losses
 from backbones import get_model
 
-import torch
-from torch.utils.data import Dataset, DataLoader
 
 
-
-from dataset import MXFaceDataset, DataLoaderX
 
 from utils.utils_callbacks import CallBackVerification, CallBackLogging, CallBackModelCheckpoint
 from utils.utils_config import get_config
@@ -29,7 +25,7 @@ from utils.ofrecord_data_utils import OFRecordDataLoader
 
       
 
-class FC7(nn.Module):
+class FC7(flow.nn.Module):
     def __init__(self,input_size,output_size,backbone,bias=False ):
         super(FC7, self).__init__()
         self.backbone=backbone
@@ -41,8 +37,8 @@ class FC7(nn.Module):
         x=self.backbone(x)             
         x=flow.nn.functional.l2_normalize(input=x , dim=1, epsilon=1e-10)
         weight=flow.nn.functional.l2_normalize(input=self.weight , dim=1, epsilon=1e-10)
-
-        x=flow.F.matmul(x,weight,transpose_b=True)
+        weight=weight.transpose(0,1)
+        x=flow.matmul(x,weight)
         return x
 
 
@@ -97,7 +93,7 @@ def main(args):
         mode="train",
         dataset_size=cfg.num_image,
         batch_size=cfg.batch_size,
-        data_part_num=32
+        data_part_num=8
     )
 
 
@@ -155,7 +151,6 @@ def main(args):
 
 
 if __name__ == "__main__":
-    torch.backends.cudnn.benchmark = True
     parser = argparse.ArgumentParser(description='OneFlow ArcFace Training')
     parser.add_argument('config', type=str, help='py config file')
     parser.add_argument('--local_rank', type=int, default=0, help='local_rank')

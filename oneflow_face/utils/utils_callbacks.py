@@ -11,7 +11,7 @@ from utils.utils_logging import AverageMeter
 
 
 class CallBackVerification(object):
-    def __init__(self, frequent, rank, val_targets, rec_prefix, image_size=(112, 112),image_nums={}):
+    def __init__(self, frequent, rank, val_targets, rec_prefix, image_size=(112, 112),image_nums={},world_size=1,is_consistent=False):
         self.frequent: int = frequent
         self.rank: int = rank
         self.highest_acc: float = 0.0
@@ -20,13 +20,13 @@ class CallBackVerification(object):
         self.ver_name_list: List[str] = []
 
         if self.rank is 0:
-            self.init_dataset(val_targets=val_targets, data_dir=rec_prefix, image_size=image_size,image_nums=image_nums)
+            self.init_dataset(val_targets=val_targets, data_dir=rec_prefix, image_size=image_size,image_nums=image_nums,world_size=world_size,is_consistent=is_consistent)
 
-    def ver_test(self, backbone: flow.nn.Module, global_step: int):
+    def ver_test(self, backbone: flow.nn.Module, global_step: int,is_consistent=False):
         results = []
         for i in range(len(self.ver_list)):
             acc1, std1, acc2, std2, xnorm, embeddings_list = verification.test(
-                self.ver_list[i], backbone, 10, 10)
+                self.ver_list[i], backbone, 10, 10,is_consistent)
             logging.info('[%s][%d]XNorm: %f' % (self.ver_name_list[i], global_step, xnorm))
             logging.info('[%s][%d]Accuracy-Flip: %1.5f+-%1.5f' % (self.ver_name_list[i], global_step, acc2, std2))
             if acc2 > self.highest_acc_list[i]:
@@ -35,7 +35,7 @@ class CallBackVerification(object):
                 '[%s][%d]Accuracy-Highest: %1.5f' % (self.ver_name_list[i], global_step, self.highest_acc_list[i]))
             results.append(acc2)
 
-    def ver_test_print(self, backbone: flow.nn.Module, global_step: int):
+    def ver_test_print(self, backbone: flow.nn.Module, global_step: int,):
         results = []
         for i in range(len(self.ver_list)):
             acc1, std1, acc2, std2, xnorm, embeddings_list = verification.test(
@@ -48,21 +48,24 @@ class CallBackVerification(object):
                 '[%s][%d]Accuracy-Highest: %1.5f' % (self.ver_name_list[i], global_step, self.highest_acc_list[i]))
             results.append(acc2)
 
-    def init_dataset(self, val_targets, data_dir, image_size,image_nums={}):
+    def init_dataset(self, val_targets, data_dir, image_size,image_nums={},world_size=1,is_consistent=False):
 
         for name in val_targets:
             path = os.path.join(data_dir, "val",name)
             #path = os.path.join(data_dir,name+".bin")
             image_num=image_nums[name]
             if os.path.exists(path):
-                data_set = verification.load_bin(path, image_size,image_num)
+                data_set = verification.load_bin(path, image_size,image_num,world_size=world_size,is_consistent=is_consistent)
                 self.ver_list.append(data_set)
                 self.ver_name_list.append(name)
 
-    def __call__(self, num_update, backbone: flow.nn.Module):
+    def __call__(self, num_update, backbone: flow.nn.Module,backbone_graph=None,is_consistent=False):
         if self.rank is 0 and num_update > 0 and num_update % self.frequent == 0:
             backbone.eval()
-            self.ver_test(backbone, num_update)
+            if backbone_graph is not None:
+                self.ver_test(backbone_graph, num_update,is_consistent)
+            else:
+                self.ver_test(backbone, num_update,is_consistent)
             backbone.train()
 
 
