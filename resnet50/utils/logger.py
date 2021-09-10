@@ -1,4 +1,5 @@
 import time
+from datetime import datetime
 import numpy as np
 import oneflow as flow
 
@@ -58,7 +59,7 @@ class Logger(object):
 
         do_print = self.rank in (print_ranks or self.print_ranks)
         if do_print:
-            print( time.strftime('%Y-%m-%d %H:%M:%S'), " [{}] {}".format(self.rank, ", ".join(fields)))
+            print("[rank:{}] {}".format(self.rank, ", ".join(fields)), datetime.now().strftime('| %Y-%m-%d %H:%M:%S.%f')[:-3])
     def print(self, *args, print_ranks=None):
         do_print = self.rank in (print_ranks or self.print_ranks)
         if do_print:
