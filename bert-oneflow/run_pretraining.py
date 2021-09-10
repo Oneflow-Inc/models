@@ -57,26 +57,30 @@ def save_model(module: nn.Module, checkpoint_path: str, epoch: int, acc: float):
 def pretrain(graph: nn.Graph, metric_local: bool) -> Dict:
 
     next_sent_output, next_sent_labels, loss, mlm_loss, nsp_loss = graph()
+    
+    print(f"rank: {flow.env.get_rank()} loss sbp: {loss.sbp}, mlm_loss: {mlm_loss.sbp}, nsp loss: {nsp_loss.sbp} ")
+
+    # print(f"rank: {flow.env.get_rank()}, total loss: {tton(loss, False):.5f} mlm loss: {tton(mlm_loss, False)}, nsp loss: {tton(nsp_loss, False)} ")
 
     # to local
     next_sent_output = ttol(next_sent_output, metric_local)
     next_sent_labels = ttol(next_sent_labels, metric_local)
-
+    
     # next sentence prediction accuracy
-    # correct = (
-    #     next_sent_output.argmax(dim=-1)
-    #     .eq(next_sent_labels.squeeze(1))
-    #     .sum()
-    #     .numpy()
-    #     .item()
-    # )
-    # pred_acc = np.array(correct / next_sent_labels.nelement())
-    pred_acc = np.array([0]) 
+    correct = (
+        next_sent_output.argmax(dim=-1)
+        .eq(next_sent_labels.squeeze(1))
+        .sum()
+        .numpy()
+        .item()
+    )
+    pred_acc = np.array(correct / next_sent_labels.nelement())
+    # pred_acc = np.array([0])
 
     return {
-        "total_loss": tton(loss),
-        "mlm_loss": tton(mlm_loss),
-        "nsp_loss": tton(nsp_loss),
+        "total_loss": tton(loss, metric_local),
+        "mlm_loss": tton(mlm_loss, metric_local),
+        "nsp_loss": tton(nsp_loss, metric_local),
         "pred_acc": pred_acc,
     }
 
@@ -137,10 +141,24 @@ def main():
         help="Path to ofrecord dataset",
     )
     parser.add_argument(
-        "--train_batch_size", type=int, default=32, help="Training batch size"
+        "--train-batch-size", type=int, default=8, help="Training batch size"
     )
     parser.add_argument(
-        "--val_batch_size", type=int, default=32, help="Validation batch size"
+        "--val-batch-size", type=int, default=32, help="Validation batch size"
+    )
+    parser.add_argument(
+        "--train-global-batch-size",
+        type=int,
+        default=None,
+        dest="train_global_batch_size",
+        help="train batch size",
+    )
+    parser.add_argument(
+        "--val-global-batch-size",
+        type=int,
+        default=None,
+        dest="val_global_batch_size",
+        help="val batch size",
     )
 
     parser.add_argument(
@@ -233,6 +251,17 @@ def main():
     )
 
     args = parser.parse_args()
+    
+    world_size = flow.env.get_world_size()
+    if args.train_global_batch_size is None:
+        args.train_global_batch_size = args.train_batch_size * world_size
+    else:
+        assert args.train_global_batch_size % args.train_batch_size == 0
+
+    if args.val_global_batch_size is None:
+        args.val_global_batch_size = args.val_batch_size * world_size
+    else:
+        assert args.val_global_batch_size % args.val_batch_size == 0
 
     flow.boxing.nccl.set_fusion_threshold_mbytes(args.nccl_fusion_threshold_mb)
     flow.boxing.nccl.set_fusion_max_ops_num(args.nccl_fusion_max_ops)
@@ -249,8 +278,8 @@ def main():
         ofrecord_dir=args.ofrecord_path,
         mode="test",
         dataset_size=1024,
-        batch_size=args.train_batch_size,
-        data_part_num=2,
+        batch_size=args.train_global_batch_size,
+        data_part_num=64,
         seq_length=args.seq_length,
         max_predictions_per_seq=args.max_predictions_per_seq,
         consistent=args.use_consistent,
@@ -260,7 +289,7 @@ def main():
         ofrecord_dir=args.ofrecord_path,
         mode="test",
         dataset_size=1024,
-        batch_size=args.val_batch_size,
+        batch_size=args.val_global_batch_size,
         data_part_num=1,
         seq_length=args.seq_length,
         max_predictions_per_seq=args.max_predictions_per_seq,
@@ -299,12 +328,6 @@ def main():
         bert_model = bert_model.to_consistent(
             placement=placement, sbp=flow.sbp.broadcast
         )
-        ns_criterion = ns_criterion.to_consistent(
-            placement=placement, sbp=flow.sbp.broadcast
-        )
-        mlm_criterion = mlm_criterion.to_consistent(
-            placement=placement, sbp=flow.sbp.broadcast
-        )
     else:
         bert_model.to(device)
         ns_criterion.to(device)
@@ -313,7 +336,8 @@ def main():
     optimizer = build_sgd_optimizer(  # build_adamW_optimizer(
         bert_model,
         args.lr,
-        args.weight_decay,
+        momentum=0.9
+        # args.weight_decay,
         # weight_decay_excludes=["bias", "LayerNorm", "layer_norm"],
     )
 
@@ -333,11 +357,20 @@ def main():
         max_predictions_per_seq,
     ):
         # gather valid position indices
+        # logit_blob = flow.gather(
+        #     logit_blob,
+        #     index=masked_lm_positions.unsqueeze(2).repeat(1, 1, args.vocab_size),
+        #     dim=1,
+        # )
+        if logit_blob.is_consistent:
+            zeros = flow.zeros((1, 1, args.vocab_size), dtype=masked_lm_positions.dtype, placement=masked_lm_positions.placement, sbp=flow.sbp.broadcast)
+        masked_lm_positions = masked_lm_positions.unsqueeze(2) + zeros
         logit_blob = flow.gather(
             logit_blob,
-            index=masked_lm_positions.unsqueeze(2).repeat(1, 1, args.vocab_size),
+            index=masked_lm_positions,  #.unsqueeze(2).expand(-1, -1, args.vocab_size),
             dim=1,
         )
+
         logit_blob = flow.reshape(logit_blob, [-1, args.vocab_size])
         label_id_blob = flow.reshape(masked_lm_labels, [-1])
 
@@ -387,14 +420,13 @@ def main():
                 masked_lm_positions,
                 masked_lm_weights,
             ) = self._train_data_loader()
-            if not args.use_consistent:
-                input_ids = input_ids.to(device=device)
-                input_mask = input_mask.to(device=device)
-                segment_ids = segment_ids.to(device=device)
-                next_sentence_labels = next_sentence_labels.to(device=device)
-                masked_lm_ids = masked_lm_ids.to(device=device)
-                masked_lm_positions = masked_lm_positions.to(device=device)
-                masked_lm_weights = masked_lm_weights.to(device=device)
+            input_ids = input_ids.to(device=device)
+            input_mask = input_mask.to(device=device)
+            segment_ids = segment_ids.to(device=device)
+            next_sentence_labels = next_sentence_labels.to(device=device)
+            masked_lm_ids = masked_lm_ids.to(device=device)
+            masked_lm_positions = masked_lm_positions.to(device=device)
+            masked_lm_weights = masked_lm_weights.to(device=device)
 
             # 1. forward the next_sentence_prediction and masked_lm model
             prediction_scores, seq_relationship_scores = self.bert(
@@ -403,21 +435,19 @@ def main():
 
             # 2-1. loss of is_next classification result
             next_sentence_loss = self.ns_criterion(
-                seq_relationship_scores.view(-1, 2), next_sentence_labels.view(-1)
-            )
+                seq_relationship_scores.reshape(-1, 2), next_sentence_labels.reshape(-1))
 
             masked_lm_loss = self.masked_lm_criterion(
                 prediction_scores, masked_lm_positions, masked_lm_ids, masked_lm_weights
             )
 
-            total_loss = next_sentence_loss + masked_lm_loss
+            total_loss = masked_lm_loss + next_sentence_loss
 
             total_loss.backward()
-            return seq_relationship_scores, next_sentence_labels,total_loss,masked_lm_loss, next_sentence_loss
+            return seq_relationship_scores, next_sentence_labels, total_loss, masked_lm_loss, next_sentence_loss
             
 
     bert_graph = BertGraph()
-    bert_graph._compile()
 
     class BertEvalGraph(nn.Graph):
         def __init__(self):
@@ -470,7 +500,13 @@ def main():
 
         for step in range(1000):  # range(len(train_data_loader)):
             bert_outputs = pretrain(bert_graph, args.metric_local)
-            metric.metric_cb(step, epoch=epoch)(bert_outputs)
+            # if ((step == 0) and (flow.env.get_rank() == 0)):
+            #     print(bert_graph)
+
+            # print(f"rank: {flow.env.get_rank()}, total loss: {bert_outputs['total_loss']:.5f} " 
+            #       f"mlm loss: {bert_outputs['mlm_loss']}, nsp loss: {bert_outputs['nsp_loss']} "
+            #       f"pred: {bert_outputs['pred_acc']}")
+            # metric.metric_cb(step, epoch=epoch)(bert_outputs)
 
             train_total_losses.append(bert_outputs["total_loss"])
 

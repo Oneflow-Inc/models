@@ -33,7 +33,8 @@ class BertEmbeddings(nn.Module):
         input_embeds = self.word_embeddings(input_ids)
 
         if position_ids is None:
-            position_ids = self.position_ids[:, : self.seq_length]
+            # position_ids = self.position_ids[:, : self.seq_length]
+            position_ids = flow.slice(self.position_ids, [[None, None, None], [0, self.seq_length, 1]])
         position_embeds = self.position_embeddings(position_ids)
 
         token_type_embeds = self.token_type_embeddings(token_type_ids)
@@ -233,7 +234,11 @@ class BertPooler(nn.Module):
     def forward(self, hidden_states):
         """Just "pool" the model by simply taking the [CLS] token corresponding to the first token.
         """
-        first_token_tensor = hidden_states[:, 0]
+        # NOTE: Don't use [:, 0] when it's consistent tensor, use flow.slice
+        # first_token_tensor = hidden_states[:, 0]
+        hidden_size = hidden_states.shape[-1]
+        first_token_tensor = flow.slice(hidden_states, [[None, None, None], [0, 1, 1]])
+        first_token_tensor = flow.reshape(first_token_tensor, [-1, hidden_size])
         pooled_output = self.dense(first_token_tensor)
         pooled_output = self.activation(pooled_output)
         return pooled_output
