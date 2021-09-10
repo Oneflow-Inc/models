@@ -109,20 +109,18 @@ class SincConv_fast(nn.Module):
         self.n_ = (
             2
             * math.pi
-            * flow.Tensor(
-                np.arange(-n, 0).reshape(1, -1) / self.sample_rate, dtype=flow.float32
-            )
+            * flow.Tensor(np.arange(-n, 0).reshape(1, -1) / self.sample_rate)
         )
 
     def forward(self, waveforms):
         """
         Parameters
         ----------
-        waveforms : `torch.Tensor` (batch_size, 1, n_samples)
+        waveforms : `oneflow.Tensor` (batch_size, 1, n_samples)
             Batch of waveforms.
         Returns
         -------
-        features : `torch.Tensor` (batch_size, out_channels, n_samples_out)
+        features : `oneflow.Tensor` (batch_size, out_channels, n_samples_out)
             Batch of sinc filters activations.
         """
         self.n_ = self.n_.to(waveforms.device)
