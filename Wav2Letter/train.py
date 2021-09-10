@@ -55,7 +55,7 @@ def train(opt):
     print("grapheme_count", grapheme_count)
 
     inputs = flow.Tensor(_inputs).to("cuda")
-    targets = flow.Tensor(_targets, dtype=flow.int).to("cuda")
+    targets = flow.tensor(_targets, dtype=flow.int).to("cuda")
 
     # split train, eval, test
     data_size = len(_inputs)
@@ -92,10 +92,10 @@ def train(opt):
 
             targets = train_targets[samples_processed : batch_size + samples_processed]
 
-            input_lengths = flow.Tensor(
+            input_lengths = flow.tensor(
                 np.full((batch_size,), log_probs.shape[0]), dtype=flow.int
             ).to("cuda")
-            target_lengths = flow.Tensor(
+            target_lengths = flow.tensor(
                 [target.shape[0] for target in targets], dtype=flow.int
             ).to("cuda")
 
