@@ -202,10 +202,7 @@ def main(args):
 
     backbone = get_model(cfg.network, dropout=0.0, fp16=cfg.fp16, num_features=cfg.embedding_size)
     fc7=FC7(cfg.embedding_size,cfg.num_classes,backbone).to("cuda")
-    placement = flow.placement("cuda", {0: range(world_size)})
-    fc7 = fc7.to_consistent(
-                placement=placement, sbp=flow.sbp.broadcast
-            )
+
     fc7=fc7.cuda()
 
 
@@ -232,7 +229,14 @@ def main(args):
     opt_fc7=make_optimizer(cfg,fc7)
     
 
-    train_data_loader =make_data_loader(cfg,'train',True)
+    train_data_loader = OFRecordDataLoader(
+        ofrecord_root=cfg.ofrecord_path,
+        mode="train",
+        dataset_size=cfg.num_image,
+        batch_size=cfg.batch_size,
+        total_batch_size=cfg.batch_size* world_size,
+        data_part_num=8
+    )
 
 
     num_image = cfg.num_image
@@ -258,11 +262,11 @@ def main(args):
         logging.info(": " + key + " " * num_space + str(value))
 
     val_target = cfg.val_targets
-    callback_verification = CallBackVerification(200, rank, val_target, cfg.ofrecord_path,image_nums=cfg.val_image_num, world_size=world_size,is_consistent=True)
+    callback_verification = CallBackVerification(3000, rank, val_target, cfg.ofrecord_path,image_nums=cfg.val_image_num)
     callback_logging = CallBackLogging(50, rank, cfg.total_step, cfg.batch_size, world_size, None)
     callback_checkpoint = CallBackModelCheckpoint(rank, cfg.output)
 
-    loss = AverageMeter()
+    losses = AverageMeter()
     start_epoch = 0
     global_step = 0
 
@@ -280,10 +284,11 @@ def main(args):
             global_step += 1
 
             loss=train_graph()
-            loss=loss.to_consistent(sbp=flow.sbp.broadcast).to_local().numpy()*world_size
-            #loss=loss.numpy()
-            callback_logging(global_step, loss, epoch,False, scheduler_pfc.get_last_lr()[0])
-            callback_verification(global_step, backbone,val_graph,is_consistent=True)
+
+            loss=loss.numpy()
+            losses.update(loss, 1)
+            callback_logging(global_step, losses, epoch,False, scheduler_pfc.get_last_lr()[0])
+            callback_verification(global_step, backbone,val_graph)
 
         callback_checkpoint(global_step, epoch, fc7)
 

@@ -18,15 +18,16 @@ class CallBackVerification(object):
         self.highest_acc_list: List[float] = [0.0] * len(val_targets)
         self.ver_list: List[object] = []
         self.ver_name_list: List[str] = []
-
+        self.world_size=world_size
         if self.rank is 0:
             self.init_dataset(val_targets=val_targets, data_dir=rec_prefix, image_size=image_size,image_nums=image_nums,world_size=world_size,is_consistent=is_consistent)
 
-    def ver_test(self, backbone: flow.nn.Module, global_step: int,is_consistent=False):
+    def ver_test(self, backbone: flow.nn.Module, global_step: int,is_consistent=False,world_size=1,placement=None,sbp=None):
         results = []
         for i in range(len(self.ver_list)):
+   
             acc1, std1, acc2, std2, xnorm, embeddings_list = verification.test(
-                self.ver_list[i], backbone, 10, 10,is_consistent)
+                self.ver_list[i], backbone, 10, 10,is_consistent,world_size=world_size,placement=placement,sbp=sbp)
             logging.info('[%s][%d]XNorm: %f' % (self.ver_name_list[i], global_step, xnorm))
             logging.info('[%s][%d]Accuracy-Flip: %1.5f+-%1.5f' % (self.ver_name_list[i], global_step, acc2, std2))
             if acc2 > self.highest_acc_list[i]:
@@ -59,11 +60,12 @@ class CallBackVerification(object):
                 self.ver_list.append(data_set)
                 self.ver_name_list.append(name)
 
-    def __call__(self, num_update, backbone: flow.nn.Module,backbone_graph=None,is_consistent=False):
+    def __call__(self, num_update, backbone: flow.nn.Module,backbone_graph=None,is_consistent=False,placement=None,sbp=None):
+
         if self.rank is 0 and num_update > 0 and num_update % self.frequent == 0:
             backbone.eval()
             if backbone_graph is not None:
-                self.ver_test(backbone_graph, num_update,is_consistent)
+                self.ver_test(backbone_graph, num_update,is_consistent,world_size=self.world_size,placement=placement,sbp=sbp)
             else:
                 self.ver_test(backbone, num_update,is_consistent)
             backbone.train()
@@ -113,10 +115,10 @@ class CallBackLogging(object):
                 else:
                     msg = "Speed %.2f samples/sec   Loss %.4f   LearningRate %.4f   Epoch: %d   Global Step: %d   " \
                           "Required: %1.f hours" % (
-                              speed_total, loss, learning_rate, epoch, global_step, time_for_end
+                              speed_total, loss.avg, learning_rate, epoch, global_step, time_for_end
                           )
                 logging.info(msg)
-                #loss.reset()
+                loss.reset()
                 self.tic = time.time()
             else:
                 self.init = True

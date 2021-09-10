@@ -201,9 +201,9 @@ def evaluate(embeddings, actual_issame, nrof_folds=10, pca=0):
 def load_bin(path, image_size,image_num,world_size=1,is_consistent=False):
     color_space = "RGB"
     val_dataset_dir=path
-
+ 
     val_batch_size=image_num
-    val_data_part_num=world_size
+    val_data_part_num=1
     mode="val"
 
     placement = None
@@ -222,8 +222,7 @@ def load_bin(path, image_size,image_num,world_size=1,is_consistent=False):
         part_name_suffix_length=1,
         random_shuffle=False,
         shuffle_after_epoch=False,
-        placement=placement,
-        sbp=sbp,
+
     )
 
 
@@ -235,9 +234,14 @@ def load_bin(path, image_size,image_num,world_size=1,is_consistent=False):
   
     issame_reader = flow.nn.OfrecordRawDecoder( "issame", shape=(), dtype=flow.int32)
     
-    image_of=ofrecord()    
-    image=record_image_decoder (image_of).numpy() 
-    issame_list=issame_reader(image_of).numpy() 
+    image_of=ofrecord() 
+    if is_consistent:   
+        image=record_image_decoder (image_of).to_local().numpy()
+        issame_list=issame_reader(image_of).to_local().numpy()
+
+    else:
+        image=record_image_decoder (image_of).numpy() 
+        issame_list=issame_reader(image_of).numpy() 
     issame = np.array(issame_list).flatten().reshape(-1, 1)[:image_num, :]
     issame_list = [bool(x) for x in issame[0::2]]
 
@@ -261,12 +265,14 @@ def load_bin(path, image_size,image_num,world_size=1,is_consistent=False):
 
 
 #@flow.no_grad()
-def test(data_set, backbone, batch_size, nfolds=10,is_consistent=False):
+def test(data_set, backbone, batch_size, nfolds=10,is_consistent=False,world_size=1,placement=None,sbp=None):
     print('testing verification..')
     data_list = data_set[0]
     issame_list = data_set[1]
     embeddings_list = []
     time_consumed = 0.0
+
+
     for i in range(len(data_list)):
         data = data_list[i]
         embeddings = None
@@ -278,7 +284,11 @@ def test(data_set, backbone, batch_size, nfolds=10,is_consistent=False):
             time0 = datetime.datetime.now()
             img = ((_data / 255) - 0.5) / 0.5
             with flow.no_grad():
-                net_out: flow.Tensor = backbone(img.to("cuda"))
+
+                # placement = flow.placement("cpu", {0: [0]})
+                # sbp = (flow.sbp.broadcast,)
+                # x = flow.randint(0, 16, (10,3,112,112), placement=placement, sbp=sbp)
+                net_out = backbone(img.to("cuda"))
             if is_consistent:
                 _embeddings = net_out.to_local().numpy()
             else:

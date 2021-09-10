@@ -1,1 +1,0 @@
-CUDA_VISIBLE_DEVICES='1' python train.py configs/ms1mv3_r50.py
