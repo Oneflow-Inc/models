@@ -36,7 +36,7 @@ def infer(opt):
     grapheme_count = gs.intencode.grapheme_count
 
     inputs = flow.Tensor(_inputs).to("cuda")
-    targets = flow.Tensor(_targets, dtype=flow.int).to("cuda")
+    targets = flow.tensor(_targets, dtype=flow.int).to("cuda")
 
     model = Wav2Letter(mfcc_features, grapheme_count)
     model.to("cuda")

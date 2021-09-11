@@ -68,7 +68,9 @@ class TSN(nn.Module):
     def forward_test(self, num_modalities, gt_label, img_group):
         assert num_modalities == 1
         bs = img_group.shape[0]
-        img_group = img_group.reshape(-1, self.in_channels, img_group.shape[3], img_group.shape[4])
+        img_group = img_group.reshape(
+            -1, self.in_channels, img_group.shape[3], img_group.shape[4]
+        )
         num_seg = img_group.shape[0] // bs
         x = self.extract_feat(img_group)
         x = self.spatial_temporal_module(x)
