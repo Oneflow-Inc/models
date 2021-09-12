@@ -15,27 +15,27 @@ from oneflow_gpt.model import GPTModel, Embedding, Logits
 from oneflow_gpt.model import Transformer, TransformerLayer, ActivationCheckpointing
 from oneflow_gpt.model import ParallelSparseSoftmaxCrossEntropyLoss
 from oneflow_gpt.optimizer import make_optimizer, make_lr_scheduler, make_grad_scaler
-from oneflow_gpt.logger import print_rank_0, print_rank_last
+from oneflow_gpt.logger import print_rank_0, print_rank_last, Logger
+from oneflow_gpt.logger import IterationMetric, AccumulationMetric
+from oneflow_gpt.logger import LossMetric, ThroughputMetric
 
 
 class Trainer(object):
     def __init__(self):
-        args = get_args()
-        self.train_iters = args.train_iters
-        self.save_path = args.checkpoint_save_path
-
+        self.args = get_args()
+        self.rank = flow.env.get_rank()
+        self.world_size = flow.env.get_world_size()
         self.model = GPTModel()
         self.data_loader = GPTDataLoader()
         self.cross_entropy = ParallelSparseSoftmaxCrossEntropyLoss()
-        self.optimizer = make_optimizer(args, self.model)
-        self.lr_scheduler = make_lr_scheduler(args, self.optimizer)
+        self.optimizer = make_optimizer(self.args, self.model)
+        self.lr_scheduler = make_lr_scheduler(self.args, self.optimizer)
         # self.optimizer = None
         # self.lr_scheduler = None
         # NOTE(zwx): grad scaler is not available in eager mode
-        self.grad_scaler = make_grad_scaler(args)
+        self.grad_scaler = make_grad_scaler(self.args)
 
-        self.graph = args.graph
-        if self.graph:
+        if self.args.graph:
             self.train_graph = GPTGraph(
                 self.model,
                 self.data_loader,
@@ -47,19 +47,36 @@ class Trainer(object):
 
         # self.save("init")
 
+        self.logger = Logger(self.rank)
+        self.logger.register_metric("iter", IterationMetric())
+        self.logger.register_metric("samples", AccumulationMetric())
+        self.logger.register_metric("loss", LossMetric(), "loss: {:.5f}", True)
+        self.logger.register_metric(
+            "throughput", ThroughputMetric(), "throughput: {:.2f}", True
+        )
+
     def __call__(self):
         iteration = 0
-        while iteration < self.train_iters:
-            if self.graph:
+        while iteration < self.args.train_iters:
+            if self.args.graph:
                 loss = self.train_graph()
             else:
-                loss = self.train_eager()
+                raise NotImplementedError
+                # loss = self.train_eager()
 
-            print_rank_last(f"iter: {iteration}, loss: {loss.to_local().numpy().mean()}")
-            # print_rank_last(f"iter: {iteration}, data: {data.to_local().numpy()}")
+            if loss.is_consistent:
+                loss = loss.to_local()
+
             # snapshot.step()
             # iteration = snapshot.iter
             iteration += 1
+
+            self.logger.meter("samples", self.args.global_batch_size)
+            self.logger.meter("loss", loss)
+            self.logger.meter("throughput", self.args.global_batch_size)
+            if iteration % self.args.log_interval == 0:
+                self.logger.meter("iter", iteration)
+                self.logger.print_metrics([self.world_size - 1])
 
     def train_eager(self):
         data, label = self.data_loader()
@@ -72,10 +89,10 @@ class Trainer(object):
         return loss
 
     def save(self, subdir):
-        if self.save_path is None:
+        if self.args.checkpoint_save_path is None:
             return
 
-        save_path = os.path.join(self.save_path, subdir)
+        save_path = os.path.join(self.args.checkpoint_save_path, subdir)
         print_rank_0(f"Saving model to {save_path}")
         state_dict = self.model.state_dict()
 
@@ -125,7 +142,9 @@ class GPTGraph(flow.nn.Graph):
         for module_block in self.model.modules():
             if isinstance(module_block.origin, Embedding):
                 module_block.config.stage_id = dist_util.get_layer_stage_id(0)
-            elif isinstance(module_block.origin, (TransformerLayer, ActivationCheckpointing)):
+            elif isinstance(
+                module_block.origin, (TransformerLayer, ActivationCheckpointing)
+            ):
                 module_block.config.stage_id = dist_util.get_layer_stage_id(
                     module_block.origin.layer_idx
                 )
@@ -136,7 +155,9 @@ class GPTGraph(flow.nn.Graph):
             else:
                 pass
 
-        self.data_loader.label_decoder.config.stage_id = dist_util.get_layer_stage_id(-1)
+        self.data_loader.label_decoder.config.stage_id = dist_util.get_layer_stage_id(
+            -1
+        )
         self.cross_entropy.config.stage_id = dist_util.get_layer_stage_id(-1)
 
     def build(self):

@@ -400,7 +400,11 @@ def _add_training_args(parser):
     )
     group.add_argument("--log", type=str, default="./output", help="log directory")
     group.add_argument(
-        "--log-interval", type=int, default=100, help="Report loss and timing interval."
+        "--log-interval",
+        type=int,
+        default=100,
+        dest="log_interval",
+        help="Report loss and timing interval.",
     )
     group.add_argument(
         "--metric-print-format",
