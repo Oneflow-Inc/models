@@ -1,3 +1,4 @@
+import numpy as np
 import os
 import oneflow as flow
 
@@ -138,6 +139,9 @@ class OFRecordDataLoader(flow.nn.Module):
         return self.dataset_size // self.total_batch_size
 
     def forward(self):
+        image = flow.tensor(np.arange(self.batch_size * 3 * 224 * 224).reshape((self.batch_size, 3, 224, 224)).astype(np.float32))
+        label = flow.tensor(np.arange(self.batch_size).astype(np.int32))
+        return image, label
         if self.mode == "train":
             record = self.ofrecord_reader()
             if self.use_gpu_decode:

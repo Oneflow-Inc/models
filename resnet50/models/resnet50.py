@@ -254,6 +254,7 @@ class ResNet(nn.Module):
         x = self.avgpool(x)
         x = flow.flatten(x, 1)
         x = self.fc(x)
+        print(f'fc: {x.sum()}')
 
         return x
 
