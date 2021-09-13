@@ -56,6 +56,7 @@ def save_model(module: nn.Module, checkpoint_path: str, epoch: int, acc: float):
 
 def pretrain(graph: nn.Graph, metric_local: bool) -> Dict:
 
+    # NOTE: when using gradient accumulation, graph call 1 step for 1 mini-batch(n micro-batch)
     next_sent_output, next_sent_labels, loss, mlm_loss, nsp_loss = graph()
 
     # to local
@@ -73,9 +74,9 @@ def pretrain(graph: nn.Graph, metric_local: bool) -> Dict:
     pred_acc = np.array(correct / next_sent_labels.nelement())
 
     return {
-        "total_loss": tton(loss, metric_local),
-        "mlm_loss": tton(mlm_loss, metric_local),
-        "nsp_loss": tton(nsp_loss, metric_local),
+        "total_loss": tton(loss.mean(), metric_local),
+        "mlm_loss": tton(mlm_loss.mean(), metric_local),
+        "nsp_loss": tton(nsp_loss.mean(), metric_local),
         "pred_acc": pred_acc,
     }
 
@@ -216,6 +217,14 @@ def main():
         help="Whether to use use fp16",
     )
     parser.add_argument(
+        "--use-grad-acc",
+        type=str2bool,
+        nargs="?",
+        const=True,
+        help="Whether to use gradient accumulation"
+    )
+    parser.add_argument("--grad-acc-steps", type=int, default=1, help="Steps for gradient accumulation")
+    parser.add_argument(
         "--nccl-fusion-threshold-mb",
         type=int,
         default=16,
@@ -300,8 +309,8 @@ def main():
         args.num_attention_heads,
         args.intermediate_size,
         nn.GELU(),
-        0.1,  # args.hidden_dropout_prob,
-        0.1,  # args.attention_probs_dropout_prob,
+        0.0,  # args.hidden_dropout_prob,
+        0.0,  # args.attention_probs_dropout_prob,
         args.max_position_embeddings,
         args.type_vocab_size,
     )
@@ -338,7 +347,7 @@ def main():
 
     steps = args.epochs * len(train_data_loader)
 
-    lr_scheduler = PolynomialLR(optimizer, steps=100, end_learning_rate=0.0)
+    lr_scheduler = PolynomialLR(optimizer, steps=1000, end_learning_rate=0.0)
 
     lr_scheduler = flow.optim.lr_scheduler.WarmUpLR(
         lr_scheduler, warmup_factor=0, warmup_iters=50, warmup_method="linear"
@@ -378,10 +387,8 @@ def main():
         # padding predictions.
         pre_example_loss = mlm_criterion(logit_blob, label_id_blob)
         pre_example_loss = flow.reshape(pre_example_loss, [-1, max_predictions_per_seq])
-        sum_label_weight = flow.sum(label_weights, dim=-1)
-        sum_label_weight = sum_label_weight / label_weights.shape[0]
-        numerator = flow.sum(pre_example_loss * label_weights)
-        denominator = flow.sum(label_weights) + 1e-5
+        numerator = flow.sum(pre_example_loss * label_weights) 
+        denominator = flow.sum(label_weights) + 1e-5 
         loss = numerator / denominator
         return loss
 
@@ -395,6 +402,8 @@ def main():
             )
             self.add_optimizer(optimizer, lr_sch=lr_scheduler)
             self._train_data_loader = train_data_loader
+            if args.use_grad_acc:
+                self.config.set_gradient_accumulation_steps(args.grad_acc_steps)
             if args.use_fp16:
                 self.config.enable_amp(True)
                 grad_scaler = flow.amp.GradScaler(
@@ -458,8 +467,6 @@ def main():
             super().__init__()
             self.bert = bert_model
             self._test_data_loader = test_data_loader
-            if args.use_fp16:
-                self.config.enable_amp(True)
             self.config.allow_fuse_add_to_output(True)
 
         def build(self):
@@ -502,10 +509,11 @@ def main():
         # Train
         bert_model.train()
 
-        for step in range(1000):  # range(len(train_data_loader)):
+        for step in range(300):  # range(len(train_data_loader)):
             bert_outputs = pretrain(bert_graph, args.metric_local)
 
-            metric.metric_cb(step, epoch=epoch)(bert_outputs)
+            if (flow.env.get_rank() == 0):
+                metric.metric_cb(step, epoch=epoch)(bert_outputs)
 
             train_total_losses.append(bert_outputs["total_loss"])
 
@@ -515,7 +523,7 @@ def main():
 
     Reporter.write2file(
         train_total_losses,
-        os.path.join(save_dir, "bert_graph_sgd_amp_consistent_loss.txt"),
+        os.path.join(save_dir, "bert_graph_sgd_amp_b32.txt"),
     )
     # Reporter.write2file(
     #     train_lml_losses, os.path.join(save_dir, "bert_graph_lml_loss.txt")
