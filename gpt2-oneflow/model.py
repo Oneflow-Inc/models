@@ -62,8 +62,13 @@ class GPT2Attention(nn.Module):
         self.register_buffer(
             "bias", flow.tensor(bias)
         )
+        # self.register_buffer(
+        #     "bias",
+        #     flow.tril(flow.ones((max_positions, max_positions), dtype=flow.uint8)).view(
+        #         1, 1, max_positions, max_positions
+        #     ),
+        # )
         self.register_buffer("masked_bias", flow.tensor(-1e4))
-        # self.bias = nn.Parameter(flow.tensor(bias))
         
         self.embed_dim = config.hidden_size
         self.num_heads = config.num_attention_heads
@@ -85,10 +90,11 @@ class GPT2Attention(nn.Module):
 
         query_length, key_length = query.size(-2), key.size(-2)
         causal_mask = self.bias[:, :, key_length - query_length : key_length, :key_length]
-        causal_mask = flow.broadcast_like(causal_mask.to(attn_weights.dtype), attn_weights).to(flow.int)    # broadcast_like会改变tensor类型
-        masked_bias = self.masked_bias.view(1, 1, 1, 1)
-        masked_bias = flow.broadcast_like(masked_bias, attn_weights)
-        attn_weights = flow.where(causal_mask, attn_weights, masked_bias)
+        attn_weights = flow.where(causal_mask, attn_weights, self.masked_bias.to(attn_weights.dtype))
+        # causal_mask = flow.broadcast_like(causal_mask.to(attn_weights.dtype), attn_weights).to(flow.int)    # broadcast_like会改变tensor类型
+        # masked_bias = self.masked_bias.view(1, 1, 1, 1)
+        # masked_bias = flow.broadcast_like(masked_bias, attn_weights)
+        # attn_weights = flow.where(causal_mask, attn_weights, masked_bias)
 
         attn_weights = nn.Softmax(dim=-1)(attn_weights)
         attn_weights = self.attn_dropout(attn_weights)
@@ -177,8 +183,6 @@ class GPT2Block(nn.Module):
         attn_output = attn_outputs[0]
         outputs = attn_outputs[1:]
         hidden_states = attn_output + residual
-
-        outputs = ()
 
         residual = hidden_states
         hidden_states = self.ln_2(hidden_states)
@@ -270,31 +274,6 @@ class LMHead(nn.Module):
         h_trunc = h[:, :-1].view(-1, self.n_embd)
         lm_logits = self.decoder(h_trunc)
         return lm_logits
-
-class CrossEntropyLoss(nn.Module):
-    def __init__(self, ignore_index=None, reduction='mean'):
-        super().__init__()
-        self.reduction = reduction
-        self.ignore_index = ignore_index
-    
-    def forward(self, logits, target):
-        if logits.dim() == 3:
-            logits = logits.view(-1, logits.view(-1))
-        if target.dim() == 2:
-            target = target.view(-1, 1)
-        lprobs = flow.nn.LogSoftmax(dim=-1)(logits)
-        nll_loss = - flow.gather(lprobs, target, dim=-1)
-        # nll_loss = -lprobs.gather(dim=-1, index=target)
-        if self.ignore_index is not None:
-            pad_mask = target.eq(self.ignore_index)
-            nll_loss = nll_loss.masked_fill(pad_mask, 0.0)
-        else:
-            nll_loss = nll_loss.squeeze(-1)
-        if self.reduction == 'mean':
-            nll_loss = nll_loss.mean()
-        elif self.reduction == 'sum':
-            nll_loss = nll_loss.sum()
-        return nll_loss
         
 class GPT2LMHeadModel(nn.Module):
     def __init__(self, config):
