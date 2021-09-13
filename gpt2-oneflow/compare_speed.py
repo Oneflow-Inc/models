@@ -61,61 +61,58 @@ def main():
 
     print("building model")
     config = GPT2Config()
-    # model = GPT2LMHeadModel(config)
+    model = GPT2LMHeadModel(config)
 
-    # # from convert_pt_ckpt_to_of import convert_pt_checkpoint_to_of
-    # # convert_pt_checkpoint_to_of(model, "test_gpt2_model.pt", "test_gpt2_oneflow_model")
+    # from convert_pt_ckpt_to_of import convert_pt_checkpoint_to_of
+    # convert_pt_checkpoint_to_of(model, "test_gpt2_model.pt", "test_gpt2_oneflow_model")
 
-    # model.load_state_dict(flow.load("test_gpt2_oneflow_model"))
-    # # model.lm_head.weight = model.transformer.wte.weight
+    model.load_state_dict(flow.load("test_gpt2_oneflow_model"))
+    # model.lm_head.weight = model.transformer.wte.weight
     
-    # model.cuda()
-    # model.eval()
+    model.cuda()
+    model.eval()
 
-    # # of_parameters_value = [param.numpy() for param in list(model.parameters())]
-    # # optimizer = flow.optim.SGD(model.parameters(), lr=0.001)
-    # optimizer = flow.optim.Adam(model.parameters(), lr=0.001, betas=(args.adam_beta1, args.adam_beta2), weight_decay=args.adam_weight_decay)
+    # of_parameters_value = [param.numpy() for param in list(model.parameters())]
+    # optimizer = flow.optim.SGD(model.parameters(), lr=0.001)
+    optimizer = flow.optim.Adam(model.parameters(), lr=0.001, betas=(args.adam_beta1, args.adam_beta2), weight_decay=args.adam_weight_decay)
 
-    # for_time = 0.0
-    # bp_time = 0.0
-    # update_time = 0.0
-    # of_loss = list()
+    for_time = 0.0
+    bp_time = 0.0
+    update_time = 0.0
+    of_loss = list()
 
-    # print("start oneflow training loop....")
-    # start_t = time.time()
-    # for epoch in range(args.epochs):
-    #     s_t = time.time()
-    #     loss = model(of_batch, labels=of_batch)[0]
-    #     for_time += time.time() - s_t
+    print("start oneflow training loop....")
+    start_t = time.time()
+    for epoch in range(args.epochs):
+        s_t = time.time()
+        loss = model(of_batch, labels=of_batch)[0]
+        for_time += time.time() - s_t
         
-    #     s_t = time.time()
-    #     loss.backward()
-    #     bp_time += time.time() - s_t
+        s_t = time.time()
+        loss.backward()
+        bp_time += time.time() - s_t
 
-    #     s_t = time.time()
-    #     optimizer.step()
-    #     optimizer.zero_grad()
-    #     update_time += time.time() - s_t
+        s_t = time.time()
+        optimizer.step()
+        optimizer.zero_grad()
+        update_time += time.time() - s_t
 
-    # # of_loss = loss.numpy()
-    # end_t = time.time()
+    end_t = time.time()
 
-    # print("oneflow traning loop avg time : {}".format((end_t - start_t) / args.epochs))
-    # print("forward avg time : {}".format(for_time / args.epochs))
-    # print("backward avg time : {}".format(bp_time / args.epochs))
-    # print("update parameters avg time : {}".format(update_time / args.epochs))
+    print("oneflow traning loop avg time : {}".format((end_t - start_t) / args.epochs))
+    print("forward avg time : {}".format(for_time / args.epochs))
+    print("backward avg time : {}".format(bp_time / args.epochs))
+    print("update parameters avg time : {}".format(update_time / args.epochs))
 
-    # of_parameters_names = []
-    # of_parameters_value = []
-    # for name, param in model.named_parameters():
-    #     of_parameters_names.append(name)
-    #     of_parameters_value.append(param.numpy())
+    of_parameters_names = []
+    of_parameters_value = []
+    for name, param in model.named_parameters():
+        of_parameters_names.append(name)
+        of_parameters_value.append(param.numpy())
 
-    # model = None
+    model = None
 
-    # torch.cuda.empty_cache()
-
-    # pt_device = torch.device(f"cuda:{args.device_id}" if args.device_id >= 0 else "cpu")
+    torch.cuda.empty_cache()
 
     pt_batch = torch.from_numpy(batch.numpy()).long().cuda()
 
@@ -164,8 +161,6 @@ def main():
     for name, param in model.named_parameters():
         pt_parameters_names.append(name)
         pt_parameters_value.append(param.cpu().detach().numpy())
-
-    # print((of_grad.numpy() == pt_grad.cpu().detach().numpy()).all())
 
     torch.cuda.empty_cache()
 
