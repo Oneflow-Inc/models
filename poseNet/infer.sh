@@ -1,7 +1,7 @@
 set -aux
 
 PRETRAIN_MODEL_PATH="epoch_959_val_acc_0.906250"
-IMAGE_PATH="data/1-4.jpg"
+IMAGE_PATH="data/0-1.jpg"
 
 if [ ! -d "$PRETRAIN_MODEL_PATH" ]; then
   wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/cv/pose/posenet_pretrain_model.tar.gz
