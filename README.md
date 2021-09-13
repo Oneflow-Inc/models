@@ -82,3 +82,4 @@ Example of using ops:
 from ops import RoIAlign
 pooler = RoIAlign(output_size=(14, 14), spatial_scale=2.0, sampling_ratio=2)
 ```
+
