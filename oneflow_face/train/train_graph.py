@@ -163,7 +163,7 @@ def make_data_loader(args, mode, is_consistent=False, synthetic=False):
         sbp = flow.sbp.split(0)
         # NOTE(zwx): consistent view, only consider logical batch size
         #res 50 ：batch_size =  total_batch_size？？
-        batch_size = batch_size
+        batch_size = total_batch_size
 
 
   
@@ -289,7 +289,7 @@ def main(args):
             global_step += 1
 
             loss=train_graph()
-            loss=loss.to_consistent(sbp=flow.sbp.broadcast).to_local().numpy()*world_size
+            loss=loss.to_consistent(sbp=flow.sbp.broadcast).to_local().numpy()#*world_size
 
 
 
