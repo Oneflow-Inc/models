@@ -13,7 +13,7 @@ OneFlow-Models is an open source repo which contains official implementation of 
 ## Official Models
 **Quick Start**
 
-- [demo](/demo/)
+- [demo](Demo)
 
 **Model List**
 
