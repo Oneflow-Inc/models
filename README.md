@@ -2,7 +2,7 @@
 **Models and examples implement with OneFlow(version >= 0.5.0).**
 
 ## Introduction
-English | [简体中文](/README_zh-CN.md)
+**English** | [简体中文](/README_zh-CN.md)
 
 OneFlow-Models is an open source repo which contains official implementation of different models built on OneFlow. In each model, we provide at least two scripts `train.sh` and `infer.sh` for a quick start. For each model, we provide a detailed `README` to introduce the usage of this model.
 
