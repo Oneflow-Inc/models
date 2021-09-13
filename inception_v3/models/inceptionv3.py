@@ -1,7 +1,7 @@
 from collections import namedtuple
 import warnings
-import oneflow.experimental as flow
-from oneflow.experimental import nn, Tensor
+import oneflow as flow
+from oneflow import nn, Tensor
 from typing import Callable, Any, Optional, Tuple, List
 
 
@@ -101,22 +101,14 @@ class Inception3(nn.Module):
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         self.dropout = nn.Dropout()
         self.fc = nn.Linear(2048, num_classes)
-        # TODO(BBuf) align with torch
+
         if init_weights:
             for m in self.modules():
                 if isinstance(m, nn.Conv2d) or isinstance(m, nn.Linear):
-                    import scipy.stats as stats
-
-                    stddev = m.stddev if hasattr(m, "stddev") else 0.1
-                    X = stats.truncnorm(-2, 2, scale=stddev)
-                    values = flow.Tensor(X.rvs(m.weight.numel()), dtype=m.weight.dtype)
-                    values_shape = []
-                    for i in range(len(m.weight.size())):
-                        values_shape.append(m.weight.size()[i])
-                    values = values.reshape(shape=tuple(values_shape))
-                    values = flow.Tensor(values)
-                    with flow.no_grad():
-                        m.weight = flow.nn.Parameter(values)
+                    stddev = float(m.stddev) if hasattr(m, "stddev") else 0.1  # type: ignore
+                    flow.nn.init.trunc_normal_(
+                        m.weight, mean=0.0, std=stddev, a=-2, b=2
+                    )
                 elif isinstance(m, nn.BatchNorm2d):
                     nn.init.constant_(m.weight, 1)
                     nn.init.constant_(m.bias, 0)

@@ -1,8 +1,8 @@
 # -*- coding:utf-8 -*-
 import math
-import oneflow.experimental as flow
-import oneflow.experimental.nn as nn
-from oneflow.experimental import Tensor
+import oneflow as flow
+import oneflow.nn as nn
+from oneflow import Tensor
 
 
 class ResReid(nn.Module):

@@ -3,13 +3,12 @@ import time
 import numpy as np
 
 from PIL import Image
-import oneflow.experimental as flow
+import oneflow as flow
 from skimage.metrics import peak_signal_noise_ratio
 from skimage.metrics import structural_similarity
 
 from models.of_model import Generator
 
-flow.enable_eager_execution()
 
 parser = argparse.ArgumentParser(description="Test Single Image")
 parser.add_argument(

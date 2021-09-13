@@ -1,7 +1,6 @@
 from utils.dataset import *
 from utils.utils_oneflow import *
 from models.GRU_oneflow import *
-import oneflow.experimental.F as F
 
 
 class EncoderRNN_oneflow(nn.Module):
@@ -15,7 +14,7 @@ class EncoderRNN_oneflow(nn.Module):
         self.gru = GRU_oneflow(input_size=hidden_size, hidden_size=hidden_size)
 
     def forward(self, input, hidden):
-        embedded = self.embedding(input).reshape([1, 1, -1])
+        embedded = self.embedding(input).reshape(1, 1, -1)
         output = embedded
         output, hidden = self.gru(output, hidden)
         return output, hidden
@@ -41,17 +40,15 @@ class AttnDecoderRNN_oneflow(nn.Module):
         self.logsoftmax = flow.nn.LogSoftmax(dim=1)
 
     def forward(self, input, hidden, encoder_outputs):
-        embedded = self.embedding(input).reshape([1, 1, -1])
+        embedded = self.embedding(input)
         embedded = self.dropout(embedded)
-        attn_weights = F.softmax(self.attn(flow.cat((embedded[0], hidden), -1)))
-
+        attn_weights = flow.softmax(self.attn(flow.cat((embedded[0], hidden), -1)))
         attn_applied = flow.matmul(
             attn_weights.unsqueeze(0), encoder_outputs.unsqueeze(0)
         )
         output = flow.cat((embedded[0], attn_applied[0]), 1)
         output = self.attn_combine(output).unsqueeze(0)
-
-        output = F.relu(output)
+        output = flow.relu(output)
         output, hidden = self.gru(output, hidden)
         output = self.logsoftmax(self.out(output[0]))
         return output, hidden, attn_weights

@@ -1,5 +1,5 @@
 import os
-import oneflow.experimental as flow
+import oneflow as flow
 import argparse
 import numpy as np
 import time
@@ -40,7 +40,7 @@ def main(args):
 
 
 if __name__ == "__main__":
-    flow.enable_eager_execution()
+
     parser = argparse.ArgumentParser(description="oneflow PIX2PIX")
     parser.add_argument("--model_path", type=str, required=True, help="model path")
     parser.add_argument(

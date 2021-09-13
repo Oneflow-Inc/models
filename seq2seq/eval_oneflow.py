@@ -1,7 +1,7 @@
 from models.seq_seq_oneflow import AttnDecoderRNN_oneflow, EncoderRNN_oneflow
 from utils.utils_oneflow import *
 import random
-import oneflow.experimental as flow
+import oneflow as flow
 from utils.dataset import prepareData
 import argparse
 
@@ -52,7 +52,6 @@ def evaluate(
         encoder_outputs = flow.cat(encoder_outputs, dim=0)
 
         decoder_input = flow.tensor([[SOS_token]]).to(device)
-
         decoder_hidden = encoder_hidden
         decoded_words = []
         decoder_attentions = flow.zeros((max_length, max_length)).to(device)
@@ -62,6 +61,7 @@ def evaluate(
                 decoder_input, decoder_hidden, encoder_outputs
             )
             decoder_attentions[di] = decoder_attention.squeeze(0).data
+
             topv, topi = decoder_output.data.topk(1)
             if topi.squeeze().numpy() == EOS_token:
                 decoded_words.append("<EOS>")
@@ -70,8 +70,7 @@ def evaluate(
                 decoded_words.append(
                     output_lang.index2word[int(topi.squeeze().numpy())]
                 )
-
-            decoder_input = topi.squeeze().detach()
+            decoder_input = topi.detach()
 
         return decoded_words, decoder_attentions[: di + 1]
 
@@ -101,7 +100,6 @@ def evaluateAndShowAttention(
 
 
 def main(args):
-    flow.enable_eager_execution()
 
     device = args.device
     input_lang, output_lang, pairs = prepareData("eng", "fra", True)

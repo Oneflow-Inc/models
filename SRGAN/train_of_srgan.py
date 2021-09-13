@@ -3,8 +3,8 @@ import os
 import numpy as np
 import time
 import pickle
-import oneflow.experimental as flow
-import oneflow.experimental.optim as optim
+import oneflow as flow
+import oneflow.optim as optim
 from tqdm import tqdm
 from skimage.metrics import peak_signal_noise_ratio
 from skimage.metrics import structural_similarity
@@ -80,7 +80,7 @@ def save_obj(obj, name):
 
 
 if __name__ == "__main__":
-    flow.enable_eager_execution()
+
     opt = parser.parse_args()
     os.environ["CUDA_VISIBLE_DEVICES"] = opt.gpu_ids
 
@@ -187,11 +187,12 @@ if __name__ == "__main__":
             optimizerG.zero_grad()
 
             fake_out = flow.mean(fake_out)
+            real_out = flow.mean(fake_out)
             # loss for current batch before optimization
-            running_results["g_loss"] += g_loss.numpy()[0] * batch_size
-            running_results["d_loss"] += d_loss.numpy()[0] * batch_size
-            running_results["d_score"] += real_out.numpy()[0] * batch_size
-            running_results["g_score"] += fake_out.numpy()[0] * batch_size
+            running_results["g_loss"] += g_loss.numpy() * batch_size
+            running_results["d_loss"] += d_loss.numpy() * batch_size
+            running_results["d_score"] += real_out.numpy() * batch_size
+            running_results["g_score"] += fake_out.numpy() * batch_size
 
             train_bar.set_description(
                 desc="[%d/%d] Loss_D: %.4f Loss_G: %.4f D(x): %.4f D(G(z)): %.4f"

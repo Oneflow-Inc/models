@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 import math
 import time
-import oneflow.experimental as flow
+import oneflow as flow
 
 # refer to: https://pytorch.org/tutorials/intermediate/seq2seq_translation_tutorial.html
 
@@ -78,7 +78,7 @@ def indexesFromSentence(lang, sentence):
 def tensorFromSentence(lang, sentence):
     indexes = indexesFromSentence(lang, sentence)
     indexes.append(EOS_token)
-    return flow.tensor(indexes, dtype=flow.long, device=device).reshape([-1, 1])
+    return flow.tensor(indexes, dtype=flow.long, device=device).reshape(-1, 1)
 
 
 def tensorsFromPair(pair, input_lang, output_lang):

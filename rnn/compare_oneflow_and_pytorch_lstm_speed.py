@@ -1,4 +1,4 @@
-import oneflow.experimental as flow
+import oneflow as flow
 
 import numpy as np
 import time
@@ -27,8 +27,7 @@ def letterToIndex(letter):
 
 
 def main(args):
-    flow.env.init()
-    flow.enable_eager_execution()
+
     rnn_module = LSTM(n_letters, n_hidden, n_categories)
     # Fake data, only for speed test purpose
     test_word = "Depeng"

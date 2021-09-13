@@ -1,6 +1,7 @@
 set -aux
 
 PRETRAIN_MODEL_PATH="epoch_959_val_acc_0.906250"
+
 IMAGE_PATH="data/0-1.jpg"
 
 if [ ! -d "$PRETRAIN_MODEL_PATH" ]; then

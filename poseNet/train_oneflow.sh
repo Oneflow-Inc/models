@@ -1,6 +1,8 @@
 set -aux
 
+
 OFRECORD_PATH="pose_dataset"
+
 if [ ! -d "$OFRECORD_PATH" ]; then
     wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/datasets/models/pose/pose_dataset.zip
     unzip pose_dataset.zip
@@ -14,8 +16,8 @@ fi
 LEARNING_RATE=0.001
 MOM=0.9
 EPOCH=1000
-TRAIN_BATCH_SIZE=16
-VAL_BATCH_SIZE=16
+TRAIN_BATCH_SIZE=32
+VAL_BATCH_SIZE=32
 
 # LOAD PREVIOUS CHECKPOINT 
 # LOAD_CHECKPOINT=$CHECKPOINT_PATH/epoch_959_val_acc_0.906250

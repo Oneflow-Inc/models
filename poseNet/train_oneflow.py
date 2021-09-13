@@ -102,8 +102,8 @@ def main(args):
                         epoch, b, l, end_t - start_t
                     )
                 )
-        print("epoch %d train done, start validation" % epoch)
 
+        print("epoch %d train done, start validation" % epoch)
         posenet_module.eval()
         correct_of = 0.0
         for b in range(len(val_data_loader)):

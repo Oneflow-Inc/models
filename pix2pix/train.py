@@ -2,7 +2,7 @@ import os
 import numpy as np
 import time
 import argparse
-import oneflow.experimental as flow
+import oneflow as flow
 from models.networks import Generator, Discriminator
 from utils.data_utils import load_facades
 from utils.utils import init_logger, to_tensor, to_numpy, save_images, mkdirs
@@ -87,10 +87,10 @@ class Pix2Pix:
                         "{}th epoch, {}th batch, d_fakeloss:{:>8.4f}, d_realloss:{:>8.4f},  ggan_loss:{:>8.4f}, gl1_loss:{:>8.4f}".format(
                             epoch_idx + 1,
                             batch_idx + 1,
-                            d_fake_loss[0],
-                            d_real_loss[0],
-                            g_gan_loss[0],
-                            g_image_loss[0],
+                            d_fake_loss,
+                            d_real_loss,
+                            g_gan_loss,
+                            g_image_loss,
                         )
                     )
 
@@ -198,7 +198,7 @@ class Pix2Pix:
 
 
 if __name__ == "__main__":
-    flow.enable_eager_execution()
+
     parser = argparse.ArgumentParser(description="oneflow PIX2PIX")
     parser.add_argument("--path", type=str, default="./of_pix2pix", required=False)
     parser.add_argument("-e", "--epoch_num", type=int, default=200, required=False)
