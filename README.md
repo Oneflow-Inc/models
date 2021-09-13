@@ -16,18 +16,58 @@ OneFlow-Models is an open source repo which contains official implementation of 
 - [demo](/demo/)
 
 **Model List**
-- [Computer Vision](/vision/)
-  - [Image Classification](/vision/classification/image/)
-  - [Video Classification](/vision/classification/video/)
-  - [Object Detection](/vision/detection/)
-  - [Semantic Segmentation](/vision/segmentation/)
-  - [Generative Adversarial Networks](/vision/gan/)
-  - [Neural Style Transform](/vision/style_transform/)
-  - [Person Re-identification](/vision/reid/)
-- [Natural Language Processing](/nlp/)
-- [Audio](/audio/)
-- [Deep Reinforcement Learning](/deep_reinforcement_learning/)
-- [Quantization Aware Training](/quantization/)
+
+- Computer Vision
+  - Image Classification
+    * [Lenet](Demo/quick_start_demo_lenet)
+    * [Alexnet](Vision/classification/image/alexnet)
+    * [VGG16/19](Vision/classification/image/vgg)
+    * [Resnet50](Vision/classification/image/resnet50)
+    * [InceptionV3](Vision/classification/image/inception_v3)
+    * [Densenet](Vision/classification/image/densenet)
+    * [Resnext50_32x4d](Vision/classification/image/resnext50_32x4d)
+    * [Shufflenetv2](Vision/classification/image/shufflenetv2)
+    * [MobilenetV2](Vision/classification/image/mobilenetv2)
+    * [mobilenetv3](Vision/classification/image/mobilenetv3)
+    * [Ghostnet](Vision/classification/image/ghostnet)
+    * [Repvgg](Vision/classification/image/repvgg)
+    * [DLA](Vision/classification/image/DLA)
+    * [PoseNet](Vision/classification/image/poseNet)
+    * [Scnet](Vision/classification/image/scnet)
+    * [Mnasnet](Vision/classification/image/mnasnet)
+  - Video Classification
+    * [TSN](Vision/classification/video/TSN)
+  - Object Detection
+    * [CSRNet](Vision/detection/CSRNet)
+  - Semantic Segmentation
+    * [FODDet](Vision/segmentation/FODDet)
+    * [FaceSeg](Vision/segmentation/FaceSeg)
+  - Generative Adversarial Networks
+    * [DCGAN](Vision/gan/DCGAN)
+    * [SRGAN](Vision/gan/SRGAN)
+    * [Pix2Pix](Vision/gan/pix2pix)
+    * [CycleGAN](Vision/gan/cycleGAN)
+  - Neural Style Transform
+    * [FastNeuralStyle](Vision/style_transform/fast_neural_style)
+  - Person Re-identification
+    * [bot](Vision/reid/bot)
+- Natural Language Processing
+  * [RNN](NLP/rnn)
+  * [Seq2Seq](NLP/seq2seq)
+  * [LSTMText](NLP/LSTMText)
+  * [TextCNN](NLP/TextCNN)
+  * [Transformer](NLP/Transformer)
+  * [Bert](NLP/bert-oneflow)
+  * [CPT](NLP/CPT)
+- Audio
+  * [SincNet](Audio/SincNet)
+  * [Wav2Letter](Audio/Wav2Letter)
+  * [SpeakerIdentificationDemo](Audio/speaker_identification_demo)
+  * [AM_MobileNet1D](Audio/AM_MobileNet1D)
+- Deep Reinforcement Learning
+  * [FlappyBird](DeepReinforcementLearning/FlappyBird)
+- Quantization Aware Training
+  * [Quantization](Quantization)
 
 ## Installation and Environment setup
 **Install Oneflow**
