@@ -119,12 +119,12 @@ def test(model, max_len=3, test_times=1, display=False):
         for i in range(test_times):
             s = np.random.randint(1, 4998)
             cpu_src = [(s + j) * 2 for j in range(max_len)]
-            src = to_cuda(flow.Tensor(cpu_src, dtype=flow.int64).unsqueeze(1))
+            src = to_cuda(flow.tensor(cpu_src, dtype=flow.int64).unsqueeze(1))
             tgt = [0] + [(s + j) * 2 + 1 for j in range(max_len)]
             pred = [0]
             flag = 1
             for j in range(max_len):
-                inp = to_cuda(flow.Tensor(pred, dtype=flow.int64).unsqueeze(1))
+                inp = to_cuda(flow.tensor(pred, dtype=flow.int64).unsqueeze(1))
                 output = model(src, inp)
                 out_num = output.argmax(2)[-1].numpy()[0]
                 pred.append(out_num)
