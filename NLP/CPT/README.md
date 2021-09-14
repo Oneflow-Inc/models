@@ -24,7 +24,7 @@ After training, CPT can figure out if the two input sentences are of the same me
 
 First, get the dataset:
 ```bash
-wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/nlp/CPT/clu_afqmc.tar.gz
+wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/nlp/CPT/clue_afqmc.tar.gz
 tar -xzf clue_afqmc.tar.gz
 ```
 
