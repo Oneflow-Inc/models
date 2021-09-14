@@ -75,7 +75,8 @@ class WideAndDeep(nn.Module):
         )
         self.deep_scores = nn.Linear(FLAGS.hidden_size, 1)
         self.sigmoid = nn.Sigmoid()
-        if self.FLAGS.mode=='dmp':
+        '''模型并行
+        if self.FLAGS.ddp==False and self.FLAGS.deep_embedding_table_split_axis=='split0':
             world_size = flow.env.get_world_size()
             placement = flow.placement("cpu", {0: range(world_size)})
             self.world_size=world_size
@@ -84,11 +85,30 @@ class WideAndDeep(nn.Module):
             self.deep_embedding=self.deep_embedding.to_consistent(placement=placement,sbp=flow.sbp.split(0))
             self.linear_layers=self.linear_layers.to_consistent(placement=placement,sbp=flow.sbp.broadcast)
             self.deep_scores=self.deep_scores.to_consistent(placement=placement,sbp=flow.sbp.broadcast)
+        elif self.FLAGS.ddp==False and self.FLAGS.deep_embedding_table_split_axis=='split1':
+            world_size = flow.env.get_world_size()
+            placement = flow.placement("cpu", {0: range(world_size)})
+            self.world_size=world_size
+            self.placement=placement
+            self.wide_embedding=self.wide_embedding.to_consistent(placement=placement,sbp=flow.sbp.split(0))
+            self.deep_embedding=self.deep_embedding.to_consistent(placement=placement,sbp=flow.sbp.split(1))
+            self.linear_layers=self.linear_layers.to_consistent(placement=placement,sbp=flow.sbp.broadcast)
+            self.deep_scores=self.deep_scores.to_consistent(placement=placement,sbp=flow.sbp.broadcast)
+        '''
 
     def forward(
         self, dense_fields, wide_sparse_fields, deep_sparse_fields
     ) -> flow.Tensor:
-        if self.FLAGS.mode=='dmp':
+        wide_embedding = self.wide_embedding(wide_sparse_fields)
+        wide_scores = flow.sum(wide_embedding, dim=1, keepdim=True)
+
+        deep_embedding = self.deep_embedding(deep_sparse_fields)
+        deep_features = flow.cat([deep_embedding, dense_fields], dim=1)
+        deep_features = self.linear_layers(deep_features)
+        deep_scores = self.deep_scores(deep_features)
+        return self.sigmoid(wide_scores + deep_scores)
+        '''
+        elif self.FLAGS.ddp==False and self.FLAGS.deep_embedding_table_split_axis=='split0':
             #print('输入数据：wide_sparse_fields',wide_sparse_fields.sbp)
             wide_embedding = self.wide_embedding(wide_sparse_fields)
             #print('查表gather： wide_embedding',wide_embedding.sbp)
@@ -121,15 +141,43 @@ class WideAndDeep(nn.Module):
             #由于外面的dataloader是broadcast的，所以要把predicts也转为broadcast，方便外边计算metrics
             predicts=predicts.to_consistent(placement=self.placement,sbp=flow.sbp.broadcast).to("cuda")
             return predicts
-        else:
-            wide_embedding = self.wide_embedding(wide_sparse_fields)
-            wide_scores = flow.sum(wide_embedding, dim=1, keepdim=True)
 
+        elif self.FLAGS.ddp==False and self.FLAGS.deep_embedding_table_split_axis=='split1':
+            print('输入数据：wide_sparse_fields',wide_sparse_fields.sbp)
+            wide_embedding = self.wide_embedding(wide_sparse_fields)
+            print('查表gather： wide_embedding',wide_embedding.sbp)
+            wide_scores = flow.sum(wide_embedding, dim=1, keepdim=True)
+            print('wide部分score： wide_scores',wide_scores.sbp)
+
+            #最后，为了支持后续的数据并行，因此我们通过插入parallel_cast，将 wide_scores 转变为 Split(0),然后还要to gpu。
+            #Cast a local tensor to consistent tensor or cast a consistent tensor to another consistent tensor with different sbp or placement
+            wide_scores=wide_scores.to_consistent(placement=self.placement,sbp=flow.sbp.split(0)).to("cuda")
+
+            print('输入数据：deep_sparse_fields',deep_sparse_fields.sbp)
+            print('deep embedding table sbp',self.deep_embedding.weight.sbp)
             deep_embedding = self.deep_embedding(deep_sparse_fields)
+        
+
+            print('查表gather： deep_embedding',deep_embedding.sbp)
+            print('输入数据： dense_fields',dense_fields.sbp)
             deep_features = flow.cat([deep_embedding, dense_fields], dim=1)
+
+            #最后，为了支持后续的数据并行，通过插入to_consistent，将 deep_features（原版是deep_embedding） 转变为 Split(0),然后还要to gpu
+            deep_features=deep_features.to_consistent(placement=self.placement,sbp=flow.sbp.split(0)).to("cuda")
+
+            #由于输入dnn的deep_features是split(0),dnn是broadcast，后面的输出都是split(0)
+            print('cat操作后： deep_features',deep_features.sbp)
             deep_features = self.linear_layers(deep_features)
+            print('喂给dnn层后：deep_features', deep_features)
             deep_scores = self.deep_scores(deep_features)
-            return self.sigmoid(wide_scores + deep_scores)
+            print('喂给全连接层后：deep_scores', deep_scores)
+            predicts=self.sigmoid(wide_scores + deep_scores)  #predicts是split(0)
+
+            #由于外面的dataloader是broadcast的，所以要把predicts也转为broadcast，方便外边计算metrics
+            predicts=predicts.to_consistent(placement=self.placement,sbp=flow.sbp.broadcast).to("cuda")
+            return predicts
+        '''
+
 
 
 def wide_and_deep(

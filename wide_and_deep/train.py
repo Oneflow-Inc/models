@@ -19,61 +19,68 @@ from graph import WideAndDeepGraph,WideAndDeepTrainGraph
 
 
 class Trainer(object):
+    
     def __init__(self):
+        '''
+        是否用对齐pytorch那个ddp, ddp, bool
+        eager还是graph, execution_mode, str
+        数据并行还是模型并行, 不知道叫啥, str
+        模型并行的方案, deep_embedding_table_split_axis, int
+        
+        '''
         args = get_args()
         self.args=args
         for k, v in args.__dict__.items():
             setattr(self, k, v)
-        self.graph_or_eager=args.graph_or_eager #'graph' or 'eager'
-        self.mode=args.mode #'ddp' or 'dmp'
-        self.is_consistent=args.is_consistent #True or False
+        self.execution_mode=args.execution_mode #'graph' or 'eager'
+        self.ddp=args.ddp
+        self.is_consistent= (flow.env.get_world_size() > 1 and not args.ddp) or args.execution_mode=='graph'
 
         self.rank = flow.env.get_rank()
         self.world_size = flow.env.get_world_size()
 
         self.train_dataloader, self.val_dataloader, self.wdl_module, self.loss, self.opt = self.prepare_modules()
 
-        if self.graph_or_eager=='graph':
+        if self.execution_mode=='graph':
             self.eval_graph = WideAndDeepGraph(self.wdl_module,self.val_dataloader,self.loss)
             self.train_graph = WideAndDeepTrainGraph(self.wdl_module,self.train_dataloader,self.loss,self.opt)   
         
 
     def prepare_modules(self):
         args=self.args
-        graph_or_eager=self.graph_or_eager
-        mode=self.mode 
+        execution_mode=self.execution_mode
+        ddp=self.ddp
         is_consistent=self.is_consistent
 
         world_size = self.world_size
         placement = flow.placement("cpu", {0: range(world_size)})
         wdl_module = WideAndDeep(args)
-        #dmp的，写模型的代码里面已经转好为consistent了
-        if graph_or_eager=='eager' and mode=='ddp' and is_consistent==False:
-            #对标pytorch的ddp
+        #对标pytorch的ddp
+        if ddp and is_consistent==False:
             placement = None
-            sbp = None
-        elif graph_or_eager=='graph' and mode=='ddp' and is_consistent==True:
+            dataloader_sbp = None
+        elif execution_mode=='graph' and ddp==False and is_consistent==True:
             #graph_train_consistent, graph+consistent下的数据并行
-            sbp = flow.sbp.split(0)
+            dataloader_sbp = flow.sbp.split(0)
             wdl_module = wdl_module.to_consistent(placement=placement, sbp=flow.sbp.broadcast)
-        elif graph_or_eager=='graph' and mode=='dmp' and is_consistent==True:
-            #graph_train_consistent_dmp, graph+consistent下的模型并行
-            sbp = flow.sbp.broadcast
 
-        elif graph_or_eager=='eager' and mode=='ddp' and is_consistent==True:
+
+        elif execution_mode=='eager' and ddp==False and is_consistent==True:
             #eager_train_consistent, eager+consistent下的数据并行
-            sbp = flow.sbp.split(0)
+            dataloader_sbp = flow.sbp.split(0)
             wdl_module = wdl_module.to_consistent(placement=placement, sbp=flow.sbp.broadcast)
-
-        elif graph_or_eager=='eager' and mode=='dmp' and is_consistent==True:
-            #eager_train_consistent_dmp, eager+consistent下的模型并行
-            sbp = flow.sbp.broadcast
+        #模型并行
+        # elif execution_mode=='graph' and mode=='dmp' and is_consistent==True:
+        #     #graph_train_consistent_dmp, graph+consistent下的模型并行
+        #     sbp = flow.sbp.broadcast
+        # elif execution_mode=='eager' and mode=='dmp' and is_consistent==True:
+        #     #eager_train_consistent_dmp, eager+consistent下的模型并行
+        #     sbp = flow.sbp.broadcast
         else:
             print('不支持的训练模式')
             return
-            
-        train_dataloader = OFRecordDataLoader(args, data_root=args.data_dir, batch_size=args.batch_size,placement=placement,sbp=sbp)
-        val_dataloader = OFRecordDataLoader(args, data_root=args.data_dir, mode="val",batch_size=args.batch_size,placement=placement,sbp=sbp)
+        train_dataloader = OFRecordDataLoader(args, data_root=args.data_dir, batch_size=args.batch_size,placement=placement,sbp=dataloader_sbp)
+        val_dataloader = OFRecordDataLoader(args, data_root=args.data_dir, mode="val",batch_size=args.batch_size,placement=placement,sbp=dataloader_sbp)
 
         wdl_module.to("cuda")
         bce_loss = flow.nn.BCELoss(reduction="mean")
@@ -162,7 +169,7 @@ class Trainer(object):
 
     def eval_one_step(self):
         self.wdl_module.eval()
-        if self.graph_or_eager=='graph':
+        if self.execution_mode=='graph':
             predicts, labels, eval_loss = self.eval_graph()
         else:
             labels, dense_fields, wide_sparse_fields, deep_sparse_fields = self.val_dataloader()
@@ -180,7 +187,7 @@ class Trainer(object):
         return predicts, labels, eval_loss
     def train_one_step(self):
         self.wdl_module.train()
-        if self.graph_or_eager=='graph':
+        if self.execution_mode=='graph':
             predicts, labels, train_loss = self.train_graph()
         else:
             labels, dense_fields, wide_sparse_fields, deep_sparse_fields = self.train_dataloader()

@@ -48,15 +48,18 @@
 可见[how_to_make_ofrecord_for_wdl](https://github.com/Oneflow-Inc/OneFlow-Benchmark/blob/master/ClickThroughRate/WideDeepLearning/how_to_make_ofrecord_for_wdl.md)
 
 ## 启动Oneflow训练
-### Eager模式训练脚本
+### 使用ddp训练脚本
 ```
-bash eager_train.sh
+bash train_ddp.sh
 ```
-### Graph模式训练脚本
+### 在consistent下使用Graph模式训练脚本
 ```
-bash graph_train.sh
+bash train_consistent_graph.sh
 ```
-
+### 在consistent下使用Eager模式训练脚本
+```
+bash train_consistent_eager.sh
+```
 
 
 
