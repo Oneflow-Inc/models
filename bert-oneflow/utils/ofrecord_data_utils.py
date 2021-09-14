@@ -19,14 +19,15 @@ class OfRecordDataLoader(nn.Module):
         self.placement = None
         self.sbp = None
         self.use_consistent = consistent
+        self.data_part_num = data_part_num
 
         if self.use_consistent:
-            world_size = flow.env.get_world_size()
-            # self.placement = flow.placement("cuda", {0: range(world_size)})
-            self.placement = flow.placement("cpu", {0: range(world_size)})
+            self.world_size = flow.env.get_world_size()    
             self.sbp = flow.sbp.split(0)
-            # NOTE(zwx): consistent view, only consider logical batch size
-            # batch_size = total_batch_size
+            if data_part_num < self.world_size:
+                self.placement = flow.placement("cpu", {0:[0]})
+            else:
+                self.placement = flow.placement("cpu", {0: range(self.world_size)})
 
         self.ofrecord_reader = nn.OfrecordReader(
             ofrecord_dir,
@@ -67,6 +68,17 @@ class OfRecordDataLoader(nn.Module):
         masked_lm_ids = self.blob_confs["masked_lm_ids"](data_record)
         masked_lm_positions = self.blob_confs["masked_lm_positions"](data_record)
         masked_lm_weights = self.blob_confs["masked_lm_weights"](data_record)
+
+        if self.use_consistent and self.data_part_num < self.world_size:
+            placement = flow.placement("cpu", {0: range(self.world_size)})
+
+            input_ids = input_ids.to_consistent(placement=placement)
+            next_sent_labels = next_sent_labels.to_consistent(placement=placement)
+            input_mask = input_mask.to_consistent(placement=placement)
+            segment_ids = segment_ids.to_consistent(placement=placement)
+            masked_lm_ids = masked_lm_ids.to_consistent(placement=placement)
+            masked_lm_positions = masked_lm_positions.to_consistent(placement=placement)
+            masked_lm_weights = masked_lm_weights.to_consistent(placement=placement)
 
         return (
             input_ids,
