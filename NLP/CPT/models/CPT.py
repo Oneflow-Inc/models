@@ -20,10 +20,10 @@ from .bart_utils import (
 from .dev_ops import LayerNorm
 
 ACT2FN = {
-    "relu": flow.F.relu,
+    "relu": flow._C.relu,
     # "silu": silu,
     # "swish": silu,
-    "gelu": flow.F.gelu,
+    "gelu": flow._C.gelu,
     "tanh": flow.tanh,
     # "gelu_new": gelu_new,
     # "gelu_fast": gelu_fast,
@@ -192,7 +192,7 @@ class BartAttention(nn.Module):
         # attn_probs = flow.F.dropout(attn_weights, p=prob)
         # attn_output = flow.bmm(attn_probs, value_states)
         if self.training:
-            attn_weights = flow.F.dropout(attn_weights, p=self.dropout)
+            attn_weights = flow._C.dropout(attn_weights, p=self.dropout)
         attn_output = flow.bmm(attn_weights, value_states)
 
         assert attn_output.size() == (
@@ -274,7 +274,7 @@ class BartDecoderLayer(nn.Module):
             output_attentions,
         )
         if self.training:
-            hidden_states = flow.F.dropout(hidden_states, p=self.dropout)
+            hidden_states = flow._C.dropout(hidden_states, p=self.dropout)
         hidden_states = residual + hidden_states
         hidden_states = self.self_attn_layer_norm(hidden_states)
 
@@ -301,7 +301,7 @@ class BartDecoderLayer(nn.Module):
                 output_attentions,
             )
             if self.training:
-                hidden_states = flow.F.dropout(hidden_states, p=self.dropout)
+                hidden_states = flow._C.dropout(hidden_states, p=self.dropout)
             hidden_states = residual + hidden_states
             hidden_states = self.encoder_attn_layer_norm(hidden_states)
 
@@ -312,10 +312,10 @@ class BartDecoderLayer(nn.Module):
         residual = hidden_states
         hidden_states = self.activation_fn(self.fc1(hidden_states))
         if self.training:
-            hidden_states = flow.F.dropout(hidden_states, p=self.activation_dropout)
+            hidden_states = flow._C.dropout(hidden_states, p=self.activation_dropout)
         hidden_states = self.fc2(hidden_states)
         if self.training:
-            hidden_states = flow.F.dropout(hidden_states, p=self.dropout)
+            hidden_states = flow._C.dropout(hidden_states, p=self.dropout)
         hidden_states = residual + hidden_states
         hidden_states = self.final_layer_norm(hidden_states)
 
@@ -475,7 +475,7 @@ class BartDecoder(nn.Module):
         hidden_states = self.layernorm_embedding(hidden_states)
 
         if self.training:
-            hidden_states = flow.F.dropout(hidden_states, p=self.dropout)
+            hidden_states = flow._C.dropout(hidden_states, p=self.dropout)
 
         # decoder layers
         all_hidden_states = () if output_hidden_states else None

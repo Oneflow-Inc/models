@@ -10,9 +10,9 @@ CPT supports both understanding and generation task. CPT has two kinds of decode
 - `cls_mode = 2`: Only decoder, or DG only.
 - `cls_mode = 3`: Both encoder and decoder.
 
-Since oneflow does not have some operators, we implemented some extra functions:
+We implemented some extra functions here:
 
-- `LayerNorm` in `models/dev_ops.py`
+<!-- - `LayerNorm` in `models/dev_ops.py` -->
 - `tensor_unique` in `models/bart_utils.py`
 - `position_scores` in `models/bert_utils.py`
 
@@ -24,7 +24,7 @@ After training, CPT can figure out if the two input sentences are of the same me
 
 First, get the dataset:
 ```bash
-wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/nlp/CPT/clu_afqmc.tar.gz
+wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/nlp/CPT/clue_afqmc.tar.gz
 tar -xzf clue_afqmc.tar.gz
 ```
 
