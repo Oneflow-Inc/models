@@ -16,10 +16,10 @@ from .bert_utils import (
 )
 
 ACT2FN = {
-    "relu": flow.F.relu,
+    "relu": flow._C.relu,
     # "silu": silu,
     # "swish": silu,
-    "gelu": flow.F.gelu,
+    "gelu": flow._C.gelu,
     "tanh": flow.tanh,
     # "gelu_new": gelu_new,
     # "gelu_fast": gelu_fast,

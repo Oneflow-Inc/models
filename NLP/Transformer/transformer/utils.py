@@ -22,7 +22,7 @@ def pad(input, padding, mode="constant"):
     for i in range(4 - origin_dim):
         input = input.unsqueeze(0)
 
-    input = flow.F.pad(input, padding, mode=mode)
+    input = flow._C.pad(input, padding, mode=mode)
 
     for i in range(4 - origin_dim):
         input = input.squeeze(0)
