@@ -56,7 +56,7 @@ def save_model(module: nn.Module, checkpoint_path: str, epoch: int, acc: float):
 
 def pretrain(graph: nn.Graph, metric_local: bool) -> Dict:
 
-    # NOTE: when using gradient accumulation, graph call 1 step for 1 mini-batch(n micro-batch)
+    # NOTE(lxy): when using gradient accumulation, graph call 1 step for 1 mini-batch(n micro-batch)
     next_sent_output, next_sent_labels, loss, mlm_loss, nsp_loss = graph()
 
     # to local
@@ -158,19 +158,10 @@ def main():
     )
 
     parser.add_argument(
-        "--hidden_size", type=int, default=768, help="Hidden size of transformer model",
-    )
-    parser.add_argument(
         "--num_hidden_layers", type=int, default=12, help="Number of layers"
     )
     parser.add_argument(
         "--num_attention_heads", type=int, default=12, help="Number of attention heads",
-    )
-    parser.add_argument(
-        "--intermediate_size",
-        type=int,
-        default=3072,
-        help="intermediate size of bert encoder",
     )
     parser.add_argument("--max_position_embeddings", type=int, default=512)
     parser.add_argument(
@@ -182,7 +173,6 @@ def main():
     parser.add_argument("--type_vocab_size", type=int, default=2)
     parser.add_argument("--attention_probs_dropout_prob", type=float, default=0.1)
     parser.add_argument("--hidden_dropout_prob", type=float, default=0.1)
-    parser.add_argument("--hidden_size_per_head", type=int, default=64)
     parser.add_argument("--max_predictions_per_seq", type=int, default=20)
     parser.add_argument("-e", "--epochs", type=int, default=1, help="Number of epochs")
 
@@ -283,7 +273,7 @@ def main():
         mode="test",
         dataset_size=1024,
         batch_size=args.train_global_batch_size,
-        data_part_num=64,
+        data_part_num=1,
         seq_length=args.seq_length,
         max_predictions_per_seq=args.max_predictions_per_seq,
         consistent=args.use_consistent,
@@ -301,13 +291,15 @@ def main():
     )
 
     print("Building BERT Model")
+    hidden_size = 64 * args.num_attention_heads
+    intermediate_size = 4 * hidden_size
     bert_model = BertForPreTraining(
         args.vocab_size,
         args.seq_length,
-        args.hidden_size,
+        hidden_size,
         args.num_hidden_layers,
         args.num_attention_heads,
-        args.intermediate_size,
+        intermediate_size,
         nn.GELU(),
         0.0,  # args.hidden_dropout_prob,
         0.0,  # args.attention_probs_dropout_prob,
@@ -316,10 +308,10 @@ def main():
     )
 
     # Load the same initial parameters with lazy model.
-    load_params_from_lazy(
-        bert_model.state_dict(),
-        "../../OneFlow-Benchmark/LanguageModeling/BERT/initial_model",
-    )
+    # load_params_from_lazy(
+    #     bert_model.state_dict(),
+    #     "../../OneFlow-Benchmark/LanguageModeling/BERT/initial_model",
+    # )
     assert id(bert_model.cls.predictions.decoder.weight) == id(
         bert_model.bert.embeddings.word_embeddings.weight
     )
@@ -360,7 +352,7 @@ def main():
         label_weights,
         max_predictions_per_seq,
     ):
-        # NOTE: `repeat` and `expand` will convert `logit_blob` sbp from S(0) to B
+        # NOTE(lxy): `repeat` and `expand` will convert `logit_blob` sbp from S(0) to B
         # logit_blob = flow.gather(
         #     logit_blob,
         #     index=masked_lm_positions.unsqueeze(2).repeat(1, 1, args.vocab_size),
@@ -373,6 +365,8 @@ def main():
                 placement=masked_lm_positions.placement,
                 sbp=flow.sbp.broadcast,
             )
+        else:
+            zeros = flow.zeros((1, 1, args.vocab_size), dtype=masked_lm_positions.dtype, device=masked_lm_positions.device)
         masked_lm_positions = masked_lm_positions.unsqueeze(2) + zeros
 
         # gather valid position indices
@@ -509,7 +503,7 @@ def main():
         # Train
         bert_model.train()
 
-        for step in range(300):  # range(len(train_data_loader)):
+        for step in range(1000):  # range(len(train_data_loader)):
             bert_outputs = pretrain(bert_graph, args.metric_local)
 
             if (flow.env.get_rank() == 0):
@@ -538,7 +532,7 @@ def main():
     # )
 
     # print("Saveing model ...")
-    # save_model(bert_model, args.checkpoint_path, epoch, val_acc)
+    # save_model(bert_model, args.checkpoint_path, epoch, 0.1)
 
 
 if __name__ == "__main__":
