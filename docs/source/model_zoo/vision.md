@@ -19,23 +19,23 @@
 ### [Mnasnet](https://github.com/Oneflow-Inc/models/tree/main/Vision/classification/image/mnasnet)
 
 ## Video Classification
-### [TSN]()
+### [TSN](https://github.com/Oneflow-Inc/models/tree/main/Vision/classification/video/TSN)
 
 ## Object Detection
-### [CSRNet]()
+### [CSRNet](https://github.com/Oneflow-Inc/models/tree/main/Vision/detection/CSRNet)
 
 ## Semantic Segmentation
-### [FODDet]()
-### [FaceSeg]()
+### [FODDet](https://github.com/Oneflow-Inc/models/tree/main/Vision/segmentation/FODDet)
+### [FaceSeg](https://github.com/Oneflow-Inc/models/tree/main/Vision/segmentation/FaceSeg)
 
 ## Generative Adversarial Networks
-### [DCGAN]()
-### [SRGAN]()
-### [Pix2Pix]()
-### [CycleGAN]()
+### [DCGAN](https://github.com/Oneflow-Inc/models/tree/main/Vision/gan/DCGAN)
+### [SRGAN](https://github.com/Oneflow-Inc/models/tree/main/Vision/gan/SRGAN)
+### [Pix2Pix](https://github.com/Oneflow-Inc/models/tree/main/Vision/gan/pix2pix)
+### [CycleGAN](https://github.com/Oneflow-Inc/models/tree/main/Vision/gan/cycleGAN)
 
 ## Neural Style Transform
-### [FastNeuralStyle]()
+### [FastNeuralStyle](https://github.com/Oneflow-Inc/models/tree/main/Vision/style_transform/fast_neural_style)
 
 ## Person Re-identification
-### [bot]()
+### [BoT](https://github.com/Oneflow-Inc/models/tree/main/Vision/reid/BoT)
