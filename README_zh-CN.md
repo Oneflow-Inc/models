@@ -12,7 +12,9 @@ OneFlow-Models目录下提供了各种经典图形分类、目标检测、图像
 - 便于上手，简单易用
 
 ## 快速上手
-欢迎体验OneFlow的入门[demo](/demo/)
+欢迎体验OneFlow的入门Demo
+- **图像分类:** [LeNet](Demo/quick_start_demo_lenet/lenet.py)
+- **说话人识别:** [Speaker Identification](Demo/speaker_identification_demo)
 
 ## 模型目录
 <details>
