@@ -207,16 +207,20 @@ def main():
     )
 
     print("Building BERT Model")
+    hidden_size = 64 * args.num_attention_heads
+    intermediate_size = 4 * hidden_size
     bert_model = BertForPreTraining(
         args.vocab_size,
         args.seq_length,
-        args.hidden_size,
+        hidden_size,
         args.num_hidden_layers,
         args.num_attention_heads,
-        args.intermediate_size,
+        intermediate_size,
         nn.GELU(),
-        args.hidden_dropout_prob,
-        args.attention_probs_dropout_prob,
+        # args.hidden_dropout_prob,
+        # args.attention_probs_dropout_prob,
+        0.1,
+        0.1,
         args.max_position_embeddings,
         args.type_vocab_size,
     )
