@@ -17,9 +17,8 @@ Please check our the following **demos** for a quick start
 
 ## Model List
 <details>
-<summary> <b> Computer Vision </b> </summary>
+<summary> <b> Image Classification </b> </summary>
 
-- **Image Classification**
   - [Lenet](https://github.com/Oneflow-Inc/models/blob/main/Demo/quick_start_demo_lenet/lenet.py)
   - [Alexnet](https://github.com/Oneflow-Inc/models/tree/main/Vision/classification/image/alexnet)
   - [VGG16/19](https://github.com/Oneflow-Inc/models/tree/main/Vision/classification/image/vgg)
@@ -37,29 +36,55 @@ Please check our the following **demos** for a quick start
   - [Scnet](https://github.com/Oneflow-Inc/models/tree/main/Vision/classification/image/scnet)
   - [Mnasnet](https://github.com/Oneflow-Inc/models/tree/main/Vision/classification/image/mnasnet)
 
-- **Video Classification**
-  - [TSN](https://github.com/Oneflow-Inc/models/tree/main/Vision/classification/video/TSN)
+</details>
 
-- **Object Detection**
-  - [CSRNet](https://github.com/Oneflow-Inc/models/tree/main/Vision/detection/CSRNet)
+<details>
+<summary> <b> Video Classification </b> </summary>
 
-- **Semantic Segmentation**
-  - [FODDet](https://github.com/Oneflow-Inc/models/tree/main/Vision/segmentation/FODDet)
-  - [FaceSeg](https://github.com/Oneflow-Inc/models/tree/main/Vision/segmentation/FaceSeg)
+- [TSN](https://github.com/Oneflow-Inc/models/tree/main/Vision/classification/video/TSN)
 
-- **Generative Adversarial Networks**
-  - [DCGAN](https://github.com/Oneflow-Inc/models/tree/main/Vision/gan/DCGAN)
-  - [SRGAN](https://github.com/Oneflow-Inc/models/tree/main/Vision/gan/SRGAN)
-  - [Pix2Pix](https://github.com/Oneflow-Inc/models/tree/main/Vision/gan/Pix2Pix)
-  - [CycleGAN](https://github.com/Oneflow-Inc/models/tree/main/Vision/gan/CycleGAN)
+</details>
 
-- **Neural Style Transform**
-  - [FastNeuralStyle](https://github.com/Oneflow-Inc/models/tree/main/Vision/style_transform/fast_neural_style)
 
-- **Person Re-identification**
-  - [BoT](https://github.com/Oneflow-Inc/models/tree/main/Vision/reid/BoT)
+<details>
+<summary> <b> Object Detection </b> </summary>
+  
+- [CSRNet](https://github.com/Oneflow-Inc/models/tree/main/Vision/detection/CSRNet)
 
-  </details>
+</details>
+
+<details>
+<summary> <b> Semantic Segmentation </b> </summary>
+
+- [FODDet](https://github.com/Oneflow-Inc/models/tree/main/Vision/segmentation/FODDet)
+- [FaceSeg](https://github.com/Oneflow-Inc/models/tree/main/Vision/segmentation/FaceSeg)
+
+</details>
+
+<details>
+<summary> <b> Generative Adversarial Networks </b> </summary>
+
+- [DCGAN](https://github.com/Oneflow-Inc/models/tree/main/Vision/gan/DCGAN)
+- [SRGAN](https://github.com/Oneflow-Inc/models/tree/main/Vision/gan/SRGAN)
+- [Pix2Pix](https://github.com/Oneflow-Inc/models/tree/main/Vision/gan/Pix2Pix)
+- [CycleGAN](https://github.com/Oneflow-Inc/models/tree/main/Vision/gan/CycleGAN)
+
+</details>
+
+<details>
+<summary> <b> Neural Style Transform </b> </summary>
+
+- [FastNeuralStyle](https://github.com/Oneflow-Inc/models/tree/main/Vision/style_transform/fast_neural_style)
+
+</details>
+
+
+<details>
+<summary> <b> Person Re-identification </b> </summary>
+
+- [BoT](https://github.com/Oneflow-Inc/models/tree/main/Vision/reid/BoT)
+
+</details>
 
 
 <details>
@@ -72,7 +97,6 @@ Please check our the following **demos** for a quick start
 - [Transformer](https://github.com/Oneflow-Inc/models/tree/main/NLP/Transformer)
 - [Bert](https://github.com/Oneflow-Inc/models/tree/main/NLP/bert-oneflow)
 - [CPT](https://github.com/Oneflow-Inc/models/tree/main/NLP/CPT)
-
 </details>
 
 <details>
@@ -81,21 +105,18 @@ Please check our the following **demos** for a quick start
 - [SincNet](https://github.com/Oneflow-Inc/models/tree/main/Audio/SincNet)
 - [Wav2Letter](https://github.com/Oneflow-Inc/models/tree/main/Audio/Wav2Letter)
 - [AM_MobileNet1D](https://github.com/Oneflow-Inc/models/tree/main/Audio/AM-MobileNet1D)
-
 </details>
 
 <details>
 <summary> <b> Deep Reinforcement Learning </b> </summary>
 
 - [FlappyBird](https://github.com/Oneflow-Inc/models/tree/main/DeepReinforcementLearning/FlappyBird)
-
 </details>
 
 <details>
 <summary> <b> Quantization Aware Training </b> </summary>
 
 - [Quantization](https://github.com/Oneflow-Inc/models/tree/main/Quantization)
-
 </details>
 
 ## Installation and Environment setup
