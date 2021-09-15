@@ -1,7 +1,7 @@
 set -aux
 
 LOAD_DIR="cpt_pretrain_afqmc"
-CPT_PRETRAIN_DIR='/cpt-base'
+CPT_PRETRAIN_DIR='cpt-base'
 TASK="afqmc"
 TEXT1="订单退款成功了，为什么仍然要还花呗"
 TEXT2="退款到了花呗，为什么还要还款"

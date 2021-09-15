@@ -16,9 +16,6 @@ from .bart_utils import (
     tensor_unique,  # for tensor.unique
 )
 
-# fix LayerNorm bugs
-from .dev_ops import LayerNorm
-
 ACT2FN = {
     "relu": flow._C.relu,
     # "silu": silu,
@@ -236,14 +233,14 @@ class BartDecoderLayer(nn.Module):
         self.activation_fn = ACT2FN[activation]
         self.activation_dropout = act_dropout
 
-        self.self_attn_layer_norm = LayerNorm(self.embed_dim)
+        self.self_attn_layer_norm = nn.LayerNorm(self.embed_dim)
         self.encoder_attn = BartAttention(
             self.embed_dim, num_heads, dropout=attn_dropout, is_decoder=True,
         )
-        self.encoder_attn_layer_norm = LayerNorm(self.embed_dim)
+        self.encoder_attn_layer_norm = nn.LayerNorm(self.embed_dim)
         self.fc1 = nn.Linear(self.embed_dim, ffn_dim)
         self.fc2 = nn.Linear(ffn_dim, self.embed_dim)
-        self.final_layer_norm = LayerNorm(self.embed_dim)
+        self.final_layer_norm = nn.LayerNorm(self.embed_dim)
 
     def forward(
         self,
@@ -385,7 +382,7 @@ class BartDecoder(nn.Module):
                 for _ in range(num_layers)
             ]
         )
-        self.layernorm_embedding = LayerNorm(d_model)
+        self.layernorm_embedding = nn.LayerNorm(d_model)
 
         self.init_weights()
 

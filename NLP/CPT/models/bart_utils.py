@@ -3,9 +3,6 @@ import oneflow as flow
 import oneflow.nn as nn
 from typing import Optional
 
-from .dev_ops import LayerNorm
-
-
 def shift_tokens_right(
     input_ids: flow.Tensor, pad_token_id: int, decoder_start_token_id: int
 ):
@@ -86,9 +83,6 @@ def init_weights(module):
         if module.padding_idx is not None:
             module.weight.data[module.padding_idx].fill_(0.01)
     elif isinstance(module, nn.LayerNorm):
-        module.bias.data.fill_(0.0)
-        module.weight.data.fill_(1.0)
-    elif isinstance(module, LayerNorm):
         module.bias.data.fill_(0.0)
         module.weight.data.fill_(1.0)
 
