@@ -11,10 +11,113 @@ OneFlow-Models is an open source repo which contains official implementation of 
 - easy use for beginners
 
 ## Quick Start
-Please check our [demo](Demo) for a quick start
+Please check our the following **demos** for a quick start
+- **image classification** [quick start lenet demo](Demo/quick_start_demo_lenet/lenet.py)
+- **speaker recognition** [speaker identification demo](Demo/speaker_identification_demo)
 
-## Documentation
-Learn more about OneFlow-Models [here]()
+## Model List
+<details>
+<summary> <b> Image Classification </b> </summary>
+
+  - [Lenet](https://github.com/Oneflow-Inc/models/blob/main/Demo/quick_start_demo_lenet/lenet.py)
+  - [Alexnet](https://github.com/Oneflow-Inc/models/tree/main/Vision/classification/image/alexnet)
+  - [VGG16/19](https://github.com/Oneflow-Inc/models/tree/main/Vision/classification/image/vgg)
+  - [Resnet50](https://github.com/Oneflow-Inc/models/tree/main/Vision/classification/image/resnet50)
+  - [InceptionV3](https://github.com/Oneflow-Inc/models/tree/main/Vision/classification/image/inception_v3)
+  - [Densenet](https://github.com/Oneflow-Inc/models/tree/main/Vision/classification/image/densenet)
+  - [Resnext50_32x4d](https://github.com/Oneflow-Inc/models/tree/main/Vision/classification/image/resnext50_32x4d)
+  - [Shufflenetv2](https://github.com/Oneflow-Inc/models/tree/main/Vision/classification/image/shufflenetv2)
+  - [MobilenetV2](https://github.com/Oneflow-Inc/models/tree/main/Vision/classification/image/mobilenetv2)
+  - [mobilenetv3](https://github.com/Oneflow-Inc/models/tree/main/Vision/classification/image/mobilenetv3)
+  - [Ghostnet](https://github.com/Oneflow-Inc/models/tree/main/Vision/classification/image/ghostnet)
+  - [RepVGG](https://github.com/Oneflow-Inc/models/tree/main/Vision/classification/image/repvgg)
+  - [DLA](https://github.com/Oneflow-Inc/models/tree/main/Vision/classification/image/DLA)
+  - [PoseNet](https://github.com/Oneflow-Inc/models/tree/main/Vision/classification/image/poseNet)
+  - [Scnet](https://github.com/Oneflow-Inc/models/tree/main/Vision/classification/image/scnet)
+  - [Mnasnet](https://github.com/Oneflow-Inc/models/tree/main/Vision/classification/image/mnasnet)
+
+</details>
+
+<details>
+<summary> <b> Video Classification </b> </summary>
+
+- [TSN](https://github.com/Oneflow-Inc/models/tree/main/Vision/classification/video/TSN)
+
+</details>
+
+
+<details>
+<summary> <b> Object Detection </b> </summary>
+  
+- [CSRNet](https://github.com/Oneflow-Inc/models/tree/main/Vision/detection/CSRNet)
+
+</details>
+
+<details>
+<summary> <b> Semantic Segmentation </b> </summary>
+
+- [FODDet](https://github.com/Oneflow-Inc/models/tree/main/Vision/segmentation/FODDet)
+- [FaceSeg](https://github.com/Oneflow-Inc/models/tree/main/Vision/segmentation/FaceSeg)
+
+</details>
+
+<details>
+<summary> <b> Generative Adversarial Networks </b> </summary>
+
+- [DCGAN](https://github.com/Oneflow-Inc/models/tree/main/Vision/gan/DCGAN)
+- [SRGAN](https://github.com/Oneflow-Inc/models/tree/main/Vision/gan/SRGAN)
+- [Pix2Pix](https://github.com/Oneflow-Inc/models/tree/main/Vision/gan/Pix2Pix)
+- [CycleGAN](https://github.com/Oneflow-Inc/models/tree/main/Vision/gan/CycleGAN)
+
+</details>
+
+<details>
+<summary> <b> Neural Style Transform </b> </summary>
+
+- [FastNeuralStyle](https://github.com/Oneflow-Inc/models/tree/main/Vision/style_transform/fast_neural_style)
+
+</details>
+
+
+<details>
+<summary> <b> Person Re-identification </b> </summary>
+
+- [BoT](https://github.com/Oneflow-Inc/models/tree/main/Vision/reid/BoT)
+
+</details>
+
+
+<details>
+<summary> <b> Natural Language Processing </b> </summary>
+
+- [RNN](https://github.com/Oneflow-Inc/models/tree/main/NLP/rnn)
+- [Seq2Seq](https://github.com/Oneflow-Inc/models/tree/main/NLP/seq2seq)
+- [LSTMText](https://github.com/Oneflow-Inc/models/tree/main/NLP/LSTMText)
+- [TextCNN](https://github.com/Oneflow-Inc/models/tree/main/NLP/TextCNN)
+- [Transformer](https://github.com/Oneflow-Inc/models/tree/main/NLP/Transformer)
+- [Bert](https://github.com/Oneflow-Inc/models/tree/main/NLP/bert-oneflow)
+- [CPT](https://github.com/Oneflow-Inc/models/tree/main/NLP/CPT)
+</details>
+
+<details>
+<summary> <b> Audio </b> </summary>
+
+- [SincNet](https://github.com/Oneflow-Inc/models/tree/main/Audio/SincNet)
+- [Wav2Letter](https://github.com/Oneflow-Inc/models/tree/main/Audio/Wav2Letter)
+- [AM_MobileNet1D](https://github.com/Oneflow-Inc/models/tree/main/Audio/AM-MobileNet1D)
+</details>
+
+<details>
+<summary> <b> Deep Reinforcement Learning </b> </summary>
+
+- [FlappyBird](https://github.com/Oneflow-Inc/models/tree/main/DeepReinforcementLearning/FlappyBird)
+</details>
+
+<details>
+<summary> <b> Quantization Aware Training </b> </summary>
+
+- [Quantization](https://github.com/Oneflow-Inc/models/tree/main/Quantization)
+</details>
 
 ## Installation and Environment setup
 **Install Oneflow**
