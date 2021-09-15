@@ -7,7 +7,7 @@
 
 ### Alexnet
 - **Network Design**
-AlexNet contained eight layers; the first five were convolutional layers, some of them followed by max-pooling layers, and the last three were fully connected layers. It used the non-saturating ReLU activation function, which showed improved training performance over tanh and sigmoid. 
+> AlexNet contained eight layers; the first five were convolutional layers, some of them followed by max-pooling layers, and the last three were fully connected layers. It used the non-saturating ReLU activation function, which showed improved training performance over tanh and sigmoid. 
 
 - **Network Overall**
 <p align="center">
@@ -21,7 +21,7 @@ Neural Networks](https://proceedings.neurips.cc/paper/2012/file/c399862d3b9d6b76
 
 ### VGG
 - **Network Design**
-VGG is a classical convolutional neural network architecture. It was based on an analysis of how to increase the depth of such networks. The network utilises small 3 x 3 filters. Otherwise the network is characterized by its simplicity: the only other components being pooling layers and a fully connected layer.
+> VGG is a classical convolutional neural network architecture. It was based on an analysis of how to increase the depth of such networks. The network utilises small 3 x 3 filters. Otherwise the network is characterized by its simplicity: the only other components being pooling layers and a fully connected layer.
 
 - **Network Overall**
 <p align="center">
@@ -33,7 +33,7 @@ VGG is a classical convolutional neural network architecture. It was based on an
 
 ### Resnet50
 - **Network Design**
-Residual Networks, or ResNets, learn residual functions with reference to the layer inputs, instead of learning unreferenced functions. Instead of hoping each few stacked layers directly fit a desired underlying mapping, residual nets let these layers fit a residual mapping. They stack residual blocks ontop of each other to form network: e.g. a ResNet-50 has fifty layers using these blocks.There is empirical evidence that these types of network are easier to optimize, and can gain accuracy from considerably increased depth.
+> Residual Networks, or ResNets, learn residual functions with reference to the layer inputs, instead of learning unreferenced functions. Instead of hoping each few stacked layers directly fit a desired underlying mapping, residual nets let these layers fit a residual mapping. They stack residual blocks ontop of each other to form network: e.g. a ResNet-50 has fifty layers using these blocks.There is empirical evidence that these types of network are easier to optimize, and can gain accuracy from considerably increased depth.
 
 - **Residual Learning block**
 <p align="center">
@@ -44,10 +44,10 @@ Residual Networks, or ResNets, learn residual functions with reference to the la
 - **Quick Start:** [here](https://github.com/Oneflow-Inc/models/tree/main/Vision/classification/image/resnet50)
 
 ### InceptionV3
-**Network Design**
-Inception-v3 is a convolutional neural network architecture from the Inception family that makes several improvements including using Label Smoothing, Factorized 7 x 7 convolutions, and the use of an auxiliary classifer to propagate label information lower down the network (along with the use of batch normalization for layers in the sidehead).
+- **Network Design**
+> Inception-v3 is a convolutional neural network architecture from the Inception family that makes several improvements including using Label Smoothing, Factorized 7 x 7 convolutions, and the use of an auxiliary classifer to propagate label information lower down the network (along with the use of batch normalization for layers in the sidehead).
 
-**Inception Block**
+- **Inception Block**
 <p align="center">
 	<img src="docs/../../../imgs/inception_v3/inception_block1.png" width="550">
 </p>
@@ -63,10 +63,10 @@ Inception-v3 is a convolutional neural network architecture from the Inception f
 
 
 ### Densenet
-**Network Design**
+- **Network Design**
 A DenseNet is a type of convolutional neural network that utilises dense connections between layers, through Dense Blocks, where we connect all layers (with matching feature-map sizes) directly with each other. To preserve the feed-forward nature, each layer obtains additional inputs from all preceding layers and passes on its own feature-maps to all subsequent layers.
 
-**Dense Block**
+- **Dense Block**
 <p align="center">
 	<img src="docs/../../../imgs/dense_block.png" width="550">
 </p>
@@ -76,16 +76,33 @@ A DenseNet is a type of convolutional neural network that utilises dense connect
 - **Quick Start:** [here](https://github.com/Oneflow-Inc/models/tree/main/Vision/classification/image/densenet)
 
 
-### [Resnext50_32x4d](https://github.com/Oneflow-Inc/models/tree/main/Vision/classification/image/resnext50_32x4d)
+### Resnext50_32x4d
+- **Network Design**
+> A ResNeXt repeats a building block that aggregates a set of transformations with the same topology. Compared to a ResNet, it exposes a new dimension, cardinality (the size of the set of transformations) , as an essential factor in addition to the dimensions of depth and width.
+
+- **ResNet Block vs ResNext Block**
+<p align="center">
+	<img src="docs/../../../imgs/resnext/resnext_block.png" width="550">
+</p>
+
+- **ResNet vs ResNext**
+<p align="center">
+	<img src="docs/../../../imgs/resnext/resnext_model.png" width="550">
+</p>
+
+
+- **Relative Paper:** [Aggregated Residual Transformations for Deep Neural Networks](https://arxiv.org/pdf/1611.05431v2.pdf)
+- **Quick Start:** [here](https://github.com/Oneflow-Inc/models/tree/main/Vision/classification/image/resnext50_32x4d)
+
 ### [Shufflenetv2](https://github.com/Oneflow-Inc/models/tree/main/Vision/classification/image/shufflenetv2)
 ### [MobilenetV2](https://github.com/Oneflow-Inc/models/tree/main/Vision/classification/image/mobilenetv2)
 ### [mobilenetv3](https://github.com/Oneflow-Inc/models/tree/main/Vision/classification/image/mobilenetv3)
 ### [Ghostnet](https://github.com/Oneflow-Inc/models/tree/main/Vision/classification/image/ghostnet)
 ### [RepVGG](https://github.com/Oneflow-Inc/models/tree/main/Vision/classification/image/repvgg)
+### [Mnasnet](https://github.com/Oneflow-Inc/models/tree/main/Vision/classification/image/mnasnet)
 ### [DLA](https://github.com/Oneflow-Inc/models/tree/main/Vision/classification/image/DLA)
 ### [PoseNet](https://github.com/Oneflow-Inc/models/tree/main/Vision/classification/image/poseNet)
 ### [Scnet](https://github.com/Oneflow-Inc/models/tree/main/Vision/classification/image/scnet)
-### [Mnasnet](https://github.com/Oneflow-Inc/models/tree/main/Vision/classification/image/mnasnet)
 
 ## Video Classification
 ### [TSN](https://github.com/Oneflow-Inc/models/tree/main/Vision/classification/video/TSN)
