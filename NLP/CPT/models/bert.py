@@ -1,8 +1,6 @@
 # referemce to transformers bert model
 import oneflow as flow
 
-# fix LayerNorm bug
-from .dev_ops import LayerNorm
 import oneflow.nn as nn
 
 import math
@@ -49,7 +47,7 @@ class BertEmbeddings(nn.Module):
         self.position_embeddings = nn.Embedding(max_position_embeddings, hidden_size)
         self.token_type_embeddings = nn.Embedding(type_vocab_size, hidden_size)
 
-        self.LayerNorm = LayerNorm(hidden_size, eps=layer_norm_eps)
+        self.LayerNorm = nn.LayerNorm(hidden_size, eps=layer_norm_eps)
         self.dropout = nn.Dropout(dropout)
         # position_ids (1, len position emb) is contiguous in memory and exported when serialized
         self.position_embedding_type = position_embedding_type
@@ -280,7 +278,7 @@ class BertSelfOutput(nn.Module):
     def __init__(self, hidden_size, layer_norm_eps=1e-5, dropout=0):
         super().__init__()
         self.dense = nn.Linear(hidden_size, hidden_size)
-        self.LayerNorm = LayerNorm(hidden_size, eps=layer_norm_eps)
+        self.LayerNorm = nn.LayerNorm(hidden_size, eps=layer_norm_eps)
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, hidden_states, input_tensor):
@@ -387,7 +385,7 @@ class BertOutput(nn.Module):
     def __init__(self, hidden_size, intermediate_size, layer_norm_eps=1e-5, dropout=0):
         super(BertOutput, self).__init__()
         self.dense = nn.Linear(intermediate_size, hidden_size)
-        self.LayerNorm = LayerNorm(hidden_size, eps=layer_norm_eps)
+        self.LayerNorm = nn.LayerNorm(hidden_size, eps=layer_norm_eps)
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, hidden_states, input_tensor):
