@@ -11,6 +11,7 @@ class Accuracy(flow.nn.Module):
         num_samples = 0
         for pred, label in zip(preds, labels):
             clsidxs = pred.argmax(dim=-1)
+            clsidxs = clsidxs.to(flow.int32)
             match = (clsidxs == label).sum()
             top1_num += match.to(device=top1_num.device, dtype=top1_num.dtype)
             num_samples += np.prod(label.shape).item()
