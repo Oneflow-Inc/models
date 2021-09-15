@@ -19,8 +19,7 @@ def make_data_loader(args, mode, is_consistent=False, synthetic=False):
     sbp = None
 
     if is_consistent:
-        world_size = flow.env.get_world_size()
-        placement = flow.placement("cpu", {0: range(world_size)})
+        placement = flow.env.all_device_placement("cpu")
         sbp = flow.sbp.split(0)
         # NOTE(zwx): consistent view, only consider logical batch size
         batch_size = total_batch_size
