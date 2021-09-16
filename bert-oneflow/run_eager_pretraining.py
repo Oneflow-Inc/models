@@ -55,9 +55,6 @@ def pretrain(
 
     # 1. forward the next_sentence_prediction and masked_lm model
     prediction_scores, seq_relationship_scores = model(input_ids, segment_ids, input_mask)
-    # seq_relationship_scores = model(input_ids, segment_ids, input_mask)
-    import pdb 
-    pdb.set_trace()
 
     # 2-1. loss of is_next classification result
     next_sentence_loss = ns_criterion(
@@ -81,11 +78,14 @@ def pretrain(
     # next sentence prediction accuracy
     correct = (
         seq_relationship_scores.argmax(dim=-1)
+        .to(dtype=next_sentence_labels.dtype)
         .eq(next_sentence_labels.squeeze(1))
+        .to(dtype=flow.float32)
         .sum()
         .numpy()
         .item()
     )
+
     pred_acc = np.array(correct / next_sentence_labels.nelement())
 
     return {
@@ -333,10 +333,9 @@ def main():
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
 
-    if (flow.env.get_rank() == 0):
-        Reporter.write2file(
-            train_total_losses, os.path.join(save_dir, "bert_4gpu_eager_consistent_diff_loss.txt")
-        )
+    Reporter.write2file(
+        train_total_losses, os.path.join(save_dir, f"bert_4gpu_eager_consistent_diff_loss{flow.env.get_rank()}.txt")
+    )
 
 
 if __name__ == "__main__":
