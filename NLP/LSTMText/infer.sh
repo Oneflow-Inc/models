@@ -1,12 +1,11 @@
 set -aux
 
 SEQUENCE_LEN=128
-BATCH_SIZE=1
 EMBEDDING_DIM=100
-NFC=128
 HIDDEN_SIZE=256
 
 LOAD_DIR="pretrain_model"
+IMDB_PATH="./imdb"
 TEXT="It is awesome! It is nice. The director does a good job!"
 
 if [ ! -d "$LOAD_DIR" ]; then
@@ -15,11 +14,16 @@ if [ ! -d "$LOAD_DIR" ]; then
     exit 1
 fi
 
+if [ ! -d "$IMDB_PATH" ]; then
+    echo "Directory '$IMDB_PATH' doesn't exist."
+    echo "Please set the correct path of imdb dataset."
+    exit 1
+fi
+
 python3 infer.py \
     --sequence_length $SEQUENCE_LEN \
-    --batch_size $BATCH_SIZE \
     --emb_dim $EMBEDDING_DIM \
-    --nfc $NFC \
     --hidden_size $HIDDEN_SIZE \
     --model_load_dir $LOAD_DIR \
+    --imdb_path $IMDB_PATH \
     --text "$TEXT"
