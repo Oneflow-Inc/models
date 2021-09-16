@@ -22,12 +22,13 @@ class OfRecordDataLoader(nn.Module):
         self.data_part_num = data_part_num
 
         if self.use_consistent:
-            self.world_size = flow.env.get_world_size()    
-            self.sbp = flow.sbp.split(0)
+            self.world_size = flow.env.get_world_size()
             if data_part_num < self.world_size:
-                self.placement = flow.placement("cpu", {0:[0]})
+                self.placement = flow.placement("cpu", {0: [0]})
+                self.sbp = flow.sbp.broadcast
             else:
                 self.placement = flow.placement("cpu", {0: range(self.world_size)})
+                self.sbp = flow.sbp.split(0)
 
         self.ofrecord_reader = nn.OfrecordReader(
             ofrecord_dir,
@@ -71,14 +72,20 @@ class OfRecordDataLoader(nn.Module):
 
         if self.use_consistent and self.data_part_num < self.world_size:
             placement = flow.placement("cpu", {0: range(self.world_size)})
-
-            input_ids = input_ids.to_consistent(placement=placement)
-            next_sent_labels = next_sent_labels.to_consistent(placement=placement)
-            input_mask = input_mask.to_consistent(placement=placement)
-            segment_ids = segment_ids.to_consistent(placement=placement)
-            masked_lm_ids = masked_lm_ids.to_consistent(placement=placement)
-            masked_lm_positions = masked_lm_positions.to_consistent(placement=placement)
-            masked_lm_weights = masked_lm_weights.to_consistent(placement=placement)
+            sbp = flow.sbp.split(0)
+            input_ids = input_ids.to_consistent(placement=placement, sbp=sbp)
+            next_sent_labels = next_sent_labels.to_consistent(
+                placement=placement, sbp=sbp
+            )
+            input_mask = input_mask.to_consistent(placement=placement, sbp=sbp)
+            segment_ids = segment_ids.to_consistent(placement=placement, sbp=sbp)
+            masked_lm_ids = masked_lm_ids.to_consistent(placement=placement, sbp=sbp)
+            masked_lm_positions = masked_lm_positions.to_consistent(
+                placement=placement, sbp=sbp
+            )
+            masked_lm_weights = masked_lm_weights.to_consistent(
+                placement=placement, sbp=sbp
+            )
 
         return (
             input_ids,

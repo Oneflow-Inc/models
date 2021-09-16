@@ -1,6 +1,7 @@
 import os
 import argparse
 import matplotlib.pyplot as plt
+import numpy as np
 
 
 def _parse_args():
@@ -19,11 +20,21 @@ def _parse_args():
 
 # helpers
 def load_data(file_path):
-    data = []
-    with open(file_path, "r") as f:
-        for _line in f.readlines():
-            data.append(float(_line.strip()))
-    return data
+    def load_txt(file_path):
+        data = []
+        with open(file_path, "r") as f:
+            for _line in f.readlines():
+                data.append(float(_line.strip()))
+        return data
+
+    if type(file_path) == type([]):
+        total = 0
+        for fp in file_path:
+            total += np.array(load_txt(fp))
+        total = total / len(file_path)
+        return total.tolist()
+    else:
+        return load_txt(file_path)
 
 
 def draw_and_save(info_dic):
@@ -64,7 +75,7 @@ def draw_and_save(info_dic):
         plt.plot(idxs, abs_data)
     else:
         for txt, label in zip(txts, labels):
-            data = load_data(txt)
+            data = load_data(txt)[:300]
             idxs = [i for i in range(len(data))]
             plt.plot(idxs, data, label=label)
     plt.title(title)
@@ -86,30 +97,30 @@ if __name__ == "__main__":
     os.makedirs(save_root, exist_ok=True)
     draw_and_save(
         {
-            "title": "lazy_graph_sgd_lr0.02_consistent_loss_compare",
-            "save_path": add_pth(save_root, "lazy_graph_sgd_amp_consistent.png"),
+            "title": "eager_graph_ddp_vs_consistent_loss_compare",
+            "save_path": add_pth(save_root, "eager_graph_4gpu_ddp_vs_consistent.png"),
             "txts": [
-                "../../OneFlow-Benchmark/LanguageModeling/BERT/loss_info_sgd_amp.txt",
-                "loss_txt/bert_graph_sgd_amp_consistent_loss.txt",
+                # "loss_txt/bert_graph_sgd_amp_consistent_ddp_1gpu_loss.txt",
+                # "../../OneFlow-Benchmark/LanguageModeling/BERT/loss_txt/loss_info_sgd_amp_ddp_4gpu_diffpart_zwx.txt",
+                # "../../OneFlow-Benchmark/LanguageModeling/BERT/loss_txt/loss_info_sgd_amp_ddp_4gpu_shuffle_zwx.txt",
+                # "../../OneFlow-Benchmark/LanguageModeling/BERT/loss_txt/loss_info_sgd_amp_ddp_4gpu_shuffle.txt",
+                # "../../OneFlow-Benchmark/LanguageModeling/BERT/loss_info_sgd_amp_ddp_1gpu.txt",
+                "loss_txt/bert_graph_sgd_amp_consistent_4gpu_4partdiff_fp32_loss.txt",
+                [
+                    "loss_txt/bert_4gpu_eager_consistent_diff_loss0.txt",
+                    "loss_txt/bert_4gpu_eager_consistent_diff_loss1.txt",
+                    "loss_txt/bert_4gpu_eager_consistent_diff_loss2.txt",
+                    "loss_txt/bert_4gpu_eager_consistent_diff_loss3.txt",
+                ],
             ],
-            "names": ["lazy_loss", "graph_loss"],
+            "names": [
+                "graph_consistent_fp32_loss",
+                "eager_ddp_loss",
+            ],  # "lazy_reapeat4part_loss"
             "xlabel": "iter",
             "ylabel": "loss",
         }
     )
-    # draw_and_save(
-    #     {
-    #         "title": "lazy_graph_adam_lr1e-3_loss_compare",
-    #         "save_path": add_pth(save_root, "lazy_graph_adamw.png"),
-    #         "txts": [
-    #             "../../OneFlow-Benchmark/LanguageModeling/BERT/loss_info_adam.txt",
-    #             "loss_txt/bert_graph_adam_loss.txt",
-    #         ],
-    #         "names": ["lazy_loss", "graph_loss"],
-    #         "xlabel": "iter",
-    #         "ylabel": "loss",
-    #     }
-    # )
     # draw_and_save(
     #     {
     #         "title": "lazy_graph_adamw_lr1e-3_loss_compare",

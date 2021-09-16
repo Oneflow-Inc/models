@@ -66,7 +66,9 @@ def pretrain(graph: nn.Graph, metric_local: bool) -> Dict:
     # next sentence prediction accuracy
     correct = (
         next_sent_output.argmax(dim=-1)
+        .to(dtype=next_sent_labels.dtype)
         .eq(next_sent_labels.squeeze(1))
+        .to(dtype=flow.float32)
         .sum()
         .numpy()
         .item()
@@ -74,7 +76,7 @@ def pretrain(graph: nn.Graph, metric_local: bool) -> Dict:
     pred_acc = np.array(correct / next_sent_labels.nelement())
 
     return {
-        "total_loss": tton(loss.mean(), metric_local),
+        "total_loss": tton(loss.mean(), False),
         "mlm_loss": tton(mlm_loss.mean(), metric_local),
         "nsp_loss": tton(nsp_loss.mean(), metric_local),
         "pred_acc": pred_acc,
@@ -191,10 +193,16 @@ def main():
         "--weight_decay", type=float, default=0.01, help="Weight_decay of adam"
     )
     parser.add_argument(
-        "--loss_print_every_n_iters", type=int, default=20, help="Interval of training loss printing"
+        "--loss_print_every_n_iters",
+        type=int,
+        default=20,
+        help="Interval of training loss printing",
     )
     parser.add_argument(
-        "--val_print_every_n_iters", type=int, default=20, help="Interval of evaluation printing"
+        "--val_print_every_n_iters",
+        type=int,
+        default=20,
+        help="Interval of evaluation printing",
     )
     parser.add_argument(
         "--checkpoint_path",
@@ -214,9 +222,11 @@ def main():
         type=str2bool,
         nargs="?",
         const=True,
-        help="Whether to use gradient accumulation"
+        help="Whether to use gradient accumulation",
     )
-    parser.add_argument("--grad-acc-steps", type=int, default=1, help="Steps for gradient accumulation")
+    parser.add_argument(
+        "--grad-acc-steps", type=int, default=1, help="Steps for gradient accumulation"
+    )
     parser.add_argument(
         "--nccl-fusion-threshold-mb",
         type=int,
@@ -276,7 +286,7 @@ def main():
         mode="test",
         dataset_size=1024,
         batch_size=args.train_global_batch_size,
-        data_part_num=1,
+        data_part_num=4,
         seq_length=args.seq_length,
         max_predictions_per_seq=args.max_predictions_per_seq,
         consistent=args.use_consistent,
@@ -287,7 +297,7 @@ def main():
         mode="test",
         dataset_size=1024,
         batch_size=args.val_global_batch_size,
-        data_part_num=1,
+        data_part_num=4,
         seq_length=args.seq_length,
         max_predictions_per_seq=args.max_predictions_per_seq,
         consistent=args.use_consistent,
@@ -335,14 +345,16 @@ def main():
     optimizer = build_sgd_optimizer(  # build_adamW_optimizer(
         bert_model,
         args.lr,
-        momentum=0.9
+        momentum=0.9,
+        clip_grad_max_norm=1.0,
+        clip_grad_norm_type=2.0
         # args.weight_decay,
         # weight_decay_excludes=["bias", "LayerNorm", "layer_norm"],
     )
 
     steps = args.epochs * len(train_data_loader)
 
-    lr_scheduler = PolynomialLR(optimizer, steps=1000, end_learning_rate=0.0)
+    lr_scheduler = PolynomialLR(optimizer, steps=300, end_learning_rate=0.0)
 
     lr_scheduler = flow.optim.lr_scheduler.WarmUpLR(
         lr_scheduler, warmup_factor=0, warmup_iters=50, warmup_method="linear"
@@ -369,7 +381,11 @@ def main():
                 sbp=flow.sbp.broadcast,
             )
         else:
-            zeros = flow.zeros((1, 1, args.vocab_size), dtype=masked_lm_positions.dtype, device=masked_lm_positions.device)
+            zeros = flow.zeros(
+                (1, 1, args.vocab_size),
+                dtype=masked_lm_positions.dtype,
+                device=masked_lm_positions.device,
+            )
         masked_lm_positions = masked_lm_positions.unsqueeze(2) + zeros
 
         # gather valid position indices
@@ -384,8 +400,8 @@ def main():
         # padding predictions.
         pre_example_loss = mlm_criterion(logit_blob, label_id_blob)
         pre_example_loss = flow.reshape(pre_example_loss, [-1, max_predictions_per_seq])
-        numerator = flow.sum(pre_example_loss * label_weights) 
-        denominator = flow.sum(label_weights) + 1e-5 
+        numerator = flow.sum(pre_example_loss * label_weights)
+        denominator = flow.sum(label_weights) + 1e-5
         loss = numerator / denominator
         return loss
 
@@ -509,7 +525,7 @@ def main():
         for step in range(100):  # range(len(train_data_loader)):
             bert_outputs = pretrain(bert_graph, args.metric_local)
 
-            if (flow.env.get_rank() == 0):
+            if flow.env.get_rank() == 0:
                 metric.metric_cb(step, epoch=epoch)(bert_outputs)
 
             train_total_losses.append(bert_outputs["total_loss"])
@@ -518,10 +534,12 @@ def main():
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
 
-    # Reporter.write2file(
-    #     train_total_losses,
-    #     os.path.join(save_dir, "bert_graph_sgd_amp_b32.txt"),
-    # )
+    Reporter.write2file(
+        train_total_losses,
+        os.path.join(
+            save_dir, "bert_graph_sgd_amp_consistent_ddp_4gpu_4partdiff_clip_loss.txt"
+        ),
+    )
     # Reporter.write2file(
     #     train_lml_losses, os.path.join(save_dir, "bert_graph_lml_loss.txt")
     # )
