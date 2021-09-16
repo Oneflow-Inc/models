@@ -105,6 +105,7 @@ Please check our the following **demos** for a quick start
 - [SincNet](https://github.com/Oneflow-Inc/models/tree/main/Audio/SincNet)
 - [Wav2Letter](https://github.com/Oneflow-Inc/models/tree/main/Audio/Wav2Letter)
 - [AM_MobileNet1D](https://github.com/Oneflow-Inc/models/tree/main/Audio/AM-MobileNet1D)
+- [Speech-Emotion-Analyer](https://github.com/Oneflow-Inc/models/tree/dev_audio_speech_emotion_analyzer/Audio/Speech-Emotion-Analyzer)
 </details>
 
 <details>

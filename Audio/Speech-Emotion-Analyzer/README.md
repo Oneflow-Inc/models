@@ -68,7 +68,7 @@ Install [Opensmile](https://github.com/naxingyu/opensmile).
 
 ### Configuration
 
-Parameters can be configured in the config files (YAML) under [`configs/`](https://github.com/yingzhao27/Speech-Emotion-Analyzer-with-oneflow/tree/main/configs).
+Parameters can be configured in the config files (YAML) under [`configs/`](https://github.com/Oneflow-Inc/models/tree/dev_audio_speech_emotion_analyzer/Audio/Speech-Emotion-Analyzer/configs).
 
 It should be noted that, currently only the following 6 Opensmile standard feature sets are supported:
 
