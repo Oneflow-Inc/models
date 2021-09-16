@@ -1,0 +1,4 @@
+numpy
+Pillow
+opencv-contrib-pythonalbumentations
+albumentations
