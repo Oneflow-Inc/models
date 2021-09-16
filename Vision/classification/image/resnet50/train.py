@@ -84,7 +84,7 @@ class Trainer(object):
         start_t = time.perf_counter()
 
         if self.is_consistent:
-            placement = flow.placement("cuda", {0: range(self.world_size)})
+            placement = flow.env.all_device_placement("cuda")
             self.model = self.model.to_consistent(
                 placement=placement, sbp=flow.sbp.broadcast
             )
