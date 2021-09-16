@@ -191,7 +191,10 @@ def main():
         "--weight_decay", type=float, default=0.01, help="Weight_decay of adam"
     )
     parser.add_argument(
-        "--loss_print_every_n_iters", type=int, default=20, help="Interval of printing"
+        "--loss_print_every_n_iters", type=int, default=20, help="Interval of training loss printing"
+    )
+    parser.add_argument(
+        "--val_print_every_n_iters", type=int, default=20, help="Interval of evaluation printing"
     )
     parser.add_argument(
         "--checkpoint_path",
@@ -503,7 +506,7 @@ def main():
         # Train
         bert_model.train()
 
-        for step in range(1000):  # range(len(train_data_loader)):
+        for step in range(100):  # range(len(train_data_loader)):
             bert_outputs = pretrain(bert_graph, args.metric_local)
 
             if (flow.env.get_rank() == 0):
@@ -515,10 +518,10 @@ def main():
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
 
-    Reporter.write2file(
-        train_total_losses,
-        os.path.join(save_dir, "bert_graph_sgd_amp_b32.txt"),
-    )
+    # Reporter.write2file(
+    #     train_total_losses,
+    #     os.path.join(save_dir, "bert_graph_sgd_amp_b32.txt"),
+    # )
     # Reporter.write2file(
     #     train_lml_losses, os.path.join(save_dir, "bert_graph_lml_loss.txt")
     # )
@@ -526,13 +529,13 @@ def main():
     #     train_ns_losses, os.path.join(save_dir, "bert_graph_ns_loss.txt")
     # )
     # Eval
-    # bert_model.eval()
-    # val_acc = validation(
-    #     epoch, len(test_data_loader), bert_eval_graph, args.print_interval * 10
-    # )
+    bert_model.eval()
+    val_acc = validation(
+        epoch, len(test_data_loader), bert_eval_graph, args.val_print_every_n_iters
+    )
 
-    # print("Saveing model ...")
-    # save_model(bert_model, args.checkpoint_path, epoch, 0.1)
+    print("Saveing model ...")
+    save_model(bert_model, args.checkpoint_path, epoch, val_acc)
 
 
 if __name__ == "__main__":
