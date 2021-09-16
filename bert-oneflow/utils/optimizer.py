@@ -25,14 +25,30 @@ def build_adamW_optimizer(
 
 
 def build_sgd_optimizer(
-    model: nn.Module, lr: float, momentum: float,
+    model: nn.Module, 
+    lr: float, 
+    momentum: float,
+    clip_grad_max_norm: float = None,
+    clip_grad_norm_type: float = None,
 ):
     defaults = {"lr": lr, "momentum": momentum}
     params = []
+    use_clip = clip_grad_max_norm is not None and clip_grad_norm_type is not None
     for module_param_name, value in model.named_parameters():
         if not value.requires_grad:
             continue
         hyperparameters = copy.copy(defaults)
-        params.append({"params": [value], **hyperparameters})
+        if use_clip:
+            params.append({
+                "params": [value],
+                "clip_grad_max_norm": clip_grad_max_norm,
+                "clip_grad_norm_type": clip_grad_norm_type,
+                **hyperparameters
+            })
+        else:
+            params.append({
+                "params": [value], 
+                **hyperparameters
+            })
 
     return flow.optim.SGD(params)

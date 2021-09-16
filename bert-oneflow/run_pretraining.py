@@ -66,7 +66,9 @@ def pretrain(graph: nn.Graph, metric_local: bool) -> Dict:
     # next sentence prediction accuracy
     correct = (
         next_sent_output.argmax(dim=-1)
+        .to(dtype=next_sent_labels.dtype)
         .eq(next_sent_labels.squeeze(1))
+        .to(dtype=flow.float32)
         .sum()
         .numpy()
         .item()
@@ -74,7 +76,7 @@ def pretrain(graph: nn.Graph, metric_local: bool) -> Dict:
     pred_acc = np.array(correct / next_sent_labels.nelement())
 
     return {
-        "total_loss": tton(loss.mean(), metric_local),
+        "total_loss": tton(loss.mean(), False),
         "mlm_loss": tton(mlm_loss.mean(), metric_local),
         "nsp_loss": tton(nsp_loss.mean(), metric_local),
         "pred_acc": pred_acc,
@@ -283,7 +285,7 @@ def main():
         mode="test",
         dataset_size=1024,
         batch_size=args.train_global_batch_size,
-        data_part_num=64,
+        data_part_num=4,
         seq_length=args.seq_length,
         max_predictions_per_seq=args.max_predictions_per_seq,
         consistent=args.use_consistent,
@@ -294,7 +296,7 @@ def main():
         mode="test",
         dataset_size=1024,
         batch_size=args.val_global_batch_size,
-        data_part_num=1,
+        data_part_num=4,
         seq_length=args.seq_length,
         max_predictions_per_seq=args.max_predictions_per_seq,
         consistent=args.use_consistent,
@@ -340,14 +342,16 @@ def main():
     optimizer = build_sgd_optimizer(  # build_adamW_optimizer(
         bert_model,
         args.lr,
-        momentum=0.9
+        momentum=0.9,
+        clip_grad_max_norm=1.0,
+        clip_grad_norm_type=2.0
         # args.weight_decay,
         # weight_decay_excludes=["bias", "LayerNorm", "layer_norm"],
     )
 
     steps = args.epochs * len(train_data_loader)
 
-    lr_scheduler = PolynomialLR(optimizer, steps=1000, end_learning_rate=0.0)
+    lr_scheduler = PolynomialLR(optimizer, steps=300, end_learning_rate=0.0)
 
     lr_scheduler = flow.optim.lr_scheduler.WarmUpLR(
         lr_scheduler, warmup_factor=0, warmup_iters=50, warmup_method="linear"
@@ -523,7 +527,7 @@ def main():
 
     Reporter.write2file(
         train_total_losses,
-        os.path.join(save_dir, "bert_graph_sgd_amp_b32.txt"),
+        os.path.join(save_dir, "bert_graph_sgd_amp_consistent_ddp_4gpu_4partdiff_clip_loss.txt"),
     )
     # Reporter.write2file(
     #     train_lml_losses, os.path.join(save_dir, "bert_graph_lml_loss.txt")

@@ -7,14 +7,16 @@ from compare_lazy_outputs import load_params_from_lazy
 
 import numpy as np
 import oneflow as flow
+from oneflow.nn.parallel import DistributedDataParallel as ddp
 from oneflow import nn
 
 from modeling import BertForPreTraining
 from utils.ofrecord_data_utils import OfRecordDataLoader
 from utils.lr_scheduler import PolynomialLR
-from utils.optimizer import build_adamW_optimizer
+from utils.optimizer import build_adamW_optimizer, build_sgd_optimizer
 from utils.reporter import Reporter
 from utils.metric import Metric
+from run_pretraining import ttol, tton
 
 
 def save_model(module: nn.Module, checkpoint_path: str, epoch: int, acc: float):
@@ -52,13 +54,14 @@ def pretrain(
     masked_lm_weights = masked_lm_weights.to(device=device)
 
     # 1. forward the next_sentence_prediction and masked_lm model
-    prediction_scores, seq_relationship_scores = model(
-        input_ids, segment_ids, input_mask
-    )
+    prediction_scores, seq_relationship_scores = model(input_ids, segment_ids, input_mask)
+    # seq_relationship_scores = model(input_ids, segment_ids, input_mask)
+    import pdb 
+    pdb.set_trace()
 
     # 2-1. loss of is_next classification result
     next_sentence_loss = ns_criterion(
-        seq_relationship_scores.view(-1, 2), next_sentence_labels.view(-1)
+        seq_relationship_scores.reshape(-1, 2), next_sentence_labels.reshape(-1)
     )
 
     masked_lm_loss = masked_lm_criterion(
@@ -73,6 +76,8 @@ def pretrain(
 
     lr_scheduler.step()
 
+    seq_relationship_scores = ttol(seq_relationship_scores)
+    next_sentence_labels = ttol(next_sentence_labels)
     # next sentence prediction accuracy
     correct = (
         seq_relationship_scores.argmax(dim=-1)
@@ -84,9 +89,9 @@ def pretrain(
     pred_acc = np.array(correct / next_sentence_labels.nelement())
 
     return {
-        "total_loss": total_loss.numpy(),
-        "mlm_loss": masked_lm_loss.numpy(),
-        "nsp_loss": next_sentence_loss.numpy(),
+        "total_loss": tton(total_loss,False),
+        "mlm_loss": tton(masked_lm_loss),
+        "nsp_loss": tton(next_sentence_loss),
         "pred_acc": pred_acc,
     }
 
@@ -168,7 +173,7 @@ def main():
         help="Path to model saving",
     )
     parser.add_argument(
-        "--use_fp16",
+        "--use_ddp",
         type=str2bool,
         nargs="?",
         const=True,
@@ -176,6 +181,8 @@ def main():
     )
 
     args = parser.parse_args()
+
+    is_consistent = flow.env.get_world_size() > 1 and not args.use_ddp
 
     if args.with_cuda:
         device = flow.device("cuda")
@@ -188,9 +195,10 @@ def main():
         mode="test",
         dataset_size=1024,
         batch_size=args.train_batch_size,
-        data_part_num=1,
+        data_part_num=4,
         seq_length=args.seq_length,
         max_predictions_per_seq=20,
+        # consistent=is_consistent,
     )
 
     test_data_loader = OfRecordDataLoader(
@@ -198,9 +206,10 @@ def main():
         mode="test",
         dataset_size=1024,
         batch_size=args.val_batch_size,
-        data_part_num=1,
+        data_part_num=4,
         seq_length=args.seq_length,
         max_predictions_per_seq=20,
+        # consistent=is_consistent,
     )
 
     print("Building BERT Model")
@@ -224,18 +233,24 @@ def main():
         "../../OneFlow-Benchmark/LanguageModeling/BERT/initial_model",
     )
 
-    bert_model.to(device)
+    bert_model = bert_model.to(device)
+    if args.use_ddp:
+        bert_model = ddp(bert_model)
+    elif is_consistent:
+        placement = flow.placement("cuda", {0: range(flow.env.get_world_size())})
+        bert_model = bert_model.to_consistent(
+            placement=placement, sbp=flow.sbp.broadcast
+        )
 
-    optimizer = build_adamW_optimizer(
+    optimizer = build_sgd_optimizer(
         bert_model,
         args.lr,
-        args.weight_decay,
-        weight_decay_excludes=["bias", "LayerNorm", "layer_norm"],
+        momentum=0.9
     )
 
     steps = args.epochs * len(train_data_loader)
 
-    lr_scheduler = PolynomialLR(optimizer, steps=steps, end_learning_rate=0.0)
+    lr_scheduler = PolynomialLR(optimizer, steps=300, end_learning_rate=0.0)
 
     lr_scheduler = flow.optim.lr_scheduler.WarmUpLR(
         lr_scheduler, warmup_factor=0, warmup_iters=50, warmup_method="linear"
@@ -251,12 +266,23 @@ def main():
         label_weights,
         max_prediction_per_seq,
     ):
-        # gather valid position indices
-        logit_blob = flow.gather(
-            logit_blob,
-            index=masked_lm_positions.unsqueeze(2).repeat(1, 1, args.vocab_size),
-            dim=1,
-        )
+        if logit_blob.is_consistent:
+            zeros = flow.zeros(
+                (1, 1, args.vocab_size),
+                dtype=masked_lm_positions.dtype,
+                placement=masked_lm_positions.placement,
+                sbp=flow.sbp.broadcast,
+            )
+            masked_lm_positions = masked_lm_positions.unsqueeze(2) + zeros
+            logit_blob = flow.gather(logit_blob, index=masked_lm_positions, dim=1,)
+        else:
+            # gather valid position indices
+            logit_blob = flow.gather(
+                logit_blob,
+                index=masked_lm_positions.unsqueeze(2).repeat(1, 1, args.vocab_size),
+                dim=1,
+            )
+
         logit_blob = flow.reshape(logit_blob, [-1, args.vocab_size])
         label_id_blob = flow.reshape(masked_lm_labels, [-1])
 
@@ -285,7 +311,7 @@ def main():
         # Train
         bert_model.train()
 
-        for step in range(1000):
+        for step in range(300):
             bert_outputs = pretrain(
                 train_data_loader,
                 bert_model,
@@ -297,16 +323,20 @@ def main():
                 optimizer,
                 lr_scheduler,
             )
-            metric.metric_cb(step, epoch=epoch)(bert_outputs)
+
+            if (flow.env.get_rank() == 0):
+                metric.metric_cb(step, epoch=epoch)(bert_outputs)
 
             train_total_losses.append(bert_outputs["total_loss"])
 
     save_dir = "loss_txt"
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
-    Reporter.write2file(
-        train_total_losses, os.path.join(save_dir, "bert_eager_loss.txt")
-    )
+
+    if (flow.env.get_rank() == 0):
+        Reporter.write2file(
+            train_total_losses, os.path.join(save_dir, "bert_4gpu_eager_consistent_diff_loss.txt")
+        )
 
 
 if __name__ == "__main__":
