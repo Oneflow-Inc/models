@@ -182,8 +182,6 @@ def main():
 
     args = parser.parse_args()
 
-    is_consistent = flow.env.get_world_size() > 1 and not args.use_ddp
-
     if args.with_cuda:
         device = flow.device("cuda")
     else:
@@ -198,7 +196,6 @@ def main():
         data_part_num=4,
         seq_length=args.seq_length,
         max_predictions_per_seq=20,
-        # consistent=is_consistent,
     )
 
     test_data_loader = OfRecordDataLoader(
@@ -209,7 +206,6 @@ def main():
         data_part_num=4,
         seq_length=args.seq_length,
         max_predictions_per_seq=20,
-        # consistent=is_consistent,
     )
 
     print("Building BERT Model")
@@ -236,11 +232,6 @@ def main():
     bert_model = bert_model.to(device)
     if args.use_ddp:
         bert_model = ddp(bert_model)
-    elif is_consistent:
-        placement = flow.placement("cuda", {0: range(flow.env.get_world_size())})
-        bert_model = bert_model.to_consistent(
-            placement=placement, sbp=flow.sbp.broadcast
-        )
 
     optimizer = build_sgd_optimizer(
         bert_model,
@@ -266,22 +257,12 @@ def main():
         label_weights,
         max_prediction_per_seq,
     ):
-        if logit_blob.is_consistent:
-            zeros = flow.zeros(
-                (1, 1, args.vocab_size),
-                dtype=masked_lm_positions.dtype,
-                placement=masked_lm_positions.placement,
-                sbp=flow.sbp.broadcast,
-            )
-            masked_lm_positions = masked_lm_positions.unsqueeze(2) + zeros
-            logit_blob = flow.gather(logit_blob, index=masked_lm_positions, dim=1,)
-        else:
-            # gather valid position indices
-            logit_blob = flow.gather(
-                logit_blob,
-                index=masked_lm_positions.unsqueeze(2).repeat(1, 1, args.vocab_size),
-                dim=1,
-            )
+        # gather valid position indices
+        logit_blob = flow.gather(
+            logit_blob,
+            index=masked_lm_positions.unsqueeze(2).repeat(1, 1, args.vocab_size),
+            dim=1,
+        )
 
         logit_blob = flow.reshape(logit_blob, [-1, args.vocab_size])
         label_id_blob = flow.reshape(masked_lm_labels, [-1])
@@ -334,7 +315,7 @@ def main():
         os.makedirs(save_dir)
 
     Reporter.write2file(
-        train_total_losses, os.path.join(save_dir, f"bert_4gpu_eager_consistent_diff_loss{flow.env.get_rank()}.txt")
+        train_total_losses, os.path.join(save_dir, f"bert_4gpu_eager_diff_loss{flow.env.get_rank()}.txt")
     )
 
 
