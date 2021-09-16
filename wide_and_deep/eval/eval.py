@@ -11,15 +11,16 @@ from tqdm import tqdm
 from config import get_args
 from models.dataloader_utils import OFRecordDataLoader
 from oneflow.framework import distribute
-from models.wide_and_deep import WideAndDeep
+from models.wide_and_deep_module import WideAndDeep
 from util import dump_to_npy, save_param_npy
 from oneflow.nn.parallel import DistributedDataParallel as ddp
 from graph import WideAndDeepGraph,WideAndDeepTrainGraph
+import pandas as pd
+from datetime import datetime
 
 
 
 class Trainer(object):
-    
     def __init__(self):
         args = get_args()
         self.args=args
@@ -34,7 +35,39 @@ class Trainer(object):
         if self.execution_mode=='graph':
             self.eval_graph = WideAndDeepGraph(self.wdl_module,self.val_dataloader,self.loss)
             self.train_graph = WideAndDeepTrainGraph(self.wdl_module,self.train_dataloader,self.loss,self.opt)   
+        self.record=[]
+
+    def get_memory_usage(self):
+        nvidia_smi_report_file_='gpu_memory_usage_%s.csv'%self.rank
+        cmd = "nvidia-smi --query-gpu=utilization.gpu,memory.used --format=csv"
+        if nvidia_smi_report_file_ is not None:
+            cmd += f" -f {nvidia_smi_report_file_}"
+        os.system(cmd)
+        currentPath=os.getcwd()
+        filePath=os.path.join(currentPath,nvidia_smi_report_file_)
+        df=pd.read_csv(filePath)
+        memory=df.iat[self.rank,1].split()[0]
+        return memory
         
+    def record_to_csv(self):
+        currentPath=os.getcwd()
+        filePath=os.path.join(currentPath,'csv/%s_record_%s.csv'%(self.eval_name,self.rank))
+        df_record=pd.DataFrame.from_dict(self.record, orient='columns')
+        df_record.to_csv(filePath,index=False)
+
+    def to_record(self,iter=0,loss=0,latency=0):
+        data={}
+        data['node']=1
+        data['device']=self.rank
+        data['batch_size']=self.args.batch_size
+        data['deep_vocab_size']=self.args.deep_vocab_size
+        data['deep_embedding_vec_size']=self.args.deep_embedding_vec_size
+        data['hidden_units_num']=self.args.hidden_units_num
+        data['iter']=iter
+        data['latency/ms']=latency
+        data['memory_usage/MB']=self.get_memory_usage()
+        data['loss']=loss      
+        self.record.append(data)
 
     def prepare_modules(self):
         args=self.args
@@ -55,7 +88,6 @@ class Trainer(object):
         if args.save_initial_model and args.model_save_dir != "":
             self.save(os.path.join(args.model_save_dir, "initial_checkpoint"))
         return train_dataloader, val_dataloader, wdl_module, bce_loss, opt
-
 
     def load_state_dict(self):
         print(f"Loading model from {self.args.model_load_dir}")
@@ -89,38 +121,27 @@ class Trainer(object):
         )
         rank=flow.env.get_rank()
         print(f"device {rank}: iter {step} eval_loss {loss} auc {auc}")
-
     def __call__(self):
         self.train()
 
     def train(self):
         losses = []
         args=self.args
-        for i in tqdm(range(args.max_iter)):
+        latency=0
+        time_begin=time.time()
+        for i in range(args.max_iter):
             loss=self.train_one_step()
             losses.append(loss)
             if (i+1) % args.print_interval == 0:
+                time_end=time.time()
+                latency=(time_end-time_begin)*1000/args.print_interval
+                print(latency)
                 l = sum(losses) / len(losses)
+                self.to_record(i+1,l,round(latency,3))
                 losses = []
-                rank=flow.env.get_rank()
-                print(f"device {rank}: iter {i+1} train_loss {l} time {time.time()}")
-                if args.eval_batchs <= 0:
-                    continue
-                eval_loss_acc = 0.0
-                lables_list = []
-                predicts_list = []               
-                for j in range(args.eval_batchs):
-                    predicts, labels, eval_loss=self.eval_one_step()
-                    if self.is_consistent==True:
-                        predicts=predicts.to_local()
-                        labels=labels.to_local()
-                        eval_loss=eval_loss.to_local()
-                    eval_loss_acc += eval_loss.numpy().mean()
-                    lables_list.append(labels.numpy())
-                    predicts_list.append(predicts.numpy())
-                self.print_eval_metrics(i+1, eval_loss_acc/args.eval_batchs,
-                                lables_list, predicts_list)
-                self.wdl_module.train()
+                latency=0
+                time_begin=time.time()            
+        self.record_to_csv()
 
     def eval_one_step(self):
         self.wdl_module.eval()
@@ -161,8 +182,6 @@ class Trainer(object):
             self.opt.step()
             self.opt.zero_grad()
             return train_loss.numpy().mean()
-
-    
 
 
 

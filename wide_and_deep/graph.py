@@ -7,10 +7,9 @@ import oneflow as flow
 
 from config import get_args
 from models.dataloader_utils import OFRecordDataLoader
-from models.wide_and_deep_module import WideAndDeep
+from models.wide_and_deep import WideAndDeep
 from util import dump_to_npy, save_param_npy
 
-###想把graph独立出来，后面需要改
 class WideAndDeepGraph(flow.nn.Graph):
     def __init__(self, wdl_module,dataloader,bce_loss):
         super(WideAndDeepGraph, self).__init__()
@@ -47,3 +46,4 @@ class WideAndDeepTrainGraph(WideAndDeepGraph):
         predicts, labels, loss = self.graph()
         loss.backward()
         return predicts, labels, loss
+        
