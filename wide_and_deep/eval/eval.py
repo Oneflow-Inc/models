@@ -11,7 +11,7 @@ from tqdm import tqdm
 from config import get_args
 from models.dataloader_utils import OFRecordDataLoader
 from oneflow.framework import distribute
-from models.wide_and_deep_module import WideAndDeep
+from models.wide_and_deep import WideAndDeep
 from util import dump_to_npy, save_param_npy
 from oneflow.nn.parallel import DistributedDataParallel as ddp
 from graph import WideAndDeepGraph,WideAndDeepTrainGraph
