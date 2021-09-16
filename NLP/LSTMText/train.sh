@@ -29,3 +29,4 @@ python3 train_bilstm.py \
     --model_save_every_n_epochs $SAVE_EVERY_EPOCHS \
     --model_save_dir $SAVE_DIR  \
     --imdb_path "$IMDB_PATH"
+    
