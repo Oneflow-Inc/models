@@ -39,7 +39,7 @@ def get_args(print_args=True):
                         default='/dataset/wdl_ofrecord/ofrecord')
     parser.add_argument('--print_interval', type=int, default=1000)
     parser.add_argument('--eval_batchs', type=int, default=20)
-    parser.add_argument('--batch_size', type=int, default=16384)
+    parser.add_argument('--batch_size', type=int, default=32)
     parser.add_argument('--learning_rate', type=float, default=1e-3)
     parser.add_argument('--wide_vocab_size', type=int, default=1603616)
     parser.add_argument('--deep_vocab_size', type=int, default=1603616)

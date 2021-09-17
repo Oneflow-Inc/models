@@ -30,26 +30,26 @@ if __name__ == '__main__':
             flow.save(wdl_module.state_dict(), path)
     # save_param_npy(wdl_module)
 
-    bce_loss = flow.nn.BCELoss(reduction="none")
+    bce_loss = flow.nn.BCELoss(reduction="mean")
 
     wdl_module.to("cuda")
     bce_loss.to("cuda")
 
-    opt = flow.optim.Adam(
-        wdl_module.parameters(), lr=args.learning_rate, betas=(0.9, 0.999),
-        # do_bias_correction=True
-    )
-    # opt = flow.optim.SGD(
-    #     wdl_module.parameters(), lr=args.learning_rate, momentum=0.9,
+    # opt = flow.optim.Adam(
+    #     wdl_module.parameters(), lr=args.learning_rate, betas=(0.9, 0.999),
+    #     # do_bias_correction=True
     # )
+    opt = flow.optim.SGD(
+        wdl_module.parameters(), lr=args.learning_rate, momentum=0.0,
+    )
     losses = []
     wdl_module.train()
     for i in range(args.max_iter):
         labels, dense_fields, wide_sparse_fields, deep_sparse_fields = train_dataloader()
-        dump_to_npy(labels, sub=i)
-        dump_to_npy(dense_fields, sub=i)
-        dump_to_npy(wide_sparse_fields, sub=i)
-        dump_to_npy(deep_sparse_fields, sub=i)
+        #dump_to_npy(labels, sub=i)
+        #dump_to_npy(dense_fields, sub=i)
+        #dump_to_npy(wide_sparse_fields, sub=i)
+        #dump_to_npy(deep_sparse_fields, sub=i)
         labels = labels.to("cuda").to(dtype=flow.float32)
         dense_fields = dense_fields.to("cuda")
         wide_sparse_fields = wide_sparse_fields.to("cuda")
@@ -61,20 +61,20 @@ if __name__ == '__main__':
         loss = bce_loss(predicts, labels)
         loss.retain_grad()
 
-        dump_to_npy(predicts, sub=i)
-        dump_to_npy(loss, sub=i)
+        #dump_to_npy(predicts, sub=i)
+        #dump_to_npy(loss, sub=i)
         losses.append(loss.numpy().mean())
         # loss.backward(flow.ones_like(loss))
         loss.backward()
         # print(predicts.grad)
         # print(loss.grad)
-        dump_to_npy(deep_weight, name=f'{i}/deep_weight')
-        dump_to_npy(deep_weight.grad, name=f'{i}/deep_weight_grad')
-        dump_to_npy(predicts.grad, name=f'{i}/predicts_grad')
-        dump_to_npy(loss.grad, name=f'{i}/loss_grad')
+        # dump_to_npy(deep_weight, name=f'{i}/deep_weight')
+        # dump_to_npy(deep_weight.grad, name=f'{i}/deep_weight_grad')
+        # dump_to_npy(predicts.grad, name=f'{i}/predicts_grad')
+        # dump_to_npy(loss.grad, name=f'{i}/loss_grad')
         opt.step()
         opt.zero_grad()
-        time.sleep(0.1)
+        # time.sleep(0.1)
         # print(deep_sparse_fields)
         # print(loss)
         if (i+1) % args.print_interval == 0:

@@ -28,7 +28,7 @@ if __name__ == '__main__':
             flow.save(wdl_module.state_dict(), path)
     # save_param_npy(wdl_module)
 
-    bce_loss = flow.nn.BCELoss(reduction="none")
+    bce_loss = flow.nn.BCELoss(reduction="mean")
 
     wdl_module.to("cuda")
     bce_loss.to("cuda")
