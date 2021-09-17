@@ -14,5 +14,5 @@ python3 -m oneflow.distributed.launch \
         --print_interval 100 \
         --deep_dropout_rate 0 \
         --max_iter 1000 \
-        --ddp 
+        --ddp \
 

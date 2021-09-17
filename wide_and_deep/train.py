@@ -7,7 +7,6 @@ import time
 import numpy as np
 from sklearn.metrics import roc_auc_score
 import oneflow as flow
-from tqdm import tqdm
 from config import get_args
 from models.dataloader_utils import OFRecordDataLoader
 from oneflow.framework import distribute
@@ -23,10 +22,9 @@ class Trainer(object):
     def __init__(self):
         args = get_args()
         self.args=args
-        for k, v in args.__dict__.items():
-            setattr(self, k, v)
         self.execution_mode=args.execution_mode
         self.ddp=args.ddp
+        assert not (self.ddp==1 and self.execution_mode=='graph'),'''when ddp is True, the execution_mode can only be eager, but it is graph'''
         self.is_consistent= (flow.env.get_world_size() > 1 and not args.ddp) or args.execution_mode=='graph'
         self.rank = flow.env.get_rank()
         self.world_size = flow.env.get_world_size()
@@ -35,7 +33,6 @@ class Trainer(object):
             self.eval_graph = WideAndDeepGraph(self.wdl_module,self.val_dataloader,self.loss)
             self.train_graph = WideAndDeepTrainGraph(self.wdl_module,self.train_dataloader,self.loss,self.opt)   
         
-
     def prepare_modules(self):
         args=self.args
         is_consistent=self.is_consistent
@@ -55,7 +52,6 @@ class Trainer(object):
         if args.save_initial_model and args.model_save_dir != "":
             self.save(os.path.join(args.model_save_dir, "initial_checkpoint"))
         return train_dataloader, val_dataloader, wdl_module, bce_loss, opt
-
 
     def load_state_dict(self):
         print(f"Loading model from {self.args.model_load_dir}")
@@ -94,11 +90,20 @@ class Trainer(object):
         self.train()
 
     def train(self):
+        def handle_loss(loss):
+            if self.is_consistent==True:
+                return loss.to_local().numpy()
+            else:   
+                return loss.numpy()
         losses = []
         args=self.args
-        for i in tqdm(range(args.max_iter)):
+        for i in range(args.max_iter):
             loss=self.train_one_step()
-            losses.append(loss)
+            losses.append(handle_loss(loss))
+            if self.execution_mode=='eager':
+                loss.backward()
+                self.opt.step()
+                self.opt.zero_grad()
             if (i+1) % args.print_interval == 0:
                 l = sum(losses) / len(losses)
                 losses = []
@@ -115,7 +120,7 @@ class Trainer(object):
                         predicts=predicts.to_local()
                         labels=labels.to_local()
                         eval_loss=eval_loss.to_local()
-                    eval_loss_acc += eval_loss.numpy().mean()
+                    eval_loss_acc += eval_loss.numpy()
                     lables_list.append(labels.numpy())
                     predicts_list.append(predicts.numpy())
                 self.print_eval_metrics(i+1, eval_loss_acc/args.eval_batchs,
@@ -135,8 +140,8 @@ class Trainer(object):
             predicts = self.wdl_module(
                 dense_fields, wide_sparse_fields, deep_sparse_fields)
             eval_loss = self.loss(predicts, labels)
-        if self.is_consistent==True and eval_loss.sbp==flow.sbp.partial_sum:
-            eval_loss = eval_loss / self.world_size
+        # if self.is_consistent==True and eval_loss.sbp==flow.sbp.partial_sum:
+        #     eval_loss = eval_loss / self.world_size
         return predicts, labels, eval_loss
 
     def train_one_step(self):
@@ -152,19 +157,7 @@ class Trainer(object):
             predicts = self.wdl_module(
                 dense_fields, wide_sparse_fields, deep_sparse_fields)
             train_loss = self.loss(predicts, labels)
-        if self.is_consistent==True and train_loss.sbp==flow.sbp.partial_sum:
-            train_loss = train_loss / self.world_size
-        if self.is_consistent==True:
-            return train_loss.to_local().numpy().mean()
-        else:   
-            train_loss.backward()
-            self.opt.step()
-            self.opt.zero_grad()
-            return train_loss.numpy().mean()
-
-    
-
-
+        return train_loss
 
 if __name__ == "__main__":
     trainer = Trainer()
