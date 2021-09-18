@@ -19,7 +19,7 @@ TRAIN_BATCH_SIZE=8
 VAL_BATCH_SIZE=8
 
 #export CUDA_VISIBLE_DEVICES=1
-DATA_DIR=wiki_ofrecord_seq_len_128_example
+#DATA_DIR=wiki_ofrecord_seq_len_128_example
 python3 run_pretraining.py \
   --ofrecord_path $OFRECORD_PATH \
   --checkpoint_path $CHECKPOINT_PATH \
