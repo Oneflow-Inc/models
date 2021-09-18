@@ -1,6 +1,8 @@
 set -aux
 
-OFRECORD_PATH="ofrecord"
+
+OFRECORD_PATH="pose_dataset"
+
 if [ ! -d "$OFRECORD_PATH" ]; then
     wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/datasets/models/pose/pose_dataset.zip
     unzip pose_dataset.zip
@@ -20,7 +22,7 @@ VAL_BATCH_SIZE=32
 # LOAD PREVIOUS CHECKPOINT 
 # LOAD_CHECKPOINT=$CHECKPOINT_PATH/epoch_959_val_acc_0.906250
 
-python train_oneflow.py \
+python3 train_oneflow.py \
     --save_checkpoint_path $CHECKPOINT_PATH \
     --ofrecord_path $OFRECORD_PATH \
     --learning_rate $LEARNING_RATE \
