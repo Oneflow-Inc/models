@@ -97,7 +97,7 @@ where `configs/example.yaml` is the path to your config file
 
 ### Train
 
-The path of the datasets can be configured in [`config.py`](config.py). Audios which express the same emotion should be put in the same folder (you may want to refer to [`utils/files.py`](utils/files.py) when setting up datasets), for example:
+The path of the datasets can be configured in [`configs/`](https://github.com/Oneflow-Inc/models/tree/dev_audio_speech_emotion_analyzer/Audio/Speech-Emotion-Analyzer/configs). Audios which express the same emotion should be put in the same folder (you may want to refer to [`utils/files.py`](utils/files.py) when setting up datasets), for example:
 
 ```
 └── datasets
