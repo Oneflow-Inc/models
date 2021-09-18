@@ -55,20 +55,17 @@ def build_sgd_optimizer(
     defaults = {"lr": lr, "momentum": momentum}
     params = []
     use_clip = clip_grad_max_norm is not None and clip_grad_norm_type is not None
-    for module_param_name, value in model.named_parameters():
-        if not value.requires_grad:
-            continue
-        hyperparameters = copy.copy(defaults)
-        if use_clip:
-            params.append(
-                {
-                    "params": [value],
-                    "clip_grad_max_norm": clip_grad_max_norm,
-                    "clip_grad_norm_type": clip_grad_norm_type,
-                    **hyperparameters,
-                }
-            )
-        else:
-            params.append({"params": [value], **hyperparameters})
+    hyperparameters = copy.copy(defaults)
+    if use_clip:
+        params.append(
+            {
+                "params": model.parameters(),
+                "clip_grad_max_norm": clip_grad_max_norm,
+                "clip_grad_norm_type": clip_grad_norm_type,
+                **hyperparameters,
+            }
+        )
+    else:
+        params.append({"params": model.parameters(), **hyperparameters})
 
     return flow.optim.SGD(params)
