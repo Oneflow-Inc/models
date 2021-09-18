@@ -289,7 +289,6 @@ class SelfAttention(flow.nn.Module):
             self.hidden_size,
             self.hidden_size * 3,
             init_method,
-            need_gelu=True,
         )
 
         self.c_proj = RowParallelLinear(
@@ -592,9 +591,14 @@ class ParallelSparseSoftmaxCrossEntropyLoss(flow.nn.Module):
         assert labels.ndim == 2
         assert logits.shape[0:2] == labels.shape
 
-        loss = flow._C.sparse_softmax_cross_entropy(
-            logits, labels, depth=logits.shape[-1]
-        )
+        if logits.is_consistent and flow.sbp.split(logits.ndim - 1) in logits.sbp:
+            loss = flow._C.sparse_softmax_cross_entropy_ms(
+                logits, labels, depth=logits.shape[-1]
+            )
+        else:
+            loss = flow._C.sparse_softmax_cross_entropy(
+                logits, labels, depth=logits.shape[-1]
+            )
+            loss = flow._C.amp_white_identity(loss)
 
-        loss = flow._C.amp_white_identity(loss)
         return loss.mean()
