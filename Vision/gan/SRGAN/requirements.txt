@@ -1,0 +1,5 @@
+numpy
+scikit_image
+tqdm
+Pillow
+scikit_image
