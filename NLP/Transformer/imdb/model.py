@@ -68,7 +68,6 @@ class TransformerEncoderModel(nn.Module):
         self.pos = PositionalEncoding(d_model, dropout)
         self.linear = nn.Linear(d_model, n_classes)
 
-    @staticmethod
     def generate_subsequent_mask(tgt_len, src_len):
         mask = flow.triu(flow.ones((tgt_len, src_len)), 1).to(flow.int32)
         return mask
