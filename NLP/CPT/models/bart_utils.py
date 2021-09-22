@@ -3,6 +3,7 @@ import oneflow as flow
 import oneflow.nn as nn
 from typing import Optional
 
+
 def shift_tokens_right(
     input_ids: flow.Tensor, pad_token_id: int, decoder_start_token_id: int
 ):
