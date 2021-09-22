@@ -71,13 +71,12 @@ class CustomLSTM(nn.Module):
         HS = self.hidden_size
         for t in range(seq_sz):
             x_t = x[:, t, :].reshape(x.shape[0], x.shape[2])
-            gates = flow.matmul(x_t, self.W) + \
-                flow.matmul(h_t, self.U) + self.bias
+            gates = flow.matmul(x_t, self.W) + flow.matmul(h_t, self.U) + self.bias
             i_t, f_t, g_t, o_t = (
                 flow.sigmoid(gates[:, :HS]),
-                flow.sigmoid(gates[:, HS: HS * 2]),
-                flow.tanh(gates[:, HS * 2: HS * 3]),
-                flow.sigmoid(gates[:, HS * 3:]),
+                flow.sigmoid(gates[:, HS : HS * 2]),
+                flow.tanh(gates[:, HS * 2 : HS * 3]),
+                flow.sigmoid(gates[:, HS * 3 :]),
             )
             c_t = f_t * c_t + i_t * g_t
             h_t = o_t * flow.tanh(c_t)
@@ -106,21 +105,26 @@ class BiLSTM(nn.Module):
                 self.layer1.append(CustomLSTM(layer_input_dim, hidden_dim))
 
     def init_hidden(self, batch_size, device):
-        return (flow.zeros((batch_size, self.hidden_dim)).to(device),
-                flow.zeros((batch_size, self.hidden_dim)).to(device))
+        return (
+            flow.zeros((batch_size, self.hidden_dim)).to(device),
+            flow.zeros((batch_size, self.hidden_dim)).to(device),
+        )
 
     def forward(self, data):  # data: B*L*F  B = batch_size,L为seq定长，F为feature
         batch_size = data.shape[0]
         max_length = data.shape[1]
-        hidden = [self.init_hidden(batch_size, data.device)
-                  for _ in range(self.bi_num * self.num_layers)]
+        hidden = [
+            self.init_hidden(batch_size, data.device)
+            for _ in range(self.bi_num * self.num_layers)
+        ]
         reverse_inputs = reverse(data, dim=1)
         out = [data, reverse_inputs]
         for n_layer in range(self.num_layers):
             for l in range(self.bi_num):
                 cell_index = n_layer * self.bi_num + l
                 out[l], hidden[cell_index] = self.layer1[cell_index](
-                    out[l], hidden[cell_index])
+                    out[l], hidden[cell_index]
+                )
                 # reverse output
                 if l == 1:
                     out[l] = reverse(out[l], dim=0)
