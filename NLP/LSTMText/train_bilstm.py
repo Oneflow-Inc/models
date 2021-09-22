@@ -5,7 +5,6 @@ import json
 
 import numpy as np
 import oneflow as flow
-import oneflow.nn as nn
 import shutil
 
 from model import LSTMText
@@ -19,15 +18,17 @@ def shuffle_batch(data, label, batch_size):
     data, label = data[permu], label[permu]
     batch_n = len(data) // batch_size
     x_batch = np.array(
-        [data[i * batch_size : i * batch_size + batch_size] for i in range(batch_n)],
+        [data[i * batch_size: i * batch_size + batch_size]
+            for i in range(batch_n)],
         dtype=np.int32,
     )
     y_batch = np.array(
-        [label[i * batch_size : i * batch_size + batch_size] for i in range(batch_n)],
+        [label[i * batch_size: i * batch_size + batch_size]
+            for i in range(batch_n)],
         dtype=np.int32,
     )
-    x_batch = flow.Tensor(x_batch, dtype=flow.int32).to("cuda")
-    y_batch = flow.Tensor(y_batch, dtype=flow.int32).to("cuda")
+    x_batch = flow.tensor(x_batch, dtype=flow.int32).to("cuda")
+    y_batch = flow.tensor(y_batch, dtype=flow.int32).to("cuda")
     return x_batch, y_batch
 
 
@@ -54,7 +55,8 @@ def load_data():
         padding="post",
         maxlen=args.sequence_length,
     )
-    print(colored_string("Data Loading Time: %.2fs" % (time.time() - start), "blue"))
+    print(colored_string("Data Loading Time: %.2fs" %
+          (time.time() - start), "blue"))
     return train_data, train_labels, test_data, test_labels
 
 
@@ -77,9 +79,8 @@ def train_eager(args):
         args.emb_num,
         args.emb_dim,
         hidden_size=args.hidden_size,
-        nfc=args.nfc,
+        nfc=args.sequence_length,
         n_classes=args.n_classes,
-        batch_size=args.batch_size,
     )
     if args.model_load_dir != ".":
         model_eager.load_state_dict(flow.load(args.model_load_dir))
@@ -114,7 +115,8 @@ def train_eager(args):
 
         if epoch % args.model_save_every_n_epochs == 0:
             model_eager.eval()
-            data, label = shuffle_batch(test_data, test_labels, args.batch_size)
+            data, label = shuffle_batch(
+                test_data, test_labels, args.batch_size)
             g = {"correct": 0, "total": 0}
             for i, (texts, labels) in enumerate(zip(data, label)):
                 logits = model_eager(texts)
@@ -147,7 +149,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--emb_dim", type=int, default=100)
     parser.add_argument("--hidden_size", type=int, default=256)
-    parser.add_argument("--nfc", type=int, default=128)
     parser.add_argument("--lr", type=float, default=3e-4)
     parser.add_argument("--sequence_length", type=int, default=128)
     parser.add_argument("--batch_size", type=int, default=32)

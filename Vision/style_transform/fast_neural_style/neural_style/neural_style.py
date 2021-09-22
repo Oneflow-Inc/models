@@ -73,7 +73,7 @@ def train(args):
             n_batch = 1
             count += n_batch
 
-            x_gpu = flow.Tensor(image, requires_grad=True).to("cuda")
+            x_gpu = flow.tensor(image, requires_grad=True).to("cuda")
             y_origin = transformer(x_gpu)
 
             x_gpu = utils.normalize_batch(x_gpu)
