@@ -208,7 +208,7 @@ def main():
 
     print("Building BERT Model")
     hidden_size = 64 * args.num_attention_heads
-    intermediate_size = 4 * hidden_size
+    intermediate_size = 3 * hidden_size
     bert_model = BertForPreTraining(
         args.vocab_size,
         args.seq_length,
