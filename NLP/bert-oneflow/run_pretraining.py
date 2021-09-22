@@ -224,7 +224,7 @@ def main():
         args.max_position_embeddings,
         args.type_vocab_size,
     )
-    # print(bert_model)
+    print("oneflow model", bert_model)
 
     bert_model.to(device)
 

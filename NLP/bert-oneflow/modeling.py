@@ -392,9 +392,9 @@ class BertForPreTraining(nn.Module):
             type_vocab_size,
         )
 
-        self.cls = BertPreTrainingHeads(hidden_size, vocab_size)
+        # self.cls = BertPreTrainingHeads(hidden_size, vocab_size)
 
-        self.init_weights()
+        # self.init_weights()
 
     def forward(self, input_ids, token_type_ids, attention_mask):
         sequence_output, pooled_output = self.bert(
@@ -407,18 +407,18 @@ class BertForPreTraining(nn.Module):
         # )
         # return prediction_scores, seq_relationship_scores
 
-    def get_output_embeddings(self):
-        return self.cls.predictions.decoder
-
-    def set_output_embeddings(self, new_embeddings):
-        self.cls.predictions.decoder = new_embeddings
+    # def get_output_embeddings(self):
+    #     return self.cls.predictions.decoder
+    #
+    # def set_output_embeddings(self, new_embeddings):
+    #     self.cls.predictions.decoder = new_embeddings
 
     def init_weights(self):
         self.apply(self._init_weights)
-
-        self.clone_weights(
-            self.get_output_embeddings(), self.bert.get_input_embeddings()
-        )
+    #
+    #     self.clone_weights(
+    #         self.get_output_embeddings(), self.bert.get_input_embeddings()
+    #     )
 
     def _init_weights(self, module):
         """Initialize the weights"""
@@ -436,8 +436,8 @@ class BertForPreTraining(nn.Module):
             module.weight.data.fill_(1.0)
             module.bias.data.fill_(0.0)
 
-    def clone_weights(self, output_embeddings, input_embeddings):
-        """
-        Tie the weights between the input embeddings and the output embeddings.
-        """
-        output_embeddings.weight = input_embeddings.weight
+    # def clone_weights(self, output_embeddings, input_embeddings):
+    #     """
+    #     Tie the weights between the input embeddings and the output embeddings.
+    #     """
+    #     output_embeddings.weight = input_embeddings.weight
