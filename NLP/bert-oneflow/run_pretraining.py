@@ -313,8 +313,7 @@ def main():
             prediction_scores, seq_relationship_scores = self.bert(
                 input_ids, segment_ids, input_mask
             )
-            print(prediction_scores.shape, seq_relationship_scores.shape)
-            #
+
             # # 2-1. loss of is_next classification result
             # next_sentence_loss = self.ns_criterion(
             #     seq_relationship_scores.view(-1, 2), next_sentence_labels.view(-1)
