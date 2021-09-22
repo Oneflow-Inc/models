@@ -89,16 +89,22 @@ class Trainer(object):
         self.train()
 
     def train(self):
-        def handle_loss(loss):
-            if self.is_consistent==True:
-                return loss.to_local().numpy()
-            else:   
-                return loss.numpy()
+        def handle(dict):
+            for key,value in dict.items():
+                if self.is_consistent==True:
+                    if key=='loss':
+                        print('device:%s %s \n'%(flow.env.get_rank(),dict[key]))
+                    dict[key]=value.to_consistent(placement=flow.placement("cuda", {0: range(self.world_size)}), sbp=flow.sbp.broadcast).to_local().numpy()
+                    if key=='loss':
+                        print(dict[key])
+                else:   
+                    dict[key]=value.numpy()
+            return dict
         losses = []
         args=self.args
         for i in range(args.max_iter):
             loss=self.train_one_step()
-            losses.append(handle_loss(loss))
+            losses.append(handle({'loss':loss})['loss'])
             if self.execution_mode=='eager':
                 loss.backward()
                 self.opt.step()
@@ -115,13 +121,14 @@ class Trainer(object):
                 predicts_list = []               
                 for j in range(args.eval_batchs):
                     predicts, labels, eval_loss=self.eval_one_step()
-                    if self.is_consistent==True:
-                        predicts=predicts.to_local()
-                        labels=labels.to_local()
-                        eval_loss=eval_loss.to_local()
-                    eval_loss_acc += eval_loss.numpy()
-                    lables_list.append(labels.numpy())
-                    predicts_list.append(predicts.numpy())
+                    dict=handle({
+                        'predicts':predicts,
+                        'labels':labels,
+                        'eval_loss':eval_loss
+                    })
+                    eval_loss_acc += dict['eval_loss']
+                    lables_list.append(dict['labels'])
+                    predicts_list.append(dict['predicts'])
                 self.print_eval_metrics(i+1, eval_loss_acc/args.eval_batchs,
                                 lables_list, predicts_list)
                 self.wdl_module.train()
@@ -139,8 +146,6 @@ class Trainer(object):
             predicts = self.wdl_module(
                 dense_fields, wide_sparse_fields, deep_sparse_fields)
             eval_loss = self.loss(predicts, labels)
-        # if self.is_consistent==True and eval_loss.sbp==flow.sbp.partial_sum:
-        #     eval_loss = eval_loss / self.world_size
         return predicts, labels, eval_loss
 
     def train_one_step(self):
