@@ -69,7 +69,7 @@ bash predict.sh
 | --------- | ------- | ------- |
 | Acc   | 82%+ |  80% |
 
-##More Details
+## More Details
 
 ### Configuration
 
