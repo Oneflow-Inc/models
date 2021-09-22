@@ -22,7 +22,7 @@ from .utils import (
 
 class MultiheadAttention(Module):
 
-    __constants__ = ['batch_first']
+    __constants__ = ["batch_first"]
     bias_k: Optional[Tensor]
     bias_v: Optional[Tensor]
 
@@ -59,8 +59,7 @@ class MultiheadAttention(Module):
             self.v_proj_weight = Parameter(flow.zeros((embed_dim, self.vdim)))
             self.register_parameter("in_proj_weight", None)
         else:
-            self.in_proj_weight = Parameter(
-                flow.zeros((3 * embed_dim, embed_dim)))
+            self.in_proj_weight = Parameter(flow.zeros((3 * embed_dim, embed_dim)))
             self.register_parameter("q_proj_weight", None)
             self.register_parameter("k_proj_weight", None)
             self.register_parameter("v_proj_weight", None)
@@ -150,7 +149,7 @@ class MultiheadAttention(Module):
                 training=self.training,
                 key_padding_mask=key_padding_mask,
                 need_weights=need_weights,
-                attn_mask=attn_mask
+                attn_mask=attn_mask,
             )
         if self.batch_first:
             return attn_output.transpose(1, 0), attn_output_weights
@@ -329,8 +328,6 @@ def multi_head_attention_forward(
             .expand(-1, num_heads, tgt_len, -1)
             .reshape(bsz * num_heads, tgt_len, src_len)
         )
-        key_padding_mask = key_padding_mask.reshape(bsz, 1, 1, src_len).expand(
-            -1, num_heads, tgt_len, -1).reshape(bsz * num_heads, tgt_len, src_len)
         if attn_mask is not None:
             attn_mask = attn_mask.expand(bsz * num_heads, -1, -1)
         if attn_mask is None:
