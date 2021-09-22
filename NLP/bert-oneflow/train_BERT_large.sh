@@ -15,7 +15,7 @@ fi
 
 LEARNING_RATE=1e-4
 EPOCH=10
-TRAIN_BATCH_SIZE=8
+TRAIN_BATCH_SIZE=1
 VAL_BATCH_SIZE=8
 
 #export CUDA_VISIBLE_DEVICES=1
@@ -30,7 +30,7 @@ python3 run_pretraining.py \
   --seq_length=512 \
   --max_predictions_per_seq=80 \
   --num_hidden_layers=24 \
-  --num_attention_heads=16 \
+  --num_attention_heads=12 \
   --max_position_embeddings=512 \
   --type_vocab_size=2 \
   --vocab_size=30522 \

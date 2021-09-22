@@ -247,27 +247,37 @@ def main():
         label_weights,
         max_prediction_per_seq,
     ):
-        # gather valid position indices
-        logit_blob = flow.gather(
-            logit_blob,
-            index=masked_lm_positions.unsqueeze(2).repeat(1, 1, args.vocab_size),
-            dim=1,
-        )
-        logit_blob = flow.reshape(logit_blob, [-1, args.vocab_size])
-        label_id_blob = flow.reshape(masked_lm_labels, [-1])
+        return logit_blob.mean()
 
-        # The `positions` tensor might be zero-padded (if the sequence is too
-        # short to have the maximum number of predictions). The `label_weights`
-        # tensor has a value of 1.0 for every real prediction and 0.0 for the
-        # padding predictions.
-        pre_example_loss = mlm_criterion(logit_blob, label_id_blob)
-        pre_example_loss = flow.reshape(pre_example_loss, [-1, max_prediction_per_seq])
-        sum_label_weight = flow.sum(label_weights, dim=-1)
-        sum_label_weight = sum_label_weight / label_weights.shape[0]
-        numerator = flow.sum(pre_example_loss * label_weights)
-        denominator = flow.sum(label_weights) + 1e-5
-        loss = numerator / denominator
-        return loss
+
+    # def get_masked_lm_loss(
+    #     logit_blob,
+    #     masked_lm_positions,
+    #     masked_lm_labels,
+    #     label_weights,
+    #     max_prediction_per_seq,
+    # ):
+    #     # gather valid position indices
+    #     logit_blob = flow.gather(
+    #         logit_blob,
+    #         index=masked_lm_positions.unsqueeze(2).repeat(1, 1, args.vocab_size),
+    #         dim=1,
+    #     )
+    #     logit_blob = flow.reshape(logit_blob, [-1, args.vocab_size])
+    #     label_id_blob = flow.reshape(masked_lm_labels, [-1])
+    #
+    #     # The `positions` tensor might be zero-padded (if the sequence is too
+    #     # short to have the maximum number of predictions). The `label_weights`
+    #     # tensor has a value of 1.0 for every real prediction and 0.0 for the
+    #     # padding predictions.
+    #     pre_example_loss = mlm_criterion(logit_blob, label_id_blob)
+    #     pre_example_loss = flow.reshape(pre_example_loss, [-1, max_prediction_per_seq])
+    #     sum_label_weight = flow.sum(label_weights, dim=-1)
+    #     sum_label_weight = sum_label_weight / label_weights.shape[0]
+    #     numerator = flow.sum(pre_example_loss * label_weights)
+    #     denominator = flow.sum(label_weights) + 1e-5
+    #     loss = numerator / denominator
+    #     return loss
 
     class BertGraph(nn.Graph):
         def __init__(self):
@@ -303,18 +313,20 @@ def main():
             prediction_scores, seq_relationship_scores = self.bert(
                 input_ids, segment_ids, input_mask
             )
-
-            # 2-1. loss of is_next classification result
-            next_sentence_loss = self.ns_criterion(
-                seq_relationship_scores.view(-1, 2), next_sentence_labels.view(-1)
-            )
-
+            print(prediction_scores.shape, seq_relationship_scores.shape)
+            #
+            # # 2-1. loss of is_next classification result
+            # next_sentence_loss = self.ns_criterion(
+            #     seq_relationship_scores.view(-1, 2), next_sentence_labels.view(-1)
+            # )
+            #
             masked_lm_loss = self.masked_lm_criterion(
                 prediction_scores, masked_lm_positions, masked_lm_ids, masked_lm_weights
             )
+            #
+            # total_loss = next_sentence_loss + masked_lm_loss
 
-            total_loss = next_sentence_loss + masked_lm_loss
-
+            total_loss = masked_lm_loss
             total_loss.backward()
             return seq_relationship_scores, next_sentence_labels, total_loss
 

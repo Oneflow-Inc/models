@@ -401,10 +401,11 @@ class BertForPreTraining(nn.Module):
             input_ids, token_type_ids, attention_mask
         )
 
-        prediction_scores, seq_relationship_scores = self.cls(
-            sequence_output, pooled_output
-        )
-        return prediction_scores, seq_relationship_scores
+        return sequence_output, pooled_output
+        # prediction_scores, seq_relationship_scores = self.cls(
+        #     sequence_output, pooled_output
+        # )
+        # return prediction_scores, seq_relationship_scores
 
     def get_output_embeddings(self):
         return self.cls.predictions.decoder
