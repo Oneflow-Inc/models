@@ -68,7 +68,7 @@ def load_feature(
     load feature data from `csv`
 
     Args:
-        config: 配置项
+        config: configuration
         feature_path (str): configuration items
         train (bool): training data
 
@@ -85,7 +85,6 @@ def load_feature(
     Y = df.loc[:, "label"].values
 
     # standardize the path of the model
-    os.makedirs(config.checkpoint_path)
     scaler_path = os.path.join(config.checkpoint_path, "SCALER_OPENSMILE.m")
 
     if train == True:

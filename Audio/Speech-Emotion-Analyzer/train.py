@@ -58,16 +58,15 @@ def train_eval(config):
     train_iter = DataLoader(train_dataset, batch_size=config.batch_size, shuffle=True)
     test_iter = DataLoader(test_dataset, batch_size=config.batch_size, shuffle=True)
 
-    # model_cnn1d = cnn1d_ser(1, config.n_kernels, n_feats, config.hidden_size, len(config.class_labels))
-    model_lstm = lstm_ser(
-        n_feats, config.rnn_size, len(config.class_labels), config.batch_size
-    )
+    if config.model=='lstm':
+        model = lstm_ser( n_feats, config.rnn_size, len(config.class_labels), config.batch_size)
+    else:
+        model = cnn1d_ser(1, config.n_kernels, n_feats, config.hidden_size, len(config.class_labels))
+
     loss_fn = nn.CrossEntropyLoss()
-    model_lstm.to("cuda")
-    # model_cnn1d.to("cuda")
+    model.to("cuda")
     loss_fn.to("cuda")
-    optimizer = flow.optim.Adam(model_lstm.parameters(), lr=config.lr)
-    # optimizer = flow.optim.Adam(model_cnn1d.parameters(), lr=config.lr)
+    optimizer = flow.optim.Adam(model.parameters(), lr=config.lr)
 
     def train(iter, model, loss_fn, optimizer):
         size = len(iter.dataset)
@@ -121,7 +120,6 @@ def train_eval(config):
                 if flag == 0:
                     bool_value = np.argmax(pred.numpy(), 1) == y.numpy()
                 else:
-                    # print(pred)
                     bool_value = np.argmax(pred.numpy()[0:16], 1) == y.numpy()[0:16]
 
                 correct += float(bool_value.sum())
@@ -137,10 +135,10 @@ def train_eval(config):
     train_loss, train_acc, test_loss, test_acc = [], [], [], []
     for e in range(config.epochs):
         print(f"Epoch {e + 1}\n-------------------------------")
-        tr_loss, tr_acc = train(train_iter, model_lstm, loss_fn, optimizer)
+        tr_loss, tr_acc = train(train_iter, model, loss_fn, optimizer)
         train_loss.append(tr_loss.numpy())
         train_acc.append(tr_acc)
-        te_loss, te_acc = test(test_iter, model_lstm, loss_fn)
+        te_loss, te_acc = test(test_iter, model, loss_fn)
         test_loss.append(te_loss.numpy())
         test_acc.append(te_acc)
     print("Done!")
@@ -149,15 +147,14 @@ def train_eval(config):
     model_path = os.path.join(config.checkpoint_path, config.checkpoint_name)
     if os.path.exists(model_path):
         shutil.rmtree(model_path)
-    flow.save(model_lstm.state_dict(), model_path)
+    flow.save(model.state_dict(), model_path)
 
     # Visualize the training process
-    # curve(train_acc, test_acc, 'Accuracy', 'acc')
-    # curve(train_loss, test_loss, 'Loss', 'loss')
+    if config.vis:
+        curve(train_acc, test_acc, 'Accuracy', 'acc')
+        curve(train_loss, test_loss, 'Loss', 'loss')
 
     return train_loss, test_loss, train_acc, test_acc
 
-
-if __name__ == "__main__":
-    config = parse_opt()
-    train_eval(config)
+config = parse_opt()
+train_eval(config)

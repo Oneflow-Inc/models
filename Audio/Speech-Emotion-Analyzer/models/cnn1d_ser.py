@@ -1,6 +1,4 @@
 import oneflow.nn as nn
-import numpy as np
-import oneflow as flow
 
 
 class cnn1d_ser(nn.Module):
@@ -34,12 +32,3 @@ class cnn1d_ser(nn.Module):
         x = x.reshape(x.shape[1], 1, x.shape[2])
         x = self.classifier(x)
         return x
-
-
-if __name__ == "__main__":
-    model = cnn1d_ser()
-    # model = nn.Conv1d(16, 33, 3, stride=2)
-    arr = np.random.randn(1, 20, 312)
-    input = flow.Tensor(arr)
-    output = model(input)
-    print(output.shape)

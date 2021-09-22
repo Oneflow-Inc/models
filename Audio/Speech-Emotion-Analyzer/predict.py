@@ -4,11 +4,11 @@ import oneflow as flow
 import extract_feats.opensmile as of
 import extract_feats.librosa as lf
 import utils
-from lstm_ser import lstm_ser
-from cnn1d_ser import cnn1d_ser
+from models import lstm_ser
+from models import cnn1d_ser
 
 
-def predict(config, audio_path: str) -> None:
+def predict(config) -> None:
     """
     Predict the emotion of the input audio
 
@@ -20,14 +20,14 @@ def predict(config, audio_path: str) -> None:
     # utils.play_audio(audio_path)
     if config.feature_method == "o":
         of.get_data(
-            config, audio_path, config.predict_feature_path_opensmile, train=False
+            config, config.audio_path, config.predict_feature_path_opensmile, train=False
         )
         test_feature = of.load_feature(
             config, config.predict_feature_path_opensmile, train=False
         )
     elif config.feature_method == "l":
         test_feature = lf.get_data(
-            config, audio_path, config.predict_feature_path_librosa, train=False
+            config, config.audio_path, config.predict_feature_path_librosa, train=False
         )
 
     test_feature = test_feature.reshape(1, test_feature.shape[0], test_feature.shape[1])
@@ -35,9 +35,11 @@ def predict(config, audio_path: str) -> None:
 
     n_feats = test_feature.shape[2]
 
-    model_lstm = lstm_ser(n_feats, config.rnn_size, len(config.class_labels), 1)
-    # model_cnn1d = cnn1d_ser(1, config.n_kernels, n_feats, config.hidden_size, len(config.class_labels))
-    SER_model = model_lstm
+    if config.model=='lstm':
+        model = lstm_ser(n_feats, config.rnn_size, len(config.class_labels), 1)
+    else:
+        model = cnn1d_ser(1, config.n_kernels, n_feats, config.hidden_size, len(config.class_labels))
+    SER_model = model
     SER_model.to("cuda")
 
     model_path = os.path.join(config.checkpoint_path, config.checkpoint_name)
@@ -52,8 +54,6 @@ def predict(config, audio_path: str) -> None:
     utils.radar(result_prob.numpy().squeeze(), config.class_labels)
 
 
-if __name__ == "__main__":
-    audio_path = "/home/zhaoying/python_project/emotion_analysis/datasets/CASIA/angry/202-angry-wangzhe.wav"
+config = utils.parse_opt()
 
-    config = utils.parse_opt()
-    predict(config, audio_path)
+predict(config)

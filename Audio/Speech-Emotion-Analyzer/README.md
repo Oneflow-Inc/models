@@ -22,28 +22,25 @@ Our code is inspired by the Keras implementation [Speech-Emotion-Recognition](ht
 │   ├── librosa.py           // extract features using librosa
 │   └── opensmile.py         // extract features using Opensmile
 ├── utils/
-│   ├── files.py             // setup dataset (classify and rename)
 │   ├── opts.py              // argparse
 │   └── plot.py              // plot graphs
 ├── config/                  // configure parameters
 |   |——lstm.yaml             // configure parameters for lstm_ser model
 │   └──cnn1d.yaml            // configure parameters for cnn1d_ser model
 ├── preprocess.py            // data preprocessing (extract features and store them locally)
-├── train_oneflow.py         // train
-└── predict.py               // recognize the emotion of a given audio
+├── train.py                 // train
+├── train.sh                 // shell script for trainning
+├── predict.py               // recognize the emotion of a given audio
+└── predict.sh               // shell script for prediction
 
 ```
 
 ## Requirments
 
 ### Python
-- [oneflow](https://github.com/Oneflow-Inc): lstm and cnn
-- [librosa](https://github.com/librosa/librosa): extract features, waveform
-- [SciPy](https://github.com/scipy/scipy): spectrogram
-- [pandas](https://github.com/pandas-dev/pandas): Load features
-- [Matplotlib](https://github.com/matplotlib/matplotlib): plot graphs
-- [numpy](github.com/numpy/numpy)
-
+```python
+pip install -r requirements.txt
+```
 ### Tools
 
 - [Opensmile](https://github.com/naxingyu/opensmile): extract features
@@ -52,19 +49,27 @@ Our code is inspired by the Keras implementation [Speech-Emotion-Recognition](ht
 
 We made use of CASIA dataset. However, the code can be easily adapted to any other dataset, including RAVEDSS, SAVEE, EMO-DB, etc.
 
+For the access to the dataset used, please refer to [Issue about the dataset](https://github.com/Renovamen/Speech-Emotion-Recognition/issues/17) in the original Keras implementation.
+
 ## Usage
 
-### Prepare
-
-Install dependencies:
-
+Once the dataset is downloaded, we can start training and prediction. 
+### Train
 ```python
-pip install -r requirements.txt
+bash train.sh
 ```
 
-Install [Opensmile](https://github.com/naxingyu/opensmile).
+### Predict
+```python
+bash predict.sh
+```
 
+## Performace
+| Result | Onflow | Keras |
+| --------- | ------- | ------- |
+| Acc   | 82%+ |  80% |
 
+##More Details
 
 ### Configuration
 
@@ -97,17 +102,7 @@ where `configs/example.yaml` is the path to your config file
 
 ### Train
 
-The path of the datasets can be configured in [`configs/`](https://github.com/Oneflow-Inc/models/tree/dev_audio_speech_emotion_analyzer/Audio/Speech-Emotion-Analyzer/configs). Audios which express the same emotion should be put in the same folder (you may want to refer to [`utils/files.py`](utils/files.py) when setting up datasets), for example:
-
-```
-└── datasets
-    ├── angry
-    ├── happy
-    ├── sad
-    ...
-```
-
-Then:
+The path of the datasets can be configured in the config files (YAML) under [`configs/`](https://github.com/Oneflow-Inc/models/tree/dev_audio_speech_emotion_analyzer/Audio/Speech-Emotion-Analyzer/configs). Then:
 
 ```python
 python train.py --config configs/example.yaml
@@ -116,15 +111,7 @@ python train.py --config configs/example.yaml
 
 ### Predict
 
-This is for when you have trained a model and want to predict the emotion for an audio.
-
-First modify following things in [`predict.py`](predict.py):
-
-```python
-audio_path = 'str: path_to_your_audio'
-```
-
-Then:
+This is for when you have trained a model and want to predict the emotion for an audio, whose path can be configured in in the config files (YAML) under [`configs/`](https://github.com/Oneflow-Inc/models/tree/dev_audio_speech_emotion_analyzer/Audio/Speech-Emotion-Analyzer/configs)
 
 ```python
 python predict.py --config configs/example.yaml
@@ -136,8 +123,6 @@ python predict.py --config configs/example.yaml
 #### Radar Chart
 
 Plot a radar chart for demonstrating predicted probabilities.
-
-Source: [Radar](https://github.com/Zhaofan-Su/SpeechEmotionRecognition/blob/master/leidatu.py)
 
 ```python
 import utils
@@ -193,6 +178,3 @@ Plot a spectrogram for an audio file.
 import utils
 utils.spectrogram(file_path)
 ```
-
-### Performace
-We achieved recognition accuracy above 82%, which is in accordance with 80% accuracy claimed by the original Keras implementation.
