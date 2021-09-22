@@ -79,8 +79,7 @@ class TransformerModel(nn.Module):
 
     @staticmethod
     def generate_subsequent_mask(tgt_len, src_len):
-        mask = flow.triu(flow.ones((tgt_len, src_len)), 1)
-        mask = mask.masked_fill(mask.to(flow.int32), float("-inf"))
+        mask = flow.triu(flow.ones((tgt_len, src_len)), 1).to(flow.int32)
         return mask
 
     @staticmethod

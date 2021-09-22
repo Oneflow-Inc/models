@@ -6,7 +6,7 @@ import oneflow as flow
 import oneflow.nn as nn
 
 sys.path.append("../")
-from transformer import TransformerEncoder
+from transformer import TransformerEncoder, TransformerEncoderLayer
 
 
 class Embeddings(nn.Module):
@@ -54,21 +54,23 @@ class TransformerEncoderModel(nn.Module):
         batch_first,
     ):
         super(TransformerEncoderModel, self).__init__()
-        self.transformer_encoder = TransformerEncoder(
-            num_encoder_layers,
+        layer = TransformerEncoderLayer(
             d_model,
-            nhead=nhead,
-            dim_feedforward=dim_feedforward,
-            dropout=dropout,
-            batch_first=batch_first,
+            nhead,
+            dim_feedforward,
+            dropout,
+            batch_first=batch_first)
+        self.transformer_encoder = TransformerEncoder(
+            layer,
+            num_encoder_layers
         )
         self.src_embedding = Embeddings(emb_sz, d_model)
         self.pos = PositionalEncoding(d_model, dropout)
         self.linear = nn.Linear(d_model, n_classes)
 
-    def generate_subsequent_mask(self, tgt_len, src_len):
-        mask = flow.triu(flow.ones((tgt_len, src_len)), 1)
-        mask = mask.masked_fill(mask.to(flow.int32), float("-inf"))
+    @staticmethod
+    def generate_subsequent_mask(tgt_len, src_len):
+        mask = flow.triu(flow.ones((tgt_len, src_len)), 1).to(flow.int32)
         return mask
 
     def make_len_mask(self, inp):
