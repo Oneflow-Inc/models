@@ -346,11 +346,20 @@ def main():
         ns_criterion.to(device)
         mlm_criterion.to(device)
 
-    optimizer = build_lamb_optimizer(
+    # optimizer = build_lamb_optimizer(
+    #     bert_model,
+    #     args.lr,
+    #     args.weight_decay,
+    #     weight_decay_excludes=["bias", "LayerNorm", "layer_norm"],
+    # )
+    optimizer = build_sgd_optimizer(
         bert_model,
         args.lr,
-        args.weight_decay,
+        momentum=0.0,
+        weight_decay=args.weight_decay,
         weight_decay_excludes=["bias", "LayerNorm", "layer_norm"],
+        clip_grad_max_norm=1,
+        clip_grad_norm_type=2.0,
     )
 
     steps = args.epochs * len(train_data_loader)
