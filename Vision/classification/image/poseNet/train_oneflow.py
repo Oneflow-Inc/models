@@ -8,6 +8,7 @@ from models.posenet import PoseNet
 
 from utils.ofrecord_data_utils import OFRecordDataLoader
 
+
 def _parse_args():
     parser = argparse.ArgumentParser("flags for train posenet")
     parser.add_argument(
