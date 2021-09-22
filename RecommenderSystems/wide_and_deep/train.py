@@ -13,7 +13,7 @@ from oneflow.framework import distribute
 from models.wide_and_deep import WideAndDeep
 from oneflow.nn.parallel import DistributedDataParallel as ddp
 from graph import WideAndDeepGraph,WideAndDeepTrainGraph
-
+import warnings
 
 
 class Trainer(object):
@@ -23,7 +23,9 @@ class Trainer(object):
         self.args=args
         self.execution_mode=args.execution_mode
         self.ddp=args.ddp
-        assert not (self.ddp==1 and self.execution_mode=='graph'),'''when ddp is True, the execution_mode can only be eager, but it is graph'''
+        if self.ddp==1 and self.execution_mode=='graph':
+            warnings.warn('''when ddp is True, the execution_mode can only be eager, but it is graph''', UserWarning)
+            self.execution_mode='eager'
         self.is_consistent= (flow.env.get_world_size() > 1 and not args.ddp) or args.execution_mode=='graph'
         self.rank = flow.env.get_rank()
         self.world_size = flow.env.get_world_size()
