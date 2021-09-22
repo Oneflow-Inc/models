@@ -255,10 +255,8 @@ def multi_head_attention_forward(
             attn_mask = attn_mask.expand(bsz * num_heads, -1, -1)
         if attn_mask is None:
             attn_mask = key_padding_mask
-        elif attn_mask.dtype == flow.int32 or attn_mask.dtype == flow.int64:
-            attn_mask = flow.logical_or(attn_mask, key_padding_mask).to(flow.int32)
         else:
-            attn_mask = attn_mask.masked_fill(key_padding_mask, float("-inf"))
+            attn_mask = flow.logical_or(attn_mask, key_padding_mask)
 
     # convert mask to float
     if attn_mask is not None and attn_mask.dtype.is_floating_point == False:
