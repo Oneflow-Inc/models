@@ -11,7 +11,7 @@ import time
 def to_tensor(x, grad=False, dtype=flow.float32):
     if not isinstance(x, np.ndarray):
         x = np.array(x)
-    return flow.Tensor(x, requires_grad=grad, dtype=dtype).to("cuda")
+    return flow.tensor(x, requires_grad=grad, dtype=dtype).to("cuda")
 
 
 def to_numpy(x, mean=True):
