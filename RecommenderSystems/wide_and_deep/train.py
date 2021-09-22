@@ -152,6 +152,9 @@ class Trainer(object):
         self.wdl_module.train()
         if self.execution_mode=='graph':
             predicts, labels, train_loss = self.train_graph()
+            print('predicts.sbp',predicts.sbp)
+            print('labels.sbp',labels.sbp)
+            print('train_loss.sbp',train_loss.sbp)
         else:
             labels, dense_fields, wide_sparse_fields, deep_sparse_fields = self.train_dataloader()
             labels = labels.to("cuda").to(dtype=flow.float32)
