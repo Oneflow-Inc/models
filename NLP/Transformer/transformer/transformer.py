@@ -36,7 +36,7 @@ class Transformer(Module):
         norm_first: bool = False,
     ) -> None:
         super(Transformer, self).__init__()
-        
+
         if custom_encoder is not None:
             self.encoder = custom_encoder
         else:
@@ -70,10 +70,10 @@ class Transformer(Module):
             self.decoder = TransformerDecoder(decoder_layer, num_decoder_layers, decoder_norm)
         
         self._reset_parameters()
-        
+ 
         self.d_model = d_model
         self.nhead = nhead
-        
+
         self.batch_first = batch_first
     
     def forward(
@@ -92,19 +92,26 @@ class Transformer(Module):
             raise RuntimeError("the batch number of src and tgt must be equal")
         elif self.batch_first and src.size(0) != tgt.size(0):
             raise RuntimeError("the batch number of src and tgt must be equal")
-        
+
         if src.size(2) != self.d_model or tgt.size(2) != self.d_model:
             raise RuntimeError(
-                "the feature number of src and tgt must be equal to d_model")
-        
+                "the feature number of src and tgt must be equal to d_model"
+            )
+
         memory = self.encoder(src, src_mask, src_key_padding_mask)
-        output = self.decoder(tgt, memory, tgt_mask, memory_mask,
-                              tgt_key_padding_mask, memory_key_padding_mask)
+        output = self.decoder(
+            tgt,
+            memory,
+            tgt_mask,
+            memory_mask,
+            tgt_key_padding_mask,
+            memory_key_padding_mask,
+        )
         return output
-    
+
     def generate_square_subsequent_mask(self, sz: int) -> Tensor:
         return flow.triu(flow.ones((sz, sz)), diagonal=1).to(flow.int32)
-    
+
     def _reset_parameters(self):
         for p in self.parameters():
             if p.dim() > 1:
@@ -113,13 +120,13 @@ class Transformer(Module):
 
 class TransformerEncoder(Module):
     __constants__ = ['norm']
-    
+
     def __init__(self, encoder_layer, num_layers, norm=None):
         super(TransformerEncoder, self).__init__()
         self.layers = _get_clones(encoder_layer, num_layers)
         self.num_layers = num_layers
         self.norm = norm
-    
+
     def forward(
         self, 
         src: Tensor, 
@@ -139,13 +146,13 @@ class TransformerEncoder(Module):
 
 class TransformerDecoder(Module):
     __constants__ = ['norm']
-    
+
     def __init__(self, decoder_layer, num_layers, norm=None):
         super(TransformerDecoder, self).__init__()
         self.layers = _get_clones(decoder_layer, num_layers)
         self.num_layers = num_layers
         self.norm = norm
-    
+
     def forward(
         self, 
         tgt: Tensor, 
@@ -160,16 +167,16 @@ class TransformerDecoder(Module):
         for mod in self.layers:
             output = mod(output, memory, tgt_mask, memory_mask,
                          tgt_key_padding_mask, memory_key_padding_mask)
-        
+
         if self.norm is not None:
             output = self.norm(output)
-        
+
         return output
 
 
 class TransformerEncoderLayer(Module):
     __constants__ = ['batch_first', 'norm_first']
-    
+
     def __init__(
         self,
         d_model,
@@ -196,7 +203,7 @@ class TransformerEncoderLayer(Module):
         self.dropout2 = Dropout(dropout)
         
         self.activation = _get_activation_fn(activation)
-    
+
     def forward(
         self,
         src: Tensor,
@@ -214,7 +221,7 @@ class TransformerEncoderLayer(Module):
                 self.activation(self.linear1(src))))
             src = src + self.dropout2(src2)
             return src
-        
+
         # norm last
         src2 = self.self_attn(
             src, src, src, src_key_padding_mask, True, src_mask)[0]
@@ -228,7 +235,7 @@ class TransformerEncoderLayer(Module):
 
 class TransformerDecoderLayer(Module):
     __constants__ = ['batch_first', 'norm_first']
-    
+
     def __init__(
         self,
         d_model,
@@ -249,7 +256,7 @@ class TransformerDecoderLayer(Module):
         self.linear1 = Linear(d_model, dim_feedforward)
         self.dropout = Dropout(dropout)
         self.linear2 = Linear(dim_feedforward, d_model)
-        
+
         self.norm_first = norm_first
         self.norm1 = LayerNorm(d_model, eps=layer_norm_eps)
         self.norm2 = LayerNorm(d_model, eps=layer_norm_eps)
@@ -257,9 +264,9 @@ class TransformerDecoderLayer(Module):
         self.dropout1 = Dropout(dropout)
         self.dropout2 = Dropout(dropout)
         self.dropout3 = Dropout(dropout)
-        
+
         self.activation = _get_activation_fn(activation)
-    
+
     def forward(
         self,
         tgt: Tensor,
@@ -283,7 +290,7 @@ class TransformerDecoderLayer(Module):
                 self.activation(self.linear1(tgt))))
             tgt = tgt + self.dropout3(tgt2)
             return tgt
-        
+
         # norm last
         tgt2 = self.self_attn(
             tgt, tgt, tgt, tgt_key_padding_mask, True, tgt_mask)[0]
@@ -300,7 +307,7 @@ class TransformerDecoderLayer(Module):
 
 
 def _get_clones(module, N):
-    
+
     return ModuleList([copy.deepcopy(module) for _ in range(N)])
 
 
@@ -309,6 +316,6 @@ def _get_activation_fn(activation):
         return flow.relu
     elif activation == "gelu":
         return flow.gelu
-    
+
     raise RuntimeError(
         "activation should be relu/gelu, not {}".format(activation))
