@@ -219,8 +219,14 @@ def parse_args(ignore_unknown_args=False):
         "--total-batches", type=int, default=-1, dest="total_batches",
     )
     parser.add_argument("--skip-eval", action="store_true", dest="skip_eval")
-
     # log and loss print
+    parser.add_argument(
+        "--nsight-step",
+        type=int,
+        default=20,
+        dest="nsight_step",
+        help="train step in nsight mode",
+    )
     parser.add_argument(
         "--print-interval",
         type=int,
