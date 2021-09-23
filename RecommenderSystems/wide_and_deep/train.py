@@ -54,24 +54,24 @@ class Trainer(object):
         is_consistent = self.is_consistent
         world_size = self.world_size
         placement = flow.placement("cpu", {0: range(world_size)})
-        wdl_module = WideAndDeep(args)
+        self.wdl_module = WideAndDeep(args)
         if is_consistent == True:
-            wdl_module = wdl_module.to_consistent(
+            self.wdl_module = self.wdl_module.to_consistent(
                 placement=placement, sbp=flow.sbp.broadcast
             )
         train_dataloader = OFRecordDataLoader(args)
         val_dataloader = OFRecordDataLoader(args, mode="val")
-        wdl_module.to("cuda")
+        self.wdl_module.to("cuda")
         bce_loss = flow.nn.BCELoss(reduction="mean")
         bce_loss.to("cuda")
         opt = flow.optim.SGD(
-            wdl_module.parameters(), lr=args.learning_rate, momentum=0.9
+            self.wdl_module.parameters(), lr=args.learning_rate, momentum=0.9
         )
         if args.model_load_dir != "":
             self.load_state_dict()
         if args.save_initial_model and args.model_save_dir != "":
             self.save(os.path.join(args.model_save_dir, "initial_checkpoint"))
-        return train_dataloader, val_dataloader, wdl_module, bce_loss, opt
+        return train_dataloader, val_dataloader, self.wdl_module, bce_loss, opt
 
     def load_state_dict(self):
         print(f"Loading model from {self.args.model_load_dir}")
@@ -84,7 +84,7 @@ class Trainer(object):
         self.wdl_module.load_state_dict(state_dict)
 
     def save(self, save_path):
-        if self.save_path is None:
+        if save_path is None:
             return
         print(f"Saving model to {save_path}")
         state_dict = self.wdl_module.state_dict()
