@@ -9,10 +9,8 @@ from model import LSTMText
 from utils import pad_sequences
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--batch_size", type=int, default=1)
 parser.add_argument("--emb_dim", type=int, default=100)
 parser.add_argument("--hidden_size", type=int, default=256)
-parser.add_argument("--nfc", type=int, default=128)
 parser.add_argument("--sequence_length", type=int, default=128)
 parser.add_argument("--model_load_dir", type=str, default="pretrain_model")
 parser.add_argument("--imdb_path", type=str, default="./imdb")
@@ -46,9 +44,8 @@ def inference(text):
         args.emb_num,
         args.emb_dim,
         hidden_size=args.hidden_size,
-        nfc=args.nfc,
+        nfc=args.sequence_length,
         n_classes=args.n_classes,
-        batch_size=args.batch_size,
     )
     model.load_state_dict(flow.load(args.model_load_dir))
     model.to("cuda")

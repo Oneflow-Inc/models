@@ -5,7 +5,6 @@ import json
 
 import numpy as np
 import oneflow as flow
-import oneflow.nn as nn
 import shutil
 
 from model import LSTMText
@@ -26,8 +25,8 @@ def shuffle_batch(data, label, batch_size):
         [label[i * batch_size : i * batch_size + batch_size] for i in range(batch_n)],
         dtype=np.int32,
     )
-    x_batch = flow.Tensor(x_batch, dtype=flow.int32).to("cuda")
-    y_batch = flow.Tensor(y_batch, dtype=flow.int32).to("cuda")
+    x_batch = flow.tensor(x_batch, dtype=flow.int32).to("cuda")
+    y_batch = flow.tensor(y_batch, dtype=flow.int32).to("cuda")
     return x_batch, y_batch
 
 
@@ -77,9 +76,8 @@ def train_eager(args):
         args.emb_num,
         args.emb_dim,
         hidden_size=args.hidden_size,
-        nfc=args.nfc,
+        nfc=args.sequence_length,
         n_classes=args.n_classes,
-        batch_size=args.batch_size,
     )
     if args.model_load_dir != ".":
         model_eager.load_state_dict(flow.load(args.model_load_dir))
@@ -147,7 +145,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--emb_dim", type=int, default=100)
     parser.add_argument("--hidden_size", type=int, default=256)
-    parser.add_argument("--nfc", type=int, default=128)
     parser.add_argument("--lr", type=float, default=3e-4)
     parser.add_argument("--sequence_length", type=int, default=128)
     parser.add_argument("--batch_size", type=int, default=32)

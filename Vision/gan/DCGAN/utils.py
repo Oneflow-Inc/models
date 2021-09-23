@@ -93,7 +93,7 @@ def to_numpy(x, mean=True):
 def to_tensor(x, grad=True, dtype=flow.float32):
     if not isinstance(x, np.ndarray):
         x = np.array(x)
-    return flow.Tensor(x, requires_grad=grad, dtype=dtype)
+    return flow.tensor(x, requires_grad=grad, dtype=dtype)
 
 
 def save_to_gif(path):
