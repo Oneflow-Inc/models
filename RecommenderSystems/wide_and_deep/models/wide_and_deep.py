@@ -44,7 +44,7 @@ class Dense(nn.Module):
 class WideAndDeep(nn.Module):
     def __init__(self, FLAGS) -> None:
         super(WideAndDeep, self).__init__()
-        self.FLAGS=FLAGS
+        self.FLAGS = FLAGS
         self.wide_embedding = Embedding(vocab_size=FLAGS.wide_vocab_size, embed_size=1)
         self.deep_embedding = Embedding(
             vocab_size=FLAGS.deep_vocab_size,
@@ -83,8 +83,8 @@ class WideAndDeep(nn.Module):
         deep_features = self.linear_layers(deep_features)
         deep_scores = self.deep_scores(deep_features)
         return self.sigmoid(wide_scores + deep_scores)
-       
-       
+
+
 def wide_and_deep(
     pretrained: bool = False, progress: bool = True, **kwargs: Any
 ) -> WideAndDeep:

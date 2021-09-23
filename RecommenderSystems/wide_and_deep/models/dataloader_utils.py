@@ -24,12 +24,14 @@ class OFRecordDataLoader(nn.Module):
                 "{}:0-{}".format(i, num_dataloader_thread - 1)
                 for i in range(FLAGS.num_nodes)
             ]
-        data_root=FLAGS.data_dir
-        batch_size=FLAGS.batch_size
-        is_consistent= (flow.env.get_world_size() > 1 and not FLAGS.ddp) or FLAGS.execution_mode=='graph'
+        data_root = FLAGS.data_dir
+        batch_size = FLAGS.batch_size
+        is_consistent = (
+            flow.env.get_world_size() > 1 and not FLAGS.ddp
+        ) or FLAGS.execution_mode == "graph"
         placement = None
         sbp = None
-        if is_consistent==True:
+        if is_consistent == True:
             placement = flow.placement("cpu", {0: range(flow.env.get_world_size())})
             sbp = flow.sbp.split(0)
         shuffle = mode == "train"
@@ -67,11 +69,11 @@ class OFRecordDataLoader(nn.Module):
         return labels, dense_fields, wide_sparse_fields, deep_sparse_fields
 
 
-
 if __name__ == "__main__":
     from config import get_args
+
     FLAGS = get_args()
-    dataloader = OFRecordDataLoader(FLAGS, data_root="/dataset/wdl_ofrecord/ofrecord") 
+    dataloader = OFRecordDataLoader(FLAGS, data_root="/dataset/wdl_ofrecord/ofrecord")
     for i in range(10):
         labels, dense_fields, wide_sparse_fields, deep_sparse_fields = dataloader()
         print(deep_sparse_fields)

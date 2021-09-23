@@ -69,10 +69,12 @@ def get_args(print_args=True):
     )
     parser.add_argument("--hidden_units_num", type=int, default=7)
     parser.add_argument("--hidden_size", type=int, default=1024)
-    parser.add_argument("--ddp",action='store_true',help="Run model in distributed data parallel mode")
-    parser.add_argument("--execution_mode",type=str, default='eager', help="graph or eager")
-
-
+    parser.add_argument(
+        "--ddp", action="store_true", help="Run model in distributed data parallel mode"
+    )
+    parser.add_argument(
+        "--execution_mode", type=str, default="eager", help="graph or eager"
+    )
 
     FLAGS = parser.parse_args()
     if print_args:
