@@ -326,13 +326,13 @@ def main():
     )
 
     # Load the same initial parameters with lazy model.
-    load_params_from_lazy(
-        bert_model.state_dict(),
-        "../../OneFlow-Benchmark/LanguageModeling/BERT/initial_model",
-    )
-    assert id(bert_model.cls.predictions.decoder.weight) == id(
-        bert_model.bert.embeddings.word_embeddings.weight
-    )
+    # load_params_from_lazy(
+    #     bert_model.state_dict(),
+    #     "../../OneFlow-Benchmark/LanguageModeling/BERT/initial_model",
+    # )
+    # assert id(bert_model.cls.predictions.decoder.weight) == id(
+    #     bert_model.bert.embeddings.word_embeddings.weight
+    # )
 
     ns_criterion = nn.CrossEntropyLoss(reduction="mean")
     mlm_criterion = nn.CrossEntropyLoss(reduction="none")
