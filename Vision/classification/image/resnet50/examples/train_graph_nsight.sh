@@ -1,7 +1,9 @@
 # set -aux
 # export PYTHONPATH=/home/luyang/Oneflow/oneflow/python:$PYTHONPATH
-# nohup  bash examples/train_graph_nsight.sh  >  nsight_graph_resnet50_fp32_1n1g_bz96_20iter_gap1_210923@be983659d.log  2>&1 &
-# nohup  bash examples/train_graph_nsight.sh  >  nsight_graph_resnet50_fp32_1n1g_bz96_20iter_gap1_profile_210923@be983659d.log  2>&1 &
+# nohup  bash examples/train_graph_nsight.sh  >  nsight_graph_resnet50_fp32_1n1g_bz96_20iter_gap1_profile_210923_master@4bfd0ca0d.log  2>&1 &
+# nohup  bash examples/train_graph_nsight.sh  >  nsight_graph_resnet50_fp32_1n1g_bz96_20iter_gap20_profile_210923_master@4bfd0ca0d.log  2>&1 &
+# nohup  bash examples/train_graph_nsight.sh  >  nsight_graph_resnet50_fp32_1n1g_bz96_20iter_gap1_profile_210923_soft_sync_nn_graph@373956015.log  2>&1 &
+# nohup  bash examples/train_graph_nsight.sh  >  nsight_graph_resnet50_fp32_1n1g_bz96_20iter_gap20_profile_210923_soft_sync_nn_graph@373956015.log  2>&1 &
 DEVICE_NUM_PER_NODE=1
 MASTER_ADDR=127.0.0.1
 NUM_NODES=1
@@ -20,7 +22,8 @@ if [ ! -d "$CHECKPOINT_SAVE_PATH" ]; then
     mkdir $CHECKPOINT_SAVE_PATH
 fi
 
-OFRECORD_PATH="/dataset/ImageNet/ofrecord"
+# OFRECORD_PATH="/dataset/ImageNet/ofrecord"
+OFRECORD_PATH="/dev/shm/imagenet/ofrecord"
 
 OFRECORD_PART_NUM=256
 LEARNING_RATE=0.096
@@ -38,7 +41,8 @@ SRC_DIR=$(realpath $(dirname $0)/..)
 #     --node_rank $NODE_RANK \
 #     --master_addr $MASTER_ADDR \
 
-/home/luyang/nsight-systems-2021.2.1/bin/nsys profile --stats=true -o nsight_graph_resnet50_fp32_1n1g_bz96_20iter_gap20_profile_210923@be983659d.qdrep \
+
+/home/luyang/nsight-systems-2021.2.1/bin/nsys profile --stats=true -o nsight_graph_resnet50_fp32_1n1g_bz96_20iter_gap20_profile_210923_soft_sync_nn_graph@373956015.qdrep \
 python3    $SRC_DIR/train_nsight_profile.py \
         --save $CHECKPOINT_SAVE_PATH \
         --ofrecord-path $OFRECORD_PATH \
