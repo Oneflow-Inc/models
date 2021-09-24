@@ -4,11 +4,11 @@ import os
 import random
 
 
-def load_image(image_path="data/fish.jpg"):
+def load_image(image_path="data/fish.jpg", image_size=(224, 224)):
     rgb_mean = [123.68, 116.779, 103.939]
     rgb_std = [58.393, 57.12, 57.375]
     im = Image.open(image_path)
-    im = im.resize((224, 224))
+    im = im.resize(image_size)
     im = im.convert("RGB")
     im = np.array(im).astype("float32")
     im = (im - rgb_mean) / rgb_std

@@ -1,13 +1,14 @@
 set -aux
 
-PRETRAIN_MODEL_PATH="./densenet_121_oneflow_model"
+PRETRAIN_MODEL_PATH="./vit_b_16_384"
 IMAGE_PATH="data/fish.jpg"
-# IMAGE_PATH="data/tiger.jpg"
-# IMAGE_PATH="data/ILSVRC2012_val_00020287.JPEG"
+MODEL_ARCH="vit_b_16_384"
+IMAGE_SIZE=384
+
 
 if [ ! -d "$PRETRAIN_MODEL_PATH" ]; then
-  wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/cv/classification/densenet/densenet_121_oneflow_model.zip
-  unzip densenet_121_oneflow_model.zip
+  wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/ViT-OneFlow/vit_b_16_384.zip
+  unzip vit_b_16_384.zip
 fi
 
 if [ ! -d "data" ]; then
@@ -15,4 +16,4 @@ if [ ! -d "data" ]; then
   tar zxf data.tar.gz
 fi
 
-python3 infer.py --model_path $PRETRAIN_MODEL_PATH --image_path $IMAGE_PATH
+python3 infer.py --model_path $PRETRAIN_MODEL_PATH --image_path $IMAGE_PATH --model_arch $MODEL_ARCH --image_size $IMAGE_SIZE
