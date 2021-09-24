@@ -176,8 +176,8 @@ def load_feature(
     Y = list(features["emotion"])
 
     # standardize the path of the model
-    #if os.path.isdir(config.checkpoint_path):
-   # os.makedirs(config.checkpoint_path)
+    # if os.path.isdir(config.checkpoint_path):
+    # os.makedirs(config.checkpoint_path)
     scaler_path = os.path.join(config.checkpoint_path, "SCALER_Librosa.m")
 
     if train == True:

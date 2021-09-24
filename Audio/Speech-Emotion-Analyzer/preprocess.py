@@ -15,6 +15,4 @@ if config.feature_method == "o":
     )
 
 elif config.feature_method == "l":
-    lf.get_data(
-        config, config.data_path, config.train_feature_path_librosa, train=True
-    )
+    lf.get_data(config, config.data_path, config.train_feature_path_librosa, train=True)

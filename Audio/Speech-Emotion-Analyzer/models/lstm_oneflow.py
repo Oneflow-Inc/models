@@ -12,7 +12,6 @@ class LSTM(nn.Module):
         self.num_layers = num_layers
         self.lstm = CustomLSTM(self.input_dim, self.hidden_dim)
 
-
     def forward(self, input):
         lstm_out, _ = self.lstm(input.reshape(input.shape[0], self.batch_size, -1))
         output = lstm_out[lstm_out.shape[0] - 1].reshape(self.batch_size, -1)
