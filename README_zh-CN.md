@@ -36,6 +36,7 @@ OneFlow-Models目录下提供了各种经典图形分类、目标检测、图像
   - [PoseNet](https://github.com/Oneflow-Inc/models/tree/main/Vision/classification/image/poseNet)
   - [Scnet](https://github.com/Oneflow-Inc/models/tree/main/Vision/classification/image/scnet)
   - [Mnasnet](https://github.com/Oneflow-Inc/models/tree/main/Vision/classification/image/mnasnet)
+  - [ViT](https://github.com/Oneflow-Inc/models/tree/main/Vision/classification/image/ViT)
 
 </details>
 
