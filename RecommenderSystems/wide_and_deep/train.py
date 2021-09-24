@@ -52,25 +52,32 @@ class Trainer(object):
     def prepare_modules(self):
         args = self.args
         is_consistent = self.is_consistent
-        world_size = self.world_size
-        placement = flow.placement("cpu", {0: range(world_size)})
         self.wdl_module = WideAndDeep(args)
         if is_consistent == True:
+            world_size = self.world_size
+            placement = flow.placement("cuda", {0: range(world_size)})
             self.wdl_module = self.wdl_module.to_consistent(
                 placement=placement, sbp=flow.sbp.broadcast
             )
+        else:
+            self.wdl_module=self.wdl_module.to("cuda")
+        if args.model_load_dir != "":
+            self.load_state_dict()
+        if self.ddp:
+            self.wdl_module = ddp(self.wdl_module)
+        if args.save_initial_model and args.model_save_dir != "":
+            self.save(os.path.join(args.model_save_dir, "initial_checkpoint"))
+
         train_dataloader = OFRecordDataLoader(args)
         val_dataloader = OFRecordDataLoader(args, mode="val")
-        self.wdl_module.to("cuda")
+
         bce_loss = flow.nn.BCELoss(reduction="mean")
         bce_loss.to("cuda")
+
         opt = flow.optim.SGD(
             self.wdl_module.parameters(), lr=args.learning_rate, momentum=0.9
         )
-        if args.model_load_dir != "":
-            self.load_state_dict()
-        if args.save_initial_model and args.model_save_dir != "":
-            self.save(os.path.join(args.model_save_dir, "initial_checkpoint"))
+
         return train_dataloader, val_dataloader, self.wdl_module, bce_loss, opt
 
     def load_state_dict(self):
@@ -125,8 +132,6 @@ class Trainer(object):
                         .to_local()
                         .numpy()
                     )
-                    if key == "loss":
-                        print(dict[key])
                 else:
                     dict[key] = value.numpy()
             return dict
@@ -188,9 +193,6 @@ class Trainer(object):
         self.wdl_module.train()
         if self.execution_mode == "graph":
             predicts, labels, train_loss = self.train_graph()
-            print("predicts.sbp", predicts.sbp)
-            print("labels.sbp", labels.sbp)
-            print("train_loss.sbp", train_loss.sbp)
         else:
             (
                 labels,
