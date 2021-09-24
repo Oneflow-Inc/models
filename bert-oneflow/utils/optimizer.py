@@ -6,15 +6,28 @@ from .lamb_optimizer import LAMB
 
 
 def build_optimizer(
-    optim_name: str, model: nn.Module, lr: float, weight_decay: float, weight_decay_excludes: List[str], clip_grad_max_norm: float = None, clip_grad_norm_type: float=None,
+    optim_name: str,
+    model: nn.Module,
+    lr: float,
+    weight_decay: float,
+    weight_decay_excludes: List[str],
+    clip_grad_max_norm: float = None,
+    clip_grad_norm_type: float = None,
 ):
-    assert optim_name in ["adamw", "lamb"], f"only support adamw and lamb now, but got {optim_name}"
+    assert optim_name in [
+        "adamw",
+        "lamb",
+    ], f"only support adamw and lamb now, but got {optim_name}"
 
     params = []
     exclude_params = []
     use_clip = clip_grad_max_norm is not None and clip_grad_norm_type is not None
     if use_clip:
-        defaults = {"lr": lr, "clip_grad_max_norm": clip_grad_max_norm, "clip_grad_norm_type": clip_grad_norm_type}
+        defaults = {
+            "lr": lr,
+            "clip_grad_max_norm": clip_grad_max_norm,
+            "clip_grad_norm_type": clip_grad_norm_type,
+        }
     else:
         defaults = {"lr": lr}
     hyperparameters = copy.copy(defaults)
@@ -32,7 +45,7 @@ def build_optimizer(
         {"params": params, "weight_decay": weight_decay, **hyperparameters,},
         {"params": exclude_params, "weight_decay": 0.0, **hyperparameters,},
     ]
-    
+
     if optim_name == "adamw":
         return flow.optim.AdamW(all_params)
     elif optim_name == "lamb":

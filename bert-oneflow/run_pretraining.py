@@ -47,7 +47,9 @@ def tton(tensor, local_only=True):
     return tensor
 
 
-def save_model(module: nn.Module, checkpoint_path: str, epoch: int, acc: float, is_consistent: bool):
+def save_model(
+    module: nn.Module, checkpoint_path: str, epoch: int, acc: float, is_consistent: bool
+):
     state_dict = module.state_dict()
     save_path = os.path.join(checkpoint_path, "epoch_%d_val_acc_%f" % (epoch, acc))
     if is_consistent:
@@ -56,7 +58,7 @@ def save_model(module: nn.Module, checkpoint_path: str, epoch: int, acc: float, 
         flow.save(state_dict, save_path)
     else:
         return
-    
+
 
 def pretrain(graph: nn.Graph, metric_local: bool) -> Dict:
 
@@ -88,7 +90,11 @@ def pretrain(graph: nn.Graph, metric_local: bool) -> Dict:
 
 
 def validation(
-    epoch: int, iter_per_epoch: int, graph: nn.Graph, print_interval: int, metric_local: bool,
+    epoch: int,
+    iter_per_epoch: int,
+    graph: nn.Graph,
+    print_interval: int,
+    metric_local: bool,
 ) -> float:
     total_correct = 0
     total_element = 0
@@ -143,7 +149,10 @@ def main():
         help="Path to ofrecord dataset",
     )
     parser.add_argument(
-        "--train-dataset-size", type=int, default=10000000, help="dataset size of ofrecord"
+        "--train-dataset-size",
+        type=int,
+        default=10000000,
+        help="dataset size of ofrecord",
     )
     parser.add_argument(
         "--train-data-part", type=int, default=64, help="data part num of ofrecord"
@@ -205,7 +214,10 @@ def main():
         "--weight_decay", type=float, default=0.01, help="Weight_decay of adam"
     )
     parser.add_argument(
-        "--warmup_proportion", type=float, default=0.1, help="Warmup propotion to total steps"
+        "--warmup_proportion",
+        type=float,
+        default=0.1,
+        help="Warmup propotion to total steps",
     )
     parser.add_argument(
         "--loss_print_every_n_iters",
@@ -361,7 +373,7 @@ def main():
     lr_scheduler = PolynomialLR(optimizer, steps=steps, end_learning_rate=0.0)
 
     lr_scheduler = flow.optim.lr_scheduler.WarmUpLR(
-       lr_scheduler, warmup_factor=0, warmup_iters=warmup_steps, warmup_method="linear"
+        lr_scheduler, warmup_factor=0, warmup_iters=warmup_steps, warmup_method="linear"
     )
 
     def get_masked_lm_loss(
@@ -524,7 +536,11 @@ def main():
     # Eval
     bert_model.eval()
     val_acc = validation(
-        epoch, len(test_data_loader), bert_eval_graph, args.val_print_every_n_iters, args.metric_local
+        epoch,
+        len(test_data_loader),
+        bert_eval_graph,
+        args.val_print_every_n_iters,
+        args.metric_local,
     )
 
     if flow.env.get_rank() == 0:
