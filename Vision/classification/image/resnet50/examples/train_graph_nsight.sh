@@ -1,9 +1,6 @@
 # set -aux
 # export PYTHONPATH=/home/luyang/Oneflow/oneflow/python:$PYTHONPATH
-# nohup  bash examples/train_graph_nsight.sh  >  nsight_graph_resnet50_fp32_1n1g_bz96_20iter_gap1_profile_210923_master@4bfd0ca0d.log  2>&1 &
-# nohup  bash examples/train_graph_nsight.sh  >  nsight_graph_resnet50_fp32_1n1g_bz96_20iter_gap20_profile_210923_master@4bfd0ca0d.log  2>&1 &
-# nohup  bash examples/train_graph_nsight.sh  >  nsight_graph_resnet50_fp32_1n1g_bz96_20iter_gap1_profile_210923_soft_sync_nn_graph@373956015.log  2>&1 &
-# nohup  bash examples/train_graph_nsight.sh  >  nsight_graph_resnet50_fp32_1n1g_bz96_20iter_gap20_profile_210923_soft_sync_nn_graph@373956015.log  2>&1 &
+# nohup  bash examples/train_graph_nsight.sh  >  nsight_graph_resnet50_fp32_1n1g_bz96_100iter_gap100_profile_210924_master@cd5294e4b_test.log  2>&1 &
 DEVICE_NUM_PER_NODE=1
 MASTER_ADDR=127.0.0.1
 NUM_NODES=1
@@ -35,14 +32,8 @@ VAL_BATCH_SIZE=50
 # SRC_DIR=/path/to/models/resnet50
 SRC_DIR=$(realpath $(dirname $0)/..)
 
-# python3 -m oneflow.distributed.launch \
-#     --nproc_per_node $DEVICE_NUM_PER_NODE \
-#     --nnodes $NUM_NODES \
-#     --node_rank $NODE_RANK \
-#     --master_addr $MASTER_ADDR \
 
-
-/home/luyang/nsight-systems-2021.2.1/bin/nsys profile --stats=true -o nsight_graph_resnet50_fp32_1n1g_bz96_20iter_gap20_profile_210923_soft_sync_nn_graph@373956015.qdrep \
+/home/luyang/nsight-systems-2021.2.1/bin/nsys profile --stats=true -o nsight_graph_resnet50_fp32_1n1g_bz96_100iter_gap100_profile_210924_master@cd5294e4b_test.qdrep \
 python3    $SRC_DIR/train_nsight_profile.py \
         --save $CHECKPOINT_SAVE_PATH \
         --ofrecord-path $OFRECORD_PATH \
@@ -55,7 +46,7 @@ python3    $SRC_DIR/train_nsight_profile.py \
         --val-batch-size $VAL_BATCH_SIZE \
         --scale-grad \
         --graph \
-        --nsight-step 20 \
-        --print-interval 20 \
+        --nsight-step 100 \
+        --print-interval 100 \
         # --use-gpu-decode \
 
