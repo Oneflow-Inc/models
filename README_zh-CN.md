@@ -106,6 +106,7 @@ OneFlow-Models目录下提供了各种经典图形分类、目标检测、图像
 - [SincNet](https://github.com/Oneflow-Inc/models/tree/main/Audio/SincNet)
 - [Wav2Letter](https://github.com/Oneflow-Inc/models/tree/main/Audio/Wav2Letter)
 - [AM_MobileNet1D](https://github.com/Oneflow-Inc/models/tree/main/Audio/AM-MobileNet1D)
+- [Speech-Emotion-Analyer](https://github.com/Oneflow-Inc/models/tree/main/Audio/Speech-Emotion-Analyzer)
 </details>
 
 <details>
