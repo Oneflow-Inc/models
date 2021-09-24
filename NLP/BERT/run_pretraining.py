@@ -522,7 +522,7 @@ def main():
         # Train
         bert_model.train()
 
-        for step in range(300):  # range(len(train_data_loader)):
+        for step in range(len(train_data_loader)):
             bert_outputs = pretrain(bert_graph, args.metric_local)
 
             if flow.env.get_rank() == 0:
