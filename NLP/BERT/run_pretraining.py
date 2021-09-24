@@ -4,10 +4,7 @@ import os
 import time
 from functools import partial
 from typing import Dict
-from compare_lazy_outputs import load_params_from_lazy
-from utils.reporter import Reporter
 
-import copy
 
 import numpy as np
 import oneflow as flow
