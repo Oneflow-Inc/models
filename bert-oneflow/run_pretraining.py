@@ -116,11 +116,12 @@ def validation(
                 )
             )
 
-    print(
-        "Epoch {}, val iter {}, total accuracy {:.2f}".format(
-            epoch, (i + 1), total_correct * 100.0 / total_element
+    if flow.env.get_rank() == 0:
+        print(
+            "Epoch {}, val iter {}, total accuracy {:.2f}".format(
+                epoch, (i + 1), total_correct * 100.0 / total_element
+            )
         )
-    )
     return total_correct / total_element
 
 
