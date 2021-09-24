@@ -18,16 +18,18 @@ def _parse_args():
         help="model path",
     )
     parser.add_argument(
-        "--model_arch", 
-        type=str, 
-        default="vit_b_16_384", 
-        choices=['vit_b_16_224', 
-                 'vit_b_16_384',
-                 'vit_b_32_224',
-                 'vit_b_32_384',
-                 'vit_l_16_224',
-                 'vit_l_16_384'], 
-                 help="model architecture",
+        "--model_arch",
+        type=str,
+        default="vit_b_16_384",
+        choices=[
+            "vit_b_16_224",
+            "vit_b_16_384",
+            "vit_b_32_224",
+            "vit_b_32_384",
+            "vit_l_16_224",
+            "vit_l_16_384",
+        ],
+        help="model architecture",
     )
     parser.add_argument("--image_size", type=int, default=384, help="input image size")
     parser.add_argument("--image_path", type=str, default="", help="input image path")

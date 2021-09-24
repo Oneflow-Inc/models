@@ -1,4 +1,12 @@
-from models.vit import ViT_B_16_224, ViT_B_16_384, ViT_B_32_224, ViT_B_32_384, ViT_L_16_384, ViT_L_32_384
+from models.vit import (
+    ViT_B_16_224,
+    ViT_B_16_384,
+    ViT_B_32_224,
+    ViT_B_32_384,
+    ViT_L_16_384,
+    ViT_L_32_384,
+)
+
 
 def build_model(args):
     if args.model_arch == "vit_b_16_224":

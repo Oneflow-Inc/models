@@ -2,8 +2,10 @@ import oneflow as flow
 import oneflow.nn as nn
 import os
 
+
 def pair(t):
     return t if isinstance(t, tuple) else (t, t)
+
 
 class OFRecordDataLoader(nn.Module):
     def __init__(
@@ -12,7 +14,7 @@ class OFRecordDataLoader(nn.Module):
         mode: str = "train",  # "val"
         dataset_size: int = 9469,
         batch_size: int = 1,
-        image_size: int = 224
+        image_size: int = 224,
     ):
         super().__init__()
         channel_last = False

@@ -3,6 +3,7 @@ import oneflow.nn as nn
 import oneflow.nn.functional as F
 import numpy as np
 
+
 class LayerNorm(nn.Module):
     "Construct a layernorm module (See citation for details)."
 
@@ -18,10 +19,15 @@ class LayerNorm(nn.Module):
         std = x.std(dim=-1, keepdim=True)
         return self.weight * (x - mean) / (std + self.eps) + self.bias
 
+
 class PositionEmbs(nn.Module):
     def __init__(self, num_patches, emb_dim, dropout_rate=0.1):
         super(PositionEmbs, self).__init__()
-        self.pos_embedding = nn.Parameter(flow.tensor(np.random.randn(1, num_patches + 1, emb_dim), dtype=flow.float32))
+        self.pos_embedding = nn.Parameter(
+            flow.tensor(
+                np.random.randn(1, num_patches + 1, emb_dim), dtype=flow.float32
+            )
+        )
         if dropout_rate > 0:
             self.dropout = nn.Dropout(dropout_rate)
         else:
@@ -35,8 +41,10 @@ class PositionEmbs(nn.Module):
 
         return out
 
+
 class MlpBlock(nn.Module):
     """ Transformer Feed-Forward Block """
+
     def __init__(self, in_dim, mlp_dim, out_dim, dropout_rate=0.1):
         super(MlpBlock, self).__init__()
 
@@ -63,13 +71,13 @@ class MlpBlock(nn.Module):
             out = self.dropout2(out)
         return out
 
+
 class SelfAttention(nn.Module):
     def __init__(self, in_dim, heads=8, dropout_rate=0.1):
         super(SelfAttention, self).__init__()
         self.heads = heads
         self.head_dim = in_dim // heads
         self.scale = self.head_dim ** 0.5
-
 
         self.query = nn.Linear(in_dim, self.heads * self.head_dim)
         self.key = nn.Linear(in_dim, self.heads * self.head_dim)
@@ -100,7 +108,7 @@ class SelfAttention(nn.Module):
         attn_weights = nn.Softmax(dim=-1)(attn_weights)
         out = flow.matmul(attn_weights, v)
         out = out.permute(0, 2, 1, 3)
-        new_out_shape = tuple(out.size()[:-2]) + (self.heads * self.head_dim, )
+        new_out_shape = tuple(out.size()[:-2]) + (self.heads * self.head_dim,)
         out = out.view(*new_out_shape)
         out = self.out(out)
 
@@ -108,11 +116,15 @@ class SelfAttention(nn.Module):
 
 
 class EncoderBlock(nn.Module):
-    def __init__(self, in_dim, mlp_dim, num_heads, dropout_rate=0.1, attn_dropout_rate=0.1):
+    def __init__(
+        self, in_dim, mlp_dim, num_heads, dropout_rate=0.1, attn_dropout_rate=0.1
+    ):
         super(EncoderBlock, self).__init__()
 
         self.norm1 = LayerNorm(in_dim)
-        self.attn = SelfAttention(in_dim, heads=num_heads, dropout_rate=attn_dropout_rate)
+        self.attn = SelfAttention(
+            in_dim, heads=num_heads, dropout_rate=attn_dropout_rate
+        )
         if dropout_rate > 0:
             self.dropout = nn.Dropout(dropout_rate)
         else:
@@ -134,8 +146,18 @@ class EncoderBlock(nn.Module):
         out += residual
         return out
 
+
 class Encoder(nn.Module):
-    def __init__(self, num_patches, emb_dim, mlp_dim, num_layers=12, num_heads=12, dropout_rate=0.1, attn_dropout_rate=0.0):
+    def __init__(
+        self,
+        num_patches,
+        emb_dim,
+        mlp_dim,
+        num_layers=12,
+        num_heads=12,
+        dropout_rate=0.1,
+        attn_dropout_rate=0.0,
+    ):
         super(Encoder, self).__init__()
 
         # positional embedding
@@ -145,7 +167,9 @@ class Encoder(nn.Module):
         in_dim = emb_dim
         self.encoder_layers = nn.ModuleList()
         for i in range(num_layers):
-            layer = EncoderBlock(in_dim, mlp_dim, num_heads, dropout_rate, attn_dropout_rate)
+            layer = EncoderBlock(
+                in_dim, mlp_dim, num_heads, dropout_rate, attn_dropout_rate
+            )
             self.encoder_layers.append(layer)
         self.norm = LayerNorm(in_dim)
 
@@ -159,19 +183,23 @@ class Encoder(nn.Module):
         out = self.norm(out)
         return out
 
+
 class VisionTransformer(nn.Module):
     """ Vision Transformer """
-    def __init__(self,
-                 image_size=(256, 256),
-                 patch_size=(16, 16),
-                 emb_dim=768,
-                 mlp_dim=3072,
-                 num_heads=12,
-                 num_layers=12,
-                 num_classes=1000,
-                 attn_dropout_rate=0.0,
-                 dropout_rate=0.1,
-                 feat_dim=None):
+
+    def __init__(
+        self,
+        image_size=(256, 256),
+        patch_size=(16, 16),
+        emb_dim=768,
+        mlp_dim=3072,
+        num_heads=12,
+        num_layers=12,
+        num_classes=1000,
+        attn_dropout_rate=0.0,
+        dropout_rate=0.1,
+        feat_dim=None,
+    ):
         super(VisionTransformer, self).__init__()
         h, w = image_size
         # embedding layer
@@ -190,13 +218,14 @@ class VisionTransformer(nn.Module):
             num_layers=num_layers,
             num_heads=num_heads,
             dropout_rate=dropout_rate,
-            attn_dropout_rate=attn_dropout_rate)
+            attn_dropout_rate=attn_dropout_rate,
+        )
 
         # classfier
         self.classifier = nn.Linear(emb_dim, num_classes)
 
     def forward(self, x):
-        emb = self.embedding(x)     # (n, c, gh, gw)
+        emb = self.embedding(x)  # (n, c, gh, gw)
         emb = emb.permute(0, 2, 3, 1)  # (n, gh, hw, c)
         b, h, w, c = emb.shape
         emb = emb.view(b, h * w, c)
@@ -222,10 +251,11 @@ def ViT_B_16_224():
         num_heads=12,
         num_layers=12,
         num_classes=1000,
-        attn_dropout_rate=0.,
+        attn_dropout_rate=0.0,
         dropout_rate=0.1,
-        feat_dim=None
+        feat_dim=None,
     )
+
 
 def ViT_B_16_384():
     return VisionTransformer(
@@ -236,10 +266,11 @@ def ViT_B_16_384():
         num_heads=12,
         num_layers=12,
         num_classes=1000,
-        attn_dropout_rate=0.,
+        attn_dropout_rate=0.0,
         dropout_rate=0.1,
-        feat_dim=None
+        feat_dim=None,
     )
+
 
 def ViT_B_32_224():
     return VisionTransformer(
@@ -250,10 +281,11 @@ def ViT_B_32_224():
         num_heads=12,
         num_layers=12,
         num_classes=1000,
-        attn_dropout_rate=0.,
+        attn_dropout_rate=0.0,
         dropout_rate=0.1,
-        feat_dim=None
+        feat_dim=None,
     )
+
 
 def ViT_B_32_384():
     return VisionTransformer(
@@ -264,10 +296,11 @@ def ViT_B_32_384():
         num_heads=12,
         num_layers=12,
         num_classes=1000,
-        attn_dropout_rate=0.,
+        attn_dropout_rate=0.0,
         dropout_rate=0.1,
-        feat_dim=None
+        feat_dim=None,
     )
+
 
 def ViT_L_16_384():
     return VisionTransformer(
@@ -278,10 +311,11 @@ def ViT_L_16_384():
         num_heads=16,
         num_layers=24,
         num_classes=1000,
-        attn_dropout_rate=0.,
+        attn_dropout_rate=0.0,
         dropout_rate=0.1,
-        feat_dim=None
+        feat_dim=None,
     )
+
 
 def ViT_L_32_384():
     return VisionTransformer(
@@ -292,7 +326,7 @@ def ViT_L_32_384():
         num_heads=16,
         num_layers=24,
         num_classes=1000,
-        attn_dropout_rate=0.,
+        attn_dropout_rate=0.0,
         dropout_rate=0.1,
-        feat_dim=None
+        feat_dim=None,
     )
