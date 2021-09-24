@@ -40,9 +40,9 @@ vit_l_32_384
 | Model | Patch_size | Image Size | Dataset | Acc1 | Pretrained Weight |
 |:---:|:---:|:---:|:---:|:---:|:---:|
 |vit_b_16_384| 16 | 384 | imagenet2012 | 83.90 | [checkpoint](https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/ViT-OneFlow/vit_b_16_384.zip) |
-|vit_b_32_384| 16 | 384 | imagenet2012 | 81.14 | [checkpoint]() |
+|vit_b_32_384| 16 | 384 | imagenet2012 | 81.16 | [checkpoint](https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/ViT-OneFlow/vit_b_32_384.zip) |
 |vit_l_16_384| 16 | 384 | imagenet2012 | 84.94 | [checkpoint](https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/ViT-OneFlow/vit_l_16_384.zip) |
-|vit_l_32_384| 16 | 384 | imagenet2012 | 81.03 | [checkpoint]() |
+|vit_l_32_384| 16 | 384 | imagenet2012 | 81.03 | [checkpoint](https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/ViT-OneFlow/vit_l_32_384.zip) |
 
 **Note that you can download any checkpoint above and modify the infer.sh or train.sh for training or testing**
 
