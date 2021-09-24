@@ -213,10 +213,23 @@ class VisionTransformer(nn.Module):
         return logits
 
 
-def ViT_B_16_224(args):
-    assert args.image_size == 224
+def ViT_B_16_224():
     return VisionTransformer(
-        image_size=(args.image_size, args.image_size),
+        image_size=(224, 224),
+        patch_size=(16, 16),
+        emb_dim=768,
+        mlp_dim=3072,
+        num_heads=12,
+        num_layers=3,
+        num_classes=1000,
+        attn_dropout_rate=0.,
+        dropout_rate=0.1,
+        feat_dim=None
+    )
+
+def ViT_B_16_384():
+    return VisionTransformer(
+        image_size=(384, 384),
         patch_size=(16, 16),
         emb_dim=768,
         mlp_dim=3072,
@@ -228,25 +241,9 @@ def ViT_B_16_224(args):
         feat_dim=None
     )
 
-def ViT_B_16_384(args):
-    assert args.image_size == 384
+def ViT_B_32_224():
     return VisionTransformer(
-        image_size=(args.image_size, args.image_size),
-        patch_size=(16, 16),
-        emb_dim=768,
-        mlp_dim=3072,
-        num_heads=12,
-        num_layers=12,
-        num_classes=1000,
-        attn_dropout_rate=0.,
-        dropout_rate=0.1,
-        feat_dim=None
-    )
-
-def ViT_B_32_224(args):
-    assert args.image_size == 224
-    return VisionTransformer(
-        image_size=(args.image_size, args.image_size),
+        image_size=(224, 224),
         patch_size=(32, 32),
         emb_dim=768,
         mlp_dim=3072,
@@ -258,10 +255,9 @@ def ViT_B_32_224(args):
         feat_dim=None
     )
 
-def ViT_B_32_384(args):
-    assert args.image_size == 384
+def ViT_B_32_384():
     return VisionTransformer(
-        image_size=(args.image_size, args.image_size),
+        image_size=(384, 384),
         patch_size=(32, 32),
         emb_dim=768,
         mlp_dim=3072,
@@ -273,10 +269,9 @@ def ViT_B_32_384(args):
         feat_dim=None
     )
 
-def ViT_L_16_384(args):
-    assert args.image_size == 384
+def ViT_L_16_384():
     return VisionTransformer(
-        image_size=(args.image_size, args.image_size),
+        image_size=(384, 384),
         patch_size=(16, 16),
         emb_dim=1024,
         mlp_dim=4096,
@@ -288,10 +283,9 @@ def ViT_L_16_384(args):
         feat_dim=None
     )
 
-def ViT_L_32_384(args):
-    assert args.image_size == 284
+def ViT_L_32_384():
     return VisionTransformer(
-        image_size=(args.image_size, args.image_size),
+        image_size=(384, 384),
         patch_size=(32, 32),
         emb_dim=1024,
         mlp_dim=4096,
