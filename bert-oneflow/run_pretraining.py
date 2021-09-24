@@ -19,11 +19,7 @@ sys.path.append(".")
 from modeling import BertForPreTraining
 from utils.ofrecord_data_utils import OfRecordDataLoader
 from utils.lr_scheduler import PolynomialLR
-from utils.optimizer import (
-    build_adamW_optimizer,
-    build_sgd_optimizer,
-    build_lamb_optimizer,
-)
+from utils.optimizer import build_optimizer
 from utils.metric import Metric
 
 
@@ -51,16 +47,20 @@ def tton(tensor, local_only=True):
     return tensor
 
 
-def save_model(module: nn.Module, checkpoint_path: str, epoch: int, acc: float):
-    flow.save(
-        module.state_dict(),
-        os.path.join(checkpoint_path, "epoch_%d_val_acc_%f" % (epoch, acc)),
-    )
-
+def save_model(module: nn.Module, checkpoint_path: str, epoch: int, acc: float, is_consistent: bool):
+    state_dict = module.state_dict()
+    save_path = os.path.join(checkpoint_path, "epoch_%d_val_acc_%f" % (epoch, acc))
+    if is_consistent:
+        flow.save(state_dict, save_path, consistent_dst_rank=0)
+    elif flow.env.get_rank() == 0:
+        flow.save(state_dict, save_path)
+    else:
+        return
+    
 
 def pretrain(graph: nn.Graph, metric_local: bool) -> Dict:
 
-    # NOTE(lxy): when using gradient accumulation, graph call 1 step for 1 mini-batch(n micro-batch)
+    # NOTE(xyliao): when using gradient accumulation, graph call 1 step for 1 mini-batch(n micro-batch)
     next_sent_output, next_sent_labels, loss, mlm_loss, nsp_loss = graph()
 
     # to local
@@ -80,7 +80,7 @@ def pretrain(graph: nn.Graph, metric_local: bool) -> Dict:
     pred_acc = np.array(correct / next_sent_labels.nelement())
 
     return {
-        "total_loss": tton(loss.mean(), False),
+        "total_loss": tton(loss.mean(), metric_local),
         "mlm_loss": tton(mlm_loss.mean(), metric_local),
         "nsp_loss": tton(nsp_loss.mean(), metric_local),
         "pred_acc": pred_acc,
@@ -88,7 +88,7 @@ def pretrain(graph: nn.Graph, metric_local: bool) -> Dict:
 
 
 def validation(
-    epoch: int, iter_per_epoch: int, graph: nn.Graph, print_interval: int
+    epoch: int, iter_per_epoch: int, graph: nn.Graph, print_interval: int, metric_local: bool,
 ) -> float:
     total_correct = 0
     total_element = 0
@@ -98,8 +98,8 @@ def validation(
 
         next_sent_output, next_sent_labels = graph()
 
-        next_sent_output = tton(next_sent_output)
-        next_sent_labels = tton(next_sent_labels)
+        next_sent_output = tton(next_sent_output, metric_local)
+        next_sent_labels = tton(next_sent_labels, metric_local)
         end_t = time.time()
 
         # next sentence prediction accuracy
@@ -109,7 +109,7 @@ def validation(
         total_correct += correct
         total_element += next_sent_labels.size
 
-        if (i + 1) % print_interval == 0:
+        if (i + 1) % print_interval == 0 and flow.env.get_rank() == 0:
             print(
                 "Epoch {}, val iter {}, val time: {:.3f}s".format(
                     epoch, (i + 1), end_t - start_t
@@ -138,9 +138,14 @@ def main():
     parser.add_argument(
         "--ofrecord_path",
         type=str,
-        # default="/dataset/bert_regression_test/0",
-        default="wiki_ofrecord_seq_len_128_example",
+        default="/dataset/bert/of_wiki_seq_len_128",
         help="Path to ofrecord dataset",
+    )
+    parser.add_argument(
+        "--train-dataset-size", type=int, default=10000000, help="dataset size of ofrecord"
+    )
+    parser.add_argument(
+        "--train-data-part", type=int, default=64, help="data part num of ofrecord"
     )
     parser.add_argument(
         "--train-batch-size", type=int, default=8, help="Training batch size"
@@ -191,10 +196,15 @@ def main():
     parser.add_argument(
         "--cuda_devices", type=int, nargs="+", default=None, help="CUDA device ids"
     )
-
+    parser.add_argument(
+        "--optim_name", type=str, default="adamw", help="optimizer name"
+    )
     parser.add_argument("--lr", type=float, default=1e-3, help="Learning rate of adam")
     parser.add_argument(
         "--weight_decay", type=float, default=0.01, help="Weight_decay of adam"
+    )
+    parser.add_argument(
+        "--warmup_proportion", type=float, default=0.1, help="Warmup propotion to total steps"
     )
     parser.add_argument(
         "--loss_print_every_n_iters",
@@ -220,13 +230,6 @@ def main():
         nargs="?",
         const=True,
         help="Whether to use use fp16",
-    )
-    parser.add_argument(
-        "--use-grad-acc",
-        type=str2bool,
-        nargs="?",
-        const=True,
-        help="Whether to use gradient accumulation",
     )
     parser.add_argument(
         "--grad-acc-steps", type=int, default=1, help="Steps for gradient accumulation"
@@ -287,10 +290,10 @@ def main():
     print("Creating Dataloader")
     train_data_loader = OfRecordDataLoader(
         ofrecord_dir=args.ofrecord_path,
-        mode="test",
-        dataset_size=1000000,
+        mode="train",
+        dataset_size=args.train_dataset_size,
         batch_size=args.train_global_batch_size,
-        data_part_num=64,
+        data_part_num=args.train_data_part,
         seq_length=args.seq_length,
         max_predictions_per_seq=args.max_predictions_per_seq,
         consistent=args.use_consistent,
@@ -318,17 +321,12 @@ def main():
         args.num_attention_heads,
         intermediate_size,
         nn.GELU(),
-        0.0,  # args.hidden_dropout_prob,
-        0.0,  # args.attention_probs_dropout_prob,
+        args.hidden_dropout_prob,
+        args.attention_probs_dropout_prob,
         args.max_position_embeddings,
         args.type_vocab_size,
     )
 
-    # Load the same initial parameters with lazy model.
-    load_params_from_lazy(
-        bert_model.state_dict(),
-        "../../OneFlow-Benchmark/LanguageModeling/BERT/initial_model",
-    )
     assert id(bert_model.cls.predictions.decoder.weight) == id(
         bert_model.bert.embeddings.word_embeddings.weight
     )
@@ -346,32 +344,27 @@ def main():
         ns_criterion.to(device)
         mlm_criterion.to(device)
 
-    # optimizer = build_lamb_optimizer(
-    #     bert_model,
-    #     args.lr,
-    #     args.weight_decay,
-    #     weight_decay_excludes=["bias", "LayerNorm", "layer_norm"],
-    # )
-    optimizer = build_sgd_optimizer(
+    optimizer = build_optimizer(
+        args.optim_name,
         bert_model,
         args.lr,
-        momentum=0.0,
-        weight_decay=args.weight_decay,
+        args.weight_decay,
         weight_decay_excludes=["bias", "LayerNorm", "layer_norm"],
         clip_grad_max_norm=1,
         clip_grad_norm_type=2.0,
     )
 
     steps = args.epochs * len(train_data_loader)
+    warmup_steps = int(steps * args.warmup_proportion)
 
-    lr_scheduler = PolynomialLR(optimizer, steps=300, end_learning_rate=0.0)
+    lr_scheduler = PolynomialLR(optimizer, steps=steps, end_learning_rate=0.0)
 
     lr_scheduler = flow.optim.lr_scheduler.WarmUpLR(
-        lr_scheduler, warmup_factor=0, warmup_iters=50, warmup_method="linear"
+       lr_scheduler, warmup_factor=0, warmup_iters=warmup_steps, warmup_method="linear"
     )
 
     def get_masked_lm_loss(
-        logit_blob,
+        logit,
         masked_lm_positions,
         masked_lm_labels,
         label_weights,
@@ -379,20 +372,23 @@ def main():
     ):
 
         # gather valid position indices
-        logit_blob = flow.gather(
-            logit_blob,
+        logit = flow.gather(
+            logit,
             index=masked_lm_positions.unsqueeze(2).expand(-1, -1, args.vocab_size),
             dim=1,
         )
 
-        logit_blob = flow.reshape(logit_blob, [-1, args.vocab_size])
-        label_id_blob = flow.reshape(masked_lm_labels, [-1])
+        logit = flow.reshape(logit, [-1, args.vocab_size])
+        # NOTE(xyliao): flow.reshape([-1]) will cause gradient accumulation error in multi-gpu
+        label_id = flow.reshape(masked_lm_labels, [-1])
+        # label_id = flow.reshape(masked_lm_labels, [-1, 1])
+        # label_id = label_id.squeeze(1)
 
         # The `positions` tensor might be zero-padded (if the sequence is too
         # short to have the maximum number of predictions). The `label_weights`
         # tensor has a value of 1.0 for every real prediction and 0.0 for the
         # padding predictions.
-        pre_example_loss = mlm_criterion(logit_blob, label_id_blob)
+        pre_example_loss = mlm_criterion(logit, label_id)
         pre_example_loss = flow.reshape(pre_example_loss, [-1, max_predictions_per_seq])
         numerator = flow.sum(pre_example_loss * label_weights)
         denominator = flow.sum(label_weights) + 1e-5
@@ -407,9 +403,9 @@ def main():
             self.masked_lm_criterion = partial(
                 get_masked_lm_loss, max_predictions_per_seq=args.max_predictions_per_seq
             )
-            self.add_optimizer(optimizer)  # , lr_sch=lr_scheduler)
+            self.add_optimizer(optimizer, lr_sch=lr_scheduler)
             self._train_data_loader = train_data_loader
-            if args.use_grad_acc:
+            if args.grad_acc_steps > 1:
                 self.config.set_gradient_accumulation_steps(args.grad_acc_steps)
             if args.use_fp16:
                 self.config.enable_amp(True)
@@ -509,7 +505,7 @@ def main():
         metric = Metric(
             desc="bert pretrain",
             print_steps=args.loss_print_every_n_iters,
-            batch_size=args.train_batch_size,
+            batch_size=args.train_global_batch_size * args.grad_acc_steps,
             keys=["total_loss", "mlm_loss", "nsp_loss", "pred_acc"],
         )
 
@@ -524,28 +520,15 @@ def main():
 
             train_total_losses.append(bert_outputs["total_loss"])
 
-    save_dir = "loss_txt"
-    if not os.path.exists(save_dir):
-        os.makedirs(save_dir)
-
-    Reporter.write2file(
-        train_total_losses,
-        os.path.join(save_dir, "bert_graph_lamb_amp_consistent_loss.txt"),
-    )
-    # Reporter.write2file(
-    #     train_lml_losses, os.path.join(save_dir, "bert_graph_lml_loss.txt")
-    # )
-    # Reporter.write2file(
-    #     train_ns_losses, os.path.join(save_dir, "bert_graph_ns_loss.txt")
-    # )
     # Eval
-    # bert_model.eval()
-    # val_acc = validation(
-    #     epoch, len(test_data_loader), bert_eval_graph, args.val_print_every_n_iters
-    # )
+    bert_model.eval()
+    val_acc = validation(
+        epoch, len(test_data_loader), bert_eval_graph, args.val_print_every_n_iters, args.metric_local
+    )
 
-    # print("Saveing model ...")
-    # save_model(bert_model, args.checkpoint_path, epoch, val_acc)
+    if flow.env.get_rank() == 0:
+        print("Saveing model ...")
+    save_model(bert_model, args.checkpoint_path, epoch, val_acc, args.use_consistent)
 
 
 if __name__ == "__main__":
