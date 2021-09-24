@@ -82,7 +82,8 @@ class SelfAttention(nn.Module):
             self.dropout = None
 
     def transpose_for_scores(self, x):
-        x = x.reshape(shape=tuple(x.size()[:-1]) + (self.heads, self.head_dim))
+        B, token_nums, _ = x.size()
+        x = x.view(B, token_nums, self.heads, self.head_dim)
         return x.permute(0, 2, 1, 3)
 
     def forward(self, x):
@@ -198,7 +199,7 @@ class VisionTransformer(nn.Module):
         emb = self.embedding(x)     # (n, c, gh, gw)
         emb = emb.permute(0, 2, 3, 1)  # (n, gh, hw, c)
         b, h, w, c = emb.shape
-        emb = emb.reshape(shape=(b, h * w, c))
+        emb = emb.view(b, h * w, c)
 
         # prepend class token
         cls_token = self.cls_token.repeat(b, 1, 1)
@@ -213,6 +214,7 @@ class VisionTransformer(nn.Module):
 
 
 def ViT_B_16_224(args):
+    assert args.image_size == 224
     return VisionTransformer(
         image_size=(args.image_size, args.image_size),
         patch_size=(16, 16),
@@ -227,6 +229,7 @@ def ViT_B_16_224(args):
     )
 
 def ViT_B_16_384(args):
+    assert args.image_size == 384
     return VisionTransformer(
         image_size=(args.image_size, args.image_size),
         patch_size=(16, 16),
@@ -241,6 +244,7 @@ def ViT_B_16_384(args):
     )
 
 def ViT_B_32_224(args):
+    assert args.image_size == 224
     return VisionTransformer(
         image_size=(args.image_size, args.image_size),
         patch_size=(32, 32),
@@ -255,6 +259,7 @@ def ViT_B_32_224(args):
     )
 
 def ViT_B_32_384(args):
+    assert args.image_size == 384
     return VisionTransformer(
         image_size=(args.image_size, args.image_size),
         patch_size=(32, 32),
@@ -268,7 +273,8 @@ def ViT_B_32_384(args):
         feat_dim=None
     )
 
-def ViT_L_16_224(args):
+def ViT_L_16_384(args):
+    assert args.image_size == 384
     return VisionTransformer(
         image_size=(args.image_size, args.image_size),
         patch_size=(16, 16),
@@ -282,7 +288,8 @@ def ViT_L_16_224(args):
         feat_dim=None
     )
 
-def ViT_L_32_224(args):
+def ViT_L_32_384(args):
+    assert args.image_size == 284
     return VisionTransformer(
         image_size=(args.image_size, args.image_size),
         patch_size=(32, 32),
