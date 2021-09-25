@@ -1,6 +1,11 @@
 PRETRAIN_MODEL_PATH="vgg_imagenet_pretrain_model/"
 MODEL="vgg16" # choose from vgg16 and vgg19
 
+if [ ! -d "images" ]; then
+  wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/cv/fast_neural_style/images.tar.gz
+  tar zxf images.tar.gz
+fi
+
 if [ ! -d "$PRETRAIN_MODEL_PATH" ]; then
   mkdir ${PRETRAIN_MODEL_PATH}
 fi
