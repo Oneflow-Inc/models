@@ -35,6 +35,7 @@ Please check our the following **demos** for a quick start
   - [PoseNet](https://github.com/Oneflow-Inc/models/tree/main/Vision/classification/image/poseNet)
   - [Scnet](https://github.com/Oneflow-Inc/models/tree/main/Vision/classification/image/scnet)
   - [Mnasnet](https://github.com/Oneflow-Inc/models/tree/main/Vision/classification/image/mnasnet)
+  - [ViT](https://github.com/Oneflow-Inc/models/tree/main/Vision/classification/image/ViT)
 
 </details>
 
