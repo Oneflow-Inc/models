@@ -13,48 +13,14 @@ from oneflow import nn
 import sys
 
 sys.path.append(".")
+from train_config import get_config
 from modeling import BertForPreTraining
 from utils.ofrecord_data_utils import OfRecordDataLoader
 from utils.lr_scheduler import PolynomialLR
 from utils.optimizer import build_optimizer
 from utils.metric import Metric
-
-
-def ttol(tensor, pure_local=True):
-    """ to local """
-    if tensor.is_consistent:
-        if pure_local:
-            tensor = tensor.to_local()
-        else:
-            tensor = tensor.to_consistent(sbp=flow.sbp.broadcast).to_local()
-
-    return tensor
-
-
-def tton(tensor, local_only=True):
-    """ tensor to numpy """
-    if tensor.is_consistent:
-        if local_only:
-            tensor = tensor.to_local().numpy()
-        else:
-            tensor = tensor.to_consistent(sbp=flow.sbp.broadcast).to_local().numpy()
-    else:
-        tensor = tensor.numpy()
-
-    return tensor
-
-
-def save_model(
-    module: nn.Module, checkpoint_path: str, epoch: int, acc: float, is_consistent: bool
-):
-    state_dict = module.state_dict()
-    save_path = os.path.join(checkpoint_path, "epoch_%d_val_acc_%f" % (epoch, acc))
-    if is_consistent:
-        flow.save(state_dict, save_path, consistent_dst_rank=0)
-    elif flow.env.get_rank() == 0:
-        flow.save(state_dict, save_path)
-    else:
-        return
+from utils.comm import ttol, tton
+from utils.checkpoint import save_model
 
 
 def pretrain(graph: nn.Graph, metric_local: bool) -> Dict:
@@ -129,152 +95,7 @@ def validation(
 
 
 def main():
-    def str2bool(v):
-        if v.lower() in ("yes", "true", "t", "y", "1"):
-            return True
-        elif v.lower() in ("no", "false", "f", "n", "0"):
-            return False
-        else:
-            raise argparse.ArgumentTypeError("Unsupported value encountered.")
-
-    parser = argparse.ArgumentParser()
-
-    parser.add_argument(
-        "--ofrecord_path",
-        type=str,
-        default="/dataset/bert/of_wiki_seq_len_128",
-        help="Path to ofrecord dataset",
-    )
-    parser.add_argument(
-        "--train-dataset-size",
-        type=int,
-        default=10000000,
-        help="dataset size of ofrecord",
-    )
-    parser.add_argument(
-        "--train-data-part", type=int, default=64, help="data part num of ofrecord"
-    )
-    parser.add_argument(
-        "--train-batch-size", type=int, default=8, help="Training batch size"
-    )
-    parser.add_argument(
-        "--val-batch-size", type=int, default=32, help="Validation batch size"
-    )
-    parser.add_argument(
-        "--train-global-batch-size",
-        type=int,
-        default=None,
-        dest="train_global_batch_size",
-        help="train batch size",
-    )
-    parser.add_argument(
-        "--val-global-batch-size",
-        type=int,
-        default=None,
-        dest="val_global_batch_size",
-        help="val batch size",
-    )
-
-    parser.add_argument(
-        "--num_hidden_layers", type=int, default=12, help="Number of layers"
-    )
-    parser.add_argument(
-        "--num_attention_heads", type=int, default=12, help="Number of attention heads",
-    )
-    parser.add_argument("--max_position_embeddings", type=int, default=512)
-    parser.add_argument(
-        "-s", "--seq_length", type=int, default=128, help="Maximum sequence len"
-    )
-    parser.add_argument(
-        "--vocab_size", type=int, default=30522, help="Total number of vocab"
-    )
-    parser.add_argument("--type_vocab_size", type=int, default=2)
-    parser.add_argument("--attention_probs_dropout_prob", type=float, default=0.1)
-    parser.add_argument("--hidden_dropout_prob", type=float, default=0.1)
-    parser.add_argument("--max_predictions_per_seq", type=int, default=20)
-    parser.add_argument("-e", "--epochs", type=int, default=1, help="Number of epochs")
-
-    parser.add_argument(
-        "--with-cuda",
-        type=bool,
-        default=True,
-        help="Training with CUDA: true, or false",
-    )
-    parser.add_argument(
-        "--cuda_devices", type=int, nargs="+", default=None, help="CUDA device ids"
-    )
-    parser.add_argument(
-        "--optim_name", type=str, default="adamw", help="optimizer name"
-    )
-    parser.add_argument("--lr", type=float, default=1e-3, help="Learning rate of adam")
-    parser.add_argument(
-        "--weight_decay", type=float, default=0.01, help="Weight_decay of adam"
-    )
-    parser.add_argument(
-        "--warmup_proportion",
-        type=float,
-        default=0.1,
-        help="Warmup propotion to total steps",
-    )
-    parser.add_argument(
-        "--loss_print_every_n_iters",
-        type=int,
-        default=20,
-        help="Interval of training loss printing",
-    )
-    parser.add_argument(
-        "--val_print_every_n_iters",
-        type=int,
-        default=20,
-        help="Interval of evaluation printing",
-    )
-    parser.add_argument(
-        "--checkpoint_path",
-        type=str,
-        default="checkpoints",
-        help="Path to model saving",
-    )
-    parser.add_argument(
-        "--use_fp16",
-        type=str2bool,
-        nargs="?",
-        const=True,
-        help="Whether to use use fp16",
-    )
-    parser.add_argument(
-        "--grad-acc-steps", type=int, default=1, help="Steps for gradient accumulation"
-    )
-    parser.add_argument(
-        "--nccl-fusion-threshold-mb",
-        type=int,
-        default=16,
-        dest="nccl_fusion_threshold_mb",
-        help="NCCL fusion threshold megabytes, set to 0 to compatible with previous version of OneFlow.",
-    )
-    parser.add_argument(
-        "--nccl-fusion-max-ops",
-        type=int,
-        default=24,
-        dest="nccl_fusion_max_ops",
-        help="Maximum number of ops of NCCL fusion, set to 0 to compatible with previous version of OneFlow.",
-    )
-    parser.add_argument(
-        "--use_consistent",
-        type=str2bool,
-        nargs="?",
-        const=True,
-        help="Whether to use use consistent",
-    )
-    parser.add_argument(
-        "--metric-local",
-        type=str2bool,
-        default=False,
-        nargs="?",
-        const=True,
-        dest="metric_local",
-    )
-
-    args = parser.parse_args()
+    args = get_config()
 
     world_size = flow.env.get_world_size()
     if args.train_global_batch_size is None:
@@ -389,10 +210,7 @@ def main():
         )
 
         logit = flow.reshape(logit, [-1, args.vocab_size])
-        # NOTE(xyliao): flow.reshape([-1]) will cause gradient accumulation error in multi-gpu
         label_id = flow.reshape(masked_lm_labels, [-1])
-        # label_id = flow.reshape(masked_lm_labels, [-1, 1])
-        # label_id = label_id.squeeze(1)
 
         # The `positions` tensor might be zero-padded (if the sequence is too
         # short to have the maximum number of predictions). The `label_weights`
@@ -522,7 +340,7 @@ def main():
         # Train
         bert_model.train()
 
-        for step in range(len(train_data_loader)):
+        for step in range(300):  # (len(train_data_loader)):
             bert_outputs = pretrain(bert_graph, args.metric_local)
 
             if flow.env.get_rank() == 0:
@@ -540,8 +358,6 @@ def main():
         args.metric_local,
     )
 
-    if flow.env.get_rank() == 0:
-        print("Saveing model ...")
     save_model(bert_model, args.checkpoint_path, epoch, val_acc, args.use_consistent)
 
 

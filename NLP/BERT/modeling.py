@@ -237,8 +237,6 @@ class BertPooler(nn.Module):
         """Just "pool" the model by simply taking the [CLS] token corresponding to the first token.
         """
         hidden_size = hidden_states.shape[-1]
-        # NOTE: Don't use [:, 0] when it's consistent tensor, use flow.slice, otherwise its sbp will be
-        # converted to `broadcast`
         # first_token_tensor = flow.slice(hidden_states, [[None, None, None], [0, 1, 1]])
         first_token_tensor = hidden_states[:, 0]
         first_token_tensor = flow.reshape(first_token_tensor, [-1, hidden_size])

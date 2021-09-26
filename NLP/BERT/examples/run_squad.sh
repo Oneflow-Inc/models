@@ -68,7 +68,7 @@ python3 run_squad.py \
   --predict_file=$SQUAD_TOOL_DIR/dev-${db_version}.json \
   --output_dir=./squad_output 
 
-evaluate predictions.json to get metrics
+# evaluate predictions.json to get metrics
 python3 $SQUAD_TOOL_DIR/evaluate-${db_version}.py \
   $SQUAD_TOOL_DIR/dev-${db_version}.json \
   ./squad_output/predictions.json

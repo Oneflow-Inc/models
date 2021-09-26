@@ -5,6 +5,7 @@ import time
 from functools import partial
 from compare_lazy_outputs import load_params_from_lazy
 
+from train_config import get_config
 import numpy as np
 import oneflow as flow
 from oneflow.nn.parallel import DistributedDataParallel as ddp
@@ -13,17 +14,10 @@ from oneflow import nn
 from modeling import BertForPreTraining
 from utils.ofrecord_data_utils import OfRecordDataLoader
 from utils.lr_scheduler import PolynomialLR
-from utils.optimizer import build_adamW_optimizer, build_sgd_optimizer
-from utils.reporter import Reporter
+from utils.optimizer import build_optimizer
 from utils.metric import Metric
-from run_pretraining import ttol, tton
-
-
-def save_model(module: nn.Module, checkpoint_path: str, epoch: int, acc: float):
-    flow.save(
-        module.state_dict(),
-        os.path.join(checkpoint_path, "epoch_%d_val_acc_%f" % (epoch, acc)),
-    )
+from utils.comm import ttol, tton
+from utils.checkpoint import save_model
 
 
 def pretrain(
@@ -77,6 +71,7 @@ def pretrain(
 
     seq_relationship_scores = ttol(seq_relationship_scores)
     next_sentence_labels = ttol(next_sentence_labels)
+
     # next sentence prediction accuracy
     correct = (
         seq_relationship_scores.argmax(dim=-1)
@@ -98,91 +93,65 @@ def pretrain(
     }
 
 
+def validation(
+    epoch: int,
+    data_loader: OfRecordDataLoader,
+    model: nn.Module,
+    print_interval: int,
+    device="cuda",
+) -> float:
+    total_correct = 0
+    total_element = 0
+    for i in range(len(data_loader)):
+
+        (
+            input_ids,
+            next_sentence_labels,
+            input_mask,
+            segment_ids,
+            masked_lm_ids,
+            masked_lm_positions,
+            masked_lm_weights,
+        ) = data_loader()
+        input_ids = input_ids.to(device=device)
+        input_mask = input_mask.to(device=device)
+        segment_ids = segment_ids.to(device=device)
+        next_sentence_labels = next_sentence_labels.to(device=device)
+
+        start_t = time.time()
+        with flow.no_grad():
+            _, next_sentence_output = model(input_ids, segment_ids, input_mask)
+
+        next_sentence_output = tton(next_sentence_output)
+        next_sent_labels = tton(next_sentence_labels)
+        end_t = time.time()
+
+        # next sentence prediction accuracy
+        correct = (
+            next_sentence_output.argmax(axis=-1) == next_sent_labels.squeeze(1)
+        ).sum()
+        total_correct += correct
+        total_element += next_sent_labels.size
+
+        if (i + 1) % print_interval == 0 and flow.env.get_rank() == 0:
+            print(
+                "Epoch {}, val iter {}, val time: {:.3f}s".format(
+                    epoch, (i + 1), end_t - start_t
+                )
+            )
+
+    if flow.env.get_rank() == 0:
+        print(
+            "Epoch {}, val iter {}, total accuracy {:.2f}".format(
+                epoch, (i + 1), total_correct * 100.0 / total_element
+            )
+        )
+    return total_correct / total_element
+
+
 def main():
-    def str2bool(v):
-        if v.lower() in ("yes", "true", "t", "y", "1"):
-            return True
-        elif v.lower() in ("no", "false", "f", "n", "0"):
-            return False
-        else:
-            raise argparse.ArgumentTypeError("Unsupported value encountered.")
 
-    parser = argparse.ArgumentParser()
-
-    parser.add_argument(
-        "--ofrecord_path",
-        type=str,
-        default="/dataset/bert_regression_test/0",
-        help="Path to ofrecord dataset",
-    )
-    parser.add_argument(
-        "--train_batch_size", type=int, default=32, help="Training batch size"
-    )
-    parser.add_argument(
-        "--val_batch_size", type=int, default=32, help="Validation batch size"
-    )
-
-    parser.add_argument(
-        "--hidden_size", type=int, default=768, help="Hidden size of transformer model",
-    )
-    parser.add_argument(
-        "--num_hidden_layers", type=int, default=12, help="Number of layers"
-    )
-    parser.add_argument(
-        "--num_attention_heads", type=int, default=12, help="Number of attention heads",
-    )
-    parser.add_argument(
-        "--intermediate_size",
-        type=int,
-        default=3072,
-        help="intermediate size of bert encoder",
-    )
-    parser.add_argument("--max_position_embeddings", type=int, default=512)
-    parser.add_argument(
-        "-s", "--seq_length", type=int, default=128, help="Maximum sequence len"
-    )
-    parser.add_argument(
-        "--vocab_size", type=int, default=30522, help="Total number of vocab"
-    )
-    parser.add_argument("--type_vocab_size", type=int, default=2)
-    parser.add_argument("--attention_probs_dropout_prob", type=float, default=0.1)
-    parser.add_argument("--hidden_dropout_prob", type=float, default=0.1)
-    parser.add_argument("--hidden_size_per_head", type=int, default=64)
-    parser.add_argument("--max_predictions_per_seq", type=int, default=20)
-    parser.add_argument("-e", "--epochs", type=int, default=1, help="Number of epochs")
-
-    parser.add_argument(
-        "--with-cuda",
-        type=bool,
-        default=True,
-        help="Training with CUDA: true, or false",
-    )
-    parser.add_argument(
-        "--cuda_devices", type=int, nargs="+", default=None, help="CUDA device ids"
-    )
-
-    parser.add_argument("--lr", type=float, default=1e-3, help="Learning rate of adam")
-    parser.add_argument(
-        "--weight_decay", type=float, default=0.01, help="Weight_decay of adam"
-    )
-    parser.add_argument(
-        "--loss_print_every_n_iters", type=int, default=20, help="Interval of printing"
-    )
-    parser.add_argument(
-        "--checkpoint_path",
-        type=str,
-        default="checkpoints",
-        help="Path to model saving",
-    )
-    parser.add_argument(
-        "--use_ddp",
-        type=str2bool,
-        nargs="?",
-        const=True,
-        help="Whether to use use fp16",
-    )
-
-    args = parser.parse_args()
+    args = get_config()
 
     if args.with_cuda:
         device = flow.device("cuda")
@@ -192,12 +161,13 @@ def main():
     print("Creating Dataloader")
     train_data_loader = OfRecordDataLoader(
         ofrecord_dir=args.ofrecord_path,
-        mode="test",
-        dataset_size=1024,
+        mode="train",
+        dataset_size=args.train_dataset_size,
         batch_size=args.train_batch_size,
-        data_part_num=4,
+        data_part_num=args.train_data_part,
         seq_length=args.seq_length,
-        max_predictions_per_seq=20,
+        max_predictions_per_seq=args.max_predictions_per_seq,
+        consistent=False,
     )
 
     test_data_loader = OfRecordDataLoader(
@@ -207,42 +177,54 @@ def main():
         batch_size=args.val_batch_size,
         data_part_num=4,
         seq_length=args.seq_length,
-        max_predictions_per_seq=20,
+        max_predictions_per_seq=args.max_predictions_per_seq,
+        consistent=False,
     )
 
     print("Building BERT Model")
+    hidden_size = 64 * args.num_attention_heads
+    intermediate_size = 4 * hidden_size
     bert_model = BertForPreTraining(
         args.vocab_size,
         args.seq_length,
-        args.hidden_size,
+        hidden_size,
         args.num_hidden_layers,
         args.num_attention_heads,
-        args.intermediate_size,
+        intermediate_size,
         nn.GELU(),
-        0.0,  # args.hidden_dropout_prob,
-        0.0,  # args.attention_probs_dropout_prob,
+        args.hidden_dropout_prob,
+        args.attention_probs_dropout_prob,
         args.max_position_embeddings,
         args.type_vocab_size,
     )
 
     # Load the same initial parameters with lazy model.
-    load_params_from_lazy(
-        bert_model.state_dict(),
-        "../../OneFlow-Benchmark/LanguageModeling/BERT/initial_model",
-    )
+    # load_params_from_lazy(
+    #     bert_model.state_dict(),
+    #     "../../OneFlow-Benchmark/LanguageModeling/BERT/initial_model",
+    # )
 
     bert_model = bert_model.to(device)
     if args.use_ddp:
         bert_model = ddp(bert_model)
 
-    optimizer = build_sgd_optimizer(bert_model, args.lr, momentum=0.9)
+    optimizer = build_optimizer(
+        args.optim_name,
+        bert_model,
+        args.lr,
+        args.weight_decay,
+        weight_decay_excludes=["bias", "LayerNorm", "layer_norm"],
+        clip_grad_max_norm=1,
+        clip_grad_norm_type=2.0,
+    )
 
     steps = args.epochs * len(train_data_loader)
+    warmup_steps = int(steps * args.warmup_proportion)
 
-    lr_scheduler = PolynomialLR(optimizer, steps=300, end_learning_rate=0.0)
+    lr_scheduler = PolynomialLR(optimizer, steps=steps, end_learning_rate=0.0)
 
     lr_scheduler = flow.optim.lr_scheduler.WarmUpLR(
-        lr_scheduler, warmup_factor=0, warmup_iters=50, warmup_method="linear"
+        lr_scheduler, warmup_factor=0, warmup_iters=warmup_steps, warmup_method="linear"
     )
 
     ns_criterion = nn.CrossEntropyLoss(reduction="mean")
@@ -271,8 +253,6 @@ def main():
         # padding predictions.
         pre_example_loss = mlm_criterion(logit_blob, label_id_blob)
         pre_example_loss = flow.reshape(pre_example_loss, [-1, max_prediction_per_seq])
-        sum_label_weight = flow.sum(label_weights, dim=-1)
-        sum_label_weight = sum_label_weight / label_weights.shape[0]
         numerator = flow.sum(pre_example_loss * label_weights)
         denominator = flow.sum(label_weights) + 1e-5
         loss = numerator / denominator
@@ -290,7 +270,7 @@ def main():
         # Train
         bert_model.train()
 
-        for step in range(300):
+        for step in range(300):  # range(len(train_data_loader)):
             bert_outputs = pretrain(
                 train_data_loader,
                 bert_model,
@@ -308,14 +288,13 @@ def main():
 
             train_total_losses.append(bert_outputs["total_loss"])
 
-    save_dir = "loss_txt"
-    if not os.path.exists(save_dir):
-        os.makedirs(save_dir)
+        # Eval
+        bert_model.eval()
+        val_acc = validation(
+            epoch, test_data_loader, bert_model, args.val_print_every_n_iters
+        )
 
-    Reporter.write2file(
-        train_total_losses,
-        os.path.join(save_dir, f"bert_4gpu_eager_diff_loss{flow.env.get_rank()}.txt"),
-    )
+        save_model(bert_model, args.checkpoint_path, epoch, val_acc, False)
 
 
 if __name__ == "__main__":
