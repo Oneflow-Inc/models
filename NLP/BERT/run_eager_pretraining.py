@@ -1,6 +1,4 @@
 #!/usr/bin/python3
-import argparse
-import os
 import time
 from functools import partial
 from compare_lazy_outputs import load_params_from_lazy
@@ -270,7 +268,7 @@ def main():
         # Train
         bert_model.train()
 
-        for step in range(300):  # range(len(train_data_loader)):
+        for step in range(len(train_data_loader)):
             bert_outputs = pretrain(
                 train_data_loader,
                 bert_model,

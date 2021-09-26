@@ -308,22 +308,7 @@ class BertModel(nn.Module):
         output = flow.cast(attention_mask, dtype=flow.float32)
         output = flow.reshape(output, [-1, 1, to_seq_length])
         # broadcast `from_tensor` from 2D to 3D
-
-        if output.is_consistent:
-            zeros = flow.zeros(
-                (from_seq_length, to_seq_length),
-                dtype=flow.float32,
-                placement=output.placement,
-                sbp=flow.sbp.broadcast,
-            )
-        else:
-            zeros = flow.zeros(
-                (from_seq_length, to_seq_length),
-                dtype=flow.float32,
-                device=output.device,
-            )
-
-        output = output + zeros
+        output = output.expand(-1, from_seq_length, -1)
 
         attention_mask = flow.reshape(output, [-1, 1, from_seq_length, to_seq_length])
         attention_mask = flow.cast(attention_mask, dtype=flow.float32)
