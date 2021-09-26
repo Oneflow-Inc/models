@@ -3,9 +3,9 @@ import numpy as np
 import os
 import time
 import oneflow as flow
-from models.vit import *
+from model.vit import *
 from utils.ofrecord_data_utils import OFRecordDataLoader
-from models.build_model import build_model
+from model.build_model import build_model
 
 
 def _parse_args():
