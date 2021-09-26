@@ -9,8 +9,8 @@ IMAGE_SIZE=384
 
 
 if [ ! -d "$PRETRAIN_MODEL_PATH" ]; then
-  wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/ViT-OneFlow/vit_b_16_384.zip
-  unzip vit_b_16_384.zip
+  wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/ViT-OneFlow/$MODEL_ARCH.zip
+  unzip $MODEL_ARCH.zip
 fi
 
 
