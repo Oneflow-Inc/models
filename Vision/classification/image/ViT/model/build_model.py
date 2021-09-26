@@ -1,4 +1,4 @@
-from models.vit import (
+from model.vit import (
     ViT_B_16_224,
     ViT_B_16_384,
     ViT_B_32_224,
