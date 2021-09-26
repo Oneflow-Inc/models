@@ -5,6 +5,17 @@ echo PYTHONUNBUFFERED=$PYTHONUNBUFFERED
 
 # DATASET=/dataset/Megatron-LM/dummy/gpt_sample_dataset_text_document
 DATASET=/dataset/gpt/gpt_sample_dataset_text_document
+SEQ_LEN=1024
+LAYER_NUM=12
+HIDDEN_SIZE=768
+HEAD_NUM=12
+MBZ=8
+GBZ=8
+ACC_STEPS=1
+TMP=1
+PMP=1
+TRAIN_ITER=300
+LOG_INTERVAL=10
 
 SRC_DIR=$(realpath $(dirname "$0")/..)
 
@@ -13,17 +24,16 @@ python3 $SRC_DIR/oneflow_gpt/train.py \
     --dataset $DATASET \
     --split 949,50,1 \
     --vocab-size 50257 \
-    --seq-length 1024 \
-    --num-layers 12 \
-    --hidden-size 768 \
-    --num-attention-heads 12 \
-    --micro-batch-size 8 \
-    --global-batch-size 8 \
-    --tensor-model-parallel-size 1 \
-    --pipeline-model-parallel-size 1 \
+    --seq-length $SEQ_LEN \
+    --num-layers $LAYER_NUM \
+    --hidden-size $HIDDEN_SIZE \
+    --num-attention-heads $HEAD_NUM \
+    --micro-batch-size $MBZ \
+    --global-batch-size $GBZ \
+    --tensor-model-parallel-size $TMP \
+    --pipeline-model-parallel-size $PMP \
     --num-gpus-per-node 1 \
     --num-nodes 1 \
-    --train-iters 10 \
     --learning-rate 0.00015 \
     --min-lr 1.0e-5 \
     --lr-decay-style cosine \
@@ -35,3 +45,5 @@ python3 $SRC_DIR/oneflow_gpt/train.py \
     --no-scale-tril-softmax-dropout-fusion \
     --fp16 \
     --graph \
+    --train-iters $TRAIN_ITER \
+    --log-interval $LOG_INTERVAL \

@@ -349,6 +349,7 @@ def _add_training_args(parser):
     group.add_argument(
         "--checkpoint-activations",
         action="store_true",
+        dest="checkpoint_activations",
         help="Checkpoint activation to allow for training "
         "with larger models, sequences, and batch sizes.",
     )

@@ -36,6 +36,8 @@ class Trainer(object):
         self.grad_scaler = make_grad_scaler(self.args)
 
         if self.args.graph:
+            flow.boxing.nccl.enable_use_compute_stream()
+
             self.train_graph = GPTGraph(
                 self.model,
                 self.data_loader,
