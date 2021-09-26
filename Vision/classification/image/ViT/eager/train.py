@@ -17,16 +17,18 @@ def _parse_args():
         help="save checkpoint root dir",
     )
     parser.add_argument(
-        "--model_arch", 
-        type=str, 
-        default="vit_b_16_384", 
-        choices=['vit_b_16_224', 
-                 'vit_b_16_384',
-                 'vit_b_32_224',
-                 'vit_b_32_384',
-                 'vit_l_16_224',
-                 'vit_l_16_384'], 
-                 help="model architecture",
+        "--model_arch",
+        type=str,
+        default="vit_b_16_384",
+        choices=[
+            "vit_b_16_224",
+            "vit_b_16_384",
+            "vit_b_32_224",
+            "vit_b_32_384",
+            "vit_l_16_224",
+            "vit_l_16_384",
+        ],
+        help="model architecture",
     )
     parser.add_argument(
         "--load_checkpoint", type=str, default="", help="load checkpoint",
@@ -47,8 +49,6 @@ def _parse_args():
         "--train_batch_size", type=int, default=32, help="train batch size"
     )
     parser.add_argument("--val_batch_size", type=int, default=32, help="val batch size")
-
-
 
     return parser.parse_args()
 
