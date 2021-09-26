@@ -193,6 +193,7 @@ def main():
     )
 
     parser.add_argument("--lr", type=float, default=1e-3, help="Learning rate of adam")
+    parser.add_argument("--hidden_size", type=int, help="Hidden size")
     parser.add_argument(
         "--weight_decay", type=float, default=0.01, help="Weight_decay of adam"
     )
@@ -309,7 +310,7 @@ def main():
 
     print("Building BERT Model")
     # hidden_size = 64 * args.num_attention_heads
-    hidden_size = 1024
+    hidden_size = args.hidden_size
     intermediate_size = 4 * hidden_size
     bert_model = BertForPreTraining(
         args.vocab_size,

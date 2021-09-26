@@ -31,6 +31,7 @@ python3 run_pretraining.py \
   --max_predictions_per_seq=80 \
   --num_hidden_layers=24 \
   --num_attention_heads=16 \
+  --hidden_size=1024 \
   --max_position_embeddings=512 \
   --type_vocab_size=2 \
   --vocab_size=30522 \
