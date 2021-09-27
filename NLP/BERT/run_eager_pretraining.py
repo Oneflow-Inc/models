@@ -1,7 +1,6 @@
 #!/usr/bin/python3
 import time
 from functools import partial
-from compare_lazy_outputs import load_params_from_lazy
 
 from train_config import get_config
 import numpy as np
@@ -197,6 +196,7 @@ def main():
     )
 
     # Load the same initial parameters with lazy model.
+    # from utils.compare_lazy_outputs import load_params_from_lazy
     # load_params_from_lazy(
     #     bert_model.state_dict(),
     #     "../../OneFlow-Benchmark/LanguageModeling/BERT/initial_model",

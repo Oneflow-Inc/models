@@ -242,12 +242,16 @@ After fine-tuning, you can get the evaluation results as follow
 
 ### 4. Inference 
 
-You just provide a simple inference script in `example/infer.sh`, you can also run inference with following command
+You can refer to this [link](https://github.com/Oneflow-Inc/OneFlow-Benchmark/tree/master/LanguageModeling/BERT) for 
+converting TensorFlow model to OneFlow, then use it for inference.
+
+We just provide a simple inference script in `example/infer.sh`, you can also run inference with following command
 
 ```
-MODEL_PATH="checkpoints/epoch_9_val_acc_0.554688"
+MODEL_PATH="your convert model"
 
 python3 run_infer.py \
+  --use_lazy_model \
   --model_path $MODEL_PATH
 ```
 

@@ -156,6 +156,13 @@ def main():
         args.type_vocab_size,
     )
 
+    # Load the same initial parameters with lazy model.
+    # from utils.compare_lazy_outputs import load_params_from_lazy
+    # load_params_from_lazy(
+    #     bert_model.state_dict(),
+    #     "../../OneFlow-Benchmark/LanguageModeling/BERT/initial_model",
+    # )
+
     assert id(bert_model.cls.predictions.decoder.weight) == id(
         bert_model.bert.embeddings.word_embeddings.weight
     )
