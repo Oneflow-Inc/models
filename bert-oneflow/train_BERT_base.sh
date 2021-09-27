@@ -3,10 +3,6 @@
 set -aux
 
 OFRECORD_PATH="sample_seq_len_512_example"
-#if [ ! -d "$OFRECORD_PATH" ]; then
-#    wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/datasets/wiki_ofrecord_seq_len_128_example.tgz
-#    tar zxf wiki_ofrecord_seq_len_128_example.tgz
-#fi
 
 CHECKPOINT_PATH="checkpoints"
 if [ ! -d "$CHECKPOINT_PATH" ]; then
@@ -15,11 +11,9 @@ fi
 
 LEARNING_RATE=1e-4
 EPOCH=10
-TRAIN_BATCH_SIZE=8
-VAL_BATCH_SIZE=8
+TRAIN_BATCH_SIZE=2
+VAL_BATCH_SIZE=2
 
-#export CUDA_VISIBLE_DEVICES=1
-#DATA_DIR=wiki_ofrecord_seq_len_128_example
 python3 run_pretraining.py \
   --ofrecord_path $OFRECORD_PATH \
   --checkpoint_path $CHECKPOINT_PATH \

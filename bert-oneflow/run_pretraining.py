@@ -1,4 +1,13 @@
 #!/usr/bin/python3
+from utils.metric import Metric
+from utils.optimizer import (
+    build_adamW_optimizer,
+    build_sgd_optimizer,
+    build_lamb_optimizer,
+)
+from utils.lr_scheduler import PolynomialLR
+from utils.ofrecord_data_utils import OfRecordDataLoader
+from modeling import BertForPreTraining
 import argparse
 import os
 import time
@@ -16,15 +25,6 @@ from oneflow import nn
 import sys
 
 sys.path.append(".")
-from modeling import BertForPreTraining
-from utils.ofrecord_data_utils import OfRecordDataLoader
-from utils.lr_scheduler import PolynomialLR
-from utils.optimizer import (
-    build_adamW_optimizer,
-    build_sgd_optimizer,
-    build_lamb_optimizer,
-)
-from utils.metric import Metric
 
 
 def ttol(tensor, pure_local=True):
@@ -44,7 +44,8 @@ def tton(tensor, local_only=True):
         if local_only:
             tensor = tensor.to_local().numpy()
         else:
-            tensor = tensor.to_consistent(sbp=flow.sbp.broadcast).to_local().numpy()
+            tensor = tensor.to_consistent(
+                sbp=flow.sbp.broadcast).to_local().numpy()
     else:
         tensor = tensor.numpy()
 
@@ -177,10 +178,12 @@ def main():
         "--vocab_size", type=int, default=30522, help="Total number of vocab"
     )
     parser.add_argument("--type_vocab_size", type=int, default=2)
-    parser.add_argument("--attention_probs_dropout_prob", type=float, default=0.1)
+    parser.add_argument("--attention_probs_dropout_prob",
+                        type=float, default=0.1)
     parser.add_argument("--hidden_dropout_prob", type=float, default=0.1)
     parser.add_argument("--max_predictions_per_seq", type=int, default=20)
-    parser.add_argument("-e", "--epochs", type=int, default=1, help="Number of epochs")
+    parser.add_argument("-e", "--epochs", type=int,
+                        default=1, help="Number of epochs")
 
     parser.add_argument(
         "--with-cuda",
@@ -192,7 +195,8 @@ def main():
         "--cuda_devices", type=int, nargs="+", default=None, help="CUDA device ids"
     )
 
-    parser.add_argument("--lr", type=float, default=1e-3, help="Learning rate of adam")
+    parser.add_argument("--lr", type=float, default=1e-3,
+                        help="Learning rate of adam")
     parser.add_argument("--hidden_size", type=int, help="Hidden size")
     parser.add_argument(
         "--weight_decay", type=float, default=0.01, help="Weight_decay of adam"
@@ -326,20 +330,12 @@ def main():
         args.type_vocab_size,
     )
 
-    # Load the same initial parameters with lazy model.
-    # load_params_from_lazy(
-    #     bert_model.state_dict(),
-    #     "../../OneFlow-Benchmark/LanguageModeling/BERT/initial_model",
-    # )
-    # assert id(bert_model.cls.predictions.decoder.weight) == id(
-    #     bert_model.bert.embeddings.word_embeddings.weight
-    # )
-
     ns_criterion = nn.CrossEntropyLoss(reduction="mean")
     mlm_criterion = nn.CrossEntropyLoss(reduction="none")
 
     if args.use_consistent:
-        placement = flow.placement("cuda", {0: range(flow.env.get_world_size())})
+        placement = flow.placement(
+            "cuda", {0: range(flow.env.get_world_size())})
         bert_model = bert_model.to_consistent(
             placement=placement, sbp=flow.sbp.broadcast
         )
@@ -374,7 +370,8 @@ def main():
         # gather valid position indices
         logit_blob = flow.gather(
             logit_blob,
-            index=masked_lm_positions.unsqueeze(2).expand(-1, -1, args.vocab_size),
+            index=masked_lm_positions.unsqueeze(
+                2).expand(-1, -1, args.vocab_size),
             dim=1,
         )
 
@@ -386,7 +383,8 @@ def main():
         # tensor has a value of 1.0 for every real prediction and 0.0 for the
         # padding predictions.
         pre_example_loss = mlm_criterion(logit_blob, label_id_blob)
-        pre_example_loss = flow.reshape(pre_example_loss, [-1, max_predictions_per_seq])
+        pre_example_loss = flow.reshape(
+            pre_example_loss, [-1, max_predictions_per_seq])
         numerator = flow.sum(pre_example_loss * label_weights)
         denominator = flow.sum(label_weights) + 1e-5
         loss = numerator / denominator
@@ -403,7 +401,8 @@ def main():
             self.add_optimizer(optimizer)  # , lr_sch=lr_scheduler)
             self._train_data_loader = train_data_loader
             if args.use_grad_acc:
-                self.config.set_gradient_accumulation_steps(args.grad_acc_steps)
+                self.config.set_gradient_accumulation_steps(
+                    args.grad_acc_steps)
             if args.use_fp16:
                 self.config.enable_amp(True)
                 grad_scaler = flow.amp.GradScaler(
@@ -442,7 +441,8 @@ def main():
 
             # 2-1. loss of is_next classification result
             next_sentence_loss = self.ns_criterion(
-                seq_relationship_scores.reshape(-1, 2), next_sentence_labels.reshape(-1)
+                seq_relationship_scores.reshape(-1,
+                                                2), next_sentence_labels.reshape(-1)
             )
 
             masked_lm_loss = self.masked_lm_criterion(
@@ -525,20 +525,6 @@ def main():
         train_total_losses,
         os.path.join(save_dir, "bert_graph_lamb_amp_consistent_loss.txt"),
     )
-    # Reporter.write2file(
-    #     train_lml_losses, os.path.join(save_dir, "bert_graph_lml_loss.txt")
-    # )
-    # Reporter.write2file(
-    #     train_ns_losses, os.path.join(save_dir, "bert_graph_ns_loss.txt")
-    # )
-    # Eval
-    # bert_model.eval()
-    # val_acc = validation(
-    #     epoch, len(test_data_loader), bert_eval_graph, args.val_print_every_n_iters
-    # )
-
-    # print("Saveing model ...")
-    # save_model(bert_model, args.checkpoint_path, epoch, val_acc)
 
 
 if __name__ == "__main__":
