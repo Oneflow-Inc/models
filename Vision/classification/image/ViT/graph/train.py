@@ -4,12 +4,12 @@ import numpy as np
 import os
 import time
 
-from model.alexnet import alexnet
+from model.build_model import build_model
 from utils.ofrecord_data_utils import OFRecordDataLoader
 
 
 def _parse_args():
-    parser = argparse.ArgumentParser("flags for train alexnet")
+    parser = argparse.ArgumentParser("flags for train mobilenet_v2")
     parser.add_argument(
         "--save_checkpoint_path",
         type=str,
@@ -17,13 +17,27 @@ def _parse_args():
         help="save checkpoint root dir",
     )
     parser.add_argument(
-        "--load_checkpoint", type=str, default="", help="load checkpoint"
+        "--model_arch",
+        type=str,
+        default="vit_b_16_384",
+        choices=[
+            "vit_b_16_224",
+            "vit_b_16_384",
+            "vit_b_32_224",
+            "vit_b_32_384",
+            "vit_l_16_224",
+            "vit_l_16_384",
+        ],
+        help="model architecture",
     )
     parser.add_argument(
-        "--ofrecord_path",
-        type=str,
-        default="/data/imagenet/ofrecord/",
-        help="dataset path",
+        "--load_checkpoint", type=str, default="", help="load checkpoint",
+    )
+    parser.add_argument(
+        "--image_size", type=int, default=384, help="default train image size"
+    )
+    parser.add_argument(
+        "--ofrecord_path", type=str, default="./ofrecord", help="dataset path"
     )
     # training hyper-parameters
     parser.add_argument(
@@ -32,13 +46,10 @@ def _parse_args():
     parser.add_argument("--mom", type=float, default=0.9, help="momentum")
     parser.add_argument("--epochs", type=int, default=100, help="training epochs")
     parser.add_argument(
-        "--train_batch_size", type=int, default=128, help="train batch size"
+        "--train_batch_size", type=int, default=32, help="train batch size"
     )
     parser.add_argument("--val_batch_size", type=int, default=32, help="val batch size")
-    parser.add_argument(
-        "--results", type=str, default="./results", help="tensorboard file path"
-    )
-    parser.add_argument("--tag", type=str, default="default", help="tag of experiment")
+
     return parser.parse_args()
 
 
@@ -53,6 +64,7 @@ def main(args):
         mode="train",
         dataset_size=9469,
         batch_size=args.train_batch_size,
+        image_size=args.image_size,
     )
 
     val_data_loader = OFRecordDataLoader(
@@ -60,31 +72,32 @@ def main(args):
         mode="val",
         dataset_size=3925,
         batch_size=args.val_batch_size,
+        image_size=args.image_size,
     )
 
     # oneflow init
     start_t = time.time()
-    alexnet_module = alexnet()
+    model = build_model(args)
     if args.load_checkpoint != "":
         print("load_checkpoint >>>>>>>>> ", args.load_checkpoint)
-        alexnet_module.load_state_dict(flow.load(args.load_checkpoint))
+        model.load_state_dict(flow.load(args.load_checkpoint))
 
     end_t = time.time()
     print("init time : {}".format(end_t - start_t))
 
     of_cross_entropy = flow.nn.CrossEntropyLoss()
 
-    alexnet_module.to("cuda")
+    model.to("cuda")
     of_cross_entropy.to("cuda")
 
     of_sgd = flow.optim.SGD(
-        alexnet_module.parameters(), lr=args.learning_rate, momentum=args.mom
+        model.parameters(), lr=args.learning_rate, momentum=args.mom
     )
 
     class AlexNetGraph(flow.nn.Graph):
         def __init__(self):
             super().__init__()
-            self.alexnet = alexnet_module
+            self.model = model
             self.cross_entropy = of_cross_entropy
             self.add_optimizer(of_sgd)
             self.train_data_loader = train_data_loader
@@ -93,7 +106,7 @@ def main(args):
             image, label = self.train_data_loader()
             image = image.to("cuda")
             label = label.to("cuda")
-            logits = self.alexnet(image)
+            logits = self.model(image)
             loss = self.cross_entropy(logits, label)
             loss.backward()
             return loss
@@ -103,14 +116,14 @@ def main(args):
     class AlexNetEvalGraph(flow.nn.Graph):
         def __init__(self):
             super().__init__()
-            self.alexnet = alexnet_module
+            self.model = model
             self.val_data_loader = val_data_loader
 
         def build(self):
             image, label = self.val_data_loader()
             image = image.to("cuda")
             with flow.no_grad():
-                logits = self.alexnet(image)
+                logits = self.model(image)
                 predictions = logits.softmax()
             return predictions, label
 
@@ -122,7 +135,7 @@ def main(args):
     print_interval = 20
 
     for epoch in range(args.epochs):
-        alexnet_module.train()
+        model.train()
 
         for b in range(len(train_data_loader)):
             # oneflow graph train
@@ -140,7 +153,7 @@ def main(args):
 
         print("epoch %d train done, start validation" % epoch)
 
-        alexnet_module.eval()
+        model.eval()
         correct_of = 0.0
         for b in range(len(val_data_loader)):
             start_t = time.time()
@@ -159,7 +172,7 @@ def main(args):
         print("epoch %d, oneflow top1 val acc: %f" % (epoch, top1))
 
         flow.save(
-            alexnet_module.state_dict(),
+            model.state_dict(),
             os.path.join(
                 args.save_checkpoint_path,
                 "epoch_%d_val_acc_%f" % (epoch, correct_of / all_samples),

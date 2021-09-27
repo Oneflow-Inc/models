@@ -11,6 +11,8 @@ wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/datasets/imagenette_ofre
 tar zxf imagenette_ofrecord.tar.gz
 ```
 
+## Quick Start
+We provide the following bash file for a quick start
 ### Run Oneflow Eager Training script
 
 ```bash
@@ -18,10 +20,23 @@ bash eager/train.sh
 ```
 
 
-## Eager Inference on Single Image
+### Eager Inference on Single Image
 
 ```bash
 bash eager/infer.sh
+```
+
+### Run Oneflow Graph Training script
+
+```bash
+bash graph/train.sh
+```
+
+
+### Graph Inference on Single Image
+
+```bash
+bash graph/infer.sh
 ```
 
 ## Pretrained Model Weight

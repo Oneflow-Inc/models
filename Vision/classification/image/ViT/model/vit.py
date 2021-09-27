@@ -249,7 +249,7 @@ def ViT_B_16_224():
         emb_dim=768,
         mlp_dim=3072,
         num_heads=12,
-        num_layers=12,
+        num_layers=3,
         num_classes=1000,
         attn_dropout_rate=0.0,
         dropout_rate=0.1,
