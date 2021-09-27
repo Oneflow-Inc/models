@@ -1,98 +1,27 @@
-Oneflow version of bert implementation, origin form: https://github.com/codertimo/BERT-pytorch
+# CCF BDCI BERT系统调优赛题baseline
 
-# BERT-oneflow
+## 使用说明
 
-oneflow implementation of Google AI's 2018 BERT, with simple annotation
+运行train_BERT_base.sh和train_BERT_large.sh即可运行单机单卡的baseline。保持其它参数不变，通过调节shell文件里的hidden_size参数，即可观察不同hidden_size所占显存的变化（可通过`watch -n 0.1 nvidia-smi`直观观察）
 
-> BERT 2018 BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding
-> Paper URL : https://arxiv.org/abs/1810.04805
+```bash
+#...
 
-## Introduction
-
-Google AI's BERT paper shows the amazing result on various NLP task (new 17 NLP tasks SOTA), 
-including outperform the human F1 score on SQuAD v1.1 QA task. 
-This paper proved that Transformer(self-attention) based encoder can be powerfully used as 
-alternative of previous language model with proper language model training method. 
-And more importantly, they showed us that this pre-trained language model can be transfer 
-into any NLP task without making task specific model architecture.
-
-This amazing result would be record in NLP history, 
-and I expect many further papers about BERT will be published very soon.
-
-
-## Quickstart
-
-**NOTICE : Your corpus should be prepared with two sentences in one line with tab(\t) separator**
-
-### 0. Prepare your corpus
-
+python3 run_pretraining.py \
+  --ofrecord_path $OFRECORD_PATH \
+  --checkpoint_path $CHECKPOINT_PATH \
+  --lr $LEARNING_RATE \
+  --epochs $EPOCH \
+  --train-batch-size $TRAIN_BATCH_SIZE \
+  --val-batch-size $VAL_BATCH_SIZE \
+  --seq_length=512 \
+  --max_predictions_per_seq=80 \
+  --num_hidden_layers=24 \
+  --num_attention_heads=16 \
+  --hidden_size=1024 \ #要调节的参数
+  --max_position_embeddings=512 \
+  --type_vocab_size=2 \
+  --vocab_size=30522 \
+  --attention_probs_dropout_prob=0.1 \
+  --hidden_dropout_prob=0.1
 ```
-Welcome to the \t the jungle\n
-I can stay \t here all night\n
-```
-
-or tokenized corpus (tokenization is not in package)
-```
-Wel_ _come _to _the \t _the _jungle\n
-_I _can _stay \t _here _all _night\n
-```
-
-You can refer to this example dataset: [data.zip](https://oneflow-public.oss-cn-beijing.aliyuncs.com/datasets/BERT-pytorch/sampledataset/data.zip)
-
-Get a sample ofRecord dataset: https://oneflow-public.oss-cn-beijing.aliyuncs.com/datasets/wiki_ofrecord_seq_len_128_example.tgz 
-
-### 1. Building vocab based on your corpus
-
-After you get you corpus dataset, you can run this command to build the vocab
-
-```shell
-bash  build_vocab.sh
-```
-
-### 2. Train your own BERT model
-
-```shell
-bash train.sh
-```
-
-## Language Model Pre-training
-
-In the paper, authors shows the new language model training methods, 
-which are "masked language model" and "predict next sentence".
-
-### Masked Language Model 
-
-```
-Input Sequence  : The man went to [MASK] store with [MASK] dog
-Target Sequence :                  the                his
-```
-
-#### Rules:
-Randomly 15% of input token will be changed into something, based on under sub-rules
-
-1. Randomly 80% of tokens, gonna be a `[MASK]` token
-2. Randomly 10% of tokens, gonna be a `[RANDOM]` token(another word)
-3. Randomly 10% of tokens, will be remain as same. But need to be predicted.
-
-### Predict Next Sentence
-
-> Original Paper : 3.3.2 Task #2: Next Sentence Prediction
-
-```
-Input : [CLS] the man went to the store [SEP] he bought a gallon of milk [SEP]
-Label : Is Next
-
-Input = [CLS] the man heading to the store [SEP] penguin [MASK] are flight ##less birds [SEP]
-Label = NotNext
-```
-
-"Is this sentence can be continuously connected?"
-
- understanding the relationship, between two text sentences, which is
-not directly captured by language modeling
-
-#### Rules:
-
-1. Randomly 50% of next sentence, gonna be continuous sentence.
-2. Randomly 50% of next sentence, gonna be unrelated sentence.
-
