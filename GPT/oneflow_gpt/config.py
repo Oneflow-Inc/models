@@ -529,7 +529,7 @@ def _add_mixed_precision_args(parser):
     group.add_argument(
         "--initial-loss-scale",
         type=float,
-        default=2 ** 32,
+        default=None,
         help="Initial loss-scale for dynamic loss scaling.",
     )
     group.add_argument(

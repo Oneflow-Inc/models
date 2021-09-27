@@ -2,6 +2,7 @@
 
 export PYTHONUNBUFFERED=1
 echo PYTHONUNBUFFERED=$PYTHONUNBUFFERED
+export ONEFLOW_DEBUG_MODE=True
 
 # DATASET=/dataset/Megatron-LM/dummy/gpt_sample_dataset_text_document
 DATASET=/dataset/gpt/gpt_sample_dataset_text_document
@@ -15,7 +16,7 @@ ACC_STEPS=1
 TMP=1
 PMP=1
 TRAIN_ITER=300
-LOG_INTERVAL=10
+LOG_INTERVAL=1
 
 SRC_DIR=$(realpath $(dirname "$0")/..)
 
@@ -32,16 +33,18 @@ python3 $SRC_DIR/oneflow_gpt/train.py \
     --global-batch-size $GBZ \
     --tensor-model-parallel-size $TMP \
     --pipeline-model-parallel-size $PMP \
+    --checkpoint-activations \
     --num-gpus-per-node 1 \
     --num-nodes 1 \
+    --optimizer adamw \
+    --weight-decay 1e-2 \
+    --clip-grad 1.0 \
+    --initial-loss-scale 4294967296 \
     --learning-rate 0.00015 \
     --min-lr 1.0e-5 \
     --lr-decay-style cosine \
     --lr-decay-iters 320000 \
     --lr-warmup-fraction 0.01 \
-    --initial-loss-scale 4294967296 \
-    --weight-decay 1e-2 \
-    --clip-grad 1.0 \
     --no-scale-tril-softmax-dropout-fusion \
     --fp16 \
     --graph \

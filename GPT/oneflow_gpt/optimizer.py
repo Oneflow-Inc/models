@@ -1,6 +1,7 @@
 import oneflow as flow
 
-from oneflow_gpt.model import LayerNorm, ColumnParallelLinear, RowParallelLinear
+from oneflow_gpt.model import Embedding, LayerNorm
+from oneflow_gpt.model import ColumnParallelLinear, RowParallelLinear
 
 
 def make_grad_scaler(args):
@@ -49,17 +50,20 @@ def _get_params_for_weight_decay_optimization(mode):
     no_weight_decay_params = {"params": [], "weight_decay": 0.0}
 
     for module in mode.modules():
-        if isinstance(module, LayerNorm):
-            for p in module.parameters():
+        if isinstance(module, Embedding):
+            for p in module.parameters(recurse=False):
                 if p is None:
                     continue
-
+                weight_decay_params["params"].append(p)
+        elif isinstance(module, LayerNorm):
+            for p in module.parameters(recurse=False):
+                if p is None:
+                    continue
                 no_weight_decay_params["params"].append(p)
         elif isinstance(module, (ColumnParallelLinear, RowParallelLinear)):
-            for n, p in module.named_parameters():
+            for n, p in module.named_parameters(recurse=False):
                 if p is None:
                     continue
-
                 if n == "weight":
                     weight_decay_params["params"].append(p)
                 elif n == "bias":
@@ -67,7 +71,7 @@ def _get_params_for_weight_decay_optimization(mode):
                 else:
                     raise NotImplementedError
         else:
-            pass
+            assert len(list(module.parameters(recurse=False))) == 0
 
     return [weight_decay_params, no_weight_decay_params]
 
@@ -77,8 +81,6 @@ def _set_clip_grad_for_param_groups(param_groups, clip_grad):
         for group in param_groups:
             group["clip_grad_max_norm"] = 1.0
             group["clip_grad_norm_type"] = 2.0
-    else:
-        raise NotImplementedError
 
 
 def make_optimizer(args, model):
@@ -86,13 +88,16 @@ def make_optimizer(args, model):
     _set_clip_grad_for_param_groups(param_groups, args.clip_grad)
 
     if args.optimizer == "adamw":
-        adamw = flow.optim.AdamW(
+        optimizer = flow.optim.AdamW(
             param_groups,
             lr=args.lr,
             weight_decay=args.weight_decay,
             betas=(args.adam_beta1, args.adam_beta2),
             eps=args.adam_eps,
         )
-        return adamw
+    if args.optimizer == "sgd":
+        optimizer = flow.optim.SGD(param_groups, lr=args.lr)
     else:
         raise NotImplementedError("not supported yet")
+
+    return optimizer
