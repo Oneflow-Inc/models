@@ -258,7 +258,7 @@ python3 run_infer.py \
 ## Utils
 
 ### 1. Lazy Mode Loading
-Bert lazy model can be loaded in `nn.Module` using the function `load_params_from_lazy` from `compare_lazy_outputs.py`.
+Bert lazy model can be loaded in `nn.Module` using the function `load_params_from_lazy` from `utils/compare_lazy_outputs.py`.
 
 ### 2. Draw Loss Curve
 You can make use of `draw_loss_curve.py` to draw loss curve for aligning different train mode.
