@@ -1,3 +1,4 @@
+export PYTHONPATH=$PWD:$PYTHONPATH 
 set -aux
 
 IMAGE_PATH="data/fish.jpg"
@@ -19,4 +20,5 @@ if [ ! -d "data" ]; then
   tar zxf data.tar.gz
 fi
 
-python3 infer.py --model_path $PRETRAIN_MODEL_PATH --image_path $IMAGE_PATH --model_arch $MODEL_ARCH --image_size $IMAGE_SIZE
+
+python3 graph/infer.py --model_path $PRETRAIN_MODEL_PATH --image_path $IMAGE_PATH --model_arch $MODEL_ARCH --image_size $IMAGE_SIZE

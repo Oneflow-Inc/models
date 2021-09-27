@@ -4,17 +4,17 @@ import argparse
 import numpy as np
 import time
 
-from models.build_model import build_model
+from model.build_model import build_model
 from utils.imagenet1000_clsidx_to_labels import clsidx_2_labels
 from utils.numpy_data_utils import load_image
 
 
 def _parse_args():
-    parser = argparse.ArgumentParser("flags for test mobilenetv2")
+    parser = argparse.ArgumentParser("flags for test ViT")
     parser.add_argument(
         "--model_path",
         type=str,
-        default="./mobilenetv2_oneflow_model",
+        default="./vit_b_16_384",
         help="model path",
     )
     parser.add_argument(
@@ -37,7 +37,6 @@ def _parse_args():
 
 
 def main(args):
-
     start_t = time.time()
     model = build_model(args)
     end_t = time.time()
@@ -52,10 +51,22 @@ def main(args):
     model.eval()
     model.to("cuda")
 
+    class ViTEvalGraph(flow.nn.Graph):
+        def __init__(self):
+            super().__init__()
+            self.model = model
+
+        def build(self, image):
+            with flow.no_grad():
+                predictions = self.model(image)
+            return predictions
+
+    vit_eval_graph = ViTEvalGraph()
+
     start_t = time.time()
     image = load_image(args.image_path, image_size=(args.image_size, args.image_size))
     image = flow.Tensor(image, device=flow.device("cuda"))
-    predictions = model(image).softmax()
+    predictions = vit_eval_graph(image).softmax()
     predictions = predictions.numpy()
     end_t = time.time()
     print("infer time : {}".format(end_t - start_t))

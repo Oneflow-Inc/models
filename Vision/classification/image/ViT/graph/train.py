@@ -1,16 +1,15 @@
+import oneflow as flow
 import argparse
 import numpy as np
 import os
 import time
-import oneflow as flow
 
-from model.vit import *
-from utils.ofrecord_data_utils import OFRecordDataLoader
 from model.build_model import build_model
+from utils.ofrecord_data_utils import OFRecordDataLoader
 
 
 def _parse_args():
-    parser = argparse.ArgumentParser("flags for train mobilenet_v2")
+    parser = argparse.ArgumentParser("flags for train ViT")
     parser.add_argument(
         "--save_checkpoint_path",
         type=str,
@@ -50,11 +49,19 @@ def _parse_args():
         "--train_batch_size", type=int, default=32, help="train batch size"
     )
     parser.add_argument("--val_batch_size", type=int, default=32, help="val batch size")
+    parser.add_argument(
+        "--results", type=str, default="./results", help="tensorboard file path"
+    )
+    parser.add_argument("--tag", type=str, default="default", help="tag of experiment")
     return parser.parse_args()
 
 
 def main(args):
+    # path setup
+    training_results_path = os.path.join(args.results, args.tag)
+    os.makedirs(training_results_path, exist_ok=True)
 
+    # build dataloader
     train_data_loader = OFRecordDataLoader(
         ofrecord_root=args.ofrecord_path,
         mode="train",
@@ -76,8 +83,7 @@ def main(args):
     model = build_model(args)
     if args.load_checkpoint != "":
         print("load_checkpoint >>>>>>>>> ", args.load_checkpoint)
-        checkpoint = flow.load(args.load_checkpoint)
-        model.load_state_dict(checkpoint)
+        model.load_state_dict(flow.load(args.load_checkpoint))
 
     end_t = time.time()
     print("init time : {}".format(end_t - start_t))
@@ -91,7 +97,43 @@ def main(args):
         model.parameters(), lr=args.learning_rate, momentum=args.mom
     )
 
+    class ViTNetGraph(flow.nn.Graph):
+        def __init__(self):
+            super().__init__()
+            self.model = model
+            self.cross_entropy = of_cross_entropy
+            self.add_optimizer(of_sgd)
+            self.train_data_loader = train_data_loader
+
+        def build(self):
+            image, label = self.train_data_loader()
+            image = image.to("cuda")
+            label = label.to("cuda")
+            logits = self.model(image)
+            loss = self.cross_entropy(logits, label)
+            loss.backward()
+            return loss
+
+    vit_graph = ViTNetGraph()
+
+    class ViTEvalGraph(flow.nn.Graph):
+        def __init__(self):
+            super().__init__()
+            self.model = model
+            self.val_data_loader = val_data_loader
+
+        def build(self):
+            image, label = self.val_data_loader()
+            image = image.to("cuda")
+            with flow.no_grad():
+                logits = self.model(image)
+                predictions = logits.softmax()
+            return predictions, label
+
+    vit_eval_graph = ViTEvalGraph()
+
     of_losses = []
+    of_accuracy = []
     all_samples = len(val_data_loader) * args.val_batch_size
     print_interval = 20
 
@@ -99,17 +141,9 @@ def main(args):
         model.train()
 
         for b in range(len(train_data_loader)):
-            image, label = train_data_loader()
-
-            # oneflow train
+            # oneflow graph train
             start_t = time.time()
-            image = image.to("cuda")
-            label = label.to("cuda")
-            logits = model(image)
-            loss = of_cross_entropy(logits, label)
-            loss.backward()
-            of_sgd.step()
-            of_sgd.zero_grad()
+            loss = vit_graph()
             end_t = time.time()
             if b % print_interval == 0:
                 l = loss.numpy()
@@ -125,13 +159,8 @@ def main(args):
         model.eval()
         correct_of = 0.0
         for b in range(len(val_data_loader)):
-            image, label = val_data_loader()
-
             start_t = time.time()
-            image = image.to("cuda")
-            with flow.no_grad():
-                logits = model(image)
-                predictions = logits.softmax()
+            predictions, label = vit_eval_graph()
             of_predictions = predictions.numpy()
             clsidxs = np.argmax(of_predictions, axis=1)
 
@@ -141,7 +170,9 @@ def main(args):
                     correct_of += 1
             end_t = time.time()
 
-        print("epoch %d, oneflow top1 val acc: %f" % (epoch, correct_of / all_samples))
+        top1 = correct_of / all_samples
+        of_accuracy.append(top1)
+        print("epoch %d, oneflow top1 val acc: %f" % (epoch, top1))
 
         flow.save(
             model.state_dict(),
@@ -151,8 +182,13 @@ def main(args):
             ),
         )
 
-    writer = open("of_losses.txt", "w")
+    writer = open("graph/losses.txt", "w")
     for o in of_losses:
+        writer.write("%f\n" % o)
+    writer.close()
+
+    writer = open("graph/accuracy.txt", "w")
+    for o in of_accuracy:
         writer.write("%f\n" % o)
     writer.close()
 
