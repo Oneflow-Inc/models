@@ -95,7 +95,7 @@ def make_optimizer(args, model):
             betas=(args.adam_beta1, args.adam_beta2),
             eps=args.adam_eps,
         )
-    if args.optimizer == "sgd":
+    elif args.optimizer == "sgd":
         optimizer = flow.optim.SGD(param_groups, lr=args.lr)
     else:
         raise NotImplementedError("not supported yet")
