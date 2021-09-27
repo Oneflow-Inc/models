@@ -9,7 +9,7 @@ from utils.ofrecord_data_utils import OFRecordDataLoader
 
 
 def _parse_args():
-    parser = argparse.ArgumentParser("flags for train mobilenet_v2")
+    parser = argparse.ArgumentParser("flags for train ViT")
     parser.add_argument(
         "--save_checkpoint_path",
         type=str,
@@ -97,7 +97,7 @@ def main(args):
         model.parameters(), lr=args.learning_rate, momentum=args.mom
     )
 
-    class AlexNetGraph(flow.nn.Graph):
+    class ViTNetGraph(flow.nn.Graph):
         def __init__(self):
             super().__init__()
             self.model = model
@@ -114,9 +114,9 @@ def main(args):
             loss.backward()
             return loss
 
-    alexnet_graph = AlexNetGraph()
+    vit_graph = ViTNetGraph()
 
-    class AlexNetEvalGraph(flow.nn.Graph):
+    class ViTEvalGraph(flow.nn.Graph):
         def __init__(self):
             super().__init__()
             self.model = model
@@ -130,7 +130,7 @@ def main(args):
                 predictions = logits.softmax()
             return predictions, label
 
-    alexnet_eval_graph = AlexNetEvalGraph()
+    vit_eval_graph = ViTEvalGraph()
 
     of_losses = []
     of_accuracy = []
@@ -143,7 +143,7 @@ def main(args):
         for b in range(len(train_data_loader)):
             # oneflow graph train
             start_t = time.time()
-            loss = alexnet_graph()
+            loss = vit_graph()
             end_t = time.time()
             if b % print_interval == 0:
                 l = loss.numpy()
@@ -160,7 +160,7 @@ def main(args):
         correct_of = 0.0
         for b in range(len(val_data_loader)):
             start_t = time.time()
-            predictions, label = alexnet_eval_graph()
+            predictions, label = vit_eval_graph()
             of_predictions = predictions.numpy()
             clsidxs = np.argmax(of_predictions, axis=1)
 
