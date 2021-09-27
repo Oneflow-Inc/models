@@ -12,7 +12,7 @@ tar zxf imagenette_ofrecord.tar.gz
 ```
 
 ## Quick Start
-We provide the following bash file for a quick start
+We provide the following bash files for a quick start
 ### Run Oneflow Eager Training script
 
 ```bash

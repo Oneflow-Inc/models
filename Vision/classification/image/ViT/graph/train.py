@@ -49,7 +49,10 @@ def _parse_args():
         "--train_batch_size", type=int, default=32, help="train batch size"
     )
     parser.add_argument("--val_batch_size", type=int, default=32, help="val batch size")
-
+    parser.add_argument(
+        "--results", type=str, default="./results", help="tensorboard file path"
+    )
+    parser.add_argument("--tag", type=str, default="default", help="tag of experiment")
     return parser.parse_args()
 
 
