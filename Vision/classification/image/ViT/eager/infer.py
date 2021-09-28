@@ -9,11 +9,11 @@ from utils.imagenet1000_clsidx_to_labels import clsidx_2_labels
 from utils.numpy_data_utils import load_image
 
 def _parse_args():
-    parser = argparse.ArgumentParser("flags for test mobilenetv2")
+    parser = argparse.ArgumentParser("flags for test ViT")
     parser.add_argument(
         "--model_path",
         type=str,
-        default="./mobilenetv2_oneflow_model",
+        default="./vit_b_16_384",
         help="model path",
     )
     parser.add_argument(

@@ -10,7 +10,7 @@ from model.build_model import build_model
 
 
 def _parse_args():
-    parser = argparse.ArgumentParser("flags for train mobilenet_v2")
+    parser = argparse.ArgumentParser("flags for train ViT")
     parser.add_argument(
         "--save_checkpoint_path",
         type=str,
