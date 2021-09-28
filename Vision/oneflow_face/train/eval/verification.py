@@ -203,17 +203,17 @@ def load_bin(path, image_size,image_num,world_size=1,is_consistent=False):
     val_dataset_dir=path
  
     val_batch_size=image_num
-    val_data_part_num=1
+    val_data_part_num=8
     mode="val"
 
     placement = None
     sbp = None
-    # if is_consistent:
-    #     world_size = flow.env.get_world_size()
-    #     placement = flow.placement("cpu", {0: range(world_size)})
-    #     sbp = flow.sbp.split(0)
-    #     # NOTE(zwx): consistent view, only consider logical batch size
-    #     batch_size = image_num
+    if is_consistent:
+        world_size = flow.env.get_world_size()
+        placement = flow.placement("cpu", {0: range(world_size)})
+        sbp = flow.sbp.split(0)
+        # NOTE(zwx): consistent view, only consider logical batch size
+        batch_size = image_num
 
     ofrecord = flow.nn.OfrecordReader(
         val_dataset_dir,
@@ -222,7 +222,8 @@ def load_bin(path, image_size,image_num,world_size=1,is_consistent=False):
         part_name_suffix_length=1,
         random_shuffle=False,
         shuffle_after_epoch=False,
-
+        # placement=placement,
+        # sbp=sbp
     )
 
 
@@ -235,13 +236,13 @@ def load_bin(path, image_size,image_num,world_size=1,is_consistent=False):
     issame_reader = flow.nn.OfrecordRawDecoder( "issame", shape=(), dtype=flow.int32)
     
     image_of=ofrecord() 
-    if is_consistent:   
-        image=record_image_decoder (image_of).to_local().numpy()
-        issame_list=issame_reader(image_of).to_local().numpy()
+    # if is_consistent:   
+        # image=record_image_decoder (image_of).to_local().numpy()
+        # issame_list=issame_reader(image_of).to_local().numpy()
 
-    else:
-        image=record_image_decoder (image_of).numpy() 
-        issame_list=issame_reader(image_of).numpy() 
+    # else:
+    image=record_image_decoder (image_of).numpy() 
+    issame_list=issame_reader(image_of).numpy() 
     issame = np.array(issame_list).flatten().reshape(-1, 1)[:image_num, :]
     issame_list = [bool(x) for x in issame[0::2]]
 
@@ -285,10 +286,15 @@ def test(data_set, backbone, batch_size, nfolds=10,is_consistent=False,world_siz
             img = ((_data / 255) - 0.5) / 0.5
             with flow.no_grad():
 
-                # placement = flow.placement("cpu", {0: [0]})
-                # sbp = (flow.sbp.broadcast,)
-                # x = flow.randint(0, 16, (10,3,112,112), placement=placement, sbp=sbp)
+                # placement = flow.placement("cuda", {0: [0]})
+                # Broadcast = [flow.sbp.broadcast]
+                # sbp = flow.sbp.split(0)
+                # #img = flow.randint(0, 16, (10,3,112,112), placement=placement, sbp=sbp)
+                # print("#########")                
+                # img=img.to_consistent(placement=placement, sbp=Broadcast)
+                # print("#########")
                 net_out = backbone(img.to("cuda"))
+                #print("#########")
             if is_consistent:
                 _embeddings = net_out.to_local().numpy()
             else:

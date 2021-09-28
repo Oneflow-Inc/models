@@ -64,10 +64,10 @@ class CallBackVerification(object):
 
         if self.rank is 0 and num_update > 0 and num_update % self.frequent == 0:
             backbone.eval()
-            if backbone_graph is not None:
-                self.ver_test(backbone_graph, num_update,is_consistent,world_size=self.world_size,placement=placement,sbp=sbp)
-            else:
-                self.ver_test(backbone, num_update,is_consistent)
+            # if backbone_graph is not None:
+                # self.ver_test(backbone_graph, num_update,is_consistent,world_size=self.world_size,placement=placement,sbp=sbp)
+            # else:
+            self.ver_test(backbone, num_update,is_consistent)
             backbone.train()
 
 
@@ -91,7 +91,7 @@ class CallBackLogging(object):
                  fp16: bool,
                  learning_rate: float,
                  grad_scaler=None):
-        if self.rank == 0 and global_step > 0 and global_step % self.frequent == 0:
+        if self.rank == 0  and global_step % self.frequent == 0:
             if self.init:
                 try:
                     speed: float = self.frequent * self.batch_size / (time.time() - self.tic)
@@ -130,10 +130,16 @@ class CallBackModelCheckpoint(object):
         self.rank: int = rank
         self.output: str = output
 
-    def __call__(self, global_step,epoch, backbone ):
+    def __call__(self, global_step,epoch, backbone,is_consistent=False ):
 
 
-        if global_step > 100 and backbone is not None:
+        if global_step > 100 and backbone is not None :
             path_module = os.path.join(self.output, "epoch_%d" % (epoch))
-            flow.save(backbone.state_dict(), path_module)
+
+
+            if is_consistent:
+                flow.save(backbone.state_dict(), path_module, consistent_dst_rank=0)
+            else:
+                if self.rank==0:
+                    flow.save(backbone.state_dict(), path_module)
             logging.info("oneflow Model Saved in '{}'".format(path_module))

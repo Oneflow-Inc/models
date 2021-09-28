@@ -51,7 +51,7 @@ class TrainGraph(flow.nn.Graph):
         #     self.config.enable_amp(True)
         #     self.set_grad_scaler(make_grad_scaler())
         # elif args.scale_grad:
-        # self.set_grad_scaler(make_static_grad_scaler())
+        self.set_grad_scaler(make_static_grad_scaler())
 
         # self.config.allow_fuse_add_to_output(True)
         # self.config.allow_fuse_model_update_ops(True)
@@ -71,11 +71,7 @@ class TrainGraph(flow.nn.Graph):
         logits = self.model(image)
         logits =self.combine_margin(logits,label)*64
         loss = self.cross_entropy(logits, label)
-        # if self.return_pred_and_label:
-        #     pred = logits.softmax()
-        # else:
-        #     pred = None
-        #     label = None
+
         loss.backward()
         return loss
 
@@ -89,19 +85,28 @@ class TrainGraph(flow.nn.Graph):
 
 
 class FC7(flow.nn.Module):
-    def __init__(self,input_size,output_size,backbone,bias=False ):
+    def __init__(self,input_size,output_size,backbone,placement,bias=False ):
         super(FC7, self).__init__()
-        self.backbone=backbone
-        #self.fc7=nn.Linear(input_size,output_size,bias)
-        self.weight = flow.nn.Parameter(flow.empty(output_size,input_size))
+
+        self.placement=placement
+        self.weight = flow.nn.Parameter(flow.empty(output_size,input_size).to_consistent(placement=placement, sbp=flow.sbp.split(0)))
         flow.nn.init.normal_(self.weight, mean=0, std=0.01)
 
+        self.backbone=backbone.to_consistent( placement=placement, sbp = flow.sbp.broadcast)   
+        # self.weight=self.weight.to_consistent(
+        #             placement=placement, sbp=flow.sbp.split(0)
+        #         )         
+    
     def forward(self, x):
-        x=self.backbone(x)             
+        x=self.backbone(x) 
+        
         x=flow.nn.functional.l2_normalize(input=x , dim=1, epsilon=1e-10)
         weight=flow.nn.functional.l2_normalize(input=self.weight , dim=1, epsilon=1e-10)
-        weight=weight.transpose(0,1)
+        weight=weight.transpose(0,1) 
         x=flow.matmul(x,weight)
+       # x=x.to_consistent(placement=self.placement, sbp=flow.sbp.split(0))
+        if x.is_consistent:
+            x = x.to_consistent(sbp=flow.sbp.broadcast)
         return x
 
 
@@ -127,8 +132,6 @@ def make_optimizer(args, model):
 class EvalGraph(flow.nn.Graph):
     def __init__(self, model):
         super().__init__()
-
-
 
         self.config.allow_fuse_add_to_output(True)
 
@@ -161,8 +164,9 @@ def make_data_loader(args, mode, is_consistent=False, synthetic=False):
         world_size = flow.env.get_world_size()
         placement = flow.placement("cpu", {0: range(world_size)})
         sbp = flow.sbp.split(0)
+        #sbp = flow.sbp.broadcast
+
         # NOTE(zwx): consistent view, only consider logical batch size
-        #res 50 ：batch_size =  total_batch_size？？
         batch_size = total_batch_size
 
 
@@ -192,39 +196,26 @@ def main(args):
     world_size = flow.env.get_world_size()
 
 
-    # local_rank = args.local_rank 
-    # rank = 0
-    # world_size = 4
-
-
     os.makedirs(cfg.output, exist_ok=True)
     log_root = logging.getLogger()
     init_logging(log_root,rank, cfg.output)
-
+    placement = flow.placement("cuda", {0: range(world_size)})      
 
     backbone = get_model(cfg.network, dropout=0.0, fp16=cfg.fp16, num_features=cfg.embedding_size)
-    fc7=FC7(cfg.embedding_size,cfg.num_classes,backbone).to("cuda")
-    placement = flow.placement("cuda", {0: range(world_size)})
 
-    fc7 = fc7.to_consistent(
-                placement=placement, sbp=flow.sbp.broadcast
-            )
-    fc7=fc7.cuda()
-
+    fc7=FC7(cfg.embedding_size,cfg.num_classes,backbone,placement).to("cuda")
+    
 
 
     if cfg.resume:
-        try:
-            backbone_pth = os.path.join(cfg.output, "backbone.pth")
-            backbone.load_state_dict(flow.load(backbone_pth))
-            if rank == 0:
-                logging.info("backbone resume successfully!")
-        except (FileNotFoundError, KeyError, IndexError, RuntimeError):
-            if rank == 0:
-                logging.info("resume fail, backbone init successfully!")
+        backbone_pth = os.path.join("lazy_r50", "snapshot_new")
+        fc7.load_state_dict(flow.load(backbone_pth))
+        if rank == 0:
+            logging.info("backbone resume successfully!")
 
+       
+    fc7=fc7.cuda()  
 
-    
     if cfg.loss=="cosface":
         margin_softmax = flow.nn.CombinedMarginLoss(1,0.,0.4).to("cuda")
     else:
@@ -243,18 +234,13 @@ def main(args):
     cfg.warmup_step = num_image // total_batch_size * cfg.warmup_epoch
     cfg.total_step = num_image // total_batch_size * cfg.num_epoch
 
-    def lr_step_func(current_step):
-        cfg.decay_step = [x * num_image // total_batch_size for x in cfg.decay_epoch]
-        if current_step < cfg.warmup_step:
-            return current_step / cfg.warmup_step
-        else:
-            return 0.1 ** len([m for m in cfg.decay_step if m <= current_step])
 
-    # scheduler_pfc = flow.optim.lr_scheduler.LambdaLR(
-    #     optimizer=opt_fc7, lr_lambda=lr_step_func)
-    scheduler_pfc = flow.optim.lr_scheduler.CosineDecayLR(
-        optimizer=opt_fc7, decay_steps=cfg.total_step 
-    )
+    cfg.decay_step = [x * num_image // total_batch_size for x in cfg.decay_epoch]
+
+    scheduler_pfc = flow.optim.lr_scheduler.MultiStepLR(
+        optimizer=opt_fc7, milestones= cfg.decay_step, gamma=0.1 
+    )    
+  
 
     for key, value in cfg.items():
         num_space = 25 - len(key)
@@ -263,13 +249,13 @@ def main(args):
 
 
     val_target = cfg.val_targets
-    callback_verification = CallBackVerification(100, rank, val_target, cfg.ofrecord_path,image_nums=cfg.val_image_num, world_size=world_size,is_consistent=True)
+    #callback_verification = CallBackVerification(100, rank, val_target, cfg.ofrecord_path,image_nums=cfg.val_image_num, world_size=world_size,is_consistent=True)
     callback_logging = CallBackLogging(50, rank, cfg.total_step, cfg.batch_size, world_size, None)
     callback_checkpoint = CallBackModelCheckpoint(rank, cfg.output)
 
     losses = AverageMeter()
     start_epoch = 0
-    global_step = 300
+    global_step = 0
 
 
 
@@ -279,27 +265,19 @@ def main(args):
 
 
 
-
-    #callback_verification(global_step, backbone,val_graph,is_consistent=True)
-
     for epoch in range(start_epoch, cfg.num_epoch):
         fc7.train()
 
         for steps in range(len(train_data_loader)):    
-            global_step += 1
+            
 
             loss=train_graph()
-            loss=loss.to_consistent(sbp=flow.sbp.broadcast).to_local().numpy()#*world_size
-
-
-
+            loss=loss.to_local().numpy()#*world_size
             losses.update(loss, 1)
+           
             callback_logging(global_step, losses, epoch,False, scheduler_pfc.get_last_lr()[0])
-            
-            #callback_verification(global_step, backbone,val_graph,is_consistent=True)
-            # if global_step==6000:
-                # exit()
-        callback_checkpoint(global_step, epoch, fc7)
+            global_step += 1
+        callback_checkpoint(global_step, epoch, fc7,is_consistent=True)
 
 
 

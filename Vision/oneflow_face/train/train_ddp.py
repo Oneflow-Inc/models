@@ -109,7 +109,7 @@ def main(args):
         dataset_size=cfg.num_image,
         batch_size=cfg.batch_size,
         total_batch_size=cfg.batch_size* world_size,
-        data_part_num=8
+        data_part_num=cfg.ofrecord_part_num
     )
 
 

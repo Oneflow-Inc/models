@@ -24,8 +24,8 @@ class OFRecordDataLoader(nn.Module):
             batch_size=batch_size,
             data_part_num=data_part_num,
             part_name_suffix_length=5,
-            random_shuffle=True if mode == "train" else False,
-            shuffle_after_epoch=True if mode == "train" else False,
+            random_shuffle=False if mode == "train" else False,
+            shuffle_after_epoch=False if mode == "train" else False,
             placement=placement,
             sbp=sbp,
         )
