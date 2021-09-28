@@ -35,4 +35,5 @@ python3 -m oneflow.distributed.launch \
   --type_vocab_size=2 \
   --vocab_size=30522 \
   --attention_probs_dropout_prob=0.1 \
-  --hidden_dropout_prob=0.1
+  --hidden_dropout_prob=0.1 \
+  --use_consistent
