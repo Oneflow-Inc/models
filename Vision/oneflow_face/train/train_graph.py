@@ -93,9 +93,7 @@ class FC7(flow.nn.Module):
         flow.nn.init.normal_(self.weight, mean=0, std=0.01)
 
         self.backbone=backbone.to_consistent( placement=placement, sbp = flow.sbp.broadcast)   
-        # self.weight=self.weight.to_consistent(
-        #             placement=placement, sbp=flow.sbp.split(0)
-        #         )         
+  
     
     def forward(self, x):
         x=self.backbone(x) 
@@ -104,7 +102,7 @@ class FC7(flow.nn.Module):
         weight=flow.nn.functional.l2_normalize(input=self.weight , dim=1, epsilon=1e-10)
         weight=weight.transpose(0,1) 
         x=flow.matmul(x,weight)
-       # x=x.to_consistent(placement=self.placement, sbp=flow.sbp.split(0))
+
         if x.is_consistent:
             x = x.to_consistent(sbp=flow.sbp.broadcast)
         return x
