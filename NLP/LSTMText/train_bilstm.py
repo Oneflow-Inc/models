@@ -18,13 +18,11 @@ def shuffle_batch(data, label, batch_size):
     data, label = data[permu], label[permu]
     batch_n = len(data) // batch_size
     x_batch = np.array(
-        [data[i * batch_size: i * batch_size + batch_size]
-            for i in range(batch_n)],
+        [data[i * batch_size : i * batch_size + batch_size] for i in range(batch_n)],
         dtype=np.int32,
     )
     y_batch = np.array(
-        [label[i * batch_size: i * batch_size + batch_size]
-            for i in range(batch_n)],
+        [label[i * batch_size : i * batch_size + batch_size] for i in range(batch_n)],
         dtype=np.int32,
     )
     x_batch = flow.tensor(x_batch, dtype=flow.int32).to("cuda")
@@ -55,8 +53,7 @@ def load_data():
         padding="post",
         maxlen=args.sequence_length,
     )
-    print(colored_string("Data Loading Time: %.2fs" %
-          (time.time() - start), "blue"))
+    print(colored_string("Data Loading Time: %.2fs" % (time.time() - start), "blue"))
     return train_data, train_labels, test_data, test_labels
 
 
@@ -115,8 +112,7 @@ def train_eager(args):
 
         if epoch % args.model_save_every_n_epochs == 0:
             model_eager.eval()
-            data, label = shuffle_batch(
-                test_data, test_labels, args.batch_size)
+            data, label = shuffle_batch(test_data, test_labels, args.batch_size)
             g = {"correct": 0, "total": 0}
             for i, (texts, labels) in enumerate(zip(data, label)):
                 logits = model_eager(texts)

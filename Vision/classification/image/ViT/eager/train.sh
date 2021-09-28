@@ -1,10 +1,10 @@
-export PYTHONPATH=$PWD:$PYTHONPATH
+export PYTHONPATH=$PWD:$PYTHONPATH 
 set -aux
 
 OFRECORD_PATH="ofrecord"
 if [ ! -d "$OFRECORD_PATH" ]; then
     wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/datasets/imagenette_ofrecord.tar.gz
-    tar zxf imagenette_ofrecord.tar.gz
+    tar -zxvf imagenette_ofrecord.tar.gz
 fi
 
 CHECKPOINT_PATH="checkpoints"
@@ -17,7 +17,11 @@ MOM=0.9
 EPOCH=20
 TRAIN_BATCH_SIZE=16
 VAL_BATCH_SIZE=16
+IMAGE_SIZE=224
+MODEL_ARCH='vit_b_16_224'
 
+# LOAD PREVIOUS CHECKPOINT 
+# LOAD_CHECKPOINT="/PATH/TO/CHECKPOINT"
 
 python3 eager/train.py \
     --save_checkpoint_path $CHECKPOINT_PATH \
@@ -27,6 +31,8 @@ python3 eager/train.py \
     --epochs $EPOCH \
     --train_batch_size $TRAIN_BATCH_SIZE \
     --val_batch_size $VAL_BATCH_SIZE \
-
+    --model_arch $MODEL_ARCH \
+    --image_size $IMAGE_SIZE \
+    # --load_checkpoint $LOAD_CHECKPOINT
 
 

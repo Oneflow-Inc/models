@@ -98,7 +98,7 @@ class DCGAN(flow.nn.Module):
         label1 = to_tensor(np.ones(self.batch_size), False, dtype=flow.float32).to(
             self.device
         )
-        label0 = flow.Tensor((np.zeros(self.batch_size)), dtype=flow.float32).to(
+        label0 = flow.tensor(np.zeros(self.batch_size), dtype=flow.float32).to(
             self.device
         )
         if self.label_smooth != 0:

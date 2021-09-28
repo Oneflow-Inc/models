@@ -1,3 +1,4 @@
+export PYTHONPATH=$PWD:$PYTHONPATH
 set -aux
 
 PRETRAIN_MODEL_PATH="./alexnet_oneflow_model"
