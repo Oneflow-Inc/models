@@ -17,17 +17,17 @@ tar zxf imagenette_ofrecord.tar.gz
 wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/cv/classification/inceptionv3/inceptionv3_oneflow_model.tar.gz
 ```
 
-### Run Oneflow Training script
+### Run Oneflow Eager Training script
 
 ```bash
-bash train.sh
+bash eager/train.sh
 ```
 
 
-## Inference on Single Image
+## Eager Inference on Single Image
 
 ```bash
-bash infer.sh
+bash eager/infer.sh
 ```
 
 #### Util

@@ -1,3 +1,4 @@
+export PYTHONPATH=$PWD:$PYTHONPATH 
 set -aux
 
 PRETRAIN_MODEL_PATH="./inceptionv3_oneflow_model"
@@ -15,4 +16,4 @@ if [ ! -d "$PRETRAIN_MODEL_PATH" ]; then
   tar -xzvf inceptionv3_oneflow_model.tar.gz
 fi
 
-python3 infer.py --model_path $PRETRAIN_MODEL_PATH --image_path $IMAGE_PATH
+python3 eager/infer.py --model_path $PRETRAIN_MODEL_PATH --image_path $IMAGE_PATH
