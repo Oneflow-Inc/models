@@ -1,0 +1,41 @@
+model: cnn1d
+
+# dataset
+data_path: datasets/CASIA/6  # dataset path
+class_labels: [ "angry", "fear", "happy", "neutral", "sad", "surprise" ]  # emotion labels
+
+
+# 特征存储
+feature_path: features/6-category/  # # feature saving path
+train_feature_path_opensmile: features/6-category/train_opensmile_casia.csv  # training feature path (Opensmile)
+predict_feature_path_opensmile: features/6-category/test_opensmile_casia.csv  # testing feature path (Opensmile)
+train_feature_path_librosa: features/6-category/train_librosa_casia.p  # training feature path (librosa)
+predict_feature_path_librosa: features/6-category/test_librosa_casia.p  # testing feature path (librosa)
+
+# feature extraction method
+feature_method: l  # 'o': opensmile, 'l': librosa
+
+# Opensmile configuration，only being used when 'feature_method: o'
+opensmile_config: IS10_paraling  # Opensmile standard feature sets
+opensmile_path: opensmile-2.3.0  # Opensmile site-packages's path
+
+# checkpoints
+checkpoint_path: checkpoints  # checkpoint save path
+checkpoint_name: CNN1D_OPENSMILE_IS10  # # checkpoint file name  #'CNN1D_OPENSMILE_IS10': opensmile, 'CNN1D_LIBROSA' : librosa
+
+# # training parameters
+epochs: 20  # number of epoch
+batch_size: 32
+lr: 0.001  # learning rate
+
+# model parameters
+n_kernels: 32 # number of kernals
+kernel_sizes: [ 5, 5 ]  # kernal size
+dropout: 0.5
+hidden_size: 32
+
+# test audio path
+audio_path: datasets/CASIA/6/angry/202-angry-wangzhe.wav
+
+# visualize the training process
+vis: 0
