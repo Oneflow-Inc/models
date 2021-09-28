@@ -1,3 +1,4 @@
+export PYTHONPATH=$PWD:$PYTHONPATH 
 set -aux
 
 OFRECORD_PATH="ofrecord"
