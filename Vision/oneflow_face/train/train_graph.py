@@ -103,8 +103,8 @@ class FC7(flow.nn.Module):
         weight=weight.transpose(0,1) 
         x=flow.matmul(x,weight)
 
-        if x.is_consistent:
-            x = x.to_consistent(sbp=flow.sbp.broadcast)
+        # if x.is_consistent:
+            # x = x.to_consistent(sbp=flow.sbp.split(1))
         return x
 
 
