@@ -8,9 +8,7 @@
 We implemented our model with reference to `torch.nn.modules.transformer`, which is composed of `Transformer`, `TransformerEncoder`, `TransformerDecoder`, `TransformerEncoderLayer`,
 `TransformerDecoderLayer`.
 
-Note that Modules in oneflow do not support `copy.deepcopy`, thus there are some differences when initializing these models between torch's Transformer and ours. What's more, we do not need paramerters `device` and `dtype` in oneflow.
-
-Also, We found out that `oneflow.nn.LayerNorm` suffers from some problems so that when training with GPU, the model won't converge properly. And function `logical_or` haven't been implemented yet in oneflow. Therefore we put thems in `dev_ops.py` to ensure we can run our `Transformer` correctly. `dev_ops.py` will be removed when these problems are fixed.
+There are some differences between pytorch's model and ours. For `attention mask`, we only allow its dtype to be `oneflow.int32`, `oneflow.int64` or `oneflow.int8`.
 
 ## Task 1 - Text Classfication
 
@@ -22,7 +20,7 @@ We use Imdb dataset to test our model first.
 mkdir datasets; cd datasets;
 wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/datasets/models/Imdb_ofrecord.tar.gz
 tar zxf Imdb_ofrecord.tar.gz
-``
+```
 
 ### Traininig
 
@@ -97,7 +95,7 @@ Note that the default parameters are following:
 
 ```bash
 BATCH_SIZE=128
-EPOCH=20
+EPOCH=30
 LEARNING_RATE=0.0001
 
 VOCAB_SZ=10000

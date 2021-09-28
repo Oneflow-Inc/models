@@ -77,14 +77,11 @@ class TransformerModel(nn.Module):
         self.src_embedding = Embeddings(input_sz, d_model)
         self.tgt_embedding = Embeddings(output_sz, d_model)
 
-    @staticmethod
-    def generate_subsequent_mask(tgt_len, src_len):
-        mask = flow.triu(flow.ones((tgt_len, src_len)), 1)
-        mask = mask.masked_fill(mask.to(flow.int32), float("-inf"))
+    def generate_subsequent_mask(self, tgt_len, src_len):
+        mask = flow.triu(flow.ones((tgt_len, src_len)), 1).to(flow.int32)
         return mask
 
-    @staticmethod
-    def make_len_mask(inp):
+    def make_len_mask(self, inp):
         inp_mask = (inp.numpy() == 0).astype(np.int32)
         inp_mask = flow.tensor(inp_mask, dtype=flow.int32)
         return inp_mask.transpose(0, 1)
