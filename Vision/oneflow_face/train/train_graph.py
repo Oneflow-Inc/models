@@ -101,10 +101,12 @@ class FC7(flow.nn.Module):
         x=flow.nn.functional.l2_normalize(input=x , dim=1, epsilon=1e-10)
         weight=flow.nn.functional.l2_normalize(input=self.weight , dim=1, epsilon=1e-10)
         weight=weight.transpose(0,1) 
+        if x.is_consistent:
+            x = x.to_consistent(sbp=flow.sbp.broadcast)        
+        
+        
         x=flow.matmul(x,weight)
 
-        # if x.is_consistent:
-            # x = x.to_consistent(sbp=flow.sbp.split(1))
         return x
 
 
