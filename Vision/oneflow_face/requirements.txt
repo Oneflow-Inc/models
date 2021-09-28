@@ -1,6 +1,5 @@
 numpy
 matplotlib
-torch
 Pillow
 opencv-python
 scikit-learn
