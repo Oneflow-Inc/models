@@ -48,6 +48,15 @@ export PYTHONUNBUFFERED=1
 python3 run_eager_pretraining.py \
     --train-batch-size 32 \
     --lr 0.001 \
+    --num_hidden_layers 12 \
+    --num_attention_heads 12 \
+    --max_position_embeddings 512 \
+    --seq_length 128 \
+    --vocab_size 30522 \
+    --type_vocab_size 2 \
+    --attention_probs_dropout_prob 0.1 \
+    --hidden_dropout_prob 0.1 \
+    --max_predictions_per_seq 20 \
     --ofrecord_path /dataset/bert/of_wiki_seq_len_128 \
     2>&1 | tee bert_eager_pretrain.log
 ```
@@ -60,6 +69,15 @@ python3 run_pretraining.py \
     --train-batch-size 32 \
     --lr 0.001 \
     --use_consistent \
+    --num_hidden_layers 12 \
+    --num_attention_heads 12 \
+    --max_position_embeddings 512 \
+    --seq_length 128 \
+    --vocab_size 30522 \
+    --type_vocab_size 2 \
+    --attention_probs_dropout_prob 0.1 \
+    --hidden_dropout_prob 0.1 \
+    --max_predictions_per_seq 20 \
     --ofrecord_path /dataset/bert/of_wiki_seq_len_128 \
     2>&1 | tee bert_graph_pretrain.log
 ```
@@ -89,6 +107,15 @@ python3 -m oneflow.distributed.launch \
     --train-batch-size 16 \
     --lr 0.001 \
     --use_ddp \
+    --num_hidden_layers 12 \
+    --num_attention_heads 12 \
+    --max_position_embeddings 512 \
+    --seq_length 128 \
+    --vocab_size 30522 \
+    --type_vocab_size 2 \
+    --attention_probs_dropout_prob 0.1 \
+    --hidden_dropout_prob 0.1 \
+    --max_predictions_per_seq 20 \
     --ofrecord_path /dataset/bert/of_wiki_seq_len_128 2>&1 | tee bert_eager_ddp_pretrain.log
 ```
 
@@ -107,10 +134,19 @@ python3 -m oneflow.distributed.launch \
     --lr 0.001 \
     --use_consistent \
     --use_fp16 \
+    --num_hidden_layers 12 \
+    --num_attention_heads 12 \
+    --max_position_embeddings 512 \
+    --seq_length 128 \
+    --vocab_size 30522 \
+    --type_vocab_size 2 \
+    --attention_probs_dropout_prob 0.1 \
+    --hidden_dropout_prob 0.1 \
+    --max_predictions_per_seq 20 \
     --ofrecord_path /dataset/bert/of_wiki_seq_len_128 2>&1 | tee bert_graph_consistent_pretrain.log
 ```
 
-**Explaination of command parameters for train_config.py script**
+**Explaination of command parameters for pretrain bert script**
 
 ```
 --ofrecord_path                 Path to ofrecord dataset

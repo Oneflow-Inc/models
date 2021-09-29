@@ -17,6 +17,15 @@ python3 -m oneflow.distributed.launch \
     --node_rank $_NODE_RANK \
     --master_addr $_MASTER_ADDR \
     run_pretraining.py \
+    --num_hidden_layers 12 \
+    --num_attention_heads 12 \
+    --max_position_embeddings 512 \
+    --seq_length 128 \
+    --vocab_size 30522 \
+    --type_vocab_size 2 \
+    --attention_probs_dropout_prob 0.1 \
+    --hidden_dropout_prob 0.1 \
+    --max_predictions_per_seq 20 \
     --ofrecord_path $train_data_dir \
     --train-batch-size $_BATCH_SIZE_PER_GPU \
     --lr $_LR \

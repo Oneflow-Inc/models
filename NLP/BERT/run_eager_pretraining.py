@@ -2,7 +2,7 @@
 import time
 from functools import partial
 
-from train_config import get_config
+from run_pretraining import get_config
 import numpy as np
 import oneflow as flow
 from oneflow.nn.parallel import DistributedDataParallel as ddp
