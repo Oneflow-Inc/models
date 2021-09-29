@@ -213,6 +213,9 @@ class UNet(nn.Module):
 
 def main(args):
     x_train_dir, y_train_dir = get_datadir_path(args, split='train')
+    if not os.path.exists(args.save_checkpoint_path):
+        os.mkdir(args.save_checkpoint_path)
+
     train_dataset = Dataset(
         x_train_dir, y_train_dir, augmentation=get_training_augmentation(),
     )
@@ -257,9 +260,9 @@ def main(args):
                 loss.numpy(),
                 lr
             ))
-        filename = "UNetmodel-" + str(i)
+        filename = "UNetmodel_Epoch_" + str(i)
         save_checkpoint_path = args.save_checkpoint_path
-        flow.save(net.state_dict(), save_checkpoint_path + filename)
+        flow.save(net.state_dict(), os.path.join(save_checkpoint_path ,filename))
         print("save net successfully!")
 
 if __name__ == "__main__":
