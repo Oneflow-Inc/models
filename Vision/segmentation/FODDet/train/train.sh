@@ -1,6 +1,12 @@
 export PYTHONPATH=$PWD:$PYTHONPATH
 set -aux
 
+OFRECORD_PATH="CamVid"
+if [ ! -d "$OFRECORD_PATH" ]; then
+    wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/datasets/models/seg/FODDET/CamVid.zip
+    unzip CamVid.zip
+fi
+
 
 LEARNING_RATE=0.001
 EPOCH=50
