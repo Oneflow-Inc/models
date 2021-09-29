@@ -1,25 +1,53 @@
 import os
-
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 import cv2
 import numpy as np
+import argparse
 
 import oneflow as flow
 import oneflow.nn as nn
 import albumentations as albu
-import oneflow.utils.data as data
-from oneflow._oneflow_internal import float32
+import oneflow.utils.data as flow_data
 
-DATA_DIR = ".../data/CamVid"
 
-x_train_dir = os.path.join(DATA_DIR, "train")
-y_train_dir = os.path.join(DATA_DIR, "train_labels")
+def _parse_args():
+    parser = argparse.ArgumentParser("flags for train FODDet")
+    parser.add_argument(
+        "--save_checkpoint_path",
+        type=str,
+        default="./checkpoints",
+        help="save checkpoint root dir",
+    )
+    parser.add_argument(
+        "--load_checkpoint", type=str, default="", help="load checkpoint"
+    )
+    parser.add_argument(
+        "--data_dir", type=str, default="./CamVid", help="dataset path"
+    )
+    # training hyper-parameters
+    parser.add_argument(
+        "--learning_rate", type=float, default=0.001, help="learning rate"
+    )
+    parser.add_argument("--weight_decay", type=float, default=1e-8, help="weight decay")
+    parser.add_argument("--epochs", type=int, default=50, help="training epochs")
+    parser.add_argument(
+        "--train_batch_size", type=int, default=8, help="train batch size"
+    )
+    parser.add_argument("--val_batch_size", type=int, default=32, help="val batch size")
 
-x_valid_dir = os.path.join(DATA_DIR, "valid")
-y_valid_dir = os.path.join(DATA_DIR, "valid_labels")
+    return parser.parse_args() 
 
-x_test_dir = os.path.join(DATA_DIR, "test")
-y_test_dir = os.path.join(DATA_DIR, "test_labels")
+def get_datadir_path(args, split='train'):
+    assert split in ['train', 'val', 'test']
+    if split == 'train':
+        x_dir = os.path.join(args.data_dir, "train")
+        y_dir = os.path.join(args.data_dir, "train_labels")
+    elif split == 'val':
+        x_dir = os.path.join(args.data_dir, "val")
+        y_dir = os.path.join(args.data_dir, "valid_labels")
+    elif split == 'test':
+        x_dir = os.path.join(args.data_dir, "test")
+        y_dir = os.path.join(args.data_dir, "test_labels") 
+    return x_dir, y_dir     
 
 
 class Dataset(flow.utils.data.Dataset):
@@ -79,11 +107,6 @@ def get_test_augmentation():
         albu.Resize(height=320, width=320, always_apply=True),
     ]
     return albu.Compose(train_transform)
-
-
-augmented_dataset = Dataset(
-    x_train_dir, y_train_dir, augmentation=get_training_augmentation(),
-)
 
 
 class DoubleConv(nn.Module):
@@ -188,43 +211,60 @@ class UNet(nn.Module):
         logits = self.out(logits)
         return logits
 
+def main(args):
+    x_train_dir, y_train_dir = get_datadir_path(args, split='train')
+    if not os.path.exists(args.save_checkpoint_path):
+        os.mkdir(args.save_checkpoint_path)
 
-train_dataset = Dataset(
-    x_train_dir, y_train_dir, augmentation=get_training_augmentation(),
-)
-batch_size = 8
-train_loader = data.DataLoader(train_dataset, batch_size, shuffle=True)
+    train_dataset = Dataset(
+        x_train_dir, y_train_dir, augmentation=get_training_augmentation(),
+    )
+    batch_size = args.train_batch_size
+    train_loader = flow_data.DataLoader(train_dataset, batch_size, shuffle=True)
 
-net = UNet(n_channels=3, n_classes=1)
-net.to("cuda:0")
+    net = UNet(n_channels=3, n_classes=1)
+    net.to("cuda")
 
-lr = 0.001
-optimizer = flow.optim.RMSprop(net.parameters(), lr, weight_decay=1e-8)
+    lr = args.learning_rate
+    optimizer = flow.optim.RMSprop(net.parameters(), lr, weight_decay=args.weight_decay)
 
-criterion = nn.BCELoss()
-epoch = 50
+    criterion = nn.BCELoss()
+    epoch = args.epochs
+    num_steps = len(train_loader)
+    for i in range(epoch):
 
-for i in range(epoch):
+        net.train()
+        epoch_loss = 0
 
-    net.train()
-    epoch_loss = 0
+        for step, data in enumerate(train_loader):
+            images, labels = data
+            images = images.permute(0, 3, 1, 2)
+            images = images / 255.0
+            images = images.to("cuda", dtype=flow.float32)
+            labels = labels.to("cuda", dtype=flow.float32)
 
-    for data in train_loader:
-        images, labels = data
-        images = images.permute(0, 3, 1, 2)
-        images = images / 255.0
-        images = images.to("cuda", dtype=float32)
-        labels = labels.to("cuda", dtype=float32)
+            pred = net(images)
+            loss = criterion(pred, labels)
+            epoch_loss += loss.numpy()
 
-        pred = net(images)
-        loss = criterion(pred, labels)
-        epoch_loss += loss.numpy()[0]
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
 
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-        print("epoch", i, "loss: ", loss.numpy()[0])
-    filename = "UNetmodel-" + str(i)
-    save_checkpoint_path = ".../result/"
-    flow.save(net.state_dict(), save_checkpoint_path + filename)
-    print("save net successfully!")
+            lr = optimizer.param_groups[0]["lr"]
+            print("Train:[%d/%d][%d/%d] Training Loss: %.4f Lr: %.6f" % (
+                (i + 1),
+                args.epochs,
+                step,
+                num_steps,
+                loss.numpy(),
+                lr
+            ))
+        filename = "UNetmodel_Epoch_" + str(i)
+        save_checkpoint_path = args.save_checkpoint_path
+        flow.save(net.state_dict(), os.path.join(save_checkpoint_path ,filename))
+        print("save net successfully!")
+
+if __name__ == "__main__":
+    args = _parse_args()
+    main(args)
