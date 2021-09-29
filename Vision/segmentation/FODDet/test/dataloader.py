@@ -1,22 +1,22 @@
 import os
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 import cv2
 import oneflow as flow
 import albumentations as albu
 import oneflow.utils.data as data
 
-
-DATA_DIR = ".../data/CamVid"
-
-x_train_dir = os.path.join(DATA_DIR, "train")
-y_train_dir = os.path.join(DATA_DIR, "train_labels")
-
-x_valid_dir = os.path.join(DATA_DIR, "valid")
-y_valid_dir = os.path.join(DATA_DIR, "valid_labels")
-
-x_test_dir = os.path.join(DATA_DIR, "test")
-y_test_dir = os.path.join(DATA_DIR, "test_labels")
+def get_datadir_path(args, split='train'):
+    assert split in ['train', 'val', 'test']
+    if split == 'train':
+        x_dir = os.path.join(args.data_dir, "train")
+        y_dir = os.path.join(args.data_dir, "train_labels")
+    elif split == 'val':
+        x_dir = os.path.join(args.data_dir, "val")
+        y_dir = os.path.join(args.data_dir, "valid_labels")
+    elif split == 'test':
+        x_dir = os.path.join(args.data_dir, "test")
+        y_dir = os.path.join(args.data_dir, "test_labels") 
+    return x_dir, y_dir  
 
 
 class Dataset(flow.utils.data.Dataset):
@@ -78,6 +78,3 @@ def get_test_augmentation():
     return albu.Compose(train_transform)
 
 
-augmented_dataset = Dataset(
-    x_train_dir, y_train_dir, augmentation=get_training_augmentation(),
-)

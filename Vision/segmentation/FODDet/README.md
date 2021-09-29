@@ -18,7 +18,7 @@ Download required dataset from the following link:
 
 ## Trained Models
 Download pretrained model from the following link:
-[https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/cv/seg/FODDET/UNetmodel.rar](https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/cv/seg/FODDET/UNetmodel.rar)
+[https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/cv/seg/FODDET/UNetmodel.zip](https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/cv/seg/FODDET/UNetmodel.zip)
 
 ## Code Function Introduction
 
@@ -27,13 +27,13 @@ Download pretrained model from the following link:
 - The test code `test.py` mainly visualizes the segmentation effect, and the code content mainly includes the import of the trained model and the test process.You can download the trained model and use it directly.
 
 ## Training Scripts 
-
- ` bash train/train.sh`
-
+```
+$ bash train/train.sh
+```
 ## Test Images
-
- ` bash test_oneflow.sh`
-
+```
+$ bash test/test.sh
+```
 ## Demonstration
 The following shows some results of road image segmentation.
 
