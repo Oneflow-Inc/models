@@ -21,21 +21,18 @@ def main():
 
     parser.add_argument("--seq_len", type=int, default=128, help="maximum sequence len")
 
-    parser.add_argument("--batch_size", type=int, default=1, help="number of batch_size")
-    parser.add_argument("--epochs", type=int, default=10, help="number of epochs")
+    parser.add_argument("--batch_size", type=int, default=8, help="number of batch_size")
+    parser.add_argument("--epochs", type=int, default=5, help="number of epochs")
     parser.add_argument("--num_workers", type=int, default=0, help="dataloader worker size")
 
-    parser.add_argument("--with_cuda", type=bool, default=True, help="training with CUDA: true, or false")
-
-    parser.add_argument("--lr", type=float, default=1e-3, help="learning rate of adam")
+    parser.add_argument("--lr", type=float, default=3e-4, help="learning rate of adam")
     parser.add_argument("--adam_weight_decay", type=float, default=0.01, help="weight_decay of adam")
-    parser.add_argument("--adam_beta1", type=float, default=0.9, help="adam first beta value")
+    parser.add_argument("--adam_beta1", type=float, default=0.98, help="adam first beta value")
     parser.add_argument("--adam_beta2", type=float, default=0.999, help="adam first beta value")
-    parser.add_argument("--device_id", type=int, default=0)
+    parser.add_argument("--warmup_steps", type=int, default=1000, help="warmup steps")
+    parser.add_argument("--accumulate_gradient_steps", type=int, default=1, help="accumulate gradient steps")
 
     args = parser.parse_args()
-
-    device = flow.device(f"cuda:{args.device_id}" if args.device_id >= 0 else "cpu")
 
     print("building tokenizer")
     tokenizer = build_tokenizer(vocab_file=args.vocab_file, merges_file=args.merges_file, tokenizer_type="GPT2BPETokenizer")
@@ -55,20 +52,24 @@ def main():
     print("building model")
     config = GPT2Config()
     model = GPT2LMHeadModel(config)
+    # model.load_state_dict(flow.load("gpt2_oneflow_model"))
+    model.lm_head.weight = model.transformer.wte.weight
 
     trainer = Trainer(
         model,
         train_dataloader=train_data_loader,
         test_dataloader=test_data_loader,
+        epoch=args.epochs,
         lr=args.lr,
         betas=(args.adam_beta1, args.adam_beta2),
         weight_decay=args.adam_weight_decay,
-        device=device,
-        output_path=args.output_path
+        warmup_steps=args.warmup_steps,
+        accumulate_gradient_steps=args.accumulate_gradient_steps,
+        output_path=args.output_path,
     )
 
     print("begin training")
-    trainer.train(args.epochs)
+    trainer.train()
 
 if __name__=='__main__':
     main()

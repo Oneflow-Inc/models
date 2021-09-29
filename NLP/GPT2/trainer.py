@@ -1,7 +1,10 @@
 import tqdm
 
+from typing import Optional
+
 import oneflow as flow
 import oneflow.nn as nn
+from optimization import get_scheduler
 
 class AverageMeter(object):
     """Computes and stores the average and current value"""
@@ -35,11 +38,12 @@ class Trainer:
         model,
         train_dataloader=None,
         test_dataloader=None,
+        epoch: int = 1,
         lr: float = 1e-4,
         betas=(0.9, 0.999),
         weight_decay: float = 0.01,
-        warmup_steps=10000,
-        device=None,
+        warmup_steps: Optional[int] = None,
+        accumulate_gradient_steps: int = 1,
         output_path=None,
     ):
         """
@@ -51,51 +55,62 @@ class Trainer:
         :param weight_decay: Adam optimizer weight decay param
         """
 
-        self.device = flow.device("cpu") if device is None else device
-        self.model = model
-        self.model.to(self.device)
+        self.model = model.cuda()
+        self.output_path = output_path
 
         # Setting the train and test data loader
         self.train_dataloader = train_dataloader
         self.test_dataloader = test_dataloader
+        self.epoch = epoch
+        self.accumulate_gradient_steps = accumulate_gradient_steps
 
         # # Setting the Adam optimizer with hyper-param
         self.optimizer = flow.optim.Adam(self.model.parameters(), lr=lr, betas=betas, weight_decay=weight_decay)
-        # self.lr_scheduler = flow.optim.lr_scheduler.CosineAnnealingLR(optimizer, steps=10000, alpha=0.0)
+
+        total_train_steps = len(self.train_dataloader) * self.epoch
+        self.lr_scheduler = get_scheduler('linear', self.optimizer, num_warmup_steps=warmup_steps, num_training_steps=total_train_steps)
         print("Total Parameters:", sum([p.nelement() for p in self.model.parameters()]))
 
-    def train(self, epoch):
-        for i in range(epoch):
+    def train(self):
+        for i in range(self.epoch):
             self.train_single_epoch(self.train_dataloader, i)
             self.evaluate(self.test_dataloader, i)
-            self.save(self, epoch, file_path="checkpoints")
+            self.save(i + 1, file_path="checkpoints/")
+        flow.save(self.model.state_dict(), self.output_path)
 
-    def test(self, epoch):
-        self.evaluate(self.test_dataloader, epoch)
+    def test(self):
+        self.evaluate(self.test_dataloader)
 
     def train_single_epoch(self, data_loader, epoch):
         self.model.train()
 
         losses = AverageMeter("loss")
 
-        # self.optimizer.zero_grad()
+        self.optimizer.zero_grad()
         data_iter = tqdm.tqdm(data_loader, desc="Training: %0d" % (epoch), total=len(data_loader))
         for step, batch in enumerate(data_iter):
             inputs, labels = (batch, batch)
-            inputs = inputs.to(self.device)
-            labels = labels.to(self.device)
-            outputs = self.model(inputs, None, None, labels)
+            inputs = inputs.cuda()
+            labels = labels.cuda()
+            outputs = self.model(inputs, labels=labels)
             loss = outputs[0]
 
-            loss.backward()
-            # self.lr_scheduler.step()
-            self.optimizer.step()
-            self.optimizer.zero_grad()
+            losses.update(loss.numpy().item())
 
-            loss_item = loss.numpy().item()
-            losses.update(loss_item)
+            if step % self.accumulate_gradient_steps == 0:
+                loss.backward()
+                self.optimizer.step()
+                self.lr_scheduler.step()
+                self.optimizer.zero_grad()
 
-            data_iter.write("Epoch:%0d, step:%000d, avg_loss:%.4f, loss:%.4f" % (epoch, step, losses.avg, losses.val))
+            logging = {
+                'epoch': epoch,
+                'step': step,
+                'avg_loss': losses.avg,
+                'loss': losses.val,
+                'lr': self.lr_scheduler.get_lr()[0]
+            }
+            data_iter.set_postfix(logging)
 
         print("Training:%0d, avg_loss:%.4f" % (epoch, losses.avg))
 
@@ -105,20 +120,28 @@ class Trainer:
 
         data_iter = tqdm.tqdm(data_loader, desc="Evaluate: ", total=len(data_loader))
         for step, batch in enumerate(data_iter):
-            inputs, labels = (batch, batch)
-            inputs = inputs.to(self.device)
-            labels = labels.to(self.device)
-            outputs = self.model(inputs, labels)
+            with flow.no_grad():
+                inputs, labels = (batch, batch)
+                inputs = inputs.cuda()
+                labels = labels.cuda()
+                outputs = self.model(inputs, labels=labels)
             loss = outputs[0]
             
             loss_item = loss.numpy().item()
             losses.update(loss_item)
-            data_iter.write("Epoch:%0d, step:%000d, avg_loss:%.4f, loss:%.4f" % (epoch, step, losses.avg, losses.val))
+
+            logging = {
+                'epoch': epoch,
+                'step': step,
+                'avg_loss': losses.avg,
+                'loss': losses.val,
+            }
+            data_iter.set_postfix(logging)
 
         print("Evaluating:%0d, avg_loss:%.4f" % (epoch, losses.avg))
 
 
-    def save(self, epoch, file_path="checkpoints"):
+    def save(self, epoch, file_path="checkpoints/"):
         """
         Saving the current model on file_path
 

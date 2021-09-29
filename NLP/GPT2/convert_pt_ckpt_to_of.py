@@ -54,8 +54,8 @@ def convert_pt_checkpoint_to_pt(model, pt_checkpoint_path="gpt2-pytorch_model.bi
         if key in keys_to_ignore:
                 continue
         if "num_batches_tracked" not in key:
-            val = value.detach().cpu().numpy()
+            val = value.detach().cpu()
             new_parameters[key] = val
     model.transformer.load_state_dict(new_parameters, strict=False)
-    model.tie_embeddings()
+    # model.tie_embeddings()
     torch.save(model.state_dict(), new_checkpoint_path)
