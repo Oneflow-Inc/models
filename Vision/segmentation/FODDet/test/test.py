@@ -5,6 +5,7 @@ from dataloader import get_datadir_path, get_test_augmentation, Dataset
 from model.UNet import UNet
 from visualize import visualize
 import oneflow as flow
+from tqdm import tqdm
 
 def _parse_args():
     parser = argparse.ArgumentParser("flags for test FODDet")
@@ -41,7 +42,8 @@ def main(args):
         augmentation=get_test_augmentation(),
     )
 
-    for i, (image, mask) in enumerate(test_dataset):
+    print("Begin Testing...")
+    for i, (image, mask) in enumerate(tqdm(test_dataset)):
         show_image = image
         with flow.no_grad():
             image = image / 255.0
@@ -49,7 +51,6 @@ def main(args):
             image = flow.tensor(image, dtype=flow.float32)
             image = image.permute(2, 0, 1)
             image = image.to("cuda")
-            print(image.shape)
 
             pred = net(image.unsqueeze(0).to("cuda"))
             pred = pred.numpy()
