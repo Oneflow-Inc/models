@@ -28,7 +28,7 @@ Download pretrained model from the following link:
 
 ## Training Scripts 
 
- ` bash train_oneflow.sh`
+ ` bash train/train.sh`
 
 ## Test Images
 
