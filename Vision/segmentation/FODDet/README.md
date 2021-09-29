@@ -3,19 +3,21 @@ A simple and effective road semantic segmentation model, easy to use, very suita
 
 ## Installation
 
-The code requires the following libraries:
-
-- **numpy**   
+Install OneFlow:
 - **oneflow**   0.5.0.dev20210801+cu102
-- **cv2**   
-- **matplotlib**   
-- **albumentations**   
+
+Install other requirements
+```
+$ pip install -r requirements.txt
+```    
 
 
 ## Dataset
-[https://oneflow-public.oss-cn-beijing.aliyuncs.com/datasets/models/seg/FODDET/CamVid.rar](https://oneflow-public.oss-cn-beijing.aliyuncs.com/datasets/models/seg/FODDET/CamVid.rar)
+Download required dataset from the following link:
+[https://oneflow-public.oss-cn-beijing.aliyuncs.com/datasets/models/seg/FODDET/CamVid.zip](https://oneflow-public.oss-cn-beijing.aliyuncs.com/datasets/models/seg/FODDET/CamVid.zip)
 
 ## Trained Models
+Download pretrained model from the following link:
 [https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/cv/seg/FODDET/UNetmodel.rar](https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/cv/seg/FODDET/UNetmodel.rar)
 
 ## Code Function Introduction
