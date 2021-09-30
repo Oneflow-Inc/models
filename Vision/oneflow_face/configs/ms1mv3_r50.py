@@ -7,11 +7,12 @@ from easydict import EasyDict as edict
 config = edict()
 config.loss = "cosface"
 config.network = "r50"
-config.resume =True
-config.output ="eager_third"
+config.resume =False
+config.output ="graph_sbp_split"
 config.embedding_size = 512
 config.sample_rate = 1.0
-config.fp16 = True
+config.fp16 = False
+config.model_parallel=True
 config.momentum = 0.9
 config.weight_decay = 5e-4
 config.batch_size = 128
@@ -24,9 +25,9 @@ config.lr = 0.1  # batch size is 512
 config.ofrecord_path="/data/insightface/ms1m-retinaface-t1/ofrecord"
 config.num_classes = 93431
 config.num_image = 5179510
-config.num_epoch = 25-6
+config.num_epoch = 25
 config.warmup_epoch = -1
-config.decay_epoch = [10-6, 16-6, 22-6]
+config.decay_epoch = [10, 16, 22]
 #config.decay_epoch = [7, 13]
 
 config.ofrecord_part_num=32
