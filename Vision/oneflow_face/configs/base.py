@@ -14,6 +14,10 @@ config.dataset = "ms1m-retinaface-t1"
 config.embedding_size = 512
 config.sample_rate = 1
 config.fp16 = False
+config.model_parallel=False
+
+
+
 config.momentum = 0.9
 config.weight_decay = 5e-4
 config.batch_size = 128
