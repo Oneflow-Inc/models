@@ -11,6 +11,7 @@ export NCCL_LAUNCH_MODE=GROUP
 echo NCCL_LAUNCH_MODE=$NCCL_LAUNCH_MODE
 export NCCL_DEBUG=INFO
 export ONEFLOW_DEBUG_MODE=True
+export ONEFLOW_COMM_NET_IB_ENABLE=True
 
 DATASET=/data/gpt/gpt_sample_dataset_text_document
 SEQ_LEN=2048
@@ -27,8 +28,6 @@ LOG_INTERVAL=10
 
 # SRC_DIR=/path/to/models/resnet50
 SRC_DIR=$(realpath $(dirname $0)/..)
-
-export ONEFLOW_COMM_NET_IB_ENABLE=True
 
 python3 -m oneflow.distributed.launch \
     --nproc_per_node $DEVICE_NUM_PER_NODE \
