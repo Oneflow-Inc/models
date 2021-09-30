@@ -16,9 +16,9 @@ python3 -m oneflow.distributed.launch \
         --hidden_size 1024 \
         --deep_embedding_vec_size 16 \
         --batch_size 16384 \
-        --print_interval 1000 \
+        --print_interval 1 \
         --deep_dropout_rate 0.5 \
-        --max_iter 20000 \
+        --max_iter 100 \
         --execution_mode 'eager' \
         --test_name 'n1g1_eager_mem' \
         --model_load_dir "/home/shiyunxiao/checkpoint_new" \
