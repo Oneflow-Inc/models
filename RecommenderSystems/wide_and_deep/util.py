@@ -115,7 +115,12 @@ def merge_param_from_old_version(src, dst):
         dst_file = os.path.join(dst, new_name)
         copytree(src_file, dst_file)
         print(src_file, dst_file)
-
+    
+    for new_name, old_name in param_list:
+        src_file = os.path.join('/home/shiyunxiao/checkpoints/initial_checkpoint', new_name+'/meta')
+        dst_file = os.path.join('/home/shiyunxiao/checkpoint_new', new_name+'/meta')
+        copy(src_file, dst_file)
+        print(src_file, dst_file)
 
 if __name__ == "__main__":
     # walk_compare_npy("output/old_0", "output/0")

@@ -34,7 +34,8 @@ class OFRecordDataLoader(nn.Module):
         if is_consistent == True:
             placement = flow.placement("cpu", {0: range(flow.env.get_world_size())})
             sbp = flow.sbp.split(0)
-        shuffle = mode == "train"
+        #shuffle = mode == "train"
+        shuffle = False
         self.reader = nn.OfrecordReader(
             os.path.join(data_root, mode),
             batch_size=batch_size,

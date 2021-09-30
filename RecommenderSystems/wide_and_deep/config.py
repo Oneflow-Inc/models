@@ -38,7 +38,7 @@ def get_args(print_args=True):
     )
     parser.add_argument("--num_dataloader_thread_per_gpu", type=int, default=2)
     parser.add_argument(
-        "--data_dir", type=str, default="/dataset/wdl_ofrecord/ofrecord"
+        "--data_dir", type=str, default="/data/wdl_ofrecord"
     )
     parser.add_argument("--print_interval", type=int, default=1000)
     parser.add_argument("--eval_batchs", type=int, default=20)
@@ -75,6 +75,10 @@ def get_args(print_args=True):
     parser.add_argument(
         "--execution_mode", type=str, default="eager", help="graph or eager"
     )
+    parser.add_argument(
+        "--test_name", type=str, default="noname_test"
+    )
+    
 
     FLAGS = parser.parse_args()
     if print_args:
