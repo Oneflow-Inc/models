@@ -20,7 +20,10 @@ def predict(config) -> None:
     # utils.play_audio(audio_path)
     if config.feature_method == "o":
         of.get_data(
-            config, config.audio_path, config.predict_feature_path_opensmile, train=False
+            config,
+            config.audio_path,
+            config.predict_feature_path_opensmile,
+            train=False,
         )
         test_feature = of.load_feature(
             config, config.predict_feature_path_opensmile, train=False
@@ -35,10 +38,12 @@ def predict(config) -> None:
 
     n_feats = test_feature.shape[2]
 
-    if config.model=='lstm':
+    if config.model == "lstm":
         model = lstm_ser(n_feats, config.rnn_size, len(config.class_labels), 1)
     else:
-        model = cnn1d_ser(1, config.n_kernels, n_feats, config.hidden_size, len(config.class_labels))
+        model = cnn1d_ser(
+            1, config.n_kernels, n_feats, config.hidden_size, len(config.class_labels)
+        )
     SER_model = model
     SER_model.to("cuda")
 

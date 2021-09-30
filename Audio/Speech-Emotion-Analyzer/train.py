@@ -58,10 +58,14 @@ def train_eval(config):
     train_iter = DataLoader(train_dataset, batch_size=config.batch_size, shuffle=True)
     test_iter = DataLoader(test_dataset, batch_size=config.batch_size, shuffle=True)
 
-    if config.model=='lstm':
-        model = lstm_ser( n_feats, config.rnn_size, len(config.class_labels), config.batch_size)
+    if config.model == "lstm":
+        model = lstm_ser(
+            n_feats, config.rnn_size, len(config.class_labels), config.batch_size
+        )
     else:
-        model = cnn1d_ser(1, config.n_kernels, n_feats, config.hidden_size, len(config.class_labels))
+        model = cnn1d_ser(
+            1, config.n_kernels, n_feats, config.hidden_size, len(config.class_labels)
+        )
 
     loss_fn = nn.CrossEntropyLoss()
     model.to("cuda")
@@ -151,10 +155,11 @@ def train_eval(config):
 
     # Visualize the training process
     if config.vis:
-        curve(train_acc, test_acc, 'Accuracy', 'acc')
-        curve(train_loss, test_loss, 'Loss', 'loss')
+        curve(train_acc, test_acc, "Accuracy", "acc")
+        curve(train_loss, test_loss, "Loss", "loss")
 
     return train_loss, test_loss, train_acc, test_acc
+
 
 config = parse_opt()
 train_eval(config)

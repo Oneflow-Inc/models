@@ -10,6 +10,9 @@ from modeling import BertForPreTraining
 def _parse_args():
     parser = argparse.ArgumentParser("flags for test bert")
     parser.add_argument("--model_path", type=str, metavar="DIR", help="model path")
+    parser.add_argument(
+        "--use_lazy_model", type=bool, default=False, help="if loading from lazy model"
+    )
     parser.add_argument("--device", type=str, default="cuda", help="model device")
     parser.add_argument(
         "--hidden_size", type=int, default=768, help="Hidden size of transformer model",
@@ -69,7 +72,14 @@ def inference(args):
     print("Initialize model using time: {:.3f}s".format(end_t - start_t))
 
     start_t = time.time()
-    bert_module.load_state_dict(flow.load(args.model_path))
+    if args.use_lazy_model:
+        from utils.compare_lazy_outputs import load_params_from_lazy
+
+        load_params_from_lazy(
+            bert_module.state_dict(), args.model_path,
+        )
+    else:
+        bert_module.load_state_dict(flow.load(args.model_path))
     end_t = time.time()
     print("Loading parameters using time: {:.3f}s".format(end_t - start_t))
 
