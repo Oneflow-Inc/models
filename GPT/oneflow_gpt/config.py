@@ -620,14 +620,6 @@ def _add_data_args(parser):
 def _add_misc_args(parser):
     group = parser.add_argument_group(title="misc")
     group.add_argument(
-        "--profile-transformer-layer",
-        action="store_true",
-        help="open transformer layer profiler",
-    )
-    group.add_argument(
-        "--use-rdma", action="store_true", help="Use rdma.",
-    )
-    group.add_argument(
         "--graph", action="store_true", help="Use graph mode.",
     )
     return parser

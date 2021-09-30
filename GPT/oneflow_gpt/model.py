@@ -354,7 +354,7 @@ class SelfAttention(flow.nn.Module):
                 rate=self.attention_dropout_rate,
             )
         else:
-            x = flow._C.fused_scale_tril(x, fill_value=float("-inf"), scale=self.coeff,)
+            x = flow._C.fused_scale_tril(x, fill_value=float("-inf"), scale=self.coeff)
             x = flow._C.softmax(x)
             x = self.multihead_attn_dropout(x)
 

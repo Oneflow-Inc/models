@@ -130,9 +130,9 @@ class GPTGraph(flow.nn.Graph):
         if args.fp16:
             self.config.enable_amp(True)
 
-        self.config.proto.set_enable_fuse_add_to_output(True)
-        self.config.proto.set_enable_fuse_model_update_ops(True)
-        self.config.proto.set_enable_fuse_cast_scale(True)
+        self.config.allow_fuse_add_to_output(True)
+        self.config.allow_fuse_model_update_ops(True)
+        self.config.allow_fuse_cast_scale(True)
 
     def set_activation_checkpointing(self):
         for module_block in self.model.modules():
