@@ -1,23 +1,24 @@
 # OneFlow-Models
-**Models and examples implement with OneFlow(version >= 0.5.0).**
+**本仓库包含了基于最新OneFlow(version >= 0.5.0)实现的主流深度学习模型**
 
 ## Introduction
-**English** | [简体中文](/README_zh-CN.md)
+[English](/README.md) | **简体中文**
 
-OneFlow-Models is an open source repo which contains official implementation of different models built on OneFlow. In each model, we provide at least two scripts `train.sh` and `infer.sh` for a quick start. For each model, we provide a detailed `README` to introduce the usage of this model.
+OneFlow-Models目录下提供了各种经典图形分类、目标检测、图像分割、对抗生成网络、自然语言处理、强化学习、量化感知学习以及语音模型的官方实现。对于每个模型，我们同时提供了模型的定义、训练以及推理的代码。并且对于每个模型，我们至少提供两个脚本`train.sh`和`infer.sh`，分别对应模型的训练和推理，便于使用者快速上手。并且保证该仓库适配OneFlow最新的API，同时提供优质的模型实现。并且与此同时我们会提供详细且高质量的学习文档，帮助使用者能够快速入手OneFlow。
 
-## Features
-- various models and pretrained weight
-- easy use for beginners
+## 主要特性
+- 提供丰富的模型实现
+- 提供对应预训练模型
+- 便于上手，简单易用
 
-## Quick Start
-Please check our the following **demos** for a quick start
-- **image classification** [quick start lenet demo](Demo/quick_start_demo_lenet/lenet.py)
-- **speaker recognition** [speaker identification demo](Demo/speaker_identification_demo)
+## 快速上手
+欢迎体验OneFlow的入门Demo
+- **图像分类:** [LeNet](Demo/quick_start_demo_lenet/lenet.py)
+- **说话人识别:** [Speaker Identification](Demo/speaker_identification_demo)
 
-## Model List
+## 模型目录
 <details>
-<summary> <b> Image Classification </b> </summary>
+<summary> <b> 图像分类 </b> </summary>
 
   - [Lenet](https://github.com/Oneflow-Inc/models/blob/main/Demo/quick_start_demo_lenet/lenet.py)
   - [Alexnet](https://github.com/Oneflow-Inc/models/tree/main/Vision/classification/image/alexnet)
@@ -40,7 +41,7 @@ Please check our the following **demos** for a quick start
 </details>
 
 <details>
-<summary> <b> Video Classification </b> </summary>
+<summary> <b> 视频分类 </b> </summary>
 
 - [TSN](https://github.com/Oneflow-Inc/models/tree/main/Vision/classification/video/TSN)
 
@@ -48,14 +49,14 @@ Please check our the following **demos** for a quick start
 
 
 <details>
-<summary> <b> Object Detection </b> </summary>
+<summary> <b> 目标检测 </b> </summary>
   
 - [CSRNet](https://github.com/Oneflow-Inc/models/tree/main/Vision/detection/CSRNet)
 
 </details>
 
 <details>
-<summary> <b> Semantic Segmentation </b> </summary>
+<summary> <b> 语义分割 </b> </summary>
 
 - [FODDet](https://github.com/Oneflow-Inc/models/tree/main/Vision/segmentation/FODDet)
 - [FaceSeg](https://github.com/Oneflow-Inc/models/tree/main/Vision/segmentation/FaceSeg)
@@ -63,7 +64,7 @@ Please check our the following **demos** for a quick start
 </details>
 
 <details>
-<summary> <b> Generative Adversarial Networks </b> </summary>
+<summary> <b> 对抗生成网络 </b> </summary>
 
 - [DCGAN](https://github.com/Oneflow-Inc/models/tree/main/Vision/gan/DCGAN)
 - [SRGAN](https://github.com/Oneflow-Inc/models/tree/main/Vision/gan/SRGAN)
@@ -73,7 +74,7 @@ Please check our the following **demos** for a quick start
 </details>
 
 <details>
-<summary> <b> Neural Style Transform </b> </summary>
+<summary> <b> 图像风格迁移 </b> </summary>
 
 - [FastNeuralStyle](https://github.com/Oneflow-Inc/models/tree/main/Vision/style_transform/fast_neural_style)
 
@@ -81,7 +82,7 @@ Please check our the following **demos** for a quick start
 
 
 <details>
-<summary> <b> Person Re-identification </b> </summary>
+<summary> <b> 行人重识别 </b> </summary>
 
 - [BoT](https://github.com/Oneflow-Inc/models/tree/main/Vision/reid/BoT)
 
@@ -89,7 +90,7 @@ Please check our the following **demos** for a quick start
 
 
 <details>
-<summary> <b> Natural Language Processing </b> </summary>
+<summary> <b> 自然语言处理 </b> </summary>
 
 - [RNN](https://github.com/Oneflow-Inc/models/tree/main/NLP/rnn)
 - [Seq2Seq](https://github.com/Oneflow-Inc/models/tree/main/NLP/seq2seq)
@@ -101,7 +102,7 @@ Please check our the following **demos** for a quick start
 </details>
 
 <details>
-<summary> <b> Audio </b> </summary>
+<summary> <b> 语音 </b> </summary>
 
 - [SincNet](https://github.com/Oneflow-Inc/models/tree/main/Audio/SincNet)
 - [Wav2Letter](https://github.com/Oneflow-Inc/models/tree/main/Audio/Wav2Letter)
@@ -110,32 +111,32 @@ Please check our the following **demos** for a quick start
 </details>
 
 <details>
-<summary> <b> Deep Reinforcement Learning </b> </summary>
+<summary> <b> 深度强化学习 </b> </summary>
 
 - [FlappyBird](https://github.com/Oneflow-Inc/models/tree/main/DeepReinforcementLearning/FlappyBird)
 </details>
 
 <details>
-<summary> <b> Quantization Aware Training </b> </summary>
+<summary> <b> 量化感知学习 </b> </summary>
 
 - [Quantization](https://github.com/Oneflow-Inc/models/tree/main/Quantization)
 </details>
 
-## Installation and Environment setup
-**Install Oneflow**
+## 安装与环境配置
+**安装最新的OneFlow**
 
 https://github.com/Oneflow-Inc/oneflow#install-with-pip-package
 
-**Build custom ops from source**
+**环境配置**
 
-In the root directory, run:
+在根目录下执行以下命令即可调用一些定制化的算子:
 ```bash
 mkdir build
 cd build
 cmake ..
 make -j$(nrpoc)
 ```
-Example of using ops:
+使用示例:
 ```bash
 from ops import RoIAlign
 pooler = RoIAlign(output_size=(14, 14), spatial_scale=2.0, sampling_ratio=2)
