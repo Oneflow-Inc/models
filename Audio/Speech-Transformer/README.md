@@ -18,13 +18,13 @@ Our code is inspired by the Pytorch implementation [Speech-Transformer](https://
 
 ### Quick start
 ```bash
-$ cd egs/aishell
+cd egs/aishell
 # Modify aishell data path to your path in the begining of run.sh 
-$ bash run.sh
+bash run.sh
 ```
 That's all!
 
-You can change parameter by `$ bash run.sh --parameter_name parameter_value`. For example, `$ bash run.sh --stage 3`. See parameter name in `egs/aishell/run.sh` before `. utils/parse_options.sh`.
+You can change parameter by `bash run.sh --parameter_name parameter_value`. For example, `bash run.sh --stage 3`. See parameter name in `egs/aishell/run.sh` before `. utils/parse_options.sh`.
 
 ### Workflow
 Workflow of `egs/aishell/run.sh`:
@@ -38,14 +38,14 @@ Workflow of `egs/aishell/run.sh`:
 `egs/aishell/run.sh` provide example usage.
 ```bash
 # Set PATH and PYTHONPATH
-$ cd egs/aishell/; . ./path.sh
+cd egs/aishell/; ./path.sh
 # Train
-$ train.py -h
+train.py -h
 # Decode
-$ recognize.py -h
+recognize.py -h
 ```
 ### How to visualize loss?
-If you want to visualize your loss, you can change parameters in [loss_visualize.py](egs/aishell/loss_visualize.py) into the path you save the loss information `tr_loss.npy` and `val_loss.npy`, and runing `$ python loss_visualize.py`.
+If you want to visualize your loss, you can change parameters in [loss_visualize.py](egs/aishell/loss_visualize.py) into the path you save the loss information `tr_loss.npy` and `val_loss.npy`, and runing `python loss_visualize.py`.
 
 For example, here we visualize the loss in the begining of 79 training epoches. (since we found that the model was no longer improved after the 79th epoch). 
 
