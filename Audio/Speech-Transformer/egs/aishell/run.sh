@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # -- IMPORTANT
-data=/home/zhaoying/python_project # Modify to your aishell data path
+data=../../../ # Modify to your aishell data path
 stage=-1  # Modify to control start from witch stage
 
 ngpu=1         # number of gpus ("0" uses cpu, otherwise use gpu)
