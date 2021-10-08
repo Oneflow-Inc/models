@@ -48,6 +48,7 @@ $ recognize.py -h
 If you want to visualize your loss, you can change parameters in [loss_visualize.py](egs/aishell/loss_visualize.py) into the path you save the loss information `tr_loss.npy` and `val_loss.npy`, and runing `$ python loss_visualize.py`.
 
 For example, here we visualize the loss in the begining of 79 training epoches. (since we found that the model was no longer improved after the 79th epoch). 
+
 ![loss](egs/aishell/figures/tr_val_loss_15000bf.png)
 
 
