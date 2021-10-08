@@ -55,15 +55,9 @@ class TransformerEncoderModel(nn.Module):
     ):
         super(TransformerEncoderModel, self).__init__()
         layer = TransformerEncoderLayer(
-            d_model,
-            nhead,
-            dim_feedforward,
-            dropout,
-            batch_first=batch_first)
-        self.transformer_encoder = TransformerEncoder(
-            layer,
-            num_encoder_layers
+            d_model, nhead, dim_feedforward, dropout, batch_first=batch_first
         )
+        self.transformer_encoder = TransformerEncoder(layer, num_encoder_layers)
         self.src_embedding = Embeddings(emb_sz, d_model)
         self.pos = PositionalEncoding(d_model, dropout)
         self.linear = nn.Linear(d_model, n_classes)
