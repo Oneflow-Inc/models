@@ -35,15 +35,15 @@ def load_sents(path):
     """
 
     sents = defaultdict()
-    with open(path, 'r', encoding='utf-8') as f:
+    with open(path, "r", encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             try:
-                key, hyp = line.split(' ', 1)
+                key, hyp = line.split(" ", 1)
             except ValueError:
                 key = line
-                hyp = ' '
-            key = key.rsplit('-', 1)[0]
+                hyp = " "
+            key = key.rsplit("-", 1)[0]
             if key not in sents:
                 sents[key] = [hyp]
             else:
@@ -63,7 +63,7 @@ def read_vocab(path):
 
     word2idx = {}
     idx2word = []
-    with open(path, 'r', encoding='utf-8') as f:
+    with open(path, "r", encoding="utf-8") as f:
         for line in f:
             word = line.split()
             assert len(word) == 2
@@ -95,8 +95,8 @@ def get_input_and_target(args, hyps, vocab):
     # Preprocess input and target sequences
     inputs, outputs = [], []
     for hyp in hyps:
-        input_string = args.sent_boundary + ' ' + hyp
-        output_string = hyp + ' ' + args.sent_boundary
+        input_string = args.sent_boundary + " " + hyp
+        output_string = hyp + " " + args.sent_boundary
         input_ids, output_ids = [], []
         for word in input_string.split():
             try:
@@ -126,8 +126,9 @@ def get_input_and_target(args, hyps, vocab):
     return data, target, seq_lens
 
 
-def compute_sentence_score(model, criterion, ntokens, data, target,
-                           model_type='LSTM', hidden=None):
+def compute_sentence_score(
+    model, criterion, ntokens, data, target, model_type="LSTM", hidden=None
+):
     r"""Compute neural language model scores of hypotheses of an utterance.
 
     Args:
@@ -147,26 +148,26 @@ def compute_sentence_score(model, criterion, ntokens, data, target,
     """
 
     with torch.no_grad():
-        if model_type == 'Transformer':
+        if model_type == "Transformer":
             output = model(data)
         else:
             output, _ = model(data, hidden)
             # Run a forward pass of the model on the best path of current
             # utterance to get the last hidden state to initialize the initial
             # hidden state for next sentence.
-            h = hidden[0][:,0,:].unsqueeze(1)
-            c = hidden[1][:,0,:].unsqueeze(1)
+            h = hidden[0][:, 0, :].unsqueeze(1)
+            c = hidden[1][:, 0, :].unsqueeze(1)
             _, hidden = model(data[:, 0].unsqueeze(1), (h, c))
         loss = criterion(output.view(-1, ntokens), target)
         loss = torch.reshape(loss, data.size())
-        loss = loss.t() # [batch_size, length]
+        loss = loss.t()  # [batch_size, length]
     sent_scores = loss.numpy()
-    if model_type == 'Transformer':
+    if model_type == "Transformer":
         return sent_scores
     return sent_scores, hidden
 
 
-def compute_scores(args, sents, model, criterion, ntokens, vocab, model_type='LSTM'):
+def compute_scores(args, sents, model, criterion, ntokens, vocab, model_type="LSTM"):
     r"""Compute neural language model scores of hypotheses for all utterances.
 
     Args:
@@ -190,7 +191,7 @@ def compute_scores(args, sents, model, criterion, ntokens, vocab, model_type='LS
         batch_size = len(sents[key])
         # Dimension of input data is [seq_len, batch_size]
         data, targets, seq_lens = get_input_and_target(args, sents[key], vocab)
-        if model_type != 'Transformer':
+        if model_type != "Transformer":
             if idx == 0:
                 hidden = model.init_hidden(batch_size)
             else:
@@ -202,18 +203,19 @@ def compute_scores(args, sents, model, criterion, ntokens, vocab, model_type='LS
                 h = hidden[0][:, 0, :].unsqueeze(1)
                 c = hidden[1][:, 0, :].unsqueeze(1)
                 hidden = (h.repeat(1, batch_size, 1), c.repeat(1, batch_size, 1))
-        if model_type == 'Transformer':
-            scores = compute_sentence_score(model, criterion, ntokens, data,
-                                            targets, model_type)
+        if model_type == "Transformer":
+            scores = compute_sentence_score(
+                model, criterion, ntokens, data, targets, model_type
+            )
         else:
-            scores, hidden = compute_sentence_score(model, criterion, ntokens,
-                                                    data, targets, model_type,
-                                                    hidden)
+            scores, hidden = compute_sentence_score(
+                model, criterion, ntokens, data, targets, model_type, hidden
+            )
         for idx, hyp in enumerate(sents[key]):
             if key in sents_and_scores:
-                sents_and_scores[key].append((hyp, scores[idx][:seq_lens[idx]]))
+                sents_and_scores[key].append((hyp, scores[idx][: seq_lens[idx]]))
             else:
-                sents_and_scores[key] = [(hyp, scores[idx][:seq_lens[idx]])]
+                sents_and_scores[key] = [(hyp, scores[idx][: seq_lens[idx]])]
 
     return sents_and_scores
 
@@ -232,44 +234,70 @@ def write_scores(sents_and_scores, path):
         path (str):       A output file of scores in the above format.
     """
 
-    with open(path, 'w', encoding='utf-8') as f:
+    with open(path, "w", encoding="utf-8") as f:
         for key in sents_and_scores.keys():
             for idx, (_, score_list) in enumerate(sents_and_scores[key], 1):
-                current_key = '-'.join([key, str(idx)])
-                f.write('{} '.format(current_key))
+                current_key = "-".join([key, str(idx)])
+                f.write("{} ".format(current_key))
                 for score in score_list:
                     f.write("{0:.4f} ".format(score))
-                f.write('\n')
+                f.write("\n")
     print("Write neural LM scores to %s" % path)
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Compute word scores of"
-                                     "hypotheses for each utterance in parallel"
-                                     "with a PyTorch-trained neural language model.")
-    parser.add_argument('--infile', type=str, required=True,
-                        help="Word hypotheses generated from a lattice.")
-    parser.add_argument('--outfile', type=str, required=True,
-                        help="Output file with neural language model scores"
-                        "for input word hypotheses.")
-    parser.add_argument('--vocabulary', type=str, required=True,
-                        help="Vocabulary used for neural language model training.")
-    parser.add_argument('--model-path', type=str, required=True,
-                        help="Path to a pretrained neural language model.")
-    parser.add_argument('--model', type=str, default='LSTM',
-                        help='Network type. Can be RNN, LSTM or Transformer.')
-    parser.add_argument('--emsize', type=int, default=200,
-                        help='Size of word embeddings.')
-    parser.add_argument('--nhid', type=int, default=200,
-                        help='Number of hidden units per layer.')
-    parser.add_argument('--nlayers', type=int, default=2,
-                        help='Number of layers.')
-    parser.add_argument('--nhead', type=int, default=2,
-                        help='Number of heads in a Transformer model.')
-    parser.add_argument('--oov', type=str, default='<unk>',
-                        help='Out of vocabulary word.')
-    parser.add_argument('--sent-boundary', type=str, default='<s>',
-                        help='Sentence boundary symbol.')
+    parser = argparse.ArgumentParser(
+        description="Compute word scores of"
+        "hypotheses for each utterance in parallel"
+        "with a PyTorch-trained neural language model."
+    )
+    parser.add_argument(
+        "--infile",
+        type=str,
+        required=True,
+        help="Word hypotheses generated from a lattice.",
+    )
+    parser.add_argument(
+        "--outfile",
+        type=str,
+        required=True,
+        help="Output file with neural language model scores"
+        "for input word hypotheses.",
+    )
+    parser.add_argument(
+        "--vocabulary",
+        type=str,
+        required=True,
+        help="Vocabulary used for neural language model training.",
+    )
+    parser.add_argument(
+        "--model-path",
+        type=str,
+        required=True,
+        help="Path to a pretrained neural language model.",
+    )
+    parser.add_argument(
+        "--model",
+        type=str,
+        default="LSTM",
+        help="Network type. Can be RNN, LSTM or Transformer.",
+    )
+    parser.add_argument(
+        "--emsize", type=int, default=200, help="Size of word embeddings."
+    )
+    parser.add_argument(
+        "--nhid", type=int, default=200, help="Number of hidden units per layer."
+    )
+    parser.add_argument("--nlayers", type=int, default=2, help="Number of layers.")
+    parser.add_argument(
+        "--nhead", type=int, default=2, help="Number of heads in a Transformer model."
+    )
+    parser.add_argument(
+        "--oov", type=str, default="<unk>", help="Out of vocabulary word."
+    )
+    parser.add_argument(
+        "--sent-boundary", type=str, default="<s>", help="Sentence boundary symbol."
+    )
     args = parser.parse_args()
     assert os.path.exists(args.infile), "Path for input word sequences does not exist."
     assert os.path.exists(args.vocabulary), "Vocabulary path does not exist."
@@ -280,25 +308,35 @@ def main():
     ntokens = len(vocab)
     print("Load model and criterion.")
     import model
-    if args.model == 'Transformer':
-        model = model.TransformerModel(ntokens, args.emsize, args.nhead,
-                                       args.nhid, args.nlayers,
-                                       activation="gelu", tie_weights=True)
+
+    if args.model == "Transformer":
+        model = model.TransformerModel(
+            ntokens,
+            args.emsize,
+            args.nhead,
+            args.nhid,
+            args.nlayers,
+            activation="gelu",
+            tie_weights=True,
+        )
     else:
-        model = model.RNNModel(args.model, ntokens, args.emsize, args.nhid,
-                               args.nlayers, tie_weights=True)
-    with open(args.model_path, 'rb') as f:
+        model = model.RNNModel(
+            args.model, ntokens, args.emsize, args.nhid, args.nlayers, tie_weights=True
+        )
+    with open(args.model_path, "rb") as f:
         model.load_state_dict(torch.load(f, map_location=lambda storage, loc: storage))
-        if args.model in ['RNN_TANH', 'RNN_RELU', 'LSTM', 'GRU']:
+        if args.model in ["RNN_TANH", "RNN_RELU", "LSTM", "GRU"]:
             model.rnn.flatten_parameters()
-    criterion = nn.CrossEntropyLoss(reduction='none')
+    criterion = nn.CrossEntropyLoss(reduction="none")
     print("Load input word hypotheses.")
     sents = load_sents(args.infile)
     print("Compute word scores with a ", args.model, " model.")
-    sents_and_scores = compute_scores(args, sents, model, criterion, ntokens, vocab,
-                                      model_type=args.model)
+    sents_and_scores = compute_scores(
+        args, sents, model, criterion, ntokens, vocab, model_type=args.model
+    )
     print("Write out word scores.")
     write_scores(sents_and_scores, args.outfile)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

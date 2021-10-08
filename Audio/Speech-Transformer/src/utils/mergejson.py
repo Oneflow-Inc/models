@@ -9,44 +9,51 @@ import json
 import logging
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('jsons', type=str, nargs='+',
-                        help='json files')
-    parser.add_argument('--multi', '-m', type=int,
-                        help='Test the json file for multiple input/output', default=0)
-    parser.add_argument('--verbose', '-V', default=0, type=int,
-                        help='Verbose option')
+    parser.add_argument("jsons", type=str, nargs="+", help="json files")
+    parser.add_argument(
+        "--multi",
+        "-m",
+        type=int,
+        help="Test the json file for multiple input/output",
+        default=0,
+    )
+    parser.add_argument("--verbose", "-V", default=0, type=int, help="Verbose option")
     args = parser.parse_args()
-    
+
     # logging info
     if args.verbose > 0:
         logging.basicConfig(
-            level=logging.INFO, format="%(asctime)s (%(module)s:%(lineno)d) %(levelname)s: %(message)s")
+            level=logging.INFO,
+            format="%(asctime)s (%(module)s:%(lineno)d) %(levelname)s: %(message)s",
+        )
     else:
         logging.basicConfig(
-            level=logging.WARN, format="%(asctime)s (%(module)s:%(lineno)d) %(levelname)s: %(message)s")
+            level=logging.WARN,
+            format="%(asctime)s (%(module)s:%(lineno)d) %(levelname)s: %(message)s",
+        )
 
     # make intersection set for utterance keys
     js = []
     intersec_ks = []
     for x in args.jsons:
-        with open(x, 'r') as f:
+        with open(x, "r") as f:
             j = json.load(f)
-        ks = j['utts'].keys()
-        logging.info(x + ': has ' + str(len(ks)) + ' utterances')
+        ks = j["utts"].keys()
+        logging.info(x + ": has " + str(len(ks)) + " utterances")
         if len(intersec_ks) > 0:
             intersec_ks = intersec_ks.intersection(set(ks))
         else:
             intersec_ks = set(ks)
         js.append(j)
-    logging.info('new json has ' + str(len(intersec_ks)) + ' utterances')
-        
+    logging.info("new json has " + str(len(intersec_ks)) + " utterances")
+
     old_dic = dict()
     for k in intersec_ks:
-        v = js[0]['utts'][k]
+        v = js[0]["utts"][k]
         for j in js[1:]:
-            v.update(j['utts'][k])
+            v.update(j["utts"][k])
         old_dic[k] = v
 
     new_dic = dict()
@@ -54,22 +61,32 @@ if __name__ == '__main__':
         dic = old_dic[id]
 
         in_dic = {}
-        if dic.has_key(unicode('idim', 'utf-8')):
-            in_dic[unicode('shape', 'utf-8')] = (int(dic[unicode('ilen', 'utf-8')]), int(dic[unicode('idim', 'utf-8')]))
-        in_dic[unicode('name', 'utf-8')] = unicode('input1', 'utf-8')
-        in_dic[unicode('feat', 'utf-8')] = dic[unicode('feat', 'utf-8')]
+        if dic.has_key(unicode("idim", "utf-8")):
+            in_dic[unicode("shape", "utf-8")] = (
+                int(dic[unicode("ilen", "utf-8")]),
+                int(dic[unicode("idim", "utf-8")]),
+            )
+        in_dic[unicode("name", "utf-8")] = unicode("input1", "utf-8")
+        in_dic[unicode("feat", "utf-8")] = dic[unicode("feat", "utf-8")]
 
         out_dic = {}
-        out_dic[unicode('name', 'utf-8')] = unicode('target1', 'utf-8')
-        out_dic[unicode('shape', 'utf-8')] = (int(dic[unicode('olen', 'utf-8')]), int(dic[unicode('odim', 'utf-8')]))
-        out_dic[unicode('text', 'utf-8')] = dic[unicode('text', 'utf-8')]
-        out_dic[unicode('token', 'utf-8')] = dic[unicode('token', 'utf-8')]
-        out_dic[unicode('tokenid', 'utf-8')] = dic[unicode('tokenid', 'utf-8')]
+        out_dic[unicode("name", "utf-8")] = unicode("target1", "utf-8")
+        out_dic[unicode("shape", "utf-8")] = (
+            int(dic[unicode("olen", "utf-8")]),
+            int(dic[unicode("odim", "utf-8")]),
+        )
+        out_dic[unicode("text", "utf-8")] = dic[unicode("text", "utf-8")]
+        out_dic[unicode("token", "utf-8")] = dic[unicode("token", "utf-8")]
+        out_dic[unicode("tokenid", "utf-8")] = dic[unicode("tokenid", "utf-8")]
 
+        new_dic[id] = {
+            unicode("input", "utf-8"): [in_dic],
+            unicode("output", "utf-8"): [out_dic],
+            unicode("utt2spk", "utf-8"): dic[unicode("utt2spk", "utf-8")],
+        }
 
-        new_dic[id] = {unicode('input', 'utf-8'):[in_dic], unicode('output', 'utf-8'):[out_dic],
-            unicode('utt2spk', 'utf-8'):dic[unicode('utt2spk', 'utf-8')]}
-    
     # ensure "ensure_ascii=False", which is a bug
-    jsonstring = json.dumps({'utts': new_dic}, indent=4, ensure_ascii=False, sort_keys=True).encode('utf_8')
+    jsonstring = json.dumps(
+        {"utts": new_dic}, indent=4, ensure_ascii=False, sort_keys=True
+    ).encode("utf_8")
     print(jsonstring)

@@ -4,7 +4,7 @@ import oneflow.nn as nn
 
 
 class MultiHeadAttention(nn.Module):
-    ''' Multi-Head Attention module '''
+    """ Multi-Head Attention module """
 
     def __init__(self, n_head, d_model, d_k, d_v, dropout=0.1):
         super().__init__()
@@ -20,8 +20,9 @@ class MultiHeadAttention(nn.Module):
         nn.init.normal_(self.w_ks.weight, mean=0, std=np.sqrt(2.0 / (d_model + d_k)))
         nn.init.normal_(self.w_vs.weight, mean=0, std=np.sqrt(2.0 / (d_model + d_v)))
 
-        self.attention = ScaledDotProductAttention(temperature=np.power(d_k, 0.5),
-                                                   attn_dropout=dropout)
+        self.attention = ScaledDotProductAttention(
+            temperature=np.power(d_k, 0.5), attn_dropout=dropout
+        )
         self.layer_norm = nn.LayerNorm(d_model)
 
         self.fc = nn.Linear(n_head * d_v, d_model)
@@ -59,7 +60,7 @@ class MultiHeadAttention(nn.Module):
 
 
 class ScaledDotProductAttention(nn.Module):
-    ''' Scaled Dot-Product Attention '''
+    """ Scaled Dot-Product Attention """
 
     def __init__(self, temperature, attn_dropout=0.1):
         super().__init__()

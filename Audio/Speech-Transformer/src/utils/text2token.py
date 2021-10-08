@@ -22,23 +22,32 @@ def exist_or_not(i, match_pos):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--nchar', '-n', default=1, type=int,
-                        help='number of characters to split, i.e., \
-                        aabb -> a a b b with -n 1 and aa bb with -n 2')
-    parser.add_argument('--skip-ncols', '-s', default=0, type=int,
-                        help='skip first n columns')
-    parser.add_argument('--space', default='<space>', type=str,
-                        help='space symbol')
-    parser.add_argument('--non-lang-syms', '-l', default=None, type=str,
-                        help='list of non-linguistic symobles, e.g., <NOISE> etc.')
-    parser.add_argument('text', type=str, default=False, nargs='?',
-                        help='input text')
+    parser.add_argument(
+        "--nchar",
+        "-n",
+        default=1,
+        type=int,
+        help="number of characters to split, i.e., \
+                        aabb -> a a b b with -n 1 and aa bb with -n 2",
+    )
+    parser.add_argument(
+        "--skip-ncols", "-s", default=0, type=int, help="skip first n columns"
+    )
+    parser.add_argument("--space", default="<space>", type=str, help="space symbol")
+    parser.add_argument(
+        "--non-lang-syms",
+        "-l",
+        default=None,
+        type=str,
+        help="list of non-linguistic symobles, e.g., <NOISE> etc.",
+    )
+    parser.add_argument("text", type=str, default=False, nargs="?", help="input text")
     args = parser.parse_args()
 
     rs = []
     if args.non_lang_syms is not None:
-        with open(args.non_lang_syms, 'r') as f:
-            nls = [unicode(x.rstrip(), 'utf_8') for x in f.readlines()]
+        with open(args.non_lang_syms, "r") as f:
+            nls = [unicode(x.rstrip(), "utf_8") for x in f.readlines()]
             rs = [re.compile(re.escape(x)) for x in nls]
 
     if args.text:
@@ -48,9 +57,9 @@ def main():
     line = f.readline()
     n = args.nchar
     while line:
-        x = unicode(line, 'utf_8').split()
-        print ' '.join(x[:args.skip_ncols]).encode('utf_8'),
-        a = ' '.join(x[args.skip_ncols:])
+        x = unicode(line, "utf_8").split()
+        print " ".join(x[: args.skip_ncols]).encode("utf_8"),
+        a = " ".join(x[args.skip_ncols :])
 
         # get all matched positions
         match_pos = []
@@ -77,16 +86,16 @@ def main():
                     i += 1
             a = chars
 
-        a = [a[i:i + n] for i in range(0, len(a), n)]
+        a = [a[i : i + n] for i in range(0, len(a), n)]
 
         a_flat = []
         for z in a:
             a_flat.append("".join(z))
 
-        a_chars = [z.replace(' ', args.space) for z in a_flat]
-        print' '.join(a_chars).encode('utf_8')
+        a_chars = [z.replace(" ", args.space) for z in a_flat]
+        print " ".join(a_chars).encode("utf_8")
         line = f.readline()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

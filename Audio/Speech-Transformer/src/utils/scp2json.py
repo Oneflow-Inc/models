@@ -8,21 +8,20 @@ import sys
 import json
 import argparse
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--key', '-k', type=str,
-                        help='key')
+    parser.add_argument("--key", "-k", type=str, help="key")
     args = parser.parse_args()
 
     l = {}
     line = sys.stdin.readline()
     while line:
-        x = unicode(line, 'utf_8').rstrip().split()
-        v = {args.key: ' '.join(x[1:]).encode('utf_8')}
-        l[x[0].encode('utf_8')] = v
+        x = unicode(line, "utf_8").rstrip().split()
+        v = {args.key: " ".join(x[1:]).encode("utf_8")}
+        l[x[0].encode("utf_8")] = v
         line = sys.stdin.readline()
 
-    all_l = {'utts': l}
+    all_l = {"utts": l}
 
     # ensure "ensure_ascii=False", which is a bug
     jsonstring = json.dumps(all_l, indent=4, ensure_ascii=False)

@@ -22,6 +22,7 @@ from utils.checkpoint import save_model
 import config
 from config import str2bool
 
+
 def get_config():
     parser = config.get_parser()
 
@@ -140,6 +141,7 @@ def get_config():
 
     args = parser.parse_args()
     return args
+
 
 def pretrain(graph: nn.Graph, metric_local: bool) -> Dict:
 

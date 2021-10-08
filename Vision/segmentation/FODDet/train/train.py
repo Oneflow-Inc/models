@@ -20,9 +20,7 @@ def _parse_args():
     parser.add_argument(
         "--load_checkpoint", type=str, default="", help="load checkpoint"
     )
-    parser.add_argument(
-        "--data_dir", type=str, default="./CamVid", help="dataset path"
-    )
+    parser.add_argument("--data_dir", type=str, default="./CamVid", help="dataset path")
     # training hyper-parameters
     parser.add_argument(
         "--learning_rate", type=float, default=0.001, help="learning rate"
@@ -34,20 +32,21 @@ def _parse_args():
     )
     parser.add_argument("--val_batch_size", type=int, default=32, help="val batch size")
 
-    return parser.parse_args() 
+    return parser.parse_args()
 
-def get_datadir_path(args, split='train'):
-    assert split in ['train', 'val', 'test']
-    if split == 'train':
+
+def get_datadir_path(args, split="train"):
+    assert split in ["train", "val", "test"]
+    if split == "train":
         x_dir = os.path.join(args.data_dir, "train")
         y_dir = os.path.join(args.data_dir, "train_labels")
-    elif split == 'val':
+    elif split == "val":
         x_dir = os.path.join(args.data_dir, "val")
         y_dir = os.path.join(args.data_dir, "valid_labels")
-    elif split == 'test':
+    elif split == "test":
         x_dir = os.path.join(args.data_dir, "test")
-        y_dir = os.path.join(args.data_dir, "test_labels") 
-    return x_dir, y_dir     
+        y_dir = os.path.join(args.data_dir, "test_labels")
+    return x_dir, y_dir
 
 
 class Dataset(flow.utils.data.Dataset):
@@ -211,8 +210,9 @@ class UNet(nn.Module):
         logits = self.out(logits)
         return logits
 
+
 def main(args):
-    x_train_dir, y_train_dir = get_datadir_path(args, split='train')
+    x_train_dir, y_train_dir = get_datadir_path(args, split="train")
     if not os.path.exists(args.save_checkpoint_path):
         os.mkdir(args.save_checkpoint_path)
 
@@ -252,18 +252,15 @@ def main(args):
             optimizer.step()
 
             lr = optimizer.param_groups[0]["lr"]
-            print("Train:[%d/%d][%d/%d] Training Loss: %.4f Lr: %.6f" % (
-                (i + 1),
-                args.epochs,
-                step,
-                num_steps,
-                loss.numpy(),
-                lr
-            ))
+            print(
+                "Train:[%d/%d][%d/%d] Training Loss: %.4f Lr: %.6f"
+                % ((i + 1), args.epochs, step, num_steps, loss.numpy(), lr)
+            )
         filename = "UNetmodel_Epoch_" + str(i)
         save_checkpoint_path = args.save_checkpoint_path
-        flow.save(net.state_dict(), os.path.join(save_checkpoint_path ,filename))
+        flow.save(net.state_dict(), os.path.join(save_checkpoint_path, filename))
         print("save net successfully!")
+
 
 if __name__ == "__main__":
     args = _parse_args()

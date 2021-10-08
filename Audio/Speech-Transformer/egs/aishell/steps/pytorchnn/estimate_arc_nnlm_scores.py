@@ -51,15 +51,16 @@ def get_arc_scores(arc_path, score_path):
         The estimated scores of all arcs represented by a dictionary of dictionary.
     """
     arc_scores = defaultdict(lambda: defaultdict(float))
-    with open(arc_path, 'r', encoding='utf-8') as f1,\
-         open(score_path, 'r', encoding='utf-8') as f2:
+    with open(arc_path, "r", encoding="utf-8") as f1, open(
+        score_path, "r", encoding="utf-8"
+    ) as f2:
         all_arcs = f1.readlines()
         all_scores = f2.readlines()
         assert len(all_arcs) == len(all_scores)
         for arcs_per_line, scores_per_line in zip(all_arcs, all_scores):
             arcs_with_key = arcs_per_line.split()
             key = arcs_with_key[0]
-            key = key.rsplit('-', 1)[0]
+            key = key.rsplit("-", 1)[0]
             arcs = arcs_with_key[1:]
             scores = scores_per_line.split()[1:]
             for i in range(len(arcs) - 1):
@@ -94,32 +95,50 @@ def write_scores(arc_scores, path):
         arc_scores: Nueral LM scores of arcs of each lattice.
         path (str): Output file of arc scores in the above format.
     """
-    with open(path, 'w', encoding='utf-8') as f:
+    with open(path, "w", encoding="utf-8") as f:
         for key in arc_scores.keys():
             for arc, score in arc_scores[key].items():
-                f.write('{0} {1} {2} {3}\n'.format(key, arc[0], arc[1], score))
+                f.write("{0} {1} {2} {3}\n".format(key, arc[0], arc[1], score))
     print("Write estimated neural LM scores to file {}.".format(path))
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Estimate neural language model"
-                                     "scores for arcs on lattices.")
-    parser.add_argument('--arc-ids', type=str, required=True,
-                        help="States sequences generated from a lattice.")
-    parser.add_argument('--scores', type=str, required=True,
-                        help="Input nueral language model scores of each word"
-                             "in the generated sequences.")
-    parser.add_argument('--outfile', type=str, required=True,
-                        help="Output file of estimated scores for each word"
-                             "in hypotheses of all utterances.")
+    parser = argparse.ArgumentParser(
+        description="Estimate neural language model" "scores for arcs on lattices."
+    )
+    parser.add_argument(
+        "--arc-ids",
+        type=str,
+        required=True,
+        help="States sequences generated from a lattice.",
+    )
+    parser.add_argument(
+        "--scores",
+        type=str,
+        required=True,
+        help="Input nueral language model scores of each word"
+        "in the generated sequences.",
+    )
+    parser.add_argument(
+        "--outfile",
+        type=str,
+        required=True,
+        help="Output file of estimated scores for each word"
+        "in hypotheses of all utterances.",
+    )
     args = parser.parse_args()
-    assert os.path.exists(args.arc_ids), "Path for input state sequences does not exist."
-    assert os.path.exists(args.scores), "Path for neural language model scores does not exist."
-    
+    assert os.path.exists(
+        args.arc_ids
+    ), "Path for input state sequences does not exist."
+    assert os.path.exists(
+        args.scores
+    ), "Path for neural language model scores does not exist."
+
     print("Load state sequences and neural LM scores.")
     arc_scores = get_arc_scores(args.arc_ids, args.scores)
     print("Write out estimated scores for each arc.")
     write_scores(arc_scores, args.outfile)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

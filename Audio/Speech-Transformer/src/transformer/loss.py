@@ -16,7 +16,9 @@ def cal_performance(pred, gold, smoothing=0.0):
     pred = pred.view(-1, pred.size(2))
     gold = gold.view(-1)
     loss = cal_loss(pred, gold, smoothing)
-    pred = flow.tensor(np.argmax(pred.numpy(), axis=1), dtype=flow.int64).to(pred.device)
+    pred = flow.tensor(np.argmax(pred.numpy(), axis=1), dtype=flow.int64).to(
+        pred.device
+    )
     non_pad_mask = gold.ne(IGNORE_ID)
     n_correct = flow.eq(pred, gold)
     n_correct = n_correct.masked_select(non_pad_mask).sum().numpy()

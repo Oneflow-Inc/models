@@ -3,6 +3,7 @@ import oneflow.nn as nn
 from decoder import Decoder
 from encoder import Encoder
 
+
 class Transformer(nn.Module):
     """An encoder-decoder framework only includes attention.
     """
@@ -25,8 +26,9 @@ class Transformer(nn.Module):
         """
         encoder_padded_outputs, *_ = self.encoder(padded_input, input_lengths)
         # pred is score before softmax
-        pred, gold, *_ = self.decoder(padded_target, encoder_padded_outputs,
-                                      input_lengths)
+        pred, gold, *_ = self.decoder(
+            padded_target, encoder_padded_outputs, input_lengths
+        )
         return pred, gold
 
     def recognize(self, input, input_length, char_list, args):

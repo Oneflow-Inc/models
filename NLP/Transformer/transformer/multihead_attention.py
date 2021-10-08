@@ -13,10 +13,10 @@ from oneflow.nn.init import xavier_uniform_, constant_, xavier_normal_
 from oneflow.nn.functional import pad
 
 from .utils import (
-    _in_projection_packed, 
-    _scaled_dot_product_attention, 
-    linear, 
-    _in_projection
+    _in_projection_packed,
+    _scaled_dot_product_attention,
+    linear,
+    _in_projection,
 )
 
 
@@ -239,8 +239,9 @@ def multi_head_attention_forward(
 
     # prep attention mask
     if attn_mask is not None:
-        assert attn_mask.dtype.is_floating_point == False, \
-           f"Only integer type are supported for attn_mask, not {attn_mask.dtype}"
+        assert (
+            attn_mask.dtype.is_floating_point == False
+        ), f"Only integer type are supported for attn_mask, not {attn_mask.dtype}"
         # ensure attn_mask's dim is 3
         if attn_mask.dim() == 2:
             correct_2d_size = (tgt_len, src_len)

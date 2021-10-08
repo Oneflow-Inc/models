@@ -17,12 +17,14 @@ class PositionalEncoding(nn.Module):
         # Compute the positional encodings once in log space.
         pe = flow.zeros(max_len, d_model, requires_grad=False)
         position = flow.arange(0, max_len).unsqueeze(1).to(dtype=flow.float32)
-        div_term = flow.exp(flow.arange(0, d_model, 2).to(dtype=flow.float32) *
-                             -(math.log(10000.0) / d_model))
+        div_term = flow.exp(
+            flow.arange(0, d_model, 2).to(dtype=flow.float32)
+            * -(math.log(10000.0) / d_model)
+        )
         pe[:, 0::2] = flow.sin(position * div_term)
         pe[:, 1::2] = flow.cos(position * div_term)
         pe = pe.unsqueeze(0)
-        self.register_buffer('pe', pe)
+        self.register_buffer("pe", pe)
 
     def forward(self, input):
         """
