@@ -38,14 +38,14 @@ Workflow of `egs/aishell/run.sh`:
 `egs/aishell/run.sh` provide example usage.
 ```bash
 # Set PATH and PYTHONPATH
-cd egs/aishell/; ./path.sh
+cd egs/aishell/; . ./path.sh
 # Train
 train.py -h
 # Decode
 recognize.py -h
 ```
 ### How to visualize loss?
-If you want to visualize your loss, you can change parameters in [loss_visualize.py](egs/aishell/loss_visualize.py) into the path you save the loss information `tr_loss.npy` and `val_loss.npy`, and runing `python loss_visualize.py`.
+If you want to visualize your loss, you can make use of [loss_visualize.py](egs/aishell/loss_visualize.py), in which you can change parameters by `python loss_visualize.py --parameter_name parameter_value`.
 
 For example, here we visualize the loss in the begining of 79 training epoches. (since we found that the model was no longer improved after the 79th epoch). 
 
