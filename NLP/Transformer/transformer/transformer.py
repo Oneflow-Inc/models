@@ -19,7 +19,6 @@ from .multihead_attention import MultiheadAttention
 
 
 class Transformer(Module):
-    
     def __init__(
         self,
         d_model: int = 512,
@@ -42,33 +41,37 @@ class Transformer(Module):
         else:
             encoder_norm = LayerNorm(d_model, eps=layer_norm_eps)
             encoder_layer = TransformerEncoderLayer(
-                d_model, 
-                nhead, 
-                dim_feedforward, 
+                d_model,
+                nhead,
+                dim_feedforward,
                 dropout,
-                activation, 
-                layer_norm_eps, 
-                batch_first, 
-                norm_first
+                activation,
+                layer_norm_eps,
+                batch_first,
+                norm_first,
             )
-            self.encoder = TransformerEncoder(encoder_layer, num_encoder_layers, encoder_norm)
-        
+            self.encoder = TransformerEncoder(
+                encoder_layer, num_encoder_layers, encoder_norm
+            )
+
         if custom_decoder is not None:
             self.decoder = custom_decoder
         else:
             decoder_norm = LayerNorm(d_model, eps=layer_norm_eps)
             decoder_layer = TransformerDecoderLayer(
-                d_model, 
-                nhead, 
-                dim_feedforward, 
+                d_model,
+                nhead,
+                dim_feedforward,
                 dropout,
-                activation, 
-                layer_norm_eps, 
-                batch_first, 
-                norm_first
+                activation,
+                layer_norm_eps,
+                batch_first,
+                norm_first,
             )
-            self.decoder = TransformerDecoder(decoder_layer, num_decoder_layers, decoder_norm)
-        
+            self.decoder = TransformerDecoder(
+                decoder_layer, num_decoder_layers, decoder_norm
+            )
+
         self._reset_parameters()
 
         self.d_model = d_model
@@ -160,7 +163,7 @@ class TransformerDecoder(Module):
         tgt_mask: Optional[Tensor] = None,
         memory_mask: Optional[Tensor] = None,
         tgt_key_padding_mask: Optional[Tensor] = None,
-        memory_key_padding_mask: Optional[Tensor] = None
+        memory_key_padding_mask: Optional[Tensor] = None,
     ) -> Tensor:
 
         output = tgt
@@ -220,7 +223,9 @@ class TransformerEncoderLayer(Module):
 
         if self.norm_first:
             src = self.norm1(src)
-            src2 = self.self_attn(src, src, src, src_key_padding_mask, True, src_mask)[0]
+            src2 = self.self_attn(src, src, src, src_key_padding_mask, True, src_mask)[
+                0
+            ]
             src = src + self.dropout1(src2)
             src = self.norm2(src)
             src2 = self.linear2(self.dropout(self.activation(self.linear1(src))))
@@ -284,7 +289,9 @@ class TransformerDecoderLayer(Module):
     ) -> Tensor:
         if self.norm_first:
             tgt = self.norm1(tgt)
-            tgt2 = self.self_attn(tgt, tgt, tgt, tgt_key_padding_mask, True, tgt_mask)[0]
+            tgt2 = self.self_attn(tgt, tgt, tgt, tgt_key_padding_mask, True, tgt_mask)[
+                0
+            ]
             tgt = tgt + self.dropout1(tgt2)
             tgt = self.norm2(tgt)
             tgt2 = self.multihead_attn(

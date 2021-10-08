@@ -5,18 +5,19 @@ import oneflow as flow
 import albumentations as albu
 import oneflow.utils.data as data
 
-def get_datadir_path(args, split='train'):
-    assert split in ['train', 'val', 'test']
-    if split == 'train':
+
+def get_datadir_path(args, split="train"):
+    assert split in ["train", "val", "test"]
+    if split == "train":
         x_dir = os.path.join(args.data_dir, "train")
         y_dir = os.path.join(args.data_dir, "train_labels")
-    elif split == 'val':
+    elif split == "val":
         x_dir = os.path.join(args.data_dir, "val")
         y_dir = os.path.join(args.data_dir, "valid_labels")
-    elif split == 'test':
+    elif split == "test":
         x_dir = os.path.join(args.data_dir, "test")
-        y_dir = os.path.join(args.data_dir, "test_labels") 
-    return x_dir, y_dir  
+        y_dir = os.path.join(args.data_dir, "test_labels")
+    return x_dir, y_dir
 
 
 class Dataset(flow.utils.data.Dataset):
@@ -76,5 +77,3 @@ def get_test_augmentation():
         albu.Resize(height=320, width=320, always_apply=True),
     ]
     return albu.Compose(train_transform)
-
-

@@ -107,6 +107,7 @@ Please check our the following **demos** for a quick start
 - [Wav2Letter](https://github.com/Oneflow-Inc/models/tree/main/Audio/Wav2Letter)
 - [AM_MobileNet1D](https://github.com/Oneflow-Inc/models/tree/main/Audio/AM-MobileNet1D)
 - [Speech-Emotion-Analyer](https://github.com/Oneflow-Inc/models/tree/main/Audio/Speech-Emotion-Analyzer)
+- [Speech-Transformer](https://github.com/Oneflow-Inc/models/tree/main/Audio/Speech-Transformer)
 </details>
 
 <details>

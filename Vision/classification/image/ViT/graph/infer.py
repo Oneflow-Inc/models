@@ -12,10 +12,7 @@ from utils.numpy_data_utils import load_image
 def _parse_args():
     parser = argparse.ArgumentParser("flags for test ViT")
     parser.add_argument(
-        "--model_path",
-        type=str,
-        default="./vit_b_16_384",
-        help="model path",
+        "--model_path", type=str, default="./vit_b_16_384", help="model path",
     )
     parser.add_argument(
         "--model_arch",
