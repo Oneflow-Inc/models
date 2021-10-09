@@ -55,8 +55,8 @@ For example, here we visualize the loss in the begining of 79 training epoches. 
 ## Results
 | Model | Batch_frames | Epoch | CER |Pretrained Model |
 | :---: | :-: | :----: |:----: |:----: |
-| Oneflow | 15000 |150|9.8|[15k_model](https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/audio/SpeechTransfomer/15k_model.zip)|
-| Oneflow | 30000 |150|9.3|[30k_model](https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/audio/SpeechTransfomer/30k_model.zip)|
+| Oneflow | 15000 |150|9.8|[15k_model](https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/audio/SpeechTransfomer.zip)|
+| Oneflow | 30000 |150|9.3|[30k_model](https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/audio/SpeechTransfomer.zip)|
 | Pytorch | 15000 |150|13.2 | --- |
 
 ## Reference
