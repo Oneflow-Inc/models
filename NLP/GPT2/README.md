@@ -2,6 +2,15 @@
 
 This repo privides code for the paper "[Language Models are Unsupervised Multitask Learners](https://blog.openai.com/better-language-models/)", which is based on https://github.com/huggingface/transformers.
 
+## Prepare dataset and tokenizer
+You can refer to this example dataset: [data.zip](https://oneflow-public.oss-cn-beijing.aliyuncs.com/datasets/BERT-pytorch/sampledataset/data.zip)
+
+```bash
+# download vocab file
+wget https://s3.amazonaws.com/models.huggingface.co/bert/gpt2-vocab.json
+wget https://s3.amazonaws.com/models.huggingface.co/bert/gpt2-merges.txt
+```
+
 ## Train from scratch
 train.sh script will help you train GPT2 from scratch. You can train on your own corpus and change hyperparameters in train.sh file.
 ```bash
