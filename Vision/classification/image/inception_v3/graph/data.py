@@ -92,8 +92,8 @@ class OFRecordDataLoader(flow.nn.Module):
             part_name_suffix_length=5,
             random_shuffle=random_shuffle,
             shuffle_after_epoch=shuffle_after_epoch,
-            placement=placement,
-            sbp=sbp,
+            placement=self.placement,
+            sbp=self.sbp,
         )
 
         self.label_decoder = flow.nn.OfrecordRawDecoder(
@@ -110,20 +110,14 @@ class OFRecordDataLoader(flow.nn.Module):
 
         self.use_gpu_decode = use_gpu_decode
         if self.mode == "train":
-            if self.use_gpu_decode:
-                self.bytesdecoder_img = flow.nn.OFRecordBytesDecoder("encoded")
-                self.image_decoder = flow.nn.OFRecordImageGpuDecoderRandomCropResize(
-                    target_width=image_width, target_height=image_height, num_workers=3
-                )
-            else:
-                self.image_decoder = flow.nn.OFRecordImageDecoderRandomCrop(
-                    "encoded", color_space=color_space
-                )
-                self.resize = flow.nn.image.Resize(
-                    target_size=[image_width, image_height]
-                )
+            self.image_decoder = flow.nn.OFRecordImageDecoderRandomCrop(
+                "encoded", color_space=color_space
+            )
+            self.resize = flow.nn.image.Resize(
+                target_size=[image_width, image_height]
+            )
             self.flip = flow.nn.CoinFlip(
-                batch_size=self.batch_size, placement=placement, sbp=sbp
+                batch_size=self.batch_size, placement=self.placement, sbp=self.sbp
             )
             self.crop_mirror_norm = flow.nn.CropMirrorNormalize(
                 color_space=color_space,
@@ -170,6 +164,12 @@ class OFRecordDataLoader(flow.nn.Module):
             label = self.label_decoder(record)
             image = self.resize(image_raw_bytes)[0]
             image = self.crop_mirror_norm(image)
+
+        if self.ofrecord_part_num < self.world_size:
+            placement = flow.placement("cpu", {0: range(self.world_size)})
+            sbp = flow.sbp.split(0)
+            image = image.to_consistent(placement=placement, sbp=sbp)
+            label = label.to_consistent(placement=placement, sbp=sbp)
 
         return image, label
 
