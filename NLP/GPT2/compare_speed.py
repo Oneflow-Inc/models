@@ -40,11 +40,8 @@ def main():
     parser.add_argument("--adam_weight_decay", type=float, default=0.01, help="weight_decay of adam")
     parser.add_argument("--adam_beta1", type=float, default=0.9, help="adam first beta value")
     parser.add_argument("--adam_beta2", type=float, default=0.999, help="adam first beta value")
-    # parser.add_argument("--device_id", type=int, default=2)
 
     args = parser.parse_args()
-
-    # device = flow.device(f"cuda:{args.device_id}" if args.device_id >= 0 else "cpu")
 
     print("building tokenizer")
     tokenizer = build_tokenizer(vocab_file=args.vocab_file, merges_file=args.merges_file, tokenizer_type="GPT2BPETokenizer")
@@ -61,7 +58,6 @@ def main():
             break
 
     of_batch = batch.cuda()
-    # of_batch = flow.from_numpy(batch, dtype=flow.long).cuda()
 
     print("building model")
     config = GPT2Config()
@@ -72,18 +68,14 @@ def main():
 
     model = pt_GPT2LMHeadModel(config)
 
-    # from convert_pt_ckpt_to_of import convert_pt_checkpoint_to_pt
-    # convert_pt_checkpoint_to_pt(model)
     model.load_state_dict(torch.load("gpt2_model.pt"))
     model.lm_head.weight = model.transformer.wte.weight
-    # torch.save(model.state_dict(), "test_gpt2_model.pt")
 
     model.cuda()
     model.eval()
     
     learning_rate = 0.01
     mom = 0.9
-    # pt_optimizer = torch.optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
     pt_optimizer = torch.optim.AdamW(model.parameters(), lr=0.0001, betas=(args.adam_beta1, args.adam_beta2), weight_decay=args.adam_weight_decay)
 
     for_time = 0.0
@@ -109,8 +101,6 @@ def main():
         pt_optimizer.zero_grad()
         update_time += time.time() - s_t
 
-        # print(pt_optimizer.state)
-
 
     end_t = time.time()
 
@@ -125,13 +115,7 @@ def main():
         pt_parameters_names.append(name)
         pt_parameters_value.append(param.cpu().detach().numpy())
 
-    torch.cuda.empty_cache()
-
-
     model = GPT2LMHeadModel(config)
-
-    # from convert_pt_ckpt_to_of import convert_pt_checkpoint_to_of
-    # convert_pt_checkpoint_to_of(model, "gpt2_model.pt", "gpt2_oneflow_model")
 
     model.load_state_dict(flow.load("gpt2_oneflow_model"))
     model.lm_head.weight = model.transformer.wte.weight
@@ -139,8 +123,6 @@ def main():
     model.cuda()
     model.eval()
 
-    # of_parameters_value = [param.numpy() for param in list(model.parameters())]
-    # optimizer = flow.optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
     optimizer = flow.optim.AdamW(model.parameters(), lr=0.0001, betas=(args.adam_beta1, args.adam_beta2), weight_decay=args.adam_weight_decay)
 
     for_time = 0.0
@@ -166,8 +148,6 @@ def main():
         optimizer.zero_grad()
         update_time += time.time() - s_t
 
-        # print(optimizer._state)
-
     end_t = time.time()
 
     print("oneflow traning loop avg time : {}".format((end_t - start_t) / args.epochs))
@@ -175,29 +155,19 @@ def main():
     print("backward avg time : {}".format(bp_time / args.epochs))
     print("update parameters avg time : {}".format(update_time / args.epochs))
 
-    # of_parameters_names = []
-    # of_parameters_value = []
-    # for name, param in model.named_parameters():
-    #     of_parameters_names.append(name)
-    #     of_parameters_value.append(param.numpy())
-
-    # import os
-    # os.system("rm -rf test_gpt2_oneflow_model")
-    # os.system("rm -rf test_gpt2_model.pt")
-
     for i in range(args.epochs):
         print(i, of_loss[i], pt_loss[i])
 
-    # import matplotlib.pyplot as plt
+    import matplotlib.pyplot as plt
 
-    # plt.switch_backend('agg')
-    # epochs = np.arange(1, args.epochs + 1)
+    plt.switch_backend('agg')
+    epochs = np.arange(1, args.epochs + 1)
 
-    # plt.plot(epochs, of_loss, label="oneflow")
-    # plt.plot(epochs, pt_loss, label="pytorch")
-    # plt.legend()
-    # plt.savefig("./1.jpg")
-    # plt.show()
+    plt.plot(epochs, of_loss, label="oneflow")
+    plt.plot(epochs, pt_loss, label="pytorch")
+    plt.legend()
+    plt.savefig("./1.jpg")
+    plt.show()
 
 if __name__=='__main__':
     main()
