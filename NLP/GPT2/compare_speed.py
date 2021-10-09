@@ -62,8 +62,6 @@ def main():
     print("building model")
     config = GPT2Config()
 
-    torch.cuda.empty_cache()
-
     pt_batch = torch.from_numpy(batch.numpy()).long().cuda()
 
     model = pt_GPT2LMHeadModel(config)

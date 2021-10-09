@@ -21,13 +21,10 @@ class LayerNorm(nn.Module):
         self.bias = nn.Parameter(flow.zeros(hidden_size, dtype=flow.float32))
 
     def forward(self, x):
-        # pytorch和tensorflow有细微差别，pytorch计算时eps在sqrt外面，tensorflow的eps在sqrt里面
         mean = x.mean(-1, keepdim=True)
-        # std = x.std(dim=-1, keepdim=True)
         std = (x - mean).pow(2).mean(-1, keepdim=True)
         x = (x - mean) / flow.sqrt(std + self.eps)
         return self.weight * x + self.bias
-        # return self.weight * (x - mean) / (std + self.eps) + self.bias
 
 class Conv1D(nn.Module):
     """
