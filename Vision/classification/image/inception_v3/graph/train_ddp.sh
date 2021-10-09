@@ -17,7 +17,11 @@ if [ ! -d "$CHECKPOINT_SAVE_PATH" ]; then
     mkdir $CHECKPOINT_SAVE_PATH
 fi
 
-OFRECORD_PATH="./ofrecord"
+OFRECORD_PATH="ofrecord"
+if [ ! -d "$OFRECORD_PATH" ]; then
+    wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/datasets/imagenette_ofrecord.tar.gz
+    tar zxf imagenette_ofrecord.tar.gz
+fi
 
 OFRECORD_PART_NUM=1
 LEARNING_RATE=0.001

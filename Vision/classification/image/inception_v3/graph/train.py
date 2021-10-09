@@ -1,6 +1,7 @@
 import os
 import time
 import numpy as np
+from tqdm import tqdm
 import oneflow as flow
 from oneflow.nn.parallel import DistributedDataParallel as DDP
 
@@ -92,7 +93,6 @@ class Trainer(object):
             print(f"***** Model Init Finish, time escapled: {end_t - start_t:.5f} s *****")
 
     def load_state_dict(self):
-        # self.logger.print(f"Loading model from {self.load_path}", print_ranks=[0])
         if self.rank in [-1, 0]:
             print(f"Loading model from {self.load_path}")
         if self.load_path:
@@ -105,10 +105,10 @@ class Trainer(object):
             if self.current_batch == self.total_batches:
                 break
             acc = self.eval()
-            save_dir = f"epoch_{self.cur_epoch}_val_acc_{acc}"
+            save_dir = f"epoch_{self.current_epoch}_val_acc_{acc}"
             self.save(save_dir)
-            self.cur_epoch += 1
-            self.cur_iter = 0
+            self.current_epoch += 1
+            self.current_step = 0
     
     def train_one_epoch(self):
         self.model.train()
@@ -119,22 +119,25 @@ class Trainer(object):
         
             self.current_step += 1
             loss = tensor_to_local(loss)
-            print(loss)
+            if self.rank in [-1, 0]:
+                print(f"Epoch: {self.current_epoch}, Iter: {self.current_step}, Loss: {loss}")
             self.current_batch += 1
             
             if self.current_batch == self.total_batches:
                 break
     
     def eval(self):
+        print("start evaluation...")
         self.model.eval()
         self.is_train = False
         preds, labels = [], []
-        for _ in range(self.val_batches_per_epoch):
+        for _ in tqdm(range(self.val_batches_per_epoch)):
             pred, label = self.eval_graph()
             preds.append(tensor_to_numpy(pred))
             labels.append(tensor_to_numpy(label))
         top1_acc = calc_acc(preds, labels)
-        print(top1_acc)
+        if self.rank in [-1, 0]:
+            print(f"Epoch: {self.current_epoch}, Acc@1 {top1_acc}")
         return top1_acc
 
     def inference(self):
@@ -146,6 +149,17 @@ class Trainer(object):
             pred = logits.softmax()
 
         return pred, label
+
+    def save(self, subdir):
+        if self.save_path is None:
+            return
+        
+        save_path = os.path.join(self.save_path, subdir)
+        state_dict = self.model.state_dict()
+        flow.save(state_dict, save_path, consistent_dst_rank=0)
+        if self.rank in [-1, 0]:
+            print(f"Saving model to {save_path}")
+        return
 
 if __name__ == "__main__":
     trainer = Trainer()

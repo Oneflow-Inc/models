@@ -49,6 +49,6 @@ class EvalGraph(flow.nn.Graph):
         image, label = self.data_loader()
         image = image.to("cuda")
         label = label.to("cuda")
-        logits = self.model(image)
+        logits, aux = self.model(image)
         pred = logits.softmax()
         return pred, label
