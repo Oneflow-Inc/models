@@ -26,7 +26,7 @@ parser.add_argument(
 )
 
 
-def loss_visualize(args()):
+def loss_visualize(args):
     """
     Draw loss and accuracy curve
     Args:
