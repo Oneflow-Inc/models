@@ -145,7 +145,7 @@ class Trainer(object):
         image = image.to("cuda")
         label = label.to("cuda")
         with flow.no_grad():
-            logits = self.model(image)
+            logits, aux = self.model(image)
             pred = logits.softmax()
 
         return pred, label
