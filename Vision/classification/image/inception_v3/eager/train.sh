@@ -1,3 +1,4 @@
+export PYTHONPATH=$PWD:$PYTHONPATH 
 set -aux
 
 OFRECORD_PATH="ofrecord"
@@ -20,7 +21,7 @@ VAL_BATCH_SIZE=16
 # LOAD PREVIOUS CHECKPOINT 
 # LOAD_CHECKPOINT=$CHECKPOINT_PATH/epoch_2_val_acc_0.111168
 
-python3 train.py \
+python3 eager/train.py \
     --save_checkpoint_path $CHECKPOINT_PATH \
     --ofrecord_path $OFRECORD_PATH \
     --learning_rate $LEARNING_RATE \
