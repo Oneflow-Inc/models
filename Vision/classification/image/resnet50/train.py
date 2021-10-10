@@ -228,7 +228,7 @@ class Trainer(object):
                 acc = 0
 
             save_dir = f"epoch_{self.cur_epoch}_val_acc_{acc}"
-            self.save(save_dir)
+            # self.save(save_dir)
             self.cur_epoch += 1
             self.cur_iter = 0
 
@@ -264,7 +264,7 @@ class Trainer(object):
         if loss.is_consistent and self.scale_grad:
             # NOTE(zwx): scale init grad with world_size
             # because consistent_tensor.mean() include dividor numel * world_size
-            # loss = loss / self.world_size
+            loss = loss * self.world_size
             loss.backward()
             for param_group in self.optimizer.param_groups:
                 for param in param_group.parameters:

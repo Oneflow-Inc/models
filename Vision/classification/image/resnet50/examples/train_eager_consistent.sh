@@ -42,4 +42,7 @@ python3 -m oneflow.distributed.launch \
         --num-epochs $EPOCH \
         --train-batch-size $TRAIN_BATCH_SIZE \
         --val-batch-size $VAL_BATCH_SIZE \
-        --metric-local False
+        --metric-local False \
+        --scale-grad \
+        --print-interval 100 \
+        --skip-eval
