@@ -67,7 +67,8 @@ class BertBackbone(object):
           input_mask_blob, from_seq_length=seq_length, to_seq_length=seq_length)
         addr_blob = _CreateAddrFromAttentionMask( # 将mask矩阵进行转换
           attention_mask_blob, from_seq_length=seq_length, to_seq_length=seq_length)
-        self.all_encoder_layers_ = _TransformerModel( # Transformer模型（默认12层）
+        # self.all_encoder_layers_ = _TransformerModel( # Transformer模型（默认12层）
+        self.all_encoder_layers_, self.all_attention_scores_blob = _TransformerModel( # Transformer模型（默认12层）
             input_blob=self.embedding_output_,
             addr_blob=addr_blob,
             seq_length=seq_length,
@@ -87,8 +88,14 @@ class BertBackbone(object):
   def sequence_output(self): return self.sequence_output_
   def embedding_table(self): return self.embedding_table_
   def get_layer_embedding(self, index): # 获得指定层的embedding
-      assert index >= 0 and index < self.all_encoder_layers_.shape[0]
+      assert index >= 0 and index < len(self.all_encoder_layers_)
       return self.all_encoder_layers_[index]
+  def get_layer_attention_scores(self, index=None): # add by wjn 获得某一层（所有层的attention score）
+      if index is None:
+          return self.all_attention_scores_blob
+      else:
+          assert index >= 0 and index < len(self.all_attention_scores_blob)
+          return self.all_attention_scores_blob[index]
 
 # oneflow初始化函数加载器
 def CreateInitializer(std):
@@ -116,12 +123,14 @@ def _TransformerModel(input_blob,
   input_width = hidden_size
   prev_output_blob = flow.reshape(input_blob, (-1, input_width))
   all_layer_output_blobs = []
+  all_attention_scores_blob = [] # add by wjn 保存每一层的attention vector
   for layer_idx in range(num_hidden_layers): # Transformer包含若干层
     with flow.scope.namespace("layer_%d"%layer_idx):
       layer_input_blob = prev_output_blob
       with flow.scope.namespace("attention"):
         with flow.scope.namespace("self"):
-          attention_output_blob = _AttentionLayer(
+          # attention_output_blob = _AttentionLayer(
+          attention_output_blob, attention_scores_blob = _AttentionLayer(
               from_blob=layer_input_blob,
               to_blob=layer_input_blob,
               addr_blob=addr_blob,
@@ -132,6 +141,7 @@ def _TransformerModel(input_blob,
               do_return_2d_tensor=True,
               from_seq_length=seq_length,
               to_seq_length=seq_length)
+          all_attention_scores_blob.append(attention_scores_blob) # add by wjn
         with flow.scope.namespace("output"):
           attention_output_blob = _FullyConnected(
               attention_output_blob,
@@ -175,10 +185,11 @@ def _TransformerModel(input_blob,
     for layer_output_blob in all_layer_output_blobs:
       final_output_blob = flow.reshape(layer_output_blob, input_shape)
       final_output_blobs.append(final_output_blob)
-    return final_output_blobs
+    return final_output_blobs, all_attention_scores_blob
   else:
     final_output_blob = flow.reshape(prev_output_blob, input_shape)
-    return [final_output_blob]
+    # return [final_output_blob]
+    return [final_output_blob], all_attention_scores_blob
 
 def _AttentionLayer(from_blob,
                     to_blob,
@@ -246,7 +257,8 @@ def _AttentionLayer(from_blob,
     context_blob = flow.reshape(context_blob, [-1, num_attention_heads * size_per_head])
   else:
     context_blob = flow.reshape(context_blob, [-1, from_seq_length, num_attention_heads * size_per_head])
-  return context_blob
+  # return context_blob
+  return context_blob, attention_scores_blob
 
 def _FullyConnected(input_blob, input_size, units, activation=None, name=None,
                     weight_initializer=None):

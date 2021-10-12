@@ -13,9 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-
 # 本文件用于生成训练集的prototype embedding，并计算每个样本的prototypical score
-# 执行命令：python3 preprocess.py --task_name g1 --data_dir data/k-shot-cross/g1/16-42 --num_epochs 4 --seed 42 --seq_length=128 --train_example_num 96  --eval_example_num 96 --vocab_file uncased_L-12_H-768_A-12/vocab.txt --resave_ofrecord
+# 执行命令：
 
 
 import sys
@@ -28,11 +27,11 @@ import oneflow as flow
 from classifier import MFTBERT
 import tokenization
 from util import Snapshot, InitNodes, Metric, CreateOptimizer, GetFunctionConfig
-from data_utils.data_process import Preprocessor
-from data_utils.task_processors import PROCESSORS, load_examples, DEV32_SET, TRAIN_SET, DEV_SET, TEST_SET, METRICS, DEFAULT_METRICS
+from data_utils.task_processors1 import PROCESSORS, load_examples, DEV32_SET, TRAIN_SET, DEV_SET, TEST_SET, METRICS, DEFAULT_METRICS
 from data_utils.data_process import domain_list, class_list, task_to_id
 from data_utils.generate_feature import generate_dataset
 import scipy.spatial.distance as distance
+from sklearn.metrics import accuracy_score, matthews_corrcoef, precision_score, recall_score, f1_score
 import config as configs
 
 
@@ -47,12 +46,14 @@ parser.add_argument("--batch_size_per_device", type=int, default=2)
 parser.add_argument("--train_data_part_num", type=int, default=1,
                     help="data part number in dataset")
 parser.add_argument("--vocab_file", type=str, default=None)
-parser.add_argument("--eval_data_prefix", type=str, default='eval.of_record-')
-parser.add_argument("--eval_example_num", type=int, default=10833,
+parser.add_argument("--dev_data_prefix", type=str, default='dev.of_record-')
+parser.add_argument("--dev_example_num", type=int, default=10833,
                     help="example number in dataset")
-parser.add_argument("--eval_batch_size_per_device", type=int, default=2)
-parser.add_argument("--eval_data_part_num", type=int, default=1,
+parser.add_argument("--dev_batch_size_per_device", type=int, default=2)
+parser.add_argument("--dev_data_part_num", type=int, default=1,
                     help="data part number in dataset")
+parser.add_argument("--dev_every_step_num", type=int, default=10,
+                    help="")
 parser.add_argument('--seed', type=int, default=42,
                     help="random seed for initialization")
 parser.add_argument("--resave_ofrecord", action='store_true', help="Whether to resave the data to ofrecord")
@@ -61,10 +62,11 @@ args = parser.parse_args()
 args.num_nodes = 1 # 默认只有一个设备
 args.gpu_num_per_node = 1
 batch_size = args.num_nodes * args.gpu_num_per_node * args.batch_size_per_device
-eval_batch_size = args.num_nodes * args.gpu_num_per_node * args.eval_batch_size_per_device
+dev_batch_size = args.num_nodes * args.gpu_num_per_node * args.dev_batch_size_per_device
 epoch_size = math.ceil(args.train_example_num / batch_size)
-num_eval_steps = math.ceil(args.eval_example_num / eval_batch_size)
-
+num_dev_steps = math.ceil(args.dev_example_num / dev_batch_size)
+args.iter_num = epoch_size * args.num_epochs
+configs.print_args(args)
 
 def BertDecoder(
     data_dir, batch_size, data_part_num, seq_length, part_name_prefix, shuffle=True
@@ -89,6 +91,7 @@ def BertDecoder(
         _blob_conf("logits", [1])
         _blob_conf("idxs", [1])
         _blob_conf("weights", [1], dtype=flow.float32)
+        # print('blob_confs=', blob_confs['input_ids'].shape)
         return blob_confs
 
 # 跑一个batch
@@ -107,7 +110,7 @@ def BuildBert(
     )
     #is_real_example = decoders['is_real_example']
     # 使用带有分类器的BERT进行微调，并获得loss和logit
-    output = MFTBERT(
+    loss, logits = MFTBERT(
         decoders['input_ids'],
         decoders['attention_masks'],
         decoders['token_type_ids'],
@@ -116,6 +119,7 @@ def BuildBert(
         args.vocab_size,
         input_weight=decoders['weights'],
         num_domains=num_domains,
+        layer_indexes=[3, 7, 11],
         seq_length=args.seq_length,
         hidden_size=hidden_size,
         num_hidden_layers=args.num_hidden_layers,
@@ -127,68 +131,72 @@ def BuildBert(
         max_position_embeddings=args.max_position_embeddings,
         type_vocab_size=args.type_vocab_size,
         initializer_range=0.02,
-        get_output=True # 只获得隐向量
+        get_output=False
     )
-    return output, decoders['tasks'], decoders['labels'], decoders['idxs'],
+    return loss, logits, decoders['labels']
 
+
+# 作业函数
+@flow.global_function(type='train', function_config=GetFunctionConfig(args))
+def BertGlueFinetuneJob():
+    # 跑一个batch
+    loss, logits, _ = BuildBert(
+        batch_size,
+        args.train_data_part_num,
+        os.path.join(args.data_dir, 'ofrecord', 'train'),
+        args.train_data_prefix,
+    )
+    flow.losses.add_loss(loss)
+    opt = CreateOptimizer(args)
+    opt.minimize(loss)
+    return {'loss': loss}
+    # return loss
 
 @flow.global_function(type='predict', function_config=GetFunctionConfig(args))
-def BertGlueEvalValJob():
-    output, tasks, labels, idxs = BuildBert(
+def BertGlueEvalTrainJob():
+    _, logits, label_ids = BuildBert(
         batch_size,
         args.train_data_part_num,
         os.path.join(args.data_dir, 'ofrecord', 'train'),
         args.train_data_prefix,
         shuffle=False
     )
-    return output, tasks, labels, idxs
+    return logits, label_ids
+
+@flow.global_function(type='predict', function_config=GetFunctionConfig(args))
+def BertGlueEvalValJob():
+    _, logits, label_ids = BuildBert(
+        batch_size,
+        args.dev_data_part_num,
+        os.path.join(args.data_dir, 'ofrecord', 'dev'),
+        args.dev_data_prefix,
+        shuffle=False
+    )
+    return logits, label_ids
 
 
-def get_hidden_embedding(eval_job_func, num_steps, domain_class_embeddings, temp_output_data, desc='train'):
+def run_eval_job(dev_job_func, num_steps, desc='dev'):
     labels = []
     predictions = []
-    for index in tqdm(range(num_steps)):
-        output, tasks, labels, idxs = eval_job_func().get()
-        current_size = output.shape[0]
-        output = list(output.numpy().tolist())
-        tasks = list(tasks.numpy().tolist())
-        labels = list(labels.numpy().tolist())
-        idxs = list(idxs.numpy().tolist())
-        # print('tasks=', tasks, ',output=', output)
+    for index in range(num_steps):
+        logits, label = dev_job_func().get()
+        predictions.extend(list(logits.numpy().argmax(axis=1)))
+        labels.extend(list(label))
 
-        for i in range(current_size):
-            pool_output = output[i]
-            task_name = domain_list[args.task_name][tasks[i][0]]
-            label = str(labels[i][0])
-            domain_class_embeddings[task_name + '\t' + label].append(pool_output)
-            temp_output_data.append((idxs[i][0], task_name, label, pool_output))
+    def metric_fn(predictions, labels):
+        return {
+            "accuarcy": accuracy_score(labels, predictions),
+            "matthews_corrcoef": matthews_corrcoef(labels, predictions),
+            "precision": precision_score(labels, predictions),
+            "recall": recall_score(labels, predictions),
+            "f1": f1_score(labels, predictions),
+        }
 
-    return domain_class_embeddings, temp_output_data
-
-
-
-
-# 计算 prototypical score
-def compute_weight(domain, label, current_embedding, centroid_embeddings):
-    key_name = domain + "\t" + str(label)
-    current_centroid = centroid_embeddings[key_name]
-    other_centroids = list()
-    for current_key in centroid_embeddings.keys():
-        items = current_key.split("\t")
-        current_domain = items[0]
-        current_label = items[1]
-        if not (current_domain == domain) and (current_label==label):
-            other_centroids.append(centroid_embeddings[current_key])
-    other_centroids = np.array(other_centroids)
-    other_centroid_mean = np.mean(other_centroids, axis=0)
-    first_cos_sim = 1 - distance.cosine(current_embedding, current_centroid)
-    second_cos_sim = 1 - distance.cosine(current_embedding, other_centroid_mean)
-    return (first_cos_sim + second_cos_sim) / 2
-
-
+    metric_dict = metric_fn(predictions, labels)
+    print(desc, ', '.join('{}: {:.3f}'.format(k, v) for k, v in metric_dict.items()))
+    return metric_dict['accuarcy']
 
 def main():
-
     # 加载domain以及对应的class
     if args.task_name not in domain_list:
         raise AttributeError('The task name can only be selected from [g1, g2, g3]')
@@ -203,8 +211,6 @@ def main():
     preprocessor = Preprocessor(args, tokenizer, args.seed)
     label_map = preprocessor.label_map # class2id
 
-
-
     # 将原始数据集生成ofrecord数据集
     ofrecord_dir = os.path.join(args.data_dir, 'ofrecord')
 
@@ -212,17 +218,15 @@ def main():
         # 获得训练集、验证集和测试集的example格式数据 List[InputExample]
         train_data = load_examples(
             args.task_name, args.data_dir, TRAIN_SET, num_examples=-1, num_examples_per_label=None)
-        print('===============================')
+        print('===============train examples================')
         print('len=', len(train_data))
+        print('example 0:', train_data[0])
+        print('example 1:', train_data[1])
         print('===============================')
-        # eval_data = load_examples(
-        #     args.task_name, args.data_dir, TEST_SET, num_examples=-1, num_examples_per_label=None)
         dev_data = load_examples(
             args.task_name, args.data_dir, DEV_SET, num_examples=-1, num_examples_per_label=None)
         train_feature_dict = generate_dataset(args, train_data, preprocessor, ofrecord_dir=ofrecord_dir,
                                               stage='train')
-        # eval_feature_dict = generate_dataset(args, eval_data, preprocessor, ofrecord_dir=ofrecord_dir,
-        #                                      stage='eval')
         dev_feature_dict = generate_dataset(args, dev_data, preprocessor, ofrecord_dir=ofrecord_dir,
                                             stage='dev')
     # 初始化每个 domain class 的prototypical embedding
@@ -243,34 +247,33 @@ def main():
     InitNodes(args)
     snapshot = Snapshot(args.model_save_dir, args.model_load_dir)
 
-    # 执行一次prediction，获得BERT的embedding
-    domain_class_embeddings, temp_output_data = get_hidden_embedding(
-        eval_job_func=BertGlueEvalValJob,
-        num_steps=num_eval_steps,
-        domain_class_embeddings=domain_class_embeddings,
-        temp_output_data=temp_output_data,
-        desc='eval')
+    print("starting meta fine-tuning")
 
-    # do inference for training data
+    global_step = 0
+    best_dev_acc = 0.0
+    for epoch in tqdm(range(args.num_epochs)):
+        metric = Metric(desc='meta-finetune', print_steps=args.loss_print_every_n_iter,
+                        batch_size=batch_size, keys=['loss'])
 
-            
-    # compute centroids
-    # 对于每个domain class，取所有样本embedding的均值，作为prototype embedding
-    centroid_embeddings = dict()
-    for key_name in domain_class_embeddings:
-        domain_class_data_embeddings = np.array(domain_class_embeddings[key_name])
-        centroid_embeddings[key_name] = np.mean(domain_class_data_embeddings, axis=0)
+        for step in range(epoch_size):
+            global_step += 1
+            loss = BertGlueFinetuneJob().async_get(metric.metric_cb(global_step, epoch=epoch))
 
-    # output files for meta fine-tune
-    # 计算prototypical score，并保存在本地文件中
-    #write odps tables
-    records = []
-    for idx, domain, label, embeddings in temp_output_data:
-        weight = compute_weight(domain, label, embeddings, centroid_embeddings)
-        tup = {idx: np.around(weight, decimals=5)}
-        records.append(tup)
+            if global_step % args.dev_every_step_num == 0:
+                print("===== evaluating ... =====")
+                dev_acc = run_eval_job(
+                    dev_job_func=BertGlueEvalValJob,
+                    num_steps=num_dev_steps,
+                    desc='dev')
 
-    np.save(os.path.join(ofrecord_dir, 'train/weight.npy'), records, allow_pickle=True)
+                if best_dev_acc < dev_acc:
+                    best_dev_acc = dev_acc
+                    # 保存最好模型参数
+                    print('===== saving model ... =====')
+                    snapshot.save("best_mft_model_{}_dev_{}".format(args.task_name, best_dev_acc))
+
+    print("best dev acc: {}".format(best_dev_acc))
+
 
 
 if __name__ == "__main__":

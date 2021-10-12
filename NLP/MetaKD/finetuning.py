@@ -28,7 +28,7 @@ from classifier import MFTBERT, BERT
 import tokenization
 from util import Snapshot, InitNodes, Metric, CreateOptimizer, GetFunctionConfig
 from data_utils.data_process import Preprocessor
-from data_utils.task_processors import PROCESSORS, load_examples, DEV32_SET, TRAIN_SET, DEV_SET, TEST_SET, METRICS, DEFAULT_METRICS
+from data_utils.task_processors1 import PROCESSORS, load_examples, DEV32_SET, TRAIN_SET, DEV_SET, TEST_SET, METRICS, DEFAULT_METRICS
 from data_utils.data_process import domain_list, class_list, task_to_id
 from data_utils.generate_feature import generate_dataset
 import scipy.spatial.distance as distance

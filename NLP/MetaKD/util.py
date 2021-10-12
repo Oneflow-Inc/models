@@ -59,7 +59,7 @@ class Snapshot(object):
         if not os.path.exists(snapshot_save_path):
             os.makedirs(snapshot_save_path)
         print("Saving model to {}.".format(snapshot_save_path))
-        if not os.path.exists(snapshot_save_path):
+        if os.path.exists(snapshot_save_path):
             self._check_point.save(snapshot_save_path)
 
 
@@ -188,3 +188,23 @@ def GetFunctionConfig(args):
     config.enable_fuse_model_update_ops(True)
     return config
 
+
+
+
+
+#
+#
+# def simple_accuracy(labels, preds):
+#     return (preds == labels).mean()
+
+#
+# def compute_metrics(task_name, preds, labels):
+#     assert len(preds) == len(labels)
+#     if task_name == "mnli":
+#         return {"acc": simple_accuracy(labels, preds)}
+#     elif task_name == "mnli-mm":
+#         return {"acc": simple_accuracy(labels, preds)}
+#     elif task_name == "senti":
+#         return {"acc": simple_accuracy(labels, preds)}
+#     else:
+#         raise KeyError(task_name)

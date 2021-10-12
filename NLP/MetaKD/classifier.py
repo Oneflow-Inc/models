@@ -97,6 +97,201 @@ def MFTBERT(
 
 
 
+
+### Meta Teacher Model
+def MetaTeacherBERT(
+    input_ids_blob,
+    input_mask_blob,
+    token_type_ids_blob,
+    label_blob,
+    input_domain,
+    vocab_size,
+    input_weight,
+    layer_indexes=[-1],
+    num_domains=3,
+    seq_length=512,
+    hidden_size=768,
+    num_hidden_layers=12,
+    num_attention_heads=12,
+    intermediate_size=3072,
+    hidden_act="gelu",
+    hidden_dropout_prob=0.1,
+    attention_probs_dropout_prob=0.1,
+    max_position_embeddings=512,
+    type_vocab_size=16,
+    initializer_range=0.02,
+    label_num=2,
+    lambda_=0.1, # 两个loss的权重
+    replace_prob=None,
+    get_output=False, # add by wjn，当为True时，表示只获取BERT的embedding
+    get_att_reps=False, # add by wjn，当为True时，获得BERT的attention、
+):
+    backbone = bert_util.BertBackbone( # 创建BERT基础模型
+        input_ids_blob=input_ids_blob,
+        input_mask_blob=input_mask_blob,
+        token_type_ids_blob=token_type_ids_blob,
+        vocab_size=vocab_size,
+        seq_length=seq_length,
+        hidden_size=hidden_size,
+        num_hidden_layers=num_hidden_layers,
+        num_attention_heads=num_attention_heads,
+        intermediate_size=intermediate_size,
+        hidden_act=hidden_act,
+        hidden_dropout_prob=hidden_dropout_prob,
+        attention_probs_dropout_prob=attention_probs_dropout_prob,
+        max_position_embeddings=max_position_embeddings,
+        type_vocab_size=type_vocab_size,
+        initializer_range=initializer_range,
+    )
+    if get_output:
+        last_layer_output = backbone.sequence_output() # [bz, len, dim]
+        # indices = flow.tensor([0])
+        # cls_output = flow.gather(last_layer_output, indices=indices, axis=1) # [bz, dim] 取CLS对应的embedding
+        cls_output = flow.math.reduce_mean(last_layer_output, axis=1)
+        # print('cls_output.shape=', cls_output.shape)
+        return cls_output
+
+    # Meta-teacher: CLS classification loss
+    pooled_output = PooledOutput(
+        sequence_output=backbone.sequence_output(),
+        hidden_size=hidden_size,
+        initializer_range=initializer_range
+    )
+    # 添加分类损失函数
+    cls_loss, _, logit_blob = _AddClassficationLoss(
+        input_blob=pooled_output,
+        label_blob=label_blob,
+        hidden_size=hidden_size,
+        label_num=label_num,
+        initializer_range=initializer_range,
+        scope_name='classification'
+    )
+
+    ## Meta-teacher: Corrupted Domain Classification loss
+    corrupted_loss = _AddCorruptedDomainCLSLoss(backbone.all_encoder_layers_, label_blob, input_domain, hidden_size, num_domains,
+                               layer_indexes, initializer_range)
+
+    # 对corrupted_loss进行加权求和
+    corrupted_loss = flow.math.multiply(corrupted_loss, input_weight)
+
+    if get_att_reps:
+        all_attention_scores_blob = backbone.get_layer_attention_scores(num_hidden_layers - 1) # 最末层
+        return cls_loss + lambda_ * corrupted_loss, logit_blob, all_attention_scores_blob, pooled_output
+
+
+    return cls_loss + lambda_ * corrupted_loss, logit_blob
+
+
+
+    # return cls_loss, logit_blob
+
+
+
+
+
+
+### Meta Student Model
+def MetaStudentBERT(
+    input_ids_blob,
+    input_mask_blob,
+    token_type_ids_blob,
+    label_blob,
+    input_domain,
+    vocab_size,
+    input_weight,
+    input_logit_blob,
+    input_attention_blob,
+    input_pooled_blob,
+    layer_indexes=[-1],
+    num_domains=3,
+    seq_length=512,
+    hidden_size=768,
+    num_hidden_layers=6,
+    num_attention_heads=12,
+    intermediate_size=3072,
+    hidden_act="gelu",
+    hidden_dropout_prob=0.1,
+    attention_probs_dropout_prob=0.1,
+    max_position_embeddings=512,
+    type_vocab_size=16,
+    initializer_range=0.02,
+    label_num=2,
+    lambda_=0.1, # 两个loss的权重
+    replace_prob=None,
+    get_output=False, # add by wjn，当为True时，表示只获取BERT的embedding
+    get_att_reps=False, # add by wjn，当为True时，获得BERT的attention、
+):
+    # batch_size = input_ids_blob.shape[0]
+    # hidden_size_of_each_head = int(hidden_size / num_attention_heads)
+    # input_attention_blob = flow.reshape(input_attention_blob, (batch_size, 12, hidden_size_of_each_head, -1))
+    # input_pooled_blob = flow.reshape(input_pooled_blob, (batch_size, 12, hidden_size_of_each_head, -1))
+    backbone = bert_util.BertBackbone( # 创建BERT基础模型
+        input_ids_blob=input_ids_blob,
+        input_mask_blob=input_mask_blob,
+        token_type_ids_blob=token_type_ids_blob,
+        vocab_size=vocab_size,
+        seq_length=seq_length,
+        hidden_size=hidden_size,
+        num_hidden_layers=num_hidden_layers,
+        num_attention_heads=num_attention_heads,
+        intermediate_size=intermediate_size,
+        hidden_act=hidden_act,
+        hidden_dropout_prob=hidden_dropout_prob,
+        attention_probs_dropout_prob=attention_probs_dropout_prob,
+        max_position_embeddings=max_position_embeddings,
+        type_vocab_size=type_vocab_size,
+        initializer_range=initializer_range,
+    )
+    if get_output:
+        last_layer_output = backbone.sequence_output() # [bz, len, dim]
+        # indices = flow.tensor([0])
+        # cls_output = flow.gather(last_layer_output, indices=indices, axis=1) # [bz, dim] 取CLS对应的embedding
+        cls_output = flow.math.reduce_mean(last_layer_output, axis=1)
+        # print('cls_output.shape=', cls_output.shape)
+        return cls_output
+
+    # Meta-teacher: CLS classification loss
+    pooled_output = PooledOutput(
+        sequence_output=backbone.sequence_output(),
+        hidden_size=hidden_size,
+        initializer_range=initializer_range
+    )
+    # 添加分类损失函数
+    cls_loss, _, logit_blob = _AddClassficationLoss(
+        input_blob=pooled_output,
+        label_blob=label_blob,
+        hidden_size=hidden_size,
+        label_num=label_num,
+        initializer_range=initializer_range,
+        scope_name='classification'
+    )
+
+    ## Meta-teacher: Corrupted Domain Classification loss
+    corrupted_loss = _AddCorruptedDomainCLSLoss(backbone.all_encoder_layers_, label_blob, input_domain, hidden_size, num_domains,
+                               layer_indexes, initializer_range)
+
+    # 对corrupted_loss进行加权求和
+    corrupted_loss = flow.math.multiply(corrupted_loss, input_weight)
+
+    # 使用MSE对包括attention_score、pool_output以及soft-label计算loss
+    all_attention_scores_blob = backbone.get_layer_attention_scores(num_hidden_layers - 1)
+    # print('all_attention_scores_blob.shape=', all_attention_scores_blob.shape)
+    # print('input_attention_blob.shape=', input_attention_blob.shape)
+    # print('logit_blob.shape=', logit_blob.shape)
+    # print('input_logit_blob.shape=', input_logit_blob.shape)
+    # print('pooled_output.shape=', pooled_output.shape)
+    # print('input_pooled_blob.shape=', input_pooled_blob.shape)
+    # attention_loss = flow.math.reduce_mean(flow.nn.MSELoss(input=all_attention_scores_blob, target=input_attention_blob))
+    # logit_loss = flow.math.reduce_mean(flow.nn.MSELoss(input=logit_blob, target=input_logit_blob))
+    # pooled_loss = flow.math.reduce_mean(flow.nn.MSELoss(input=pooled_output, target=input_pooled_blob))
+    # return cls_loss + lambda_ * corrupted_loss + attention_loss + logit_loss + pooled_loss, logit_blob
+    return cls_loss + lambda_ * corrupted_loss, logit_blob
+
+
+
+
+
+
 ### standard Fine-tuning
 def BERT(
     input_ids_blob,
