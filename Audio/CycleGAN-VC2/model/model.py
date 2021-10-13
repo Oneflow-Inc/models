@@ -26,29 +26,38 @@ class ResidualLayer(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride, padding):
         super(ResidualLayer, self).__init__()
 
-        self.conv1d_layer = nn.Sequential(nn.Conv1d(in_channels=in_channels,
-                                                    out_channels=out_channels,
-                                                    kernel_size=kernel_size,
-                                                    stride=1,
-                                                    padding=padding),
-                                          nn.InstanceNorm1d(num_features=out_channels,
-                                                            affine=True))
+        self.conv1d_layer = nn.Sequential(
+            nn.Conv1d(
+                in_channels=in_channels,
+                out_channels=out_channels,
+                kernel_size=kernel_size,
+                stride=1,
+                padding=padding,
+            ),
+            nn.InstanceNorm1d(num_features=out_channels, affine=True),
+        )
 
-        self.conv_layer_gates = nn.Sequential(nn.Conv1d(in_channels=in_channels,
-                                                        out_channels=out_channels,
-                                                        kernel_size=kernel_size,
-                                                        stride=1,
-                                                        padding=padding),
-                                              nn.InstanceNorm1d(num_features=out_channels,
-                                                                affine=True))
+        self.conv_layer_gates = nn.Sequential(
+            nn.Conv1d(
+                in_channels=in_channels,
+                out_channels=out_channels,
+                kernel_size=kernel_size,
+                stride=1,
+                padding=padding,
+            ),
+            nn.InstanceNorm1d(num_features=out_channels, affine=True),
+        )
 
-        self.conv1d_out_layer = nn.Sequential(nn.Conv1d(in_channels=out_channels,
-                                                        out_channels=in_channels,
-                                                        kernel_size=kernel_size,
-                                                        stride=1,
-                                                        padding=padding),
-                                              nn.InstanceNorm1d(num_features=in_channels,
-                                                                affine=True))
+        self.conv1d_out_layer = nn.Sequential(
+            nn.Conv1d(
+                in_channels=out_channels,
+                out_channels=in_channels,
+                kernel_size=kernel_size,
+                stride=1,
+                padding=padding,
+            ),
+            nn.InstanceNorm1d(num_features=in_channels, affine=True),
+        )
 
     def forward(self, input):
         h1_norm = self.conv1d_layer(input)
@@ -65,149 +74,142 @@ class downSample_Generator(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride, padding):
         super(downSample_Generator, self).__init__()
 
-        self.convLayer = nn.Sequential(nn.Conv2d(in_channels=in_channels,
-                                                 out_channels=out_channels,
-                                                 kernel_size=kernel_size,
-                                                 stride=stride,
-                                                 padding=padding),
-                                       nn.InstanceNorm2d(num_features=out_channels,
-                                                         affine=True))
-        self.convLayer_gates = nn.Sequential(nn.Conv2d(in_channels=in_channels,
-                                                       out_channels=out_channels,
-                                                       kernel_size=kernel_size,
-                                                       stride=stride,
-                                                       padding=padding),
-                                             nn.InstanceNorm2d(num_features=out_channels,
-                                                               affine=True))
+        self.convLayer = nn.Sequential(
+            nn.Conv2d(
+                in_channels=in_channels,
+                out_channels=out_channels,
+                kernel_size=kernel_size,
+                stride=stride,
+                padding=padding,
+            ),
+            nn.InstanceNorm2d(num_features=out_channels, affine=True),
+        )
+        self.convLayer_gates = nn.Sequential(
+            nn.Conv2d(
+                in_channels=in_channels,
+                out_channels=out_channels,
+                kernel_size=kernel_size,
+                stride=stride,
+                padding=padding,
+            ),
+            nn.InstanceNorm2d(num_features=out_channels, affine=True),
+        )
 
     def forward(self, input):
         return self.convLayer(input) * flow.sigmoid(self.convLayer_gates(input))
-
 
 
 class Generator(nn.Module):
     def __init__(self):
         super(Generator, self).__init__()
 
-        # 2D Conv Layer 
-        self.conv1 = nn.Conv2d(in_channels=1,
-                               out_channels=128,
-                               kernel_size=(5, 15),
-                               stride=(1, 1),
-                               padding=(2, 7))
+        # 2D Conv Layer
+        self.conv1 = nn.Conv2d(
+            in_channels=1,
+            out_channels=128,
+            kernel_size=(5, 15),
+            stride=(1, 1),
+            padding=(2, 7),
+        )
 
-        self.conv1_gates = nn.Conv2d(in_channels=1,
-                                     out_channels=128,
-                                     kernel_size=(5, 15),
-                                     stride=1,
-                                     padding=(2, 7))
+        self.conv1_gates = nn.Conv2d(
+            in_channels=1,
+            out_channels=128,
+            kernel_size=(5, 15),
+            stride=1,
+            padding=(2, 7),
+        )
 
         # 2D Downsample Layer
-        self.downSample1 = downSample_Generator(in_channels=128,
-                                                out_channels=256,
-                                                kernel_size=5,
-                                                stride=2,
-                                                padding=2)
+        self.downSample1 = downSample_Generator(
+            in_channels=128, out_channels=256, kernel_size=5, stride=2, padding=2
+        )
 
-        self.downSample2 = downSample_Generator(in_channels=256,
-                                                out_channels=256,
-                                                kernel_size=5,
-                                                stride=2,
-                                                padding=2)
+        self.downSample2 = downSample_Generator(
+            in_channels=256, out_channels=256, kernel_size=5, stride=2, padding=2
+        )
 
         # 2D -> 1D Conv
-        self.conv2dto1dLayer = nn.Sequential(nn.Conv1d(in_channels=2304,
-                                                       out_channels=256,
-                                                       kernel_size=1,
-                                                       stride=1,
-                                                       padding=0),
-                                             nn.InstanceNorm1d(num_features=256,
-                                                               affine=True))
+        self.conv2dto1dLayer = nn.Sequential(
+            nn.Conv1d(
+                in_channels=2304, out_channels=256, kernel_size=1, stride=1, padding=0
+            ),
+            nn.InstanceNorm1d(num_features=256, affine=True),
+        )
 
         # Residual Blocks
-        self.residualLayer1 = ResidualLayer(in_channels=256,
-                                            out_channels=512,
-                                            kernel_size=3,
-                                            stride=1,
-                                            padding=1)
-        self.residualLayer2 = ResidualLayer(in_channels=256,
-                                            out_channels=512,
-                                            kernel_size=3,
-                                            stride=1,
-                                            padding=1)
-        self.residualLayer3 = ResidualLayer(in_channels=256,
-                                            out_channels=512,
-                                            kernel_size=3,
-                                            stride=1,
-                                            padding=1)
-        self.residualLayer4 = ResidualLayer(in_channels=256,
-                                            out_channels=512,
-                                            kernel_size=3,
-                                            stride=1,
-                                            padding=1)
-        self.residualLayer5 = ResidualLayer(in_channels=256,
-                                            out_channels=512,
-                                            kernel_size=3,
-                                            stride=1,
-                                            padding=1)
-        self.residualLayer6 = ResidualLayer(in_channels=256,
-                                            out_channels=512,
-                                            kernel_size=3,
-                                            stride=1,
-                                            padding=1)
+        self.residualLayer1 = ResidualLayer(
+            in_channels=256, out_channels=512, kernel_size=3, stride=1, padding=1
+        )
+        self.residualLayer2 = ResidualLayer(
+            in_channels=256, out_channels=512, kernel_size=3, stride=1, padding=1
+        )
+        self.residualLayer3 = ResidualLayer(
+            in_channels=256, out_channels=512, kernel_size=3, stride=1, padding=1
+        )
+        self.residualLayer4 = ResidualLayer(
+            in_channels=256, out_channels=512, kernel_size=3, stride=1, padding=1
+        )
+        self.residualLayer5 = ResidualLayer(
+            in_channels=256, out_channels=512, kernel_size=3, stride=1, padding=1
+        )
+        self.residualLayer6 = ResidualLayer(
+            in_channels=256, out_channels=512, kernel_size=3, stride=1, padding=1
+        )
 
         # 1D -> 2D Conv
-        self.conv1dto2dLayer = nn.Sequential(nn.Conv1d(in_channels=256,
-                                                       out_channels=2304,
-                                                       kernel_size=1,
-                                                       stride=1,
-                                                       padding=0),
-                                             nn.InstanceNorm1d(num_features=2304,
-                                                               affine=True))
+        self.conv1dto2dLayer = nn.Sequential(
+            nn.Conv1d(
+                in_channels=256, out_channels=2304, kernel_size=1, stride=1, padding=0
+            ),
+            nn.InstanceNorm1d(num_features=2304, affine=True),
+        )
 
         # UpSample Layer
-        self.upSample1 = self.upSample(in_channels=256,
-                                       out_channels=1024,
-                                       kernel_size=5,
-                                       stride=1,
-                                       padding=2)
+        self.upSample1 = self.upSample(
+            in_channels=256, out_channels=1024, kernel_size=5, stride=1, padding=2
+        )
 
-        self.upSample2 = self.upSample(in_channels=256,
-                                       out_channels=512,
-                                       kernel_size=5,
-                                       stride=1,
-                                       padding=2)
+        self.upSample2 = self.upSample(
+            in_channels=256, out_channels=512, kernel_size=5, stride=1, padding=2
+        )
 
-        self.lastConvLayer = nn.Conv2d(in_channels=128,
-                                       out_channels=1,
-                                       kernel_size=(5, 15),
-                                       stride=(1, 1),
-                                       padding=(2, 7))
+        self.lastConvLayer = nn.Conv2d(
+            in_channels=128,
+            out_channels=1,
+            kernel_size=(5, 15),
+            stride=(1, 1),
+            padding=(2, 7),
+        )
 
     def downSample(self, in_channels, out_channels, kernel_size, stride, padding):
-        self.ConvLayer = nn.Sequential(nn.Conv1d(in_channels=in_channels,
-                                                 out_channels=out_channels,
-                                                 kernel_size=kernel_size,
-                                                 stride=stride,
-                                                 padding=padding),
-                                       nn.InstanceNorm1d(
-                                           num_features=out_channels,
-                                           affine=True),
-                                       GLU())
+        self.ConvLayer = nn.Sequential(
+            nn.Conv1d(
+                in_channels=in_channels,
+                out_channels=out_channels,
+                kernel_size=kernel_size,
+                stride=stride,
+                padding=padding,
+            ),
+            nn.InstanceNorm1d(num_features=out_channels, affine=True),
+            GLU(),
+        )
 
         return self.ConvLayer
 
     def upSample(self, in_channels, out_channels, kernel_size, stride, padding):
-        self.convLayer = nn.Sequential(nn.Conv2d(in_channels=in_channels,
-                                                 out_channels=out_channels,
-                                                 kernel_size=kernel_size,
-                                                 stride=stride,
-                                                 padding=padding),
-                                       nn.PixelShuffle(upscale_factor=2),
-                                       nn.InstanceNorm2d(
-                                           num_features=out_channels // 4,
-                                           affine=True),
-                                       GLU())
+        self.convLayer = nn.Sequential(
+            nn.Conv2d(
+                in_channels=in_channels,
+                out_channels=out_channels,
+                kernel_size=kernel_size,
+                stride=stride,
+                padding=padding,
+            ),
+            nn.PixelShuffle(upscale_factor=2),
+            nn.InstanceNorm2d(num_features=out_channels // 4, affine=True),
+            GLU(),
+        )
         return self.convLayer
 
     def forward(self, input):
@@ -251,54 +253,73 @@ class Discriminator(nn.Module):
     def __init__(self):
         super(Discriminator, self).__init__()
 
-        self.convLayer1 = nn.Sequential(nn.Conv2d(in_channels=1,
-                                                  out_channels=128,
-                                                  kernel_size=(3, 3),
-                                                  stride=(1, 1),
-                                                  padding=(1, 1)),
-                                        GLU())
+        self.convLayer1 = nn.Sequential(
+            nn.Conv2d(
+                in_channels=1,
+                out_channels=128,
+                kernel_size=(3, 3),
+                stride=(1, 1),
+                padding=(1, 1),
+            ),
+            GLU(),
+        )
 
         # DownSample Layer
-        self.downSample1 = self.downSample(in_channels=128,
-                                           out_channels=256,
-                                           kernel_size=(3, 3),
-                                           stride=(2, 2),
-                                           padding=1)
+        self.downSample1 = self.downSample(
+            in_channels=128,
+            out_channels=256,
+            kernel_size=(3, 3),
+            stride=(2, 2),
+            padding=1,
+        )
 
-        self.downSample2 = self.downSample(in_channels=256,
-                                           out_channels=512,
-                                           kernel_size=(3, 3),
-                                           stride=[2, 2],
-                                           padding=1)
+        self.downSample2 = self.downSample(
+            in_channels=256,
+            out_channels=512,
+            kernel_size=(3, 3),
+            stride=[2, 2],
+            padding=1,
+        )
 
-        self.downSample3 = self.downSample(in_channels=512,
-                                           out_channels=1024,
-                                           kernel_size=[3, 3],
-                                           stride=[2, 2],
-                                           padding=1)
+        self.downSample3 = self.downSample(
+            in_channels=512,
+            out_channels=1024,
+            kernel_size=[3, 3],
+            stride=[2, 2],
+            padding=1,
+        )
 
-        self.downSample4 = self.downSample(in_channels=1024,
-                                           out_channels=1024,
-                                           kernel_size=[1, 5],
-                                           stride=(1, 1),
-                                           padding=(0, 2))
+        self.downSample4 = self.downSample(
+            in_channels=1024,
+            out_channels=1024,
+            kernel_size=[1, 5],
+            stride=(1, 1),
+            padding=(0, 2),
+        )
 
         # Conv Layer
-        self.outputConvLayer = nn.Sequential(nn.Conv2d(in_channels=1024,
-                                                       out_channels=1,
-                                                       kernel_size=(1, 3),
-                                                       stride=[1, 1],
-                                                       padding=[0, 1]))
+        self.outputConvLayer = nn.Sequential(
+            nn.Conv2d(
+                in_channels=1024,
+                out_channels=1,
+                kernel_size=(1, 3),
+                stride=[1, 1],
+                padding=[0, 1],
+            )
+        )
 
     def downSample(self, in_channels, out_channels, kernel_size, stride, padding):
-        convLayer = nn.Sequential(nn.Conv2d(in_channels=in_channels,
-                                            out_channels=out_channels,
-                                            kernel_size=kernel_size,
-                                            stride=stride,
-                                            padding=padding),
-                                  nn.InstanceNorm2d(num_features=out_channels,
-                                                    affine=True),
-                                  GLU())
+        convLayer = nn.Sequential(
+            nn.Conv2d(
+                in_channels=in_channels,
+                out_channels=out_channels,
+                kernel_size=kernel_size,
+                stride=stride,
+                padding=padding,
+            ),
+            nn.InstanceNorm2d(num_features=out_channels, affine=True),
+            GLU(),
+        )
         return convLayer
 
     def forward(self, input):

@@ -19,7 +19,8 @@ def world_decompose(wav, fs, frame_period=5.0):
     # Decompose speech signal into f0, spectral envelope and aperiodicity using WORLD
     wav = wav.astype(np.float64)
     f0, timeaxis = pyworld.harvest(
-        wav, fs, frame_period=frame_period, f0_floor=71.0, f0_ceil=800.0)
+        wav, fs, frame_period=frame_period, f0_floor=71.0, f0_ceil=800.0
+    )
 
     # Finding Spectogram
     sp = pyworld.cheaptrick(wav, f0, timeaxis, fs)
@@ -43,9 +44,9 @@ def world_encode_data(wave, fs, frame_period=5.0, coded_dim=24):
     aps = list()
     coded_sps = list()
     for wav in wave:
-        f0, timeaxis, sp, ap = world_decompose(wav=wav,
-                                               fs=fs,
-                                               frame_period=frame_period)
+        f0, timeaxis, sp, ap = world_decompose(
+            wav=wav, fs=fs, frame_period=frame_period
+        )
         coded_sp = world_encode_spectral_envelop(sp=sp, fs=fs, dim=coded_dim)
         f0s.append(f0)
         timeaxes.append(timeaxis)
@@ -76,29 +77,38 @@ def coded_sps_normalization_fit_transform(coded_sps):
     coded_sps_std = np.std(coded_sps_concatenated, axis=1, keepdims=True)
     coded_sps_normalized = list()
     for coded_sp in coded_sps:
-        coded_sps_normalized.append(
-            (coded_sp - coded_sps_mean) / coded_sps_std)
+        coded_sps_normalized.append((coded_sp - coded_sps_mean) / coded_sps_std)
     return coded_sps_normalized, coded_sps_mean, coded_sps_std
 
 
 def wav_padding(wav, sr, frame_period, multiple=4):
     assert wav.ndim == 1
     num_frames = len(wav)
-    num_frames_padded = int((np.ceil((np.floor(num_frames / (sr * frame_period / 1000)) +
-                                      1) / multiple + 1) * multiple - 1) * (sr * frame_period / 1000))
+    num_frames_padded = int(
+        (
+            np.ceil(
+                (np.floor(num_frames / (sr * frame_period / 1000)) + 1) / multiple + 1
+            )
+            * multiple
+            - 1
+        )
+        * (sr * frame_period / 1000)
+    )
     num_frames_diff = num_frames_padded - num_frames
     num_pad_left = num_frames_diff // 2
     num_pad_right = num_frames_diff - num_pad_left
-    wav_padded = np.pad(wav, (num_pad_left, num_pad_right),
-                        'constant', constant_values=0)
+    wav_padded = np.pad(
+        wav, (num_pad_left, num_pad_right), "constant", constant_values=0
+    )
 
     return wav_padded
 
 
 def pitch_conversion(f0, mean_log_src, std_log_src, mean_log_target, std_log_target):
     # Logarithm Gaussian Normalization for Pitch Conversions
-    f0_converted = np.exp((np.log(f0) - mean_log_src) /
-                          std_log_src * std_log_target + mean_log_target)
+    f0_converted = np.exp(
+        (np.log(f0) - mean_log_src) / std_log_src * std_log_target + mean_log_target
+    )
     return f0_converted
 
 

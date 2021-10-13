@@ -5,9 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-parser = argparse.ArgumentParser(
-    "Speech-Transformer visualization."
-)
+parser = argparse.ArgumentParser("Speech-Transformer visualization.")
 # General config
 parser.add_argument(
     "--tr_loss_path",
@@ -20,9 +18,7 @@ parser.add_argument(
     default="exp/train_m4_n3_in80_elayer6_head8_k64_v64_model512_inner2048_drop0.1_pe5000_emb512_dlayer6_share1_ls0.1_epoch150_shuffle1_bs16_bf15000_mli800_mlo150_k0.2_warm4000/tr_loss.npy', 'egs/aishell/exp/train_m4_n3_in80_elayer6_head8_k64_v64_model512_inner2048_drop0.1_pe5000_emb512_dlayer6_share1_ls0.1_epoch150_shuffle1_bs16_bf15000_mli800_mlo150_k0.2_warm4000/val_loss.npy",
 )
 parser.add_argument(
-    "--save_figure_name",
-    type=str,
-    default="tr_val_loss_15000bf.png",
+    "--save_figure_name", type=str, default="tr_val_loss_15000bf.png",
 )
 
 

@@ -113,9 +113,7 @@ class OFRecordDataLoader(flow.nn.Module):
             self.image_decoder = flow.nn.OFRecordImageDecoderRandomCrop(
                 "encoded", color_space=color_space
             )
-            self.resize = flow.nn.image.Resize(
-                target_size=[image_width, image_height]
-            )
+            self.resize = flow.nn.image.Resize(target_size=[image_width, image_height])
             self.flip = flow.nn.CoinFlip(
                 batch_size=self.batch_size, placement=self.placement, sbp=self.sbp
             )
