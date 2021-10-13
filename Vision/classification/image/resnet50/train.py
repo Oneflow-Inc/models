@@ -244,6 +244,9 @@ class Trainer(object):
 
             self.cur_iter += 1
 
+            if self.cur_iter == 21:
+                exit()
+
             loss = tol(loss, self.metric_local)
             if pred is not None and label is not None:
                 pred = tol(pred, self.metric_local)
