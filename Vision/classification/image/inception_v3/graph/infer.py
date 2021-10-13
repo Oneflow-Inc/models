@@ -12,7 +12,10 @@ from utils.numpy_data_utils import load_image
 def _parse_args():
     parser = argparse.ArgumentParser("flags for test inception_v3")
     parser.add_argument(
-        "--model_path", type=str, default="./inceptionv3_oneflow_model", help="model path"
+        "--model_path",
+        type=str,
+        default="./inceptionv3_oneflow_model",
+        help="model path",
     )
     parser.add_argument("--image_path", type=str, default="", help="input image path")
     return parser.parse_args()

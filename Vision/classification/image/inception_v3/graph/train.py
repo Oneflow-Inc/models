@@ -10,15 +10,18 @@ from graph.data import make_data_loader
 from graph.build_graph import build_train_graph, build_eval_graph
 from models.inceptionv3 import inception_v3
 
+
 def tensor_to_local(tensor):
     """ to local """
     tensor = tensor.to_consistent(sbp=flow.sbp.broadcast).to_local()
     return tensor
 
+
 def tensor_to_numpy(tensor):
     """ tensor to numpy """
     tensor = tensor.to_consistent(sbp=flow.sbp.broadcast).to_local().numpy()
     return tensor
+
 
 class Accuracy(flow.nn.Module):
     def __init__(self):
@@ -37,6 +40,7 @@ class Accuracy(flow.nn.Module):
         top1_acc = top1_num / num_samples
         return top1_acc
 
+
 def calc_acc(preds, labels):
     correct_of = 0.0
     num_samples = 0
@@ -47,7 +51,8 @@ def calc_acc(preds, labels):
 
     top1_acc = correct_of / num_samples
     return top1_acc
-   
+
+
 class Trainer(object):
     def __init__(self):
         args = get_args()
@@ -72,12 +77,19 @@ class Trainer(object):
         self.val_data_loader = make_data_loader(
             args, "val", self.is_consistent, self.synthetic_data
         )
-        self.optimizer = flow.optim.SGD(self.model.parameters(), lr=args.learning_rate, momentum=args.momentum, weight_decay=args.weight_decay)
+        self.optimizer = flow.optim.SGD(
+            self.model.parameters(),
+            lr=args.learning_rate,
+            momentum=args.momentum,
+            weight_decay=args.weight_decay,
+        )
         self.acc = Accuracy()
 
-        self.train_graph = build_train_graph(self.model, self.criterion, self.train_data_loader, self.optimizer)
+        self.train_graph = build_train_graph(
+            self.model, self.criterion, self.train_data_loader, self.optimizer
+        )
         self.eval_graph = build_eval_graph(self.model, self.val_data_loader)
-    
+
     def init_model(self):
         if self.rank in [-1, 0]:
             print("***** Model Init *****")
@@ -90,7 +102,9 @@ class Trainer(object):
         self.load_state_dict()
         end_t = time.perf_counter()
         if self.rank in [-1, 0]:
-            print(f"***** Model Init Finish, time escapled: {end_t - start_t:.5f} s *****")
+            print(
+                f"***** Model Init Finish, time escapled: {end_t - start_t:.5f} s *****"
+            )
 
     def load_state_dict(self):
         if self.rank in [-1, 0]:
@@ -98,7 +112,7 @@ class Trainer(object):
         if self.load_path:
             state_dict = flow.load(self.load_path, consistent_src_rank=0)
             self.model.load_state_dict(state_dict)
-    
+
     def train(self):
         for _ in range(self.num_epochs):
             self.train_one_epoch()
@@ -109,23 +123,25 @@ class Trainer(object):
             self.save(save_dir)
             self.current_epoch += 1
             self.current_step = 0
-    
+
     def train_one_epoch(self):
         self.model.train()
         self.is_train = True
 
         for _ in range(self.batches_per_epoch):
             loss, pred, label = self.train_graph()
-        
+
             self.current_step += 1
             loss = tensor_to_local(loss)
             if self.rank in [-1, 0]:
-                print(f"Epoch: {self.current_epoch}, Iter: {self.current_step}, Loss: {loss}")
+                print(
+                    f"Epoch: {self.current_epoch}, Iter: {self.current_step}, Loss: {loss}"
+                )
             self.current_batch += 1
-            
+
             if self.current_batch == self.total_batches:
                 break
-    
+
     def eval(self):
         print("start evaluation...")
         self.model.eval()
@@ -153,13 +169,14 @@ class Trainer(object):
     def save(self, subdir):
         if self.save_path is None:
             return
-        
+
         save_path = os.path.join(self.save_path, subdir)
         state_dict = self.model.state_dict()
         flow.save(state_dict, save_path, consistent_dst_rank=0)
         if self.rank in [-1, 0]:
             print(f"Saving model to {save_path}")
         return
+
 
 if __name__ == "__main__":
     trainer = Trainer()

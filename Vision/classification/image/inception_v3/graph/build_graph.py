@@ -1,15 +1,28 @@
 import oneflow as flow
 
 
-def build_train_graph(model, criterion, data_loader, optimizer, lr_scheduler=None, *args, **kwargs):
-    return TrainGraph(model, criterion, data_loader, optimizer, lr_scheduler, *args, **kwargs)
+def build_train_graph(
+    model, criterion, data_loader, optimizer, lr_scheduler=None, *args, **kwargs
+):
+    return TrainGraph(
+        model, criterion, data_loader, optimizer, lr_scheduler, *args, **kwargs
+    )
+
 
 def build_eval_graph(model, data_loader):
     return EvalGraph(model, data_loader)
 
 
 class TrainGraph(flow.nn.Graph):
-    def __init__(self, model, criterion, data_loader, optimizer, lr_scheduler=None, return_pred_and_label=True):
+    def __init__(
+        self,
+        model,
+        criterion,
+        data_loader,
+        optimizer,
+        lr_scheduler=None,
+        return_pred_and_label=True,
+    ):
         super().__init__()
         self.return_pred_and_label = return_pred_and_label
 
@@ -44,7 +57,7 @@ class EvalGraph(flow.nn.Graph):
 
         self.data_loader = data_loader
         self.model = model
-    
+
     def build(self):
         image, label = self.data_loader()
         image = image.to("cuda")
