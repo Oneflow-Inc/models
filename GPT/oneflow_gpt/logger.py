@@ -90,17 +90,18 @@ class LossMetric(object):
             raise TypeError(f"invalid loss type: {type(loss)}")
 
     def get_avg_loss(self):
+        if isinstance(self.loss_sum, flow.Tensor):
+            # NOTE(zwx): sync happen here
+            loss_sum = self.loss_sum.numpy().item()
+        elif isinstance(self.loss_sum, np.ndarray):
+            loss_sum = self.loss_sum.item()
+        else:
+            loss_sum = self.loss_sum
+
         if self.numel == 0:
             return 0
-
-        avg = self.loss_sum / self.numel
-        if isinstance(avg, flow.Tensor):
-            # NOTE(zwx): sync happen here
-            return avg.numpy().item()
-        elif isinstance(avg, np.ndarray):
-            return avg.item()
         else:
-            return avg
+            return loss_sum / self.numel
 
     def get_format_str(self, pattern):
         loss = self.get_avg_loss()
