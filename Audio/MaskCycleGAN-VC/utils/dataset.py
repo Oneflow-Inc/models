@@ -4,7 +4,9 @@ from oneflow.utils.data.dataset import Dataset
 
 
 class VCDataset(Dataset):
-    def __init__(self, datasetA, datasetB=None, n_frames=64, max_mask_len=25, valid=False):
+    def __init__(
+        self, datasetA, datasetB=None, n_frames=64, max_mask_len=25, valid=False
+    ):
         self.datasetA = datasetA
         self.datasetB = datasetB
         self.n_frames = n_frames
@@ -47,7 +49,7 @@ class VCDataset(Dataset):
             assert n_frames > mask_size_A
             mask_start_A = np.random.randint(0, n_frames - mask_size_A)
             mask_A = np.ones_like(data_A[:, start_A:end_A])
-            mask_A[:, mask_start_A:mask_start_A + mask_size_A] = 0.
+            mask_A[:, mask_start_A : mask_start_A + mask_size_A] = 0.0
             train_data_A.append(data_A[:, start_A:end_A])
             train_mask_A.append(mask_A)
 
@@ -60,7 +62,7 @@ class VCDataset(Dataset):
             assert n_frames > mask_size_B
             mask_start_B = np.random.randint(0, n_frames - mask_size_B)
             mask_B = np.ones_like(data_A[:, start_A:end_A])
-            mask_B[:, mask_start_B:mask_start_B + mask_size_B] = 0.
+            mask_B[:, mask_start_B : mask_start_B + mask_size_B] = 0.0
             train_data_B.append(data_B[:, start_B:end_B])
             train_mask_B.append(mask_B)
 
@@ -69,7 +71,12 @@ class VCDataset(Dataset):
         train_mask_A = np.array(train_mask_A)
         train_mask_B = np.array(train_mask_B)
 
-        return train_data_A[index], train_mask_A[index],  train_data_B[index], train_mask_B[index]
+        return (
+            train_data_A[index],
+            train_mask_A[index],
+            train_data_B[index],
+            train_mask_B[index],
+        )
 
     def __len__(self):
         if self.datasetB is None:
