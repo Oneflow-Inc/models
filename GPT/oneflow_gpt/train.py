@@ -7,6 +7,7 @@ sys.path.append(
 
 import numpy as np
 import oneflow as flow
+import oneflow._oneflow_internal
 
 from oneflow_gpt.config import get_args
 from oneflow_gpt import distribute as dist
@@ -72,6 +73,7 @@ class Trainer(object):
             # snapshot.step()
             # iteration = snapshot.iter
             iteration += 1
+            print(f"[{self.rank}] iteration: {iteration}")
 
             self.logger.meter("samples", self.args.global_batch_size)
             self.logger.meter("loss", loss)
@@ -79,6 +81,9 @@ class Trainer(object):
             if iteration % self.args.log_interval == 0:
                 self.logger.meter("iter", iteration)
                 self.logger.print_metrics([self.world_size - 1])
+
+        print(f"[{self.rank}] training finished")
+        # oneflow._oneflow_internal.eager.multi_client.Sync()
 
     def train_eager(self):
         data, label = self.data_loader()
@@ -134,6 +139,9 @@ class GPTGraph(flow.nn.Graph):
         self.config.allow_fuse_model_update_ops(True)
         self.config.allow_fuse_cast_scale(True)
 
+    def __del__(self):
+        print(f"[{flow.env.get_rank()}] graph del")
+
     def set_activation_checkpointing(self):
         for module_block in self.model.modules():
             if isinstance(module_block.origin, TransformerLayer):
@@ -177,3 +185,4 @@ class GPTGraph(flow.nn.Graph):
 
 if __name__ == "__main__":
     Trainer()()
+    print(f"[{flow.env.get_rank()}] exit")
