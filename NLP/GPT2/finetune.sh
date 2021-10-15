@@ -4,7 +4,7 @@ CUDA_VISIBLE_DEVICES=0 python train.py \
     --train_dataset "data/corpus.small" \
     --test_dataset "data/corpus.small" \
     --vocab_file "gpt2-vocab.json" \
-    --merges_file "gpt2-merge.txt" \
+    --merges_file "gpt2-merges.txt" \
     --output_path "outputs" \
     --restore_file "gpt2_oneflow_model" \
     --seq_len 128 \

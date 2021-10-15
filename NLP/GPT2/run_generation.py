@@ -96,7 +96,7 @@ def main():
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--vocab_file", default="gpt2-vocab.json", type=str)
-    parser.add_argument("--merges_file", default="gpt2-merge.txt", type=str)
+    parser.add_argument("--merges_file", default="gpt2-merges.txt", type=str)
     parser.add_argument("--restore_file", default="gpt2_oneflow_model", type=str, help="Path to pre-trained model")
     parser.add_argument("--prompt", type=str, default="")
     parser.add_argument("--length", type=int, default=20)
