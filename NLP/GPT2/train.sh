@@ -3,8 +3,8 @@
 CUDA_VISIBLE_DEVICES=0 python train.py \
     --train_dataset "data/corpus.small" \
     --test_dataset "data/corpus.small" \
-    --vocab_file "vocab.json" \
-    --merges_file "merge.txt" \
+    --vocab_file "gpt2-vocab.json" \
+    --merges_file "gpt2-merge.txt" \
     --output_path "outputs" \
     --seq_len 128 \
     --batch_size 4 \
