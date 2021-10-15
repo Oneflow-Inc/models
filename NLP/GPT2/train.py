@@ -17,7 +17,7 @@ def main():
     parser.add_argument("--test_dataset", type=str, default="data/corpus.small", help="test set for evaluation")
     parser.add_argument("--vocab_file", default="gpt2-vocab.json", type=str)
     parser.add_argument("--merges_file", default="gpt2-merges.txt", type=str)
-    parser.add_argument("--output_path", default="output/model", type=str, help="save path")
+    parser.add_argument("--output_path", default="output/", type=str, help="save path")
     parser.add_argument("--restore_file", default=None, type=str, help="the path for pretrained model")
 
     parser.add_argument("--seq_len", type=int, default=128, help="maximum sequence len")
