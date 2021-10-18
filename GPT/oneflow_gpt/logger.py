@@ -103,6 +103,19 @@ class LossMetric(object):
         else:
             return loss_sum / self.numel
 
+    # def get_avg_loss(self):
+    #     if self.numel == 0:
+    #         return 0
+
+    #     avg = self.loss_sum / self.numel
+    #     if isinstance(avg, flow.Tensor):
+    #         # NOTE(zwx): sync happen here
+    #         return avg.numpy().item()
+    #     elif isinstance(avg, np.ndarray):
+    #         return avg.item()
+    #     else:
+    #         return avg
+
     def get_format_str(self, pattern):
         loss = self.get_avg_loss()
         return pattern.format(loss)

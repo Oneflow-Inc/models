@@ -285,10 +285,7 @@ class SelfAttention(flow.nn.Module):
             self.norm_factor *= self.coeff
 
         self.c_attn = ColumnParallelLinear(
-            layer_idx,
-            self.hidden_size,
-            self.hidden_size * 3,
-            init_method,
+            layer_idx, self.hidden_size, self.hidden_size * 3, init_method,
         )
 
         self.c_proj = RowParallelLinear(
@@ -355,7 +352,8 @@ class SelfAttention(flow.nn.Module):
             )
         else:
             x = flow._C.fused_scale_tril(x, fill_value=float("-inf"), scale=self.coeff)
-            x = flow._C.softmax(x)
+            x = flow._C.softmax(x, dim=x.ndim - 1)
+            # x = flow._C.softmax(x)
             x = self.multihead_attn_dropout(x)
 
         return x
