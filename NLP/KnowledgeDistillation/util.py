@@ -37,51 +37,27 @@ def InitNodes(args):
 
 
 class Snapshot(object):
-    def __init__(self, model_save_dir, model_load_dir):
+    def __init__(self, model_save_dir):
         self._model_save_dir = model_save_dir
         self._check_point = flow.train.CheckPoint()
-        if model_load_dir:
-            assert os.path.isdir(model_load_dir)
-            print("Restoring model from {}.".format(model_load_dir))
-            self._check_point.load(model_load_dir)
-        else:
-            self._check_point.init()
-            self.save('initial_model')
-            print("Init model on demand.")
+        self._check_point.init()
+        self.save('initial_model', 0.0)
+        print("Init model on demand.")
 
-    def load(self, model_load_dir):
+    def load(self, model_load_dir, model_type):
         assert os.path.isdir(model_load_dir)
-        print("Restoring model from {}.".format(model_load_dir))
+        best_dev_acc = np.load(os.path.join(model_load_dir, "best_dev_acc.npy"), allow_pickle=True)[()]
+        print("Restoring model from {}.".format(os.path.join(model_load_dir, "snapshot_best_{}_model_dev_{}".format(model_type, best_dev_acc))))
         self._check_point.load(model_load_dir)
 
-    def save(self, name):
+    def save(self, name, best_dev_acc):
         snapshot_save_path = os.path.join(self._model_save_dir, "snapshot_{}".format(name))
         if not os.path.exists(snapshot_save_path):
             os.makedirs(snapshot_save_path)
         print("Saving model to {}.".format(snapshot_save_path))
-        if os.path.exists(snapshot_save_path):
+        np.save(os.path.join(self._model_save_dir, "best_dev_acc.npy"), best_dev_acc, allow_pickle=True)
+        if not os.path.exists(snapshot_save_path):
             self._check_point.save(snapshot_save_path)
-
-
-# class Snapshot(object):
-#     def __init__(self, model_save_dir, model_load_dir):
-#         self._model_save_dir = model_save_dir
-#         # self._check_point = flow.train.CheckPoint()
-#         if model_load_dir:
-#             assert os.path.isdir(model_load_dir)
-#             print("Restoring model from {}.".format(model_load_dir))
-#             flow.checkpoint.get(model_load_dir)
-#         else:
-#             flow.checkpoint.init()
-#             self.save('initial_model')
-#             print("Init model on demand.")
-#
-#     def save(self, name):
-#         snapshot_save_path = os.path.join(self._model_save_dir, "snapshot_{}".format(name))
-#         if not os.path.exists(snapshot_save_path):
-#             os.makedirs(snapshot_save_path)
-#         print("Saving model to {}.".format(snapshot_save_path))
-#         flow.checkpoint.save(snapshot_save_path)
 
 
 class StopWatch(object):
@@ -167,9 +143,9 @@ class Metric(object):
         return callback
 
 def CreateOptimizer(args):
-    warmup_batches = int(args.iter_num * args.warmup_proportion)
+    warmup_batches = int(args.epoch * args.warmup_proportion)
     lr_warmup = flow.optimizer.warmup.linear(warmup_batches, 0)
-    lr_scheduler = flow.optimizer.PolynomialSchduler(args.learning_rate, args.iter_num, 0.0,
+    lr_scheduler = flow.optimizer.PolynomialSchduler(args.learning_rate, args.epoch, 0.0,
                                                      warmup=lr_warmup)
     loss_scale_policy = None
     if args.use_fp16:
@@ -188,23 +164,3 @@ def GetFunctionConfig(args):
     config.enable_fuse_model_update_ops(True)
     return config
 
-
-
-
-
-#
-#
-# def simple_accuracy(labels, preds):
-#     return (preds == labels).mean()
-
-#
-# def compute_metrics(task_name, preds, labels):
-#     assert len(preds) == len(labels)
-#     if task_name == "mnli":
-#         return {"acc": simple_accuracy(labels, preds)}
-#     elif task_name == "mnli-mm":
-#         return {"acc": simple_accuracy(labels, preds)}
-#     elif task_name == "senti":
-#         return {"acc": simple_accuracy(labels, preds)}
-#     else:
-#         raise KeyError(task_name)
