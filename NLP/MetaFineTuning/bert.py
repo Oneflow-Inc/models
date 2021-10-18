@@ -18,11 +18,10 @@ import oneflow.core.common.data_type_pb2 as data_type_util
 import oneflow.core.operator.op_conf_pb2 as op_conf_util
 import math
 
-# BERT的基础模型
 class BertBackbone(object):
 
   def __init__(self,
-               input_ids_blob, # 句子id序列 [batch_size, sequence_length]
+               input_ids_blob, # [batch_size, sequence_length]
                input_mask_blob,
                token_type_ids_blob,
                vocab_size,
@@ -40,14 +39,12 @@ class BertBackbone(object):
 
     with flow.scope.namespace("bert"):
       with flow.scope.namespace("embeddings"):
-        # 输出句子token对应的embedding，以及embedding table
         (self.embedding_output_, self.embedding_table_) = _EmbeddingLookup(
             input_ids_blob=input_ids_blob,
             vocab_size=vocab_size,
-            embedding_size=hidden_size, # 词向量维度
+            embedding_size=hidden_size,
             initializer_range=initializer_range,
             word_embedding_name="word_embeddings")
-        # 累加type embedding或position embedding
         self.embedding_output_ = _EmbeddingPostprocessor(
             input_blob=self.embedding_output_,
             seq_length=seq_length,
@@ -63,11 +60,11 @@ class BertBackbone(object):
             dropout_prob=hidden_dropout_prob,
             )
       with flow.scope.namespace("encoder"):
-        attention_mask_blob = _CreateAttentionMaskFromInputMask( # 生成mask矩阵
+        attention_mask_blob = _CreateAttentionMaskFromInputMask(
           input_mask_blob, from_seq_length=seq_length, to_seq_length=seq_length)
-        addr_blob = _CreateAddrFromAttentionMask( # 将mask矩阵进行转换
+        addr_blob = _CreateAddrFromAttentionMask(
           attention_mask_blob, from_seq_length=seq_length, to_seq_length=seq_length)
-        self.all_encoder_layers_ = _TransformerModel( # Transformer模型（默认12层）
+        self.all_encoder_layers_ = _TransformerModel(
             input_blob=self.embedding_output_,
             addr_blob=addr_blob,
             seq_length=seq_length,
@@ -80,24 +77,23 @@ class BertBackbone(object):
             attention_probs_dropout_prob=attention_probs_dropout_prob,
             initializer_range=initializer_range,
             do_return_all_layers=True)
-      self.sequence_output_ = self.all_encoder_layers_[-1] # Transformer最后一层输出向量
+      self.sequence_output_ = self.all_encoder_layers_[-1]
 
   def embedding_output(self): return self.embedding_output_
   def all_encoder_layers(self): return self.all_encoder_layers_
   def sequence_output(self): return self.sequence_output_
   def embedding_table(self): return self.embedding_table_
-  def get_layer_embedding(self, index): # 获得指定层的embedding
+  def get_layer_embedding(self, index):
       assert index >= 0 and index < self.all_encoder_layers_.shape[0]
       return self.all_encoder_layers_[index]
 
-# oneflow初始化函数加载器
 def CreateInitializer(std):
-  return flow.truncated_normal(std) # 截断的产生正态分布的随机数，即随机数与均值的差值若大于两倍的标准差，则重新生成
+  return flow.truncated_normal(std)
 
 def _Gelu(in_blob):
   return flow.math.gelu(in_blob)
 
-# Transformer模型
+# Transformer
 def _TransformerModel(input_blob,
                       addr_blob,
                       seq_length,
@@ -116,7 +112,7 @@ def _TransformerModel(input_blob,
   input_width = hidden_size
   prev_output_blob = flow.reshape(input_blob, (-1, input_width))
   all_layer_output_blobs = []
-  for layer_idx in range(num_hidden_layers): # Transformer包含若干层
+  for layer_idx in range(num_hidden_layers):
     with flow.scope.namespace("layer_%d"%layer_idx):
       layer_input_blob = prev_output_blob
       with flow.scope.namespace("attention"):
@@ -275,20 +271,20 @@ def _LayerNorm(input_blob, hidden_size):
 
 
 def _CreateAttentionMaskFromInputMask(to_mask_blob, from_seq_length, to_seq_length):
-  output = flow.cast(to_mask_blob, dtype=flow.float) # 将指定的张量转换为对应的类型
+  output = flow.cast(to_mask_blob, dtype=flow.float)
   output = flow.reshape(output, [-1, 1, to_seq_length]) # [batch_size, 1, seq_len]
   zeros = flow.constant(0.0, dtype=flow.float, shape=[from_seq_length, to_seq_length])
-  output = zeros + output # 广播机制相加
+  output = zeros + output
   return output
 
 
 def _CreateAddrFromAttentionMask(attention_mask_blob, from_seq_length, to_seq_length):
   attention_mask_blob = flow.reshape(attention_mask_blob, [-1, 1, from_seq_length, to_seq_length])
   attention_mask_blob = flow.cast(attention_mask_blob, dtype=flow.float)
-  addr_blob = (attention_mask_blob - 1.0) * 10000.0 # mask为1的值变为0，mask为0的值变为-10000（非常小的数）
+  addr_blob = (attention_mask_blob - 1.0) * 10000.0
   return addr_blob
 
-# 添加额外的embedding信息
+
 def _EmbeddingPostprocessor(input_blob,
                             seq_length,
                             embedding_size,
@@ -303,14 +299,14 @@ def _EmbeddingPostprocessor(input_blob,
                             dropout_prob=0.1):
   output = input_blob
 
-  if use_token_type: # 如果使用token type embedding，使用预先加载或初始化的type embedding table
+  if use_token_type:
     assert token_type_ids_blob is not None
     token_type_table = flow.get_variable(name=token_type_embedding_name,
                                          shape=[token_type_vocab_size, embedding_size],
                                          dtype=input_blob.dtype,
                                          initializer=CreateInitializer(initializer_range))
     token_type_embeddings = flow.gather(params=token_type_table, indices=token_type_ids_blob, axis=0)
-    output = output + token_type_embeddings # 按照BERT原文，直接加和即可
+    output = output + token_type_embeddings
 
   if use_position_embeddings:
     position_table = flow.get_variable(name=position_embedding_name,
@@ -327,20 +323,18 @@ def _EmbeddingPostprocessor(input_blob,
 
   return output
 
-# 创建EmbeddingLookup功能
 def _EmbeddingLookup(input_ids_blob,
                      vocab_size,
                      embedding_size=128,
                      initializer_range=0.02,
                      word_embedding_name="word_embeddings"):
-  # 创建初始化（或获取实现已经定义加载的）的embedding table
+
   embedding_table = flow.get_variable(name=word_embedding_name, shape=[vocab_size, embedding_size],
                                       dtype=flow.float,
                                       initializer=CreateInitializer(initializer_range))
   output = flow.gather(params=embedding_table, indices=input_ids_blob, axis=0)
-  return output, embedding_table # 输出句子对应的embedding，以及整个embedding table
+  return output, embedding_table
 
-# 获取激活函数（oneflow对象）
 def GetActivation(name):
   if name == 'linear':
     return None

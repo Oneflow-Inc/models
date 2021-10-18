@@ -24,7 +24,6 @@ class_list = {
     'qqp': [0, 1],
 }
 
-# 在 cross-task中，每个group的task需要使用对应的prompt-encoder，因此需要为每个task给予一个group内部的下标编号，用于指定对应的prompt-encoder
 task_to_id = {
     'SST-2': 0,
     'mr': 1,
@@ -35,9 +34,6 @@ task_to_id = {
     'qqp': 1,
 }
 
-
-# 名称对齐
-# 终端传入的参数会被默认小写，而磁盘目录会有大写，因此要做一个转换
 data_to_name = {
     'SST-2': 'SST-2',
     'sst-5': 'sst-5',
@@ -100,7 +96,7 @@ class Preprocessor(object):
     @property
     def max_num_verbalizers(self) -> int:
         """Return the maximum number of verbalizers across all labels"""
-        # 正常情况下结果为1
+        # 1
         return max(len(self.verbalize(label)) for label in self.config.label_list)
 
     @staticmethod
@@ -126,20 +122,14 @@ class Preprocessor(object):
             -> Tuple[List[int], List[int]]:
         """
         Encode an input example using this pattern-verbalizer pair.
-        将输入的句子样本转化为feature
 
         :param example: the input example to encode
         :param priming: whether to use this example for priming
         :param labeled: if ``priming=True``, whether the label should be appended to this example
         :return: A tuple, consisting of a list of input ids and a list of token type ids
         """
-        # 获得预训练分词工具
-        tokenizer = self.tokenizer
-        # 不同的Task有不同的PVP get_parts方法，获得相应的成分。
-        # 例如parts_a = [texta, 'x', 'x', MASK, '.]
-        # block_flag_a = [0. 1, 0, 0]
-        # parts_a, parts_b, block_flag_a, block_flag_b = self.get_parts(example)
 
+        tokenizer = self.tokenizer
         text_a, text_b = example.text_a, example.text_b
         text_a = self.shortenable(text_a)
         parts_a = [text_a]
@@ -160,7 +150,6 @@ class Preprocessor(object):
         # self.truncate(parts_a, parts_b, max_length=self.config.seq_length)
         num_special = self.tokenizer.num_special_tokens_to_add(bool(parts_b))
 
-        # 根据最大长度对text进行截断
         # print('parts_b=', parts_b)
         self.truncate(parts_a, parts_b, max_length=self.config.seq_length - num_special)
 
@@ -192,7 +181,7 @@ class Preprocessor(object):
         """Truncate two sequences of text to a predefined total maximum length"""
         total_len = self._seq_length(parts_a) + self._seq_length(parts_b)
         total_len += self.tokenizer.num_special_tokens_to_add(bool(parts_b))
-        num_tokens_to_remove = total_len - max_length # 总长度如果超过设定的最大程度，则删除
+        num_tokens_to_remove = total_len - max_length
 
         if num_tokens_to_remove <= 0:
             return parts_a, parts_b
@@ -214,7 +203,7 @@ class Preprocessor(object):
 
     def get_input_features(self, example: InputExample, labelled: bool, priming: bool = False,
                            **kwargs) -> InputFeatures:
-        # 获得PVP（模板句子+label mapping）
+        
         input_ids, token_type_ids = self.encode(example)
 
         attention_mask = [1] * len(input_ids)
@@ -232,8 +221,7 @@ class Preprocessor(object):
         assert len(token_type_ids) == self.config.seq_length
 
         example_label = example.label
-        example_task = example.task  # add by wjn 表示当前样本所属的task
-        # add by wjn 只有当数字型的label（0,1），可能真实标签是字符串（'0', '1'），因此需要进行转换判断
+        example_task = example.task
         if example_label not in self.label_map.keys():
             if type(example_label) == int:
                 example_label = str(example_label)
@@ -241,23 +229,9 @@ class Preprocessor(object):
                 example_label = int(example_label)
 
         label = self.label_map[example_label] if example.label is not None else -100  # 当前样本的类标
-        task = task_to_id[example_task]  # add by wjn 表示当前task对应group内的编号
+        task = task_to_id[example_task]
         # task = example_task
         logits = example.logits if example.logits else [-1]
-
-        # if labelled:
-        #     # 获得一个序列中[MASK]所在的索引
-        #     # eg 长度为5的序列[-1 -1 1 -1 -1]，可知第3个token为[MASK]
-        #     mlm_labels = self.pvp.get_mask_positions(input_ids)
-        # else:
-        #     mlm_labels = [-1] * self.config.seq_length
-
-        # masked_lm_positions = mlm_labels.index(1)
-        # # print('masked_lm_positions=', masked_lm_positions)
-        # label_word = self.pvp.verbalize(example_label)[0]
-        # masked_lm_ids = self.tokenizer.convert_tokens_to_ids(self.tokenizer.tokenize(label_word))[
-        #     0]  # list [label word token id]
-        # masked_lm_weights = 1.0
 
         return InputFeatures(input_ids=input_ids,
                              attention_mask=attention_mask,

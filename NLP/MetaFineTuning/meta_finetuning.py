@@ -13,9 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# 本文件用于生成训练集的prototype embedding，并计算每个样本的prototypical score
-# 执行命令：
-
 
 import sys
 sys.path.append("../..")
@@ -60,7 +57,7 @@ parser.add_argument('--seed', type=int, default=42,
 parser.add_argument("--resave_ofrecord", action='store_true', help="Whether to resave the data to ofrecord")
 args = parser.parse_args()
 
-args.num_nodes = 1 # 默认只有一个设备
+args.num_nodes = 1
 args.gpu_num_per_node = 1
 batch_size = args.num_nodes * args.gpu_num_per_node * args.batch_size_per_device
 dev_batch_size = args.num_nodes * args.gpu_num_per_node * args.dev_batch_size_per_device
@@ -73,7 +70,7 @@ def BertDecoder(
     data_dir, batch_size, data_part_num, seq_length, part_name_prefix, shuffle=True
 ):
     with flow.scope.placement("cpu", "0:0"):
-        # 使用ofrecord读取数据
+
         ofrecord = flow.data.ofrecord_reader(data_dir,
                                              batch_size=batch_size,
                                              data_part_num=data_part_num,
@@ -82,7 +79,7 @@ def BertDecoder(
                                              shuffle_after_epoch=shuffle)
         blob_confs = {}
         def _blob_conf(name, shape, dtype=flow.int32):
-            # 获得标签
+
             blob_confs[name] = flow.data.OFRecordRawDecoder(ofrecord, name, shape=shape, dtype=dtype)
         _blob_conf("input_ids", [seq_length])
         _blob_conf("attention_masks", [seq_length])
@@ -95,7 +92,6 @@ def BertDecoder(
         # print('blob_confs=', blob_confs['input_ids'].shape)
         return blob_confs
 
-# 跑一个batch
 def BuildBert(
     batch_size,
     data_part_num,
@@ -105,12 +101,10 @@ def BuildBert(
 ):
     hidden_size = 64 * args.num_attention_heads  # , H = 64, size per head
     intermediate_size = hidden_size * 4
-    # 获得一批数据
     decoders = BertDecoder(
         data_dir, batch_size, data_part_num, args.seq_length, part_name_prefix, shuffle=shuffle
     )
     #is_real_example = decoders['is_real_example']
-    # 使用带有分类器的BERT进行微调，并获得loss和logit
     loss, logits = MFTBERT(
         decoders['input_ids'],
         decoders['attention_masks'],
@@ -137,10 +131,8 @@ def BuildBert(
     return loss, logits, decoders['labels']
 
 
-# 作业函数
 @flow.global_function(type='train', function_config=GetFunctionConfig(args))
 def BertGlueFinetuneJob():
-    # 跑一个batch
     loss, logits, _ = BuildBert(
         batch_size,
         args.train_data_part_num,
@@ -198,7 +190,6 @@ def run_eval_job(dev_job_func, num_steps, desc='dev'):
     return metric_dict['accuarcy']
 
 def main():
-    # 加载domain以及对应的class
     if args.task_name not in domain_list:
         raise AttributeError('The task name can only be selected from [g1, g2, g3]')
     domains = domain_list[args.task_name]
@@ -207,16 +198,13 @@ def main():
     processor = PROCESSORS[args.task_name](args.task_name)
     args.label_list = processor.get_labels()
 
-    # 获得BERT分词工具
     tokenizer = tokenization.FullTokenizer(vocab_file=args.vocab_file)
     preprocessor = Preprocessor(args, tokenizer, args.seed)
     label_map = preprocessor.label_map # class2id
 
-    # 将原始数据集生成ofrecord数据集
     ofrecord_dir = os.path.join(args.data_dir, 'ofrecord')
 
     if not os.path.exists(ofrecord_dir) or args.resave_ofrecord:
-        # 获得训练集、验证集和测试集的example格式数据 List[InputExample]
         train_data = load_examples(
             args.task_name, args.data_dir, TRAIN_SET, num_examples=-1, num_examples_per_label=None)
         print('===============train examples================')
@@ -230,19 +218,15 @@ def main():
                                               stage='train')
         dev_feature_dict = generate_dataset(args, dev_data, preprocessor, ofrecord_dir=ofrecord_dir,
                                             stage='dev')
-    # 初始化每个 domain class 的prototypical embedding
     domain_class_embeddings = dict()
     temp_output_data = list()
 
-    # 遍历每一个数据集domains
+
     for domain_name in domains:
-        # 遍历每个类标
         for class_name, class_id in label_map.items():
             key_name = domain_name + "\t" + str(class_id)
-            # 初始化每个domain对应class的样本列表
             domain_class_embeddings[key_name] = list()
 
-    # 加载预训练模型参数
     flow.config.gpu_device_num(args.gpu_num_per_node)
     flow.env.log_dir(args.log_dir)
     InitNodes(args)
@@ -269,7 +253,6 @@ def main():
 
                 if best_dev_acc < dev_acc:
                     best_dev_acc = dev_acc
-                    # 保存最好模型参数
                     print('===== saving model ... =====')
                     snapshot.save("best_mft_model_{}_dev_{}".format(args.task_name, best_dev_acc))
 

@@ -1,7 +1,3 @@
-'''
-将InputExample转换为oneflow的ofrecord feature
-'''
-
 import oneflow.core.record.record_pb2 as ofrecord
 import six
 import os
@@ -50,9 +46,9 @@ def generate_dataset(
         labelled: bool = True,
         ofrecord_dir: str = None,
         stage: str = 'train',
-        load_weight: bool = False # 是否为每个样本添加权重
+        load_weight: bool = False
 ):
-    features = convert_examples_to_features(config, data, preprocessor, labelled=labelled)  # 将输入的样本（inputExample对象）进行转化为feature
+    features = convert_examples_to_features(config, data, preprocessor, labelled=labelled)
     # print('len(features)=', len(features))
     # print('===============train features================')
     # print('len=', len(features))
@@ -95,8 +91,8 @@ def generate_dataset(
             'idxs': int32_feature(f.idx),
             'weights': float_feature(weight)
         }
-        ofrecord_features = ofrecord.OFRecord(feature=feature_dict) # 调用 ofrecord.OFRecord 创建 OFRecord 对象
-        serilizedBytes = ofrecord_features.SerializeToString()  # 调用 OFRecord 对象的 SerializeToString 方法得到序列化结果
+        ofrecord_features = ofrecord.OFRecord(feature=feature_dict)
+        serilizedBytes = ofrecord_features.SerializeToString()
         length = ofrecord_features.ByteSize()
         fw.write(struct.pack("q", length))
         fw.write(serilizedBytes)
@@ -153,7 +149,6 @@ def convert_examples_to_features(
     for (ex_index, example) in enumerate(examples):
         if ex_index % 10000 == 0:
             logger.info("Writing example {}".format(ex_index))
-        # 获得input_feature。self.preprocessor根据当前的任务类型（比如MLM）获得相应的preprocessor
         input_features = preprocessor.get_input_features(example, labelled=labelled)
         features.append(input_features)
         """

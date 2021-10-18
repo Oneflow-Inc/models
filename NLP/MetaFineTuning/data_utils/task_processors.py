@@ -10,10 +10,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# 运行命令
-# 本文件目标：生成训练集各个domain class对应的prototype embedding，并计算每个样本的prototypical score
-# python3 preprocess.py --task_name g1 --data_dir data/k-shot-cross/g1/16-42 --num_epochs 4 --seed 42 --seq_length=128 --train_example_num 96  --eval_example_num 96 --vocab_file uncased_L-12_H-768_A-12/vocab.txt --resave_ofrecord
-
 """
 This file contains the logic for loading data for all tasks.
 """
@@ -553,7 +549,6 @@ class RecordProcessor(DataProcessor):
 
 
 
-### add by wjn 文本分类任务的处理（取自LM-BFF）
 import pandas as pd
 
 class TextClassificationProcessor(DataProcessor):
