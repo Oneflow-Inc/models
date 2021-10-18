@@ -1,10 +1,7 @@
 import math
 import numpy as np
-from sklearn.metrics import mean_squared_error as mse, mean_absolute_error as mae
-from sklearn.utils import shuffle
 import oneflow as flow
 from oneflow import nn
-from matplotlib import pyplot as plt
 import itertools
 
 fetch_col = 'temperature'
@@ -73,7 +70,7 @@ def train_rnn(denorm_func, rnn_model, output_model, train_set, test_set, device,
     score_log = []
     trained_batches = 0
     for epoch in range(num_epoch):
-        for batch in next_batch(shuffle(train_set), batch_size=batch_size):
+        for batch in next_batch(train_set, batch_size=batch_size):
             prediction, label = pre_batch(batch)
             loss = loss_func(prediction, label)
             loss.backward()
@@ -91,36 +88,5 @@ def train_rnn(denorm_func, rnn_model, output_model, train_set, test_set, device,
                 all_label = test_set[:, index]
                 all_prediction = denorm_func(all_prediction, fetch_col)
                 all_label = denorm_func(all_label, fetch_col)
-                rmse_score = math.sqrt(mse(all_label, all_prediction))
-                mae_score = mae(all_label, all_prediction)
-                mape_score = mape(all_label, all_prediction)
-                score_log.append([rmse_score, mae_score, mape_score])
-                print('RMSE: %.4f, MAE: %.4f, MAPE: %.4f' % (rmse_score, mae_score, mape_score))
     return score_log, loss_log
 
-
-def plot_loss(loss_log):
-    plt.figure(figsize=(10, 5), dpi=300)
-    plt.plot(loss_log, linewidth=1)
-    plt.title('Loss Value')
-    plt.xlabel('Number of batches')
-    plt.show()
-
-
-def plot_metric(score_log):
-    score_log = np.array(score_log)
-
-    plt.figure(figsize=(10, 6), dpi=300)
-    plt.subplot(2, 2, 1)
-    plt.plot(score_log[:, 0], c='#d28ad4')
-    plt.ylabel('RMSE')
-
-    plt.subplot(2, 2, 2)
-    plt.plot(score_log[:, 1], c='#e765eb')
-    plt.ylabel('MAE')
-
-    plt.subplot(2, 2, 3)
-    plt.plot(score_log[:, 2], c='#6b016d')
-    plt.ylabel('MAPE')
-
-    plt.show()

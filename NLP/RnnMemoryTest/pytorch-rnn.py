@@ -1,4 +1,3 @@
-
 import math
 
 import torch
@@ -6,7 +5,6 @@ from torch import nn
 import numpy as np
 
 from dataset.dataset import *
-
 
 
 class MyRNN(nn.Module):
@@ -59,8 +57,6 @@ dataset = KrakowDataset()
 raw_df = dataset.data
 raw_df.dropna().head()
 
-
-
 def sliding_window(seq, window_size):
     result = []
     for i in range(len(seq) - window_size):
@@ -81,16 +77,11 @@ train_set, test_set = (item[~np.isnan(item).any(axis=1)] for item in (train_set,
 print(train_set.shape, test_set.shape)
 
 
-
 device = 'cuda:0'
 model = MyRNN(input_size=1, hidden_size=32, output_size=1).to(device)
 
 loss_func = nn.MSELoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
-
-
-
-from sklearn.metrics import mean_squared_error as mse, mean_absolute_error as mae
 
 
 def mape(y_true, y_pred):
@@ -104,7 +95,6 @@ def mape(y_true, y_pred):
     return np.mean(mape) * 100
 
 
-
 def next_batch(data, batch_size):
     data_length = len(data)
     num_batches = math.ceil(data_length / batch_size)
@@ -114,14 +104,13 @@ def next_batch(data, batch_size):
         yield data[start_index:end_index]
 
 
-from sklearn.utils import shuffle
 
 loss_log = []
 score_log = []
 trained_batches = 0
 for epoch in range(10):
     print('epoch:',epoch)
-    for batch in next_batch(shuffle(train_set), batch_size=64):
+    for batch in next_batch(train_set, batch_size=64):
         batch = torch.from_numpy(batch).float().to(device)  # (batch, seq_len)
         x, label = batch[:, :12], batch[:, -1]
         
@@ -148,47 +137,8 @@ for epoch in range(10):
             all_label = test_set[:, -1]
             all_prediction = dataset.denormalize(all_prediction, fetch_col)
             all_label = dataset.denormalize(all_label, fetch_col)
-            rmse_score = math.sqrt(mse(all_label, all_prediction))
-            mae_score = mae(all_label, all_prediction)
-            mape_score = mape(all_label, all_prediction)
-            score_log.append([rmse_score, mae_score, mape_score])
-            print('RMSE: %.4f, MAE: %.4f, MAPE: %.4f' % (rmse_score, mae_score, mape_score))
 
 best_score = np.min(score_log, axis=0)
-
-
-
-from matplotlib import pyplot as plt
-
-plt.figure(figsize=(10, 5), dpi=300)
-plt.plot(loss_log, linewidth=1)
-plt.title('Loss Value')
-plt.xlabel('Number of batches')
-plt.show()
-
-
-score_log = np.array(score_log)
-
-plt.figure(figsize=(10, 6), dpi=300)
-plt.subplot(2, 2, 1)
-plt.plot(score_log[:, 0], c='#d28ad4')
-plt.ylabel('RMSE')
-
-plt.subplot(2, 2, 2)
-plt.plot(score_log[:, 1], c='#e765eb')
-plt.ylabel('MAE')
-
-plt.subplot(2, 2, 3)
-plt.plot(score_log[:, 2], c='#6b016d')
-plt.ylabel('MAPE')
-
-plt.show()
-
-
-# In[12]:
-
-
-print('Best score:', best_score)
 
 
 
@@ -418,7 +368,7 @@ loss_log = []
 score_log = []
 trained_batches = 0
 for epoch in range(10):
-    for batch in next_batch(shuffle(train_set), batch_size=64):
+    for batch in next_batch(train_set, batch_size=64):
         batch = torch.from_numpy(batch).float().to(device)  # (batch, seq_len)
         x, label = batch[:, :12], batch[:, -1]
         
@@ -447,47 +397,3 @@ for epoch in range(10):
             all_label = test_set[:, -1]
             all_prediction = dataset.denormalize(all_prediction, fetch_col)
             all_label = dataset.denormalize(all_label, fetch_col)
-            rmse_score = math.sqrt(mse(all_label, all_prediction))
-            mae_score = mae(all_label, all_prediction)
-            mape_score = mape(all_label, all_prediction)
-            score_log.append([rmse_score, mae_score, mape_score])
-            print('RMSE: %.4f, MAE: %.4f, MAPE: %.4f' % (rmse_score, mae_score, mape_score))
-
-best_score = np.min(score_log, axis=0)
-
-
-# In[17]:
-
-
-plt.figure(figsize=(10, 5), dpi=300)
-plt.plot(loss_log, linewidth=1)
-plt.title('Loss Value')
-plt.xlabel('Number of batches')
-plt.show()
-
-
-# In[18]:
-
-
-score_log = np.array(score_log)
-
-plt.figure(figsize=(10, 6), dpi=300)
-plt.subplot(2, 2, 1)
-plt.plot(score_log[:, 0], c='#d28ad4')
-plt.ylabel('RMSE')
-
-plt.subplot(2, 2, 2)
-plt.plot(score_log[:, 1], c='#e765eb')
-plt.ylabel('MAE')
-
-plt.subplot(2, 2, 3)
-plt.plot(score_log[:, 2], c='#6b016d')
-plt.ylabel('MAPE')
-
-plt.show()
-
-print('Best score:', best_score)
-
-
-
-

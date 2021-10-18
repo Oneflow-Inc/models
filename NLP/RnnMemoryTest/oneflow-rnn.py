@@ -85,9 +85,6 @@ loss_func = nn.MSELoss()
 optimizer = flow.optim.Adam(model.parameters(), lr=0.0001)
 
 
-from sklearn.metrics import mean_squared_error as mse, mean_absolute_error as mae
-
-
 def mape(y_true, y_pred):
     y_true, y_pred = np.array(y_true), np.array(y_pred)
     non_zero_index = (y_true > 0)
@@ -107,14 +104,13 @@ def next_batch(data, batch_size):
         end_index = min((batch_index + 1) * batch_size, data_length)
         yield data[start_index:end_index]
 
-from sklearn.utils import shuffle
 
 loss_log = []
 score_log = []
 trained_batches = 0
 for epoch in range(10):
     print('epoch:',epoch)
-    for batch in next_batch(shuffle(train_set), batch_size=64):
+    for batch in next_batch(train_set, batch_size=64):
         x, label = flow.Tensor(batch[:, :12]).to(device), flow.Tensor(batch[:, -1]).to(device)
         hidden, out = model(x.unsqueeze(-1))
         prediction = out[:, out.size(1)-1, :].squeeze(-1)  # (batch)
@@ -137,40 +133,11 @@ for epoch in range(10):
             all_label = test_set[:, -1]
             all_prediction = dataset.denormalize(all_prediction, fetch_col)
             all_label = dataset.denormalize(all_label, fetch_col)
-            rmse_score = math.sqrt(mse(all_label, all_prediction))
-            mae_score = mae(all_label, all_prediction)
             mape_score = mape(all_label, all_prediction)
-            score_log.append([rmse_score, mae_score, mape_score])
-            print('RMSE: %.4f, MAE: %.4f, MAPE: %.4f' % (rmse_score, mae_score, mape_score))
 
 best_score = np.min(score_log, axis=0)
 
-from matplotlib import pyplot as plt
-
-plt.figure(figsize=(10, 5), dpi=300)
-plt.plot(loss_log, linewidth=1)
-plt.title('Loss Value')
-plt.xlabel('Number of batches')
-plt.show()
-
-
 score_log = np.array(score_log)
-
-plt.figure(figsize=(10, 6), dpi=300)
-plt.subplot(2, 2, 1)
-plt.plot(score_log[:, 0], c='#d28ad4')
-plt.ylabel('RMSE')
-
-plt.subplot(2, 2, 2)
-plt.plot(score_log[:, 1], c='#e765eb')
-plt.ylabel('MAE')
-
-plt.subplot(2, 2, 3)
-plt.plot(score_log[:, 2], c='#6b016d')
-plt.ylabel('MAPE')
-
-plt.show()
-
 
 print('Best score:', best_score)
 
@@ -203,7 +170,7 @@ loss_log = []
 score_log = []
 trained_batches = 0
 for epoch in range(10):
-    for batch in next_batch(shuffle(train_set), batch_size=64):
+    for batch in next_batch(train_set, batch_size=64):
         batch = flow.tensor(batch, dtype=flow.float32).to(device)   # (batch, seq_len)
         x, label = batch[:, :12], batch[:, -1]
         
@@ -234,43 +201,5 @@ for epoch in range(10):
             all_label = test_set[:, -1]
             all_prediction = dataset.denormalize(all_prediction, fetch_col)
             all_label = dataset.denormalize(all_label, fetch_col)
-            rmse_score = math.sqrt(mse(all_label, all_prediction))
-            mae_score = mae(all_label, all_prediction)
             mape_score = mape(all_label, all_prediction)
-            score_log.append([rmse_score, mae_score, mape_score])
-            print('RMSE: %.4f, MAE: %.4f, MAPE: %.4f' % (rmse_score, mae_score, mape_score))
-
-best_score = np.min(score_log, axis=0)
-
-
-plt.figure(figsize=(10, 5), dpi=300)
-plt.plot(loss_log, linewidth=1)
-plt.title('Loss Value')
-plt.xlabel('Number of batches')
-plt.show()
-
-
-
-score_log = np.array(score_log)
-
-plt.figure(figsize=(10, 6), dpi=300)
-plt.subplot(2, 2, 1)
-plt.plot(score_log[:, 0], c='#d28ad4')
-plt.ylabel('RMSE')
-
-plt.subplot(2, 2, 2)
-plt.plot(score_log[:, 1], c='#e765eb')
-plt.ylabel('MAE')
-
-plt.subplot(2, 2, 3)
-plt.plot(score_log[:, 2], c='#6b016d')
-plt.ylabel('MAPE')
-
-plt.show()
-
-
-
-print('Best score:', best_score)
-
-
 
