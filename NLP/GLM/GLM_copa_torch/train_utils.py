@@ -339,7 +339,7 @@ def backward_step(optimizer, model, lm_loss, args, timers):
         # model.backward(loss)
         loss.backward()
     else:
-        # optimizer.zero_grad()
+        optimizer.zero_grad()
         #False
         if args.fp16:
             optimizer.backward(loss, update_master_grads=False)
