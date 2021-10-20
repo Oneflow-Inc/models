@@ -11,8 +11,7 @@
 ```
 
 ## 数据集:
->[other.zip](https://oneflow-public.oss-cn-beijing.aliyuncs.com/datasets/models/NLP/other.zip)
->把other.zip 解压到四个目录下面
+>[other.zip](https://oneflow-public.oss-cn-beijing.aliyuncs.com/datasets/models/NLP/other.zip)解压到四个目录下面
 
 
 ## 注意和优化:
