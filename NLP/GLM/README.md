@@ -26,7 +26,7 @@
     loss计算还不支持autograd.function : mpu/cross_entropy.py
     
     transformer mask 可以写成一个op
-``
+```
 
 
 ##训练 : 
