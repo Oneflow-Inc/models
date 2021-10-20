@@ -83,7 +83,6 @@ class Trainer(object):
                 self.logger.print_metrics([self.world_size - 1])
 
         print(f"[{self.rank}] training finished")
-        # oneflow._oneflow_internal.eager.multi_client.Sync()
 
     def train_eager(self):
         data, label = self.data_loader()
@@ -138,9 +137,6 @@ class GPTGraph(flow.nn.Graph):
         self.config.allow_fuse_add_to_output(True)
         self.config.allow_fuse_model_update_ops(True)
         self.config.allow_fuse_cast_scale(True)
-
-    def __del__(self):
-        print(f"[{flow.env.get_rank()}] graph del")
 
     def set_activation_checkpointing(self):
         for module_block in self.model.modules():
