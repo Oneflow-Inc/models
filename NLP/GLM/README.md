@@ -1,8 +1,8 @@
-##install:
+## install:
 >Please first install PyTorch and apex, and then install other dependencies by pip install -r requirements.txt
 
 
-##四个目录:
+## 四个目录:
 ```shell
      GLM_copa:               GLM 的 torch版本
      GLM_copa_oneflow:       GLM 的 oneflow eager单卡
@@ -10,11 +10,11 @@
      GLM_copa_oneflow_dis:   GLM 的 oneflow graph单卡
 ```
 
-##数据集:
+## 数据集:
 >把other.zip 解压到四个目录下面
 
 
-##注意和优化:
+## 注意和优化:
 ```shell
     数据补齐 :
          block_utils.py/ConstructBlockStrategy.pad_batch: 见GLM_copa_oneflow_dis/block_utils.py
@@ -29,7 +29,7 @@
 ```
 
 
-##训练 : 
+## 训练 : 
 ```shell
     训练一个初始化模型到当前目录：
         cd GLM_copa
