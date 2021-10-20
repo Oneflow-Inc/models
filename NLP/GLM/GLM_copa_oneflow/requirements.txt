@@ -7,7 +7,6 @@ nltk
 regex
 tqdm
 matplotlib
-mpi4py
 pandas
 requests
 sentencepiece
@@ -20,4 +19,3 @@ termcolor
 tldextract
 transformers
 rouge_score
-fasttext
