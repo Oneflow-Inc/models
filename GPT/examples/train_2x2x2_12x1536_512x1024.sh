@@ -9,7 +9,7 @@ export PYTHONUNBUFFERED=1
 echo PYTHONUNBUFFERED=$PYTHONUNBUFFERED
 export NCCL_LAUNCH_MODE=GROUP
 echo NCCL_LAUNCH_MODE=$NCCL_LAUNCH_MODE
-# export NCCL_DEBUG=INFO
+export NCCL_DEBUG=INFO
 export ONEFLOW_DEBUG_MODE=True
 export ONEFLOW_COMM_NET_IB_ENABLE=True
 
@@ -26,7 +26,6 @@ PMP=2
 TRAIN_ITER=5
 LOG_INTERVAL=1
 
-# SRC_DIR=/path/to/models/resnet50
 SRC_DIR=$(realpath $(dirname $0)/..)
 
 python3 -m oneflow.distributed.launch \

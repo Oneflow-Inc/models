@@ -26,7 +26,6 @@ PMP=4
 TRAIN_ITER=1000
 LOG_INTERVAL=10
 
-# SRC_DIR=/path/to/models/resnet50
 SRC_DIR=$(realpath $(dirname $0)/..)
 
 python3 -m oneflow.distributed.launch \
