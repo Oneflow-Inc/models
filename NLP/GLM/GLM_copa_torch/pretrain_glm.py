@@ -299,7 +299,7 @@ def train(model, optimizer, lr_scheduler,
           train_data_iterator, val_data_iterator, timers, args, summary_writer=None):
     
     #加载初始化模型
-    model.load_state_dict(torch.load('../mo.pt'))
+    # model.load_state_dict(torch.load('../mo.pt'))
 
     model.train()
 

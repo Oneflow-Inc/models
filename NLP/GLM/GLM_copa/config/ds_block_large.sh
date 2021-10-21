@@ -13,7 +13,7 @@ gpt_options=" \
        --gpt-min-ratio 0.25 \
        --experiment-name blocklm-large-blank \
        --model-parallel-size ${MP_SIZE} \
-       --num-layers 24 \
+       --num-layers 12 \
        --hidden-size 1024 \
        --num-attention-heads 16 \
        --seq-length 512 \

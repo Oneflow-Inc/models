@@ -478,7 +478,7 @@ class ConstructBlockStrategy:
     def pad_batch(self,token_batch, target_batch, loss_mask_batch, position_id_batch):
         seq_lengths = list(map(len, token_batch))
         
-        max_length = self.args.seq_length + 40
+        max_length = int(self.args.seq_length + 1.3)
 
         token_batch = [np.concatenate((tokens, np.zeros(max_length - len(tokens), dtype=np.long))) for tokens in
                            token_batch]

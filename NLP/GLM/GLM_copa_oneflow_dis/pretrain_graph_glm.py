@@ -247,7 +247,9 @@ def forward_step(data_iterator, model, args, timers, mems):
     
     # if loss_mask.sum().item() > 0:
     #     loss = loss / loss_mask.sum()
-
+    
+    with open("loss.txt",'a') as f:
+        f.write(str(loss.item())+'\n')
     return loss, mems, mode
 
 
