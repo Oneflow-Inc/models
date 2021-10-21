@@ -326,7 +326,7 @@ def train(model, optimizer, lr_scheduler,
                                                  args, timers, mems=mems, forward_step_func=forward_step)
         skipped_iters += skipped_iter
         args.iteration += 1
-        print(args.iteration)
+
         total_lm_loss += lm_loss.data.detach().float()
         
         #True

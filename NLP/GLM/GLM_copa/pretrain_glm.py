@@ -354,7 +354,6 @@ def train(model, optimizer, lr_scheduler,
                                                  args, timers, mems=mems, forward_step_func=forward_step)
         skipped_iters += skipped_iter
         args.iteration += 1
-        print(args.iteration)
 
         # if args.iteration==100:
         #     torch.save(model.state_dict(),"../mo.pt")
