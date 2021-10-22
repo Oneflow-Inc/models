@@ -275,9 +275,7 @@ def forward_step(data_iterator, model, args, timers, mems):
     if loss_mask.sum().item() > 0:
         loss = loss / loss_mask.sum()
     
-    with open("loss.txt","a") as f:
-        f.write(str(loss.item())+'\n')
-
+    print(loss)
     return loss, mems, mode
 
 
@@ -356,10 +354,11 @@ def train(model, optimizer, lr_scheduler,
                                                  args, timers, mems=mems, forward_step_func=forward_step)
         skipped_iters += skipped_iter
         args.iteration += 1
+        print(args.iteration)
 
-        # if args.iteration==100:
-        #     torch.save(model.state_dict(),"../mo.pt")
-        #     exit(0)
+        if args.iteration==100:
+            torch.save(model.state_dict(),"../mo.pt")
+            exit(0)
 
         # Update losses.
         total_lm_loss += lm_loss.data.detach().float()

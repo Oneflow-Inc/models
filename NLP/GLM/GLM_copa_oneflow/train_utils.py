@@ -295,7 +295,7 @@ def setup_model_and_optimizer(args, model_type=None, multi_token=True, num_label
     model = get_model(args, model_type=model_type, multi_token=multi_token, num_labels=num_labels,
                       spell_length=spell_length)
     param_groups = get_optimizer_param_groups(model)
-    
+
     #False
     #True
     if args.train_data is not None or args.data_dir is not None and (args.epochs > 0 or args.train_iters > 0):
@@ -404,7 +404,7 @@ def train_step(data_iterator, model, optimizer, lr_scheduler, args, timers, forw
         if not args.deepspeed:
             lm_loss /= args.gradient_accumulation_steps
 
-        reduced_loss = lm_loss.detach().clone().view(1)
+        reduced_loss = lm_loss.detach().clone().view((1,))
         # flow.distributed.all_reduce(reduced_loss.data, group=mpu.get_data_parallel_group())
         reduced_loss.data = reduced_loss.data / (args.world_size / args.model_parallel_size)
     

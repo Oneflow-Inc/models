@@ -460,6 +460,7 @@ if __name__ == '__main__':
     torch.backends.cudnn.enabled = False
 
     args = get_args()
+
     assert args.finetune
 
     initialize_distributed(args)

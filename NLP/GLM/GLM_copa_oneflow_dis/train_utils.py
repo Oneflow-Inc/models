@@ -408,7 +408,7 @@ def train_step(data_iterator, model, optimizer, lr_scheduler, args, timers, forw
         if not args.deepspeed:
             lm_loss /= args.gradient_accumulation_steps
 
-        reduced_loss = lm_loss.detach().clone().view(1)
+        reduced_loss = lm_loss.detach().clone().view((1,))
         # flow.distributed.all_reduce(reduced_loss.data, group=mpu.get_data_parallel_group())
         reduced_loss.data = reduced_loss.data / (args.world_size / args.model_parallel_size)
     

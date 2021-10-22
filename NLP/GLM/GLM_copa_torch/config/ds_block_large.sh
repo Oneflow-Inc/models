@@ -14,10 +14,10 @@ gpt_options=" \
        --experiment-name blocklm-large-blank \
        --model-parallel-size ${MP_SIZE} \
        --num-layers 12 \
-       --hidden-size 1024 \
-       --num-attention-heads 16 \
-       --seq-length 512 \
-       --max-position-embeddings 512 \
+       --hidden-size 512 \
+       --num-attention-heads 8 \
+       --seq-length 256 \
+       --max-position-embeddings 256 \
        --save other/checkpoints \
        --train-iters 200000 \
        --resume-dataloader \

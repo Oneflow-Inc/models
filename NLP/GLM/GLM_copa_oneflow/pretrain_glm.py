@@ -239,13 +239,14 @@ def forward_step(data_iterator, model, args, timers, mems):
     # losses = mpu.vocab_parallel_cross_entropy(logits.contiguous().float(),labels)
     losses = mpu.cross_entropy.get_loss(logits.contiguous().float(),labels)
     
-    loss_mask = loss_mask.view(-1)
-    loss = flow.sum(losses.view(-1) * loss_mask)
+    loss_mask = loss_mask.view((-1,))
+    loss = flow.sum(losses.view((-1,)) * loss_mask)
     
     if loss_mask.sum().item() > 0:
         loss = loss / loss_mask.sum()
-    with open("loss.txt",'a') as f:
-        f.write(str(loss.item())+'\n')
+    # with open("loss.txt",'a') as f:
+    #     f.write(str(loss.item())+'\n')
+    print(loss)
     return loss, mems, mode
 
 
@@ -327,7 +328,7 @@ def train(model, optimizer, lr_scheduler,
                                                  args, timers, mems=mems, forward_step_func=forward_step)
         skipped_iters += skipped_iter
         args.iteration += 1
-        
+        print(args.iteration)
         total_lm_loss += lm_loss.data.detach().float()
        
         #True

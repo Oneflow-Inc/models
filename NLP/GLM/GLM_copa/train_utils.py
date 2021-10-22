@@ -298,6 +298,7 @@ def setup_model_and_optimizer(args, model_type=None, multi_token=True, num_label
     model = get_model(args, model_type=model_type, multi_token=multi_token, num_labels=num_labels,
                       spell_length=spell_length)
     param_groups = get_optimizer_param_groups(model)
+    
     #False
     #True
     if args.train_data is not None or args.data_dir is not None and (args.epochs > 0 or args.train_iters > 0):

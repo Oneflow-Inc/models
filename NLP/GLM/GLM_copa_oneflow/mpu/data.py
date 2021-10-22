@@ -77,7 +77,7 @@ def broadcast_data(keys, data, datatype):
     _check_data_types(keys, data, datatype)
     
     flatten_data = flow.cat(
-            [data[key].contiguous().view(-1) for key in keys], dim=0).cuda()
+            [data[key].contiguous().view((-1,)) for key in keys], dim=0).cuda()
     # else:
     #     flatten_data = torch.empty(total_numel,
     #                                device=torch.cuda.current_device(),
@@ -93,6 +93,6 @@ def broadcast_data(keys, data, datatype):
         for i in range(len(size)):
             size[i] = int(size[i].numpy())
         numel = int(key_numel[key].numpy())
-        output[key] = flatten_data.narrow(0, offset, numel).view(*size)
+        output[key] = flatten_data.narrow(0, offset, numel).view(size)
         offset += numel
     return output

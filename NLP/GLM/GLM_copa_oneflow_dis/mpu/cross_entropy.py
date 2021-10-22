@@ -133,7 +133,7 @@ def get_loss(vocab_parallel_logits,target):
     
     logits_2d = logits.view(-1, partition_vocab_size)
 
-    masked_target_1d = masked_target.view(-1).to(flow.int)
+    masked_target_1d = masked_target.view((-1,)).to(flow.int)
 
     arange_1d = flow._C.arange(start=0, end=logits_2d.size()[0],
                                 device=logits_2d.device).to(flow.int)
