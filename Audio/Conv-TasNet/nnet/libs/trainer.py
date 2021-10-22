@@ -29,8 +29,21 @@ def load_obj(obj, device):
     else:
         return cuda(obj)
 
+
 class Trainer(object):
-    def __init__(self, nnet, device, args,optimizer="adam", optimizer_kwargs=None, clip_norm=None, min_lr=0, patience=0, factor=0.5, no_impr=6):
+    def __init__(
+        self,
+        nnet,
+        device,
+        args,
+        optimizer="adam",
+        optimizer_kwargs=None,
+        clip_norm=None,
+        min_lr=0,
+        patience=0,
+        factor=0.5,
+        no_impr=6,
+    ):
         if not flow.cuda.is_available():
             raise RuntimeError("CUDA device unavailable...exist")
         self.model = nnet
@@ -50,16 +63,16 @@ class Trainer(object):
         self.checkpoint = args.checkpoint
         # logging
         self.print_freq = args.print_freq
-        
+
         # Create save folder
         os.makedirs(self.save_folder, exist_ok=True)
         self.prev_val_loss = float("inf")
         self.best_val_loss = float("inf")
         self.halving = False
 
-        self.num_params = sum(
-            [param.nelement() for param in nnet.parameters()]) / 10.0**6
-
+        self.num_params = (
+            sum([param.nelement() for param in nnet.parameters()]) / 10.0 ** 6
+        )
 
     def create_optimizer(self, optimizer, kwargs, state=None):
         supported_optimizer = {
@@ -76,7 +89,7 @@ class Trainer(object):
     def compute_loss(self, est, egs):
         raise NotImplementedError
 
-    def _run_one_epoch(self, epoch, tr_loader, cv_loader,cross_valid=False):
+    def _run_one_epoch(self, epoch, tr_loader, cv_loader, cross_valid=False):
         start = time.time()
         total_loss = 0
         data_loader = tr_loader if not cross_valid else cv_loader
@@ -86,14 +99,14 @@ class Trainer(object):
             egs = load_obj(egs, self.device)
             est = self.model(egs["mix"])
             loss = self.compute_loss(est, egs)
-        
+
             if not cross_valid:
                 self.optimizer.zero_grad()
                 loss.backward()
                 if self.clip_norm:
                     clip_grad_norm_(self.model.parameters(), self.clip_norm)
                 self.optimizer.step()
-                
+
             total_loss += float(loss.numpy())
 
             if i % self.print_freq == 0:
@@ -123,39 +136,44 @@ class Trainer(object):
             start = time.time()
             tr_avg_loss = self._run_one_epoch(epoch, tr_loader, cv_loader)
             train_losses.append(tr_avg_loss)
-            print('-' * 85)
-            print('Train Summary | End of Epoch {0} | Time {1:.2f}s | '
-                    'Train Loss {2:.3f}'.format(
-                        epoch + 1, time.time() - start, tr_avg_loss))
-            print('-' * 85)
+            print("-" * 85)
+            print(
+                "Train Summary | End of Epoch {0} | Time {1:.2f}s | "
+                "Train Loss {2:.3f}".format(epoch + 1, time.time() - start, tr_avg_loss)
+            )
+            print("-" * 85)
 
             # Save model each epoch
             if self.checkpoint:
-                    file_path = os.path.join(
-                        self.save_folder, 'epoch%d.pth.tar' % (epoch+1))
-                    flow.save(self.model.state_dict(), file_path)
-                    print('Saving checkpoint model to %s' % file_path)
-                    for dirs in os.listdir(self.save_folder):
-                        dir_name = os.path.join(self.save_folder, dirs)
-                        dir = dir_name.split('/')[-1]
-                        dir = re.findall(r"\d+", dir)
-                        if dir == []:
-                            dir = 1000
-                        else:
-                            dir = int(dir[0])
-                        if (epoch+1) - dir >= 5:
-                            shutil.rmtree(dir_name)
+                file_path = os.path.join(
+                    self.save_folder, "epoch%d.pth.tar" % (epoch + 1)
+                )
+                flow.save(self.model.state_dict(), file_path)
+                print("Saving checkpoint model to %s" % file_path)
+                for dirs in os.listdir(self.save_folder):
+                    dir_name = os.path.join(self.save_folder, dirs)
+                    dir = dir_name.split("/")[-1]
+                    dir = re.findall(r"\d+", dir)
+                    if dir == []:
+                        dir = 1000
+                    else:
+                        dir = int(dir[0])
+                    if (epoch + 1) - dir >= 5:
+                        shutil.rmtree(dir_name)
 
             # Cross validation
-            print('Cross validation...')
+            print("Cross validation...")
             self.model.eval()
-            val_loss = self._run_one_epoch(epoch, tr_loader, cv_loader,cross_valid=True)
+            val_loss = self._run_one_epoch(
+                epoch, tr_loader, cv_loader, cross_valid=True
+            )
             val_losses.append(val_loss)
-            print('-' * 85)
-            print('Valid Summary | End of Epoch {0} | Time {1:.2f}s | '
-                'Valid Loss {2:.3f}'.format(
-                    epoch + 1, time.time() - start, val_loss))
-            print('-' * 85)
+            print("-" * 85)
+            print(
+                "Valid Summary | End of Epoch {0} | Time {1:.2f}s | "
+                "Valid Loss {2:.3f}".format(epoch + 1, time.time() - start, val_loss)
+            )
+            print("-" * 85)
             # Adjust learning rate (halving)
             if self.half_lr:
                 if val_loss >= self.prev_val_loss:
@@ -169,12 +187,13 @@ class Trainer(object):
                     self.val_no_impv = 0
             if self.halving:
                 for param_group in self.optimizer.param_groups:
-                    param_group['lr'] /= 2.0
-                print('Learning rate adjusted to: {lr:.6f}'.format(
-                    lr=param_group['lr']))
+                    param_group["lr"] /= 2.0
+                print(
+                    "Learning rate adjusted to: {lr:.6f}".format(lr=param_group["lr"])
+                )
                 self.halving = False
             self.prev_val_loss = val_loss
-            
+
             # Save the best model
             if val_loss < self.best_val_loss:
                 self.best_val_loss = val_loss
@@ -182,19 +201,19 @@ class Trainer(object):
                 if os.path.exists(file_path):
                     shutil.rmtree(file_path)
                 flow.save(self.model.state_dict(), file_path)
-                np.save(file_path + '/epoch.npy', epoch)
+                np.save(file_path + "/epoch.npy", epoch)
 
                 print("Find better validated model, saving to %s" % file_path)
 
         # loss image
         x = [i for i in range(self.epochs)]
-        plt.plot(x, train_losses, 'b-', label=u'train_loss', linewidth=0.8)
-        plt.plot(x, val_losses, 'c-', label=u'val_loss', linewidth=0.8)
+        plt.plot(x, train_losses, "b-", label=u"train_loss", linewidth=0.8)
+        plt.plot(x, val_losses, "c-", label=u"val_loss", linewidth=0.8)
         plt.legend()
         # plt.xticks(l, lx)
-        plt.ylabel('loss')
-        plt.xlabel('epoch')
-        plt.savefig('conv_tasnet_loss.png')
+        plt.ylabel("loss")
+        plt.xlabel("epoch")
+        plt.savefig("conv_tasnet_loss.png")
 
 
 class SiSnrTrainer(Trainer):
@@ -216,17 +235,22 @@ class SiSnrTrainer(Trainer):
         if x.shape != s.shape:
             raise RuntimeError(
                 "Dimention mismatch when calculate si-snr, {} vs {}".format(
-                    x.shape, s.shape))
+                    x.shape, s.shape
+                )
+            )
         x_zm = x - flow.mean(x, dim=-1, keepdim=True)
         s_zm = s - flow.mean(s, dim=-1, keepdim=True)
-        t = flow.sum(x_zm * s_zm, dim=-1,
-            keepdim=True) * s_zm / (l2norm(s_zm, keepdim=True)**2 + eps)
-        
-        res = 20 * flow.log(eps + l2norm(t) / (l2norm(x_zm - t) + eps))/2.3025851
-        
+        t = (
+            flow.sum(x_zm * s_zm, dim=-1, keepdim=True)
+            * s_zm
+            / (l2norm(s_zm, keepdim=True) ** 2 + eps)
+        )
+
+        res = 20 * flow.log(eps + l2norm(t) / (l2norm(x_zm - t) + eps)) / 2.3025851
+
         return res
 
-    def compute_loss(self, est,egs):
+    def compute_loss(self, est, egs):
         # spks x n x S
         ests = est
         # spks x n x S
@@ -236,13 +260,12 @@ class SiSnrTrainer(Trainer):
         def sisnr_loss(permute):
             # for one permute
             return sum(
-                [self.sisnr(ests[s], refs[t])
-                 for s, t in enumerate(permute)]) / len(permute)
+                [self.sisnr(ests[s], refs[t]) for s, t in enumerate(permute)]
+            ) / len(permute)
 
         # P x N
         N = egs["mix"].size(0)
-        sisnr_mat = flow.stack(
-            [sisnr_loss(p) for p in permutations(range(num_spks))])
+        sisnr_mat = flow.stack([sisnr_loss(p) for p in permutations(range(num_spks))])
         max_perutt, _ = flow.max(sisnr_mat, dim=0)
         # si-snr
         return -flow.sum(max_perutt) / N

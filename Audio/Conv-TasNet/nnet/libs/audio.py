@@ -60,18 +60,20 @@ def parse_scripts(scp_path, value_processor=lambda x: x, num_tokens=2):
         for raw_line in f:
             scp_tokens = raw_line.strip().split()
             line += 1
-            if num_tokens >= 2 and len(scp_tokens) != num_tokens or len(
-                    scp_tokens) < 2:
+            if num_tokens >= 2 and len(scp_tokens) != num_tokens or len(scp_tokens) < 2:
                 raise RuntimeError(
                     "For {}, format error in line[{:d}]: {}".format(
-                        scp_path, line, raw_line))
+                        scp_path, line, raw_line
+                    )
+                )
             if num_tokens == 2:
                 key, value = scp_tokens
             else:
                 key, value = scp_tokens[0], scp_tokens[1:]
             if key in scp_dict:
-                raise ValueError("Duplicated key \'{0}\' exists in {1}".format(
-                    key, scp_path))
+                raise ValueError(
+                    "Duplicated key '{0}' exists in {1}".format(key, scp_path)
+                )
             scp_dict[key] = value_processor(value)
     return scp_dict
 
@@ -83,7 +85,8 @@ class Reader(object):
 
     def __init__(self, scp_path, value_processor=lambda x: x):
         self.index_dict = parse_scripts(
-            scp_path, value_processor=value_processor, num_tokens=2)
+            scp_path, value_processor=value_processor, num_tokens=2
+        )
         self.index_keys = list(self.index_dict.keys())
 
     def _load(self, key):
@@ -112,8 +115,8 @@ class Reader(object):
             num_utts = len(self.index_keys)
             if index >= num_utts or index < 0:
                 raise KeyError(
-                    "Interger index out of range, {:d} vs {:d}".format(
-                        index, num_utts))
+                    "Interger index out of range, {:d} vs {:d}".format(index, num_utts)
+                )
             index = self.index_keys[index]
         if index not in self.index_dict:
             raise KeyError("Missing utterance {}!".format(index))
@@ -136,9 +139,11 @@ class WaveReader(Reader):
     def _load(self, key):
         # return C x N or N
         samp_rate, samps = read_wav(
-            self.index_dict[key], normalize=self.normalize, return_rate=True) #[1*N]
+            self.index_dict[key], normalize=self.normalize, return_rate=True
+        )  # [1*N]
         # if given samp_rate, check it
         if self.samp_rate is not None and samp_rate != self.samp_rate:
-            raise RuntimeError("SampleRate mismatch: {:d} vs {:d}".format(
-                samp_rate, self.samp_rate))
+            raise RuntimeError(
+                "SampleRate mismatch: {:d} vs {:d}".format(samp_rate, self.samp_rate)
+            )
         return samps

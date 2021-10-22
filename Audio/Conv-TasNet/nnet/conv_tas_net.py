@@ -10,7 +10,7 @@ def param(nnet, Mb=True):
     Return number parameters(not bytes) in nnet
     """
     neles = sum([param.nelement() for param in nnet.parameters()])
-    return neles / 10**6 if Mb else neles
+    return neles / 10 ** 6 if Mb else neles
 
 
 class ChannelWiseLayerNorm(nn.LayerNorm):
@@ -26,8 +26,7 @@ class ChannelWiseLayerNorm(nn.LayerNorm):
         x: N x C x T
         """
         if x.dim() != 3:
-            raise RuntimeError("{} accept 3D tensor as input".format(
-                self.__name__))
+            raise RuntimeError("{} accept 3D tensor as input".format(self.__name__))
         # N x C x T => N x T x C
         x = flow.transpose(x, 1, 2)
         # LN
@@ -41,6 +40,7 @@ class GlobalChannelLayerNorm(nn.Module):
     """
     Global channel layer normalization
     """
+
     def __init__(self, dim, eps=1e-05, elementwise_affine=True):
         super(GlobalChannelLayerNorm, self).__init__()
         self.eps = eps
@@ -58,11 +58,10 @@ class GlobalChannelLayerNorm(nn.Module):
         x: N x C x T
         """
         if x.dim() != 3:
-            raise RuntimeError("{} accept 3D tensor as input".format(
-                self.__name__))
+            raise RuntimeError("{} accept 3D tensor as input".format(self.__name__))
         # N x 1 x 1
         mean = flow.mean(x, (1, 2), keepdim=True)
-        var = flow.mean((x - mean)**2, (1, 2), keepdim=True)
+        var = flow.mean((x - mean) ** 2, (1, 2), keepdim=True)
         # N x C x T
         if self.elementwise_affine:
             x = self.gamma * (x - mean) / flow.sqrt(var + self.eps) + self.beta
@@ -71,8 +70,10 @@ class GlobalChannelLayerNorm(nn.Module):
         return x
 
     def extra_repr(self):
-        return "{normalized_dim}, eps={eps}, " \
+        return (
+            "{normalized_dim}, eps={eps}, "
             "elementwise_affine={elementwise_affine}".format(**self.__dict__)
+        )
 
 
 def build_norm(norm, dim):
@@ -103,8 +104,7 @@ class Conv1D(nn.Conv1d):
         x: N x L or N x C x L
         """
         if x.dim() not in [2, 3]:
-            raise RuntimeError("{} accept 2/3D tensor as input".format(
-                self.__name__))
+            raise RuntimeError("{} accept 2/3D tensor as input".format(self.__name__))
         x = super().forward(x if x.dim() == 3 else flow.unsqueeze(x, 1))
         if squeeze:
             x = flow.squeeze(x)
@@ -124,8 +124,7 @@ class ConvTrans1D(nn.ConvTranspose1d):
         x: N x L or N x C x L
         """
         if x.dim() not in [2, 3]:
-            raise RuntimeError("{} accept 2/3D tensor as input".format(
-                self.__name__))
+            raise RuntimeError("{} accept 2/3D tensor as input".format(self.__name__))
         x = super().forward(x if x.dim() == 3 else flow.unsqueeze(x, 1))
         if squeeze:
             x = flow.squeeze(x)
@@ -138,20 +137,25 @@ class Conv1DBlock(nn.Module):
         Conv1x1 - PReLU - Norm - DConv - PReLU - Norm - SConv
     """
 
-    def __init__(self,
-                 in_channels=256,
-                 conv_channels=512,
-                 kernel_size=3,
-                 dilation=1,
-                 norm="cLN",
-                 causal=False):
+    def __init__(
+        self,
+        in_channels=256,
+        conv_channels=512,
+        kernel_size=3,
+        dilation=1,
+        norm="cLN",
+        causal=False,
+    ):
         super(Conv1DBlock, self).__init__()
         # 1x1 conv
         self.conv1x1 = Conv1D(in_channels, conv_channels, 1)
         self.prelu1 = nn.PReLU()
         self.lnorm1 = build_norm(norm, conv_channels)
-        dconv_pad = (dilation * (kernel_size - 1)) // 2 if not causal else (
-            dilation * (kernel_size - 1))
+        dconv_pad = (
+            (dilation * (kernel_size - 1)) // 2
+            if not causal
+            else (dilation * (kernel_size - 1))
+        )
         # depthwise conv
         self.dconv = nn.Conv1d(
             conv_channels,
@@ -160,7 +164,8 @@ class Conv1DBlock(nn.Module):
             groups=conv_channels,
             padding=dconv_pad,
             dilation=dilation,
-            bias=True)
+            bias=True,
+        )
         self.prelu2 = nn.PReLU()
         self.lnorm2 = build_norm(norm, conv_channels)
         # 1x1 conv cross channel
@@ -174,7 +179,7 @@ class Conv1DBlock(nn.Module):
         y = self.lnorm1(self.prelu1(y))
         y = self.dconv(y)
         if self.causal:
-            y = y[:, :, :-self.dconv_pad]
+            y = y[:, :, : -self.dconv_pad]
         y = self.lnorm2(self.prelu2(y))
         y = self.sconv(y)
         x = x + y
@@ -182,27 +187,30 @@ class Conv1DBlock(nn.Module):
 
 
 class ConvTasNet(nn.Module):
-    def __init__(self,
-                 L=20,
-                 N=256,
-                 X=8,
-                 R=4,
-                 B=256,
-                 H=512,
-                 P=3,
-                 norm="cLN",
-                 num_spks=2,
-                 non_linear="relu",
-                 causal=False):
+    def __init__(
+        self,
+        L=20,
+        N=256,
+        X=8,
+        R=4,
+        B=256,
+        H=512,
+        P=3,
+        norm="cLN",
+        num_spks=2,
+        non_linear="relu",
+        causal=False,
+    ):
         super(ConvTasNet, self).__init__()
         supported_nonlinear = {
             "relu": F.relu,
             "sigmoid": flow.sigmoid,
-            "softmax": F.softmax
+            "softmax": F.softmax,
         }
         if non_linear not in supported_nonlinear:
-            raise RuntimeError("Unsupported non-linear function: {}",
-                               format(non_linear))
+            raise RuntimeError(
+                "Unsupported non-linear function: {}", format(non_linear)
+            )
         self.non_linear_type = non_linear
         self.non_linear = supported_nonlinear[non_linear]
         # n x S => n x N x T, S = 4s*8000 = 32000
@@ -222,7 +230,8 @@ class ConvTasNet(nn.Module):
             conv_channels=H,
             kernel_size=P,
             norm=norm,
-            causal=causal)
+            causal=causal,
+        )
         # output 1x1 conv
         # n x B x T => n x N x T
         # NOTE: using ModuleList not python list
@@ -232,8 +241,7 @@ class ConvTasNet(nn.Module):
         self.mask = Conv1D(B, num_spks * N, 1)
         # using ConvTrans1D: n x N x T => n x 1 x To
         # To = (T - 1) * L // 2 + L
-        self.decoder_1d = ConvTrans1D(
-            N, 1, kernel_size=L, stride=L // 2, bias=True)
+        self.decoder_1d = ConvTrans1D(N, 1, kernel_size=L, stride=L // 2, bias=True)
         self.num_spks = num_spks
 
     def _build_blocks(self, num_blocks, **block_kwargs):
@@ -241,8 +249,7 @@ class ConvTasNet(nn.Module):
         Build Conv1D block
         """
         blocks = [
-            Conv1DBlock(**block_kwargs, dilation=(2**b))
-            for b in range(num_blocks)
+            Conv1DBlock(**block_kwargs, dilation=(2 ** b)) for b in range(num_blocks)
         ]
         return nn.Sequential(*blocks)
 
@@ -251,8 +258,7 @@ class ConvTasNet(nn.Module):
         Build Conv1D block repeats
         """
         repeats = [
-            self._build_blocks(num_blocks, **block_kwargs)
-            for r in range(num_repeats)
+            self._build_blocks(num_blocks, **block_kwargs) for r in range(num_repeats)
         ]
         return nn.Sequential(*repeats)
 
@@ -260,7 +266,9 @@ class ConvTasNet(nn.Module):
         if x.dim() >= 3:
             raise RuntimeError(
                 "{} accept 1/2D tensor as input, but got {:d}".format(
-                    self.__name__, x.dim()))
+                    self.__name__, x.dim()
+                )
+            )
         # when inference, only one utt
         if x.dim() == 1:
             x = flow.unsqueeze(x, 0)
