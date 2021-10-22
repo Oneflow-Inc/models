@@ -16,14 +16,17 @@
 
 ## 注意和优化:
 ```shell
+    1. eager,graph处理过程batch处理都相同的长度,不用关注了
 
-    没有进行梯度裁剪 : mpu/grad.py
+    2. 没有进行梯度裁剪 : mpu/grad.py
 
-    graph单卡训练没有支持学习率调整方式 : 
+    3. graph单卡训练没有支持学习率调整方式 : 
 
-    loss计算还不支持autograd.function : mpu/cross_entropy.py
+    4. loss计算还不支持autograd.function : mpu/cross_entropy.py
     
-    transformer mask 可以写成一个op
+    5. transformer mask 可以写成一个op
+
+    6. 多卡测试 ,iters变成 1000/卡数
 ```
 
 
