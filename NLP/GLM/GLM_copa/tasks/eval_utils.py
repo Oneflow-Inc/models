@@ -91,7 +91,7 @@ def accuracy_func_provider(single_dataset_provider, metric_dict, args, is_test=F
             start_time = time.time()
             predictions, labels, examples = multichoice_evaluate(model, dataloader, example_dict, args)
             elapsed_time = time.time() - start_time
-            
+            print(elapsed_time)
             if output_predictions and torch.distributed.get_rank() == 0:
                 filename = os.path.join(args.log_dir, name + '.jsonl')
                 output_func(predictions, examples, filename)
