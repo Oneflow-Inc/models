@@ -244,8 +244,8 @@ def forward_step(data_iterator, model, args, timers, mems):
     
     if loss_mask.sum().item() > 0:
         loss = loss / loss_mask.sum()
-    # with open("loss.txt",'a') as f:
-    #     f.write(str(loss.item())+'\n')
+    with open("loss.txt",'a') as f:
+        f.write(str(loss.item())+'\n')
     # print(loss)
     return loss, mems, mode
 
@@ -319,7 +319,7 @@ def train(model, optimizer, lr_scheduler,
     import time
     tb = time.time()
     #0,200000
-    while args.iteration < 3000:
+    while args.iteration < 1000:
     # while args.iteration < args.train_iters:
         lm_loss, skipped_iter, mems = train_step(train_data_iterator,
                                                  model,
