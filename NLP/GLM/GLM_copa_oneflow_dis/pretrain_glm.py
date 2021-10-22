@@ -296,13 +296,13 @@ def report_evaluate_metrics(summary_writer, prefix, loss, ppl, gpt_loss, bert_lo
 def train(model, optimizer, lr_scheduler,
           train_data_iterator, val_data_iterator, timers, args, summary_writer=None):
     #加载模型
-    import torch
-    torch_params = torch.load("../mo.pt", map_location='cpu')
-    flow_params = {}
-    for k in torch_params.keys():
-        flow_params[k] = flow.Tensor(torch_params[k].numpy().astype("float32"))
-    model.load_state_dict(flow_params)
-    # model.eval()
+    # import torch
+    # torch_params = torch.load("../mo.pt", map_location='cpu')
+    # flow_params = {}
+    # for k in torch_params.keys():
+    #     flow_params[k] = flow.Tensor(torch_params[k].numpy().astype("float32"))
+    # model.load_state_dict(flow_params)
+    # # model.eval()
     
     model.train()
 
@@ -326,7 +326,7 @@ def train(model, optimizer, lr_scheduler,
                                                  args, timers, mems=mems, forward_step_func=forward_step)
         skipped_iters += skipped_iter
         args.iteration += 1
-        print(args.iteration)
+        # print(args.iteration)
         total_lm_loss += lm_loss.data.detach().float()
         
         #True
