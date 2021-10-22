@@ -17,8 +17,9 @@
 ## 注意和优化:
 ```shell
     数据补齐 :
-         block_utils.py/ConstructBlockStrategy.pad_batch: 见GLM_copa_oneflow_dis/block_utils.py
-    
+         eager训练不需要补齐，见GLM_copa/block_utils.py.pad_batch()
+         graph训练需要补齐:   见GLM_copa_oneflow_dis/block_utils.py.pad_batch()
+
     没有进行梯度裁剪 : mpu/grad.py
 
     graph单卡训练没有支持学习率调整方式 : 

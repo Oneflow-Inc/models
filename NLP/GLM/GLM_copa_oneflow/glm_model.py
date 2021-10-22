@@ -99,18 +99,15 @@ class VocabParallelEmbedding(flow.nn.Module):
         ##不支持或操作符
         input_mask = (input_ < self.vocab_start_index) | \
                      (input_ >= self.vocab_end_index)
-        oneflow._oneflow_internal.profiler.RangePush('VocabParallelEmbedding-1')
+    
         # input_mask = flow._C.logical_or(input_ < self.vocab_start_index, input_ >= self.vocab_end_index)
-        oneflow._oneflow_internal.profiler.RangePop()
-        oneflow._oneflow_internal.profiler.RangePush('VocabParallelEmbedding-2')
+      
         masked_input = (input_.clone() - self.vocab_start_index).to(flow.int)
-        oneflow._oneflow_internal.profiler.RangePop()
+     
         
         #不支持切片索引
-        oneflow._oneflow_internal.profiler.RangePush('VocabParallelEmbedding-3')
         masked_input[input_mask] = 0
-        oneflow._oneflow_internal.profiler.RangePop()
-        oneflow._oneflow_internal.profiler.RangePush('VocabParallelEmbedding-4')
+      
         output_parallel = F.embedding(masked_input, 
                                       self.weight,
                                       self.padding_idx, 
@@ -118,15 +115,13 @@ class VocabParallelEmbedding(flow.nn.Module):
                                       None,               #self.norm_type, 暂时变为none
                                       self.scale_grad_by_freq,
                                       self.sparse)
-        oneflow._oneflow_internal.profiler.RangePop()
-        oneflow._oneflow_internal.profiler.RangePush('VocabParallelEmbedding-5')                              
+                                
         #不支持切片索引
         # output_parallel[input_mask, :] = 0.0
         output_parallel[input_mask[...,None].expand(*output_parallel.shape).to(flow.int8)] = 0
    
         #output = reduce_from_model_parallel_region(output_parallel)
         output = output_parallel
-        oneflow._oneflow_internal.profiler.RangePop()
         return output
 
 
@@ -794,9 +789,8 @@ class GLMModel(flow.nn.Module):
                 prompt_pos=None):
         # Embeddings.
         batch_size = input_ids.size(0)
-        oneflow._oneflow_internal.profiler.RangePush('embeddings')
+  
         words_embeddings = self.word_embeddings(input_ids)
-        oneflow._oneflow_internal.profiler.RangePop()
         embeddings = words_embeddings
         #False
         if prompt_pos is not None:
@@ -805,10 +799,9 @@ class GLMModel(flow.nn.Module):
             batch_index = flow.arange(batch_size, device=input_ids.device).unsqueeze(1)
             embeddings[batch_index, prompt_pos] = prompt_embeds
         # Transformer.
-        oneflow._oneflow_internal.profiler.RangePush('transformer')
+   
         transformer_output = self.transformer(embeddings, position_ids, attention_mask, mems,
                                               return_memory=return_memory, detach_memory=detach_memory)
-        oneflow._oneflow_internal.profiler.RangePop()
         logits, hidden_layers = transformer_output
         outputs = hidden_layers
         
@@ -869,9 +862,9 @@ class GLMForMultiTokenCloze(flow.nn.Module):
         
         #True
         if self.take_softmax:
-            oneflow._oneflow_internal.profiler.RangePush('logsoftmax')
+           
             outputs = flow.nn.LogSoftmax(dim=-1)(outputs)
-            oneflow._oneflow_internal.profiler.RangePop()
+         
 
         batch_ids = flow.arange(target_ids.size(0), dtype=flow.long, device=target_ids.device)
         batch_ids = batch_ids.unsqueeze(1).expand_as(target_ids)
@@ -938,9 +931,7 @@ def test():
 
         b = time.time()
         for i in range(100):
-            oneflow._oneflow_internal.profiler.RangePush('item')
             logits, *mems = model(*inputs_a)
-            oneflow._oneflow_internal.profiler.RangePop()
         e = time.time()
         print(e-b)
 
