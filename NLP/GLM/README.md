@@ -16,9 +16,6 @@
 
 ## 注意和优化:
 ```shell
-    数据补齐 :
-         eager训练不需要补齐，见GLM_copa/block_utils.py.pad_batch()
-         graph训练需要补齐:   见GLM_copa_oneflow_dis/block_utils.py.pad_batch()
 
     没有进行梯度裁剪 : mpu/grad.py
 

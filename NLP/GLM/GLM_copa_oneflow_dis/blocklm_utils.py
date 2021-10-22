@@ -479,6 +479,7 @@ class ConstructBlockStrategy:
         seq_lengths = list(map(len, token_batch))
         
         max_length = int(self.args.seq_length *1.3)
+         # max_length = max(seq_lengths)
 
         token_batch = [np.concatenate((tokens, np.zeros(max_length - len(tokens), dtype=np.long))) for tokens in
                            token_batch]
