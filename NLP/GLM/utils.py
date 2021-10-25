@@ -23,7 +23,6 @@ import oneflow as flow
 import json
 import subprocess
 
-from fp16 import FP16_Optimizer
 import mpu
 from tensorboardX import SummaryWriter
 
@@ -92,8 +91,6 @@ def print_params_min_max_norm(optimizer, iteration):
     rank = flow.distributed.get_rank()
     string = 'iteration, rank, index, model-parallel,min, max, norm\n'
     optimizer_ = optimizer
-    if isinstance(optimizer, FP16_Optimizer):
-        optimizer_ = optimizer.optimizer
     for param_group in optimizer_.param_groups:
         for param in param_group['params']:
             index += 1
