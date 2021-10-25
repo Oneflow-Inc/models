@@ -21,7 +21,7 @@ That's all!
 
 ## Visualization of loss
 
-![loss](figure_and_demo/conv_tasnet_loss.png) 
+![loss](conv_tasnet_loss.png) 
 
 ## Result
 
