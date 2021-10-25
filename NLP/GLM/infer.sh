@@ -22,7 +22,6 @@ COMMON_ARGS="--save-interval 10000 \
 
 EXPERIMENT_NAME=${MODEL_TYPE}-copa
 TASK_NAME=COPA
-DATA_PATH="${DATA_ROOT}/COPA"
 MAX_SEQ_LEN=256
 
 LR_SINGLE=1e-5
@@ -34,6 +33,8 @@ PROMPT_IDS=(1 2)
 BATCH_SIZE=16
 
 DATA_ROOT=./other/dataset
+DATA_PATH="${DATA_ROOT}/COPA"
+LOAD_MODEL_PATH=other/copa_model/blank-base-copa_08-25-23-55/best/mp_rank_00_model_states.pt
 CHECKPOINT_PATH=./other/copa_model
 SAVE_PATH=./other/savemodel/finetune_checkpoints
 DATESTR=$(date +"%m-%d-%H-%M")
@@ -43,7 +44,7 @@ source $2    # Task
 
 EXPERIMENT_NAME=${EXPERIMENT_NAME}_${DATESTR}
 mkdir logs
-run_cmd="$python finetune_glm.py \
+run_cmd="python3 eval_glm.py \
        --finetune \
        --cloze-eval \
        --experiment-name ${EXPERIMENT_NAME} \
@@ -51,6 +52,7 @@ run_cmd="$python finetune_glm.py \
        --data-dir ${DATA_PATH} \
        --save ${CHECKPOINT_PATH} \
        --seq-length ${MAX_SEQ_LEN} \
+       --load-model-path ${LOAD_MODEL_PATH} \
        --eval-batch-size 4 \
        --save-epoch 100000 \
        --num-workers 1 \
@@ -60,7 +62,6 @@ run_cmd="$python finetune_glm.py \
        $TRAIN_ARGS \
        $COMMON_ARGS \
        --pattern-id 0 \
-       --fp16 \
        --epochs ${XXLARGE_EPOCH} \
        --overwrite \
        2>&1 | tee logs/log-${EXPERIMENT_NAME}.txt"

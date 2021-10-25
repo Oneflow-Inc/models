@@ -297,15 +297,6 @@ def report_evaluate_metrics(summary_writer, prefix, loss, ppl, gpt_loss, bert_lo
 
 def train(model, optimizer, lr_scheduler,
           train_data_iterator, val_data_iterator, timers, args, summary_writer=None):
-    #加载模型
-    # import torch
-    # torch_params = torch.load("../mo.pt", map_location='cpu')
-    # flow_params = {}
-    # for k in torch_params.keys():
-    #     flow_params[k] = flow.Tensor(torch_params[k].numpy().astype("float32"))
-    # model.load_state_dict(flow_params)
-    # model.eval()
-
     model.train()
 
     total_lm_loss = 0.0
@@ -341,19 +332,6 @@ def train(model, optimizer, lr_scheduler,
             report_iteration_metrics(summary_writer, optimizer, learning_rate, avg_lm_loss,
                                      elapsed_time * 1000.0 / args.log_interval, args.iteration, args.train_iters, args)
             total_lm_loss = 0.0
-            #True
-            # if report_memory_flag:
-            #     report_memory('after {} iterations'.format(args.iteration))
-            #     report_memory_flag = False
-
-            # if args.deepspeed or args.DDP_impl == 'torch':
-            #     timers.log(['forward', 'backward', 'optimizer',
-            #                 'batch generator', 'data loader'],
-            #                normalizer=args.log_interval)
-            # else:
-            #     timers.log(['forward', 'backward', 'allreduce', 'optimizer',
-            #                 'batch generator', 'data loader'],
-            #                normalizer=args.log_interval)
         
         if False:
         # if args.save and args.save_interval and args.iteration % args.save_interval == 0:

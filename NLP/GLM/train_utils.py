@@ -9,7 +9,6 @@ from loss_scaler import DynamicLossScaler
 from learning_rates import AnnealingLR
 from model import GLMModel, glm_get_params_for_weight_decay_optimization
 from model import GLMForMultiTokenCloze, GLMForMultiTokenClozeFast, GLMForSingleTokenCloze, GLMForSequenceClassification
-from model import PyTorchDistributedDataParallel as TorchDDP, DistributedDataParallel as LocalDDP
 from model.modeling_bert import BertForMultipleChoice, BertForSequenceClassification
 from utils import print_rank_0, get_checkpoint_name, get_checkpoint_iteration
 
@@ -23,7 +22,7 @@ def load_pretrained(model, checkpoint_path, args, task_tokens=None):
     load_dir, tag, release, success = get_checkpoint_iteration(checkpoint_path)
     #/data/lichunyou/GLM/GLM_copa/copa_model/blank-base-copa_08-25-23-55/best/mp_rank_00_model_states.pt
     # checkpoint_name = get_checkpoint_name(load_dir, tag, release)
-    checkpoint_name = '/dataset/lichunyou/GLM/GLM_copa_oneflow/other/copa_model/blank-base-copa_08-25-23-55/best/mp_rank_00_model_states.pt'
+    checkpoint_name = args.load_model_path   #'./other/copa_model/blank-base-copa_08-25-23-55/best/mp_rank_00_model_states.pt'
     
     # if mpu.get_data_parallel_rank() == 0:
     #     print('global rank {} is loading pretrained model {}'.format(
@@ -184,8 +183,6 @@ def get_model(args, model_type=None, multi_token=True, num_labels=None, spell_le
 
 def get_optimizer_param_groups(model):
     #False
-    while isinstance(model, (LocalDDP, TorchDDP)):
-        model = model.module
     param_groups = glm_get_params_for_weight_decay_optimization(model)
     
     # for param_group in param_groups:

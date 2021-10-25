@@ -17,7 +17,7 @@ from collections import namedtuple
 import random
 import os
 import csv
-import torch
+# import torch
 import itertools
 
 import nltk

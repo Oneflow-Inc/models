@@ -68,22 +68,6 @@ def process_batch(batch, args):
 tokenizer = None
 
 
-def mix_forward_step(batch_and_dataloader, model, args, times, mems):
-    use_blocklm = 0
-    if args.block_lm_ratio > 0.0:
-        if mpu.get_model_parallel_rank() == 0:
-            if random.random() > 1 / (1 + args.block_lm_ratio):
-                use_blocklm = 1
-        use_blocklm = torch.cuda.LongTensor([use_blocklm])
-        torch.distributed.broadcast(use_blocklm, mpu.get_model_parallel_src_rank(),
-                                    group=mpu.get_model_parallel_group())
-        use_blocklm = use_blocklm.item()
-    if use_blocklm:
-        return lm_forward_step((batch_and_dataloader[1], None), model, args, times, mems)
-    else:
-        return finetune_forward_step(batch_and_dataloader[0], model, args, times, mems)
-
-
 def finetune_forward_step(batch, model, args, timers, mems):
     """Simple forward step with cross-entropy loss."""
     # Get the batch.
@@ -305,44 +289,6 @@ def finetune(args,
     train_dataloader, valid_dataloader = None, None
     train_block_dataloader, valid_block_dataloader = None, None
 
-    #False
-    if train_valid_datasets_provider is not None and args.epochs > 0:
-        if mpu.get_model_parallel_rank() == 0:
-            train_dataset, valid_dataset = train_valid_datasets_provider(args, tokenizer)
-            train_dataloader, valid_dataloader = _build_train_valid_dataloaders(train_dataset, valid_dataset, args)
-            if args.no_validation:
-                valid_dataloader = None
-            train_iters = torch.cuda.LongTensor([len(train_dataloader)])
-        else:
-            train_iters = torch.cuda.LongTensor([0])
-        torch.distributed.broadcast(train_iters, mpu.get_model_parallel_src_rank(),
-                                    group=mpu.get_model_parallel_group())
-        if mpu.get_model_parallel_rank() != 0:
-            args.train_iters_per_epoch = train_iters[0].item()
-            args.train_iters = args.epochs * args.train_iters_per_epoch
-
-            train_dataloader = FakeDataloader(args.train_iters_per_epoch)
-            if args.no_validation:
-                valid_dataloader = None
-            else:
-                valid_dataloader = FakeDataloader(None)
-        if args.block_lm_ratio > 0.0:
-            if mpu.get_model_parallel_rank() == 0:
-                train_block_dataset, valid_block_dataset = train_valid_datasets_provider(args, tokenizer,
-                                                                                         pattern_text=True)
-                train_block_dataloader = make_data_loader(train_block_dataset, tokenizer,
-                                                          args.batch_size * mpu.get_data_parallel_world_size(),
-                                                          args.train_iters, args, shuffle=True,
-                                                          block_collate=True)
-                valid_block_dataloader = make_data_loader(valid_block_dataset, tokenizer,
-                                                          args.batch_size * mpu.get_data_parallel_world_size(), (
-                                                                      args.train_iters // args.eval_interval + 1) * args.eval_iters,
-                                                          args, shuffle=True, block_collate=True)
-            else:
-                train_block_dataloader = FakeDataloader(args.train_iters)
-                valid_block_dataloader = FakeDataloader(None)
-            train_block_dataloader, valid_block_dataloader = iter(train_block_dataloader), iter(valid_block_dataloader)
-
     timers('train/valid/test dataset/dataloder').stop()
     
     timers('callback function').start()
@@ -366,51 +312,9 @@ def finetune(args,
     #True
     if args.load_pretrained is not None and not args.pretrained_bert:
         task_tokens = None
-        #False
-        if args.continuous_prompt and args.prompt_init:
-            if mpu.get_model_parallel_rank() == 0:
-                dataset = train_dataloader.dataset
-                processor, pvp = dataset.processor, dataset.pvp
-                task_tokens = []
-                for label in processor.get_labels():
-                    verbalizer = pvp.verbalize(label)[0]
-                    verbalizer_ids = tokenizer.EncodeAsIds(verbalizer).tokenization
-                    task_tokens += verbalizer_ids
-                print_rank_0("Task tokens: " + tokenizer.DecodeIds(task_tokens))
-                num_task_tokens = len(task_tokens)
-            else:
-                num_task_tokens, task_tokens = 0, []
-            num_task_tokens = torch.cuda.LongTensor([num_task_tokens])
-            torch.distributed.broadcast(num_task_tokens, mpu.get_model_parallel_src_rank(),
-                                        group=mpu.get_model_parallel_group())
-            num_task_tokens = num_task_tokens.item()
-            if num_task_tokens > 0:
-                if mpu.get_model_parallel_rank() == 0:
-                    task_tokens = torch.cuda.LongTensor(task_tokens)
-                else:
-                    task_tokens = torch.empty(num_task_tokens, device=torch.cuda.current_device(), dtype=torch.long)
-                torch.distributed.broadcast(task_tokens, mpu.get_model_parallel_src_rank(),
-                                            group=mpu.get_model_parallel_group())
-                task_tokens = task_tokens.tolist()
         with FileLock(os.path.join(pathlib.Path.home(), "checkpoint_lock"), timeout=-1):
             load_pretrained(model, args.load_pretrained, args, task_tokens=task_tokens)
-        #False
-        if args.fp16 and optimizer is not None:
-            if args.deepspeed:
-                optimizer.refresh_fp32_params()
-            else:
-                optimizer._model_params_to_master_params()
-    #False
-    if args.load is not None:
-        with FileLock(os.path.join(pathlib.Path.home(), "checkpoint_lock"), timeout=-1):
-            load_checkpoint(model, optimizer, lr_scheduler, args, no_deepspeed=args.no_deepspeed_load)
-       
-        if args.fp16 and optimizer is not None:
-            if args.deepspeed:
-                optimizer.refresh_fp32_params()
-            else:
-                optimizer._model_params_to_master_params()
-    # torch.distributed.barrier()
+
     timers('pretrained checkpoint').stop()
     args.iteration = 0
     summary_writer = None
@@ -429,26 +333,10 @@ def finetune(args,
     print_rank_0('training ...')
 
     score_dict = None
-    #False
-    if train_dataloader is not None and args.epochs > 0:
-        if args.block_lm_ratio > 0.0:
-            forward_step = mix_forward_step
-        best_iteration = _train(model, optimizer, lr_scheduler, forward_step,
-                                (train_dataloader, train_block_dataloader), (valid_dataloader, valid_block_dataloader),
-                                end_of_epoch_callback, args, timers,
-                                summary_writer=summary_writer)
-        if end_of_train_callback is not None and best_iteration is not None:
-                with FileLock(os.path.join(pathlib.Path.home(), "checkpoint_lock"), timeout=-1):
-                    args.load = os.path.join(args.save, "best")
-                    load_checkpoint(model, optimizer, lr_scheduler, args, no_load_optim=True, no_deepspeed=True)
-                    args.load = None
-        torch.distributed.barrier()
-        if end_of_train_callback is not None:
-            score_dict = end_of_train_callback(model, epoch=-1, output_predictions=True)
-    else:
-        #True: tasks/eval_utils.py:metrics_func
-        if end_of_train_callback is not None:
-            score_dict = end_of_train_callback(model, epoch=-1, output_predictions=True)
+    
+    #True: tasks/eval_utils.py:metrics_func
+    if end_of_train_callback is not None:
+        score_dict = end_of_train_callback(model, epoch=-1, output_predictions=True)
     # if score_dict is not None and torch.distributed.get_rank() == 0:
     if score_dict is not None:
         score_dict.update({"type": "test"})
