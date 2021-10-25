@@ -32,7 +32,7 @@ That's all!
 
  
 ## Separation demo
-You can find a separation demo from [here](https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/audio/Conv-Tasnet_demo), which includes a two-speaker original mixed voice and its corresponding seperating results.
+You can find a separation demo from [here](https://oneflow-public.oss-cn-beijing.aliyuncs.com/datasets/models/Audio/Conv-Tasnet_demo.zip), which includes a two-speaker original mixed voice and its corresponding seperating results.
 
 
 
