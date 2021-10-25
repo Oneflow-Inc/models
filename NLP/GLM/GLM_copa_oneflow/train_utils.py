@@ -24,7 +24,7 @@ def load_pretrained(model, checkpoint_path, args, task_tokens=None):
     load_dir, tag, release, success = get_checkpoint_iteration(checkpoint_path)
     #/data/lichunyou/GLM/GLM_copa/copa_model/blank-base-copa_08-25-23-55/best/mp_rank_00_model_states.pt
     # checkpoint_name = get_checkpoint_name(load_dir, tag, release)
-    checkpoint_name = '/dataset/lichunyou/GLM/GLM_copa_oneflow/other/copa_model/blank-base-copa_08-25-23-55/best/mp_rank_00_model_states.pt'
+    checkpoint_name = './other/copa_model/blank-base-copa_08-25-23-55/best/mp_rank_00_model_states.pt'
     
     # if mpu.get_data_parallel_rank() == 0:
     #     print('global rank {} is loading pretrained model {}'.format(

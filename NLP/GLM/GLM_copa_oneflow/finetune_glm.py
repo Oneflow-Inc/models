@@ -296,7 +296,7 @@ def finetune(args,
 
     tokenizer = prepare_tokenizer(args)
     pretrain_glm.tokenizer = tokenizer
-
+    
     if args.save:
         args.save = os.path.join(args.save, args.experiment_name) 
     #args.save : /data/lichunyou/GLM/GLM_copa/copa_model/blank-base-copa_09-13-16-15
@@ -304,7 +304,7 @@ def finetune(args,
     timers('train/valid/test dataset/dataloder').start()
     train_dataloader, valid_dataloader = None, None
     train_block_dataloader, valid_block_dataloader = None, None
-
+    
     #False
     if train_valid_datasets_provider is not None and args.epochs > 0:
         if mpu.get_model_parallel_rank() == 0:
@@ -342,7 +342,7 @@ def finetune(args,
                 train_block_dataloader = FakeDataloader(args.train_iters)
                 valid_block_dataloader = FakeDataloader(None)
             train_block_dataloader, valid_block_dataloader = iter(train_block_dataloader), iter(valid_block_dataloader)
-
+    
     timers('train/valid/test dataset/dataloder').stop()
     
     timers('callback function').start()
@@ -359,10 +359,12 @@ def finetune(args,
 
     timers('model and optimizer').start()
     model, optimizer, lr_scheduler = setup_model_and_optimizer(args, **model_kwargs)
-
+    
     timers('model and optimizer').stop()
 
     timers('pretrained checkpoint').start()
+    print("ttt")
+    exit(0)
     #True
     if args.load_pretrained is not None and not args.pretrained_bert:
         task_tokens = None

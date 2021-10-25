@@ -147,93 +147,93 @@ def multichoice_evaluate(model, dataloader, example_dict, args):
     #                                    torch.distributed.get_world_size(),
     #                                    torch.distributed.get_rank() == 0, datetime.timedelta(seconds=30))
     store = {}
-    for index in range(100):
-        with torch.no_grad():
-            for _, batch in enumerate(dataloader):
-                data = process_batch(batch, args)
+    
+    with torch.no_grad():
+        for _, batch in enumerate(dataloader):
+            data = process_batch(batch, args)
+            #False
+            if args.pretrained_bert:
+                tokens, types, labels_, attention_mask = data['text'], data['types'], data['label'], data[
+                    'padding_mask']
+                inputs = [tokens, types, attention_mask]
+            #True
+            elif args.cloze_eval:
+                tokens, labels_, position_ids = data['text'], data['label'], data['position']
+                attention_mask, target_ids, logit_mask = data['mask'], data['target'], data['logit_mask']
+                #True
+                if not args.fast_decode:
+                    inputs = [tokens, position_ids, attention_mask, target_ids, logit_mask]
+                    #False
+                    if args.continuous_prompt:
+                        prompt_pos = data["prompt_pos"]
+                        inputs.append(prompt_pos)
+                else:
+                    dec_input_ids, dec_position_ids, dec_attention_mask = data['dec_text'], data['dec_position'], data[
+                        'dec_mask']
+                    dec_target_ids, dec_logit_mask = data['dec_target'], data['dec_logit_mask']
+                    inputs = [tokens, position_ids, attention_mask, dec_input_ids, dec_position_ids, dec_attention_mask,
+                            dec_target_ids, dec_logit_mask]
+            else:
+                tokens, labels_, position_ids, attention_mask = data['text'], data['label'], data['position'], data[
+                    'mask']
+                inputs = [tokens, position_ids, attention_mask]
+            #False
+            if len(inputs[0].shape) == 3 and inputs[0].size(1) > segment_length:
+                logit_list = []
+                for i in range((inputs[0].size(1) - 1) // segment_length + 1):
+                    input_batch = [arg[:, i * segment_length: (i + 1) * segment_length] for arg in inputs]
+                    if args.pretrained_bert:
+                        logits = model(*input_batch)
+                    else:
+                        logits, *mems = model(*input_batch)
+                    logit_list.append(logits)
+                logits = torch.cat(logit_list, dim=1)
+            #False
+            elif args.cloze_eval and args.fast_decode:
+                logit_list = []
+                num_choices = inputs[3].size(1)
+                for i in range((num_choices - 1) // segment_length + 1):
+                    input_batch = inputs[:3] + [arg[:, i * segment_length: (i + 1) * segment_length] for arg in
+                                                inputs[3:]]
+                    logits, *mems = model(*input_batch)
+                    logit_list.append(logits)
+                logits = torch.cat(logit_list, dim=1)
+            else:
                 #False
                 if args.pretrained_bert:
-                    tokens, types, labels_, attention_mask = data['text'], data['types'], data['label'], data[
-                        'padding_mask']
-                    inputs = [tokens, types, attention_mask]
-                #True
-                elif args.cloze_eval:
-                    tokens, labels_, position_ids = data['text'], data['label'], data['position']
-                    attention_mask, target_ids, logit_mask = data['mask'], data['target'], data['logit_mask']
-                    #True
-                    if not args.fast_decode:
-                        inputs = [tokens, position_ids, attention_mask, target_ids, logit_mask]
-                        #False
-                        if args.continuous_prompt:
-                            prompt_pos = data["prompt_pos"]
-                            inputs.append(prompt_pos)
-                    else:
-                        dec_input_ids, dec_position_ids, dec_attention_mask = data['dec_text'], data['dec_position'], data[
-                            'dec_mask']
-                        dec_target_ids, dec_logit_mask = data['dec_target'], data['dec_logit_mask']
-                        inputs = [tokens, position_ids, attention_mask, dec_input_ids, dec_position_ids, dec_attention_mask,
-                                dec_target_ids, dec_logit_mask]
+                    logits = model(*inputs)
                 else:
-                    tokens, labels_, position_ids, attention_mask = data['text'], data['label'], data['position'], data[
-                        'mask']
-                    inputs = [tokens, position_ids, attention_mask]
-                #False
-                if len(inputs[0].shape) == 3 and inputs[0].size(1) > segment_length:
-                    logit_list = []
-                    for i in range((inputs[0].size(1) - 1) // segment_length + 1):
-                        input_batch = [arg[:, i * segment_length: (i + 1) * segment_length] for arg in inputs]
-                        if args.pretrained_bert:
-                            logits = model(*input_batch)
-                        else:
-                            logits, *mems = model(*input_batch)
-                        logit_list.append(logits)
-                    logits = torch.cat(logit_list, dim=1)
-                #False
-                elif args.cloze_eval and args.fast_decode:
-                    logit_list = []
-                    num_choices = inputs[3].size(1)
-                    for i in range((num_choices - 1) // segment_length + 1):
-                        input_batch = inputs[:3] + [arg[:, i * segment_length: (i + 1) * segment_length] for arg in
-                                                    inputs[3:]]
-                        logits, *mems = model(*input_batch)
-                        logit_list.append(logits)
-                    logits = torch.cat(logit_list, dim=1)
-                else:
-                    #False
-                    if args.pretrained_bert:
-                        logits = model(*inputs)
-                    else:
-                        # inputs_a = [read("/dataset/lichunyou/GLM/input/a").reshape(4,2,256),
-                        #         read("/dataset/lichunyou/GLM/input/b").reshape(4,2,2,256),
-                        #         read("/dataset/lichunyou/GLM/input/c").reshape(4,2),
-                        #         read("/dataset/lichunyou/GLM/input/d").reshape(4,2,256),
-                        #         read("/dataset/lichunyou/GLM/input/e").reshape(4,2,256)]
-                        # b = time.time()
-                        # for i in range(500):
-                        #     logits, *mems = model(*inputs_a)
-                        # e = time.time()
+                    # inputs_a = [read("/dataset/lichunyou/GLM/input/a").reshape(4,2,256),
+                    #         read("/dataset/lichunyou/GLM/input/b").reshape(4,2,2,256),
+                    #         read("/dataset/lichunyou/GLM/input/c").reshape(4,2),
+                    #         read("/dataset/lichunyou/GLM/input/d").reshape(4,2,256),
+                    #         read("/dataset/lichunyou/GLM/input/e").reshape(4,2,256)]
+                    # b = time.time()
+                    # for i in range(500):
+                    #     logits, *mems = model(*inputs_a)
+                    # e = time.time()
 
 
-                        logits, *mems = model(*inputs)
-                if "segment_id" in data:
-                    from torch_scatter import scatter_sum
-                    if "loss_mask" in data:
-                        logits = logits * data["loss_mask"]
-                    logits = scatter_sum(logits, data["segment_id"], dim=1)
-                elif "loss_mask" in data:
-                    loss_mask = data["loss_mask"]
-                    logits = logits * loss_mask - 10000.0 * (1.0 - loss_mask)
-                uid_list = batch['uid']
-                if isinstance(uid_list, torch.Tensor):
-                    uid_list = uid_list.cpu().numpy().tolist()
-                predicted = torch.argmax(logits, dim=-1).tolist()
-                labels = labels_.tolist()
-                if args.task.lower() == 'wsc':
-                    predicted = [1 if pred == 0 else 0 for pred in predicted]
-                # if mpu.get_model_parallel_rank() == 0:
-                for uid, prediction, label in zip(uid_list, predicted, labels):
-                    # store.set(uid, str((prediction, label)))
-                    store[uid] = [prediction,label]
+                    logits, *mems = model(*inputs)
+            if "segment_id" in data:
+                from torch_scatter import scatter_sum
+                if "loss_mask" in data:
+                    logits = logits * data["loss_mask"]
+                logits = scatter_sum(logits, data["segment_id"], dim=1)
+            elif "loss_mask" in data:
+                loss_mask = data["loss_mask"]
+                logits = logits * loss_mask - 10000.0 * (1.0 - loss_mask)
+            uid_list = batch['uid']
+            if isinstance(uid_list, torch.Tensor):
+                uid_list = uid_list.cpu().numpy().tolist()
+            predicted = torch.argmax(logits, dim=-1).tolist()
+            labels = labels_.tolist()
+            if args.task.lower() == 'wsc':
+                predicted = [1 if pred == 0 else 0 for pred in predicted]
+            # if mpu.get_model_parallel_rank() == 0:
+            for uid, prediction, label in zip(uid_list, predicted, labels):
+                # store.set(uid, str((prediction, label)))
+                store[uid] = [prediction,label]
     model.train()
     # torch.distributed.barrier()
     predictions, labels, examples = [], [], []
