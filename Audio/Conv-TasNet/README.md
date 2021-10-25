@@ -27,14 +27,12 @@ That's all!
 
   |         | Loss |SI-SDR(dB)|Pretrained Model |
   | :---: | :---: |  :---: | :---: |
-  |   Oneflow   | -25.887|25.227|[ConvTasnet_Model](https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/audio/Conv-TasNet.zip)|
+  |   Oneflow   | -25.887|25.227|[ConvTasnet_Model](https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/audio/final.pth.tar.zip)|
   |   Pytorch   | -25.727|26.127 |--- |
 
  
 ## Separation demo
- |   Original mixed voice      | The first seperated voice |The second seperated voice |
-| :---: | :---: |  :---: | 
-|[Original mixed voice](figure_and_demo/mix_01ao0319_1.5938_209a010t_-1.5938.wav)|[The first seperated voice](figure_and_demo/first_01ao0319_1.5938_209a010t_-1.5938.wav)|[The second seperated voice](figure_and_demo/second_01ao0319_1.5938_209a010t_-1.5938.wav)|
+You can find one separation demo from [here](https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/audio/Conv-Tasnet_demo), which includes an two-speaker original mixed voice and its corresponding seperating results.
 
 
 
