@@ -435,3 +435,152 @@ def debug_finetune_data(local_vars, batch_id, tokenizer):
     else:
         print(tokenizer.DecodeIds(target_ids[batch_id].tolist()))
     print(position_ids[batch_id][:, target_positions])
+
+
+
+_MAX_DATA_DIM = 5
+
+
+def _check_data_types(keys, data, target_dtype):
+    for key in keys:
+        assert data[key].dtype == target_dtype, '{} has data type {} which '\
+            'is different than {}'.format(key, data[key].dtype, target_dtype)
+
+
+def _build_key_size_numel_dictionaries(keys, data):
+    max_dim = _MAX_DATA_DIM
+    sizes = [0 for _ in range(max_dim) for _ in keys]
+    
+    # if get_model_parallel_rank() == 0:
+    offset = 0
+    for key in keys:
+        assert data[key].dim() < max_dim, 'you should increase MAX_DATA_DIM'
+        size = data[key].size()
+        for i, s in enumerate(size):
+            sizes[i + offset] = s
+        offset += max_dim
+
+    # sizes_cuda = torch.cuda.LongTensor(sizes)
+    # torch.distributed.broadcast(sizes_cuda, get_model_parallel_src_rank(),
+    #                             group=get_model_parallel_group())
+    
+    sizes_cpu = flow.Tensor(sizes).to(flow.int64)
+    # sizes_cpu = sizes_cuda.cpu()
+    key_size = {}
+    key_numel = {}
+    total_numel = 0
+    offset = 0
+    for key in keys:
+        i = 0
+        size = []
+        numel = 1
+        while sizes_cpu[offset + i] > 0:
+            this_size = sizes_cpu[offset + i]
+            size.append(this_size)
+            numel *= this_size
+            i += 1
+        key_size[key] = size
+        key_numel[key] = numel
+        total_numel += numel
+        offset += max_dim
+
+    return key_size, key_numel, total_numel
+
+
+def broadcast_data(keys, data, datatype):
+    key_size, key_numel, total_numel = _build_key_size_numel_dictionaries(keys,
+                                                                          data)
+
+    # if get_model_parallel_rank() == 0:
+    _check_data_types(keys, data, datatype)
+    
+    flatten_data = flow.cat(
+            [data[key].contiguous().view((-1,)) for key in keys], dim=0).cuda()
+    # else:
+    #     flatten_data = torch.empty(total_numel,
+    #                                device=torch.cuda.current_device(),
+    #                                dtype=datatype)
+
+    # torch.distributed.broadcast(flatten_data, get_model_parallel_src_rank(),
+    #                             group=get_model_parallel_group())
+
+    output = {}
+    offset = 0
+    for key in keys:
+        size = key_size[key]
+        for i in range(len(size)):
+            size[i] = int(size[i].numpy())
+        numel = int(key_numel[key].numpy())
+        output[key] = flatten_data.narrow(0, offset, numel).view(size)
+        offset += numel
+    return output
+
+class VocabUtility:
+
+    @staticmethod
+    def vocab_range_from_per_partition_vocab_size(per_partition_vocab_size,
+                                                  rank, world_size):
+        index_f = rank * per_partition_vocab_size
+        index_l = index_f + per_partition_vocab_size
+        return index_f, index_l
+
+    @staticmethod
+    def vocab_range_from_global_vocab_size(global_vocab_size, rank, world_size):
+        per_partition_vocab_size = divide(global_vocab_size, world_size)
+        return VocabUtility.vocab_range_from_per_partition_vocab_size(
+            per_partition_vocab_size, rank, world_size)
+
+def get_loss(vocab_parallel_logits,target):
+    logits = vocab_parallel_logits.clone()
+       
+    logits_max = flow.max(logits, dim=-1)[0]
+    
+    # flow.distributed.all_reduce(logits_max,
+    #                                 op=flow.distributed.ReduceOp.MAX,
+    #                                 group=get_model_parallel_group())
+    
+    # logits.sub_(logits_max.unsqueeze(dim=-1))
+    logits = logits - logits_max.unsqueeze(dim=-1)
+
+    exp_logits = logits.exp()
+
+    sum_exp_logits = exp_logits.sum(dim=-1)
+    
+    # flow.distributed.all_reduce(sum_exp_logits,
+    #                                 op=flow.distributed.ReduceOp.SUM,
+    #                                 group=get_model_parallel_group())
+
+    get_vocab_range = VocabUtility.vocab_range_from_per_partition_vocab_size
+    partition_vocab_size = vocab_parallel_logits.size()[-1]
+    # rank = get_model_parallel_rank()
+    # world_size = get_model_parallel_world_size()
+    rank = 0
+    world_size = 1
+    vocab_start_index, vocab_end_index = get_vocab_range(
+        partition_vocab_size, rank, world_size)
+    
+    target_mask = ((target < vocab_start_index) | (target >= vocab_end_index))
+    masked_target = (target.clone() - vocab_start_index)
+   
+    masked_target[target_mask] = 0
+    
+    logits_2d = logits.view(-1, partition_vocab_size)
+
+    masked_target_1d = masked_target.view((-1,)).to(flow.int)
+
+    arange_1d = flow._C.arange(start=0, end=logits_2d.size()[0],
+                                device=logits_2d.device).to(flow.int)
+    predicted_logits_1d = logits_2d[arange_1d, masked_target_1d]
+    predicted_logits = predicted_logits_1d.reshape(*target.size())
+    predicted_logits[target_mask] = 0.0
+
+    # flow.distributed.all_reduce(predicted_logits,
+    #                                 op=flow.distributed.ReduceOp.SUM,
+    #                                 group=get_model_parallel_group())
+
+    loss = flow.log(sum_exp_logits) - predicted_logits
+
+    # exp_logits.div_(sum_exp_logits.unsqueeze(dim=-1))
+    # ctx.save_for_backward(exp_logits, target_mask, masked_target_1d)
+
+    return loss

@@ -24,7 +24,6 @@ from train_utils import setup_model_and_optimizer, train_step, load_pretrained
 from utils import load_checkpoint, save_checkpoint
 from pretrain_glm import report_iteration_metrics
 from pretrain_glm import evaluate_and_print_results
-from pretrain_glm import initialize_distributed
 from pretrain_glm import set_random_seed
 from configure_data import make_data_loader
 
@@ -116,9 +115,6 @@ if __name__ == '__main__':
 
     args = get_args()
     assert args.finetune
-
-    # initialize_distributed(args)
-    # set_random_seed(args.seed)
 
     from tasks.superglue.dataset import PROCESSORS
 

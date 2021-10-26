@@ -12,7 +12,6 @@ from filelock import FileLock
 import pretrain_glm
 from pretrain_glm import forward_step as lm_forward_step
 import pathlib
-import mpu
 
 
 import oneflow as flow
@@ -22,10 +21,9 @@ from configure_data import prepare_tokenizer
 from utils import print_rank_0
 from utils import Timers
 from train_utils import setup_model_and_optimizer, train_step, load_pretrained
-from utils import load_checkpoint, save_checkpoint
+from utils import load_checkpoint, save_checkpoint, broadcast_data
 from pretrain_glm import report_iteration_metrics
 from pretrain_glm import evaluate_and_print_results
-from pretrain_glm import initialize_distributed
 from pretrain_glm import set_random_seed
 from configure_data import make_data_loader
 
@@ -56,7 +54,7 @@ def process_batch(batch, args):
         keys.append("loss_mask")
 
     datatype = flow.int64
-    data_b = mpu.broadcast_data(keys, batch, datatype)
+    data_b = broadcast_data(keys, batch, datatype)
     if "padding_mask" in data_b:
         attention_mask = data_b['padding_mask'].float().cuda().contiguous()
         if args.fp16:
@@ -353,8 +351,6 @@ if __name__ == '__main__':
     args = get_args()
     assert args.finetune
 
-    # initialize_distributed(args)
-    # set_random_seed(args.seed)
 
     from tasks.superglue.dataset import PROCESSORS
 

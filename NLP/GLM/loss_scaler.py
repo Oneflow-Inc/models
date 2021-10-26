@@ -14,7 +14,6 @@
 # limitations under the License.
 
 import oneflow as flow
-import mpu
 
 def to_python_float(t):
     if hasattr(t, 'item'):
@@ -64,22 +63,6 @@ class DynamicLossScaler:
         self.cur_hysteresis = delayed_shift
         self.consecutive_hysteresis = consecutive_hysteresis
 
-    def has_overflow_serial(self, params):
-        for p in params:
-            if p.grad is not None and DynamicLossScaler._has_inf_or_nan(p.grad.data):
-                return True
-
-        return False
-
-    def has_overflow(self, params):
-        overflow = self.has_overflow_serial(params)
-        overflow_gpu = flow.cuda.ByteTensor([overflow])
-        flow.distributed.all_reduce(overflow_gpu,
-                                     op=flow.distributed.ReduceOp.MAX,
-                                     group=mpu.get_model_parallel_group())
-        overflow = overflow_gpu[0].item()
-        return bool(overflow)
-
 
     def _has_inf_or_nan(x):
         try:
@@ -92,7 +75,6 @@ class DynamicLossScaler:
             if cpu_sum == float('inf') or cpu_sum == -float('inf') or cpu_sum != cpu_sum:
                 return True
             return False
-
 
     def update_scale(self, overflow):
 

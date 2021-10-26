@@ -29,7 +29,6 @@ import deepspeed
 from contextlib import ExitStack
 from arguments import get_args
 from configure_data import configure_data, prepare_tokenizer, build_multi_task_dataset
-import mpu
 import pathlib
 
 from train_utils import setup_model_and_optimizer, train_step
@@ -40,6 +39,7 @@ from utils import report_memory
 from utils import print_and_save_args
 from utils import print_rank_0
 from utils import get_sample_writer, get_log_dir, get_hostname
+from utils import broadcast_data, get_loss
 import oneflow.distributed as dist
 
 
@@ -99,36 +99,6 @@ def get_masks_and_position_ids(data,
     return attention_mask, loss_mask, position_ids
 
 
-def get_two_batch(data, args):
-    keys = ['text', 'target', 'loss_mask']
-    datatype = flow.int64
-   
-    data_b = mpu.broadcast_data(keys, data, datatype)
-    source_tokens = data_b['text'].long()
-    target_tokens = data_b['target'].long()
-    loss_mask = data_b['loss_mask'].float()
-    labels = target_tokens[:, 1:].contiguous()
-    loss_mask = loss_mask[:, 1:].contiguous()
-    target_tokens = target_tokens[:, :-1].contiguous()
-    _, _, source_position_ids = get_masks_and_position_ids(
-        source_tokens,
-        args.eod_token,
-        reset_position_ids=False,
-        reset_attention_mask=False,
-        loss_mask=None,
-        attention_mask=None,
-        set_loss_mask=False)
-    target_mask, _, target_position_ids = get_masks_and_position_ids(
-        target_tokens,
-        args.eod_token,
-        reset_position_ids=False,
-        reset_attention_mask=False,
-        loss_mask=None,
-        attention_mask=None,
-        set_loss_mask=False)
-    if args.fp16:
-        target_mask = target_mask.half()
-    return source_tokens, target_tokens, source_position_ids, target_position_ids, labels, target_mask, loss_mask
 
 
 def get_batch(data, args):
@@ -139,7 +109,7 @@ def get_batch(data, args):
         keys += ['position_id']
     datatype = flow.int64
 
-    data_b = mpu.broadcast_data(keys, data, datatype)
+    data_b = broadcast_data(keys, data, datatype)
 
     if args.transformer_xl:
         tokens = data_b['text'].long()
@@ -185,7 +155,6 @@ def forward_step(data_iterator, model, args, timers, mems):
     timers('batch generator').start()
     timers('data loader').start()
     
-    #rand = random.Random(args.iteration * mpu.get_data_parallel_world_size() + mpu.get_data_parallel_rank())
     rand = random.Random(args.iteration * 1 + 0)
 
     if data_iterator[1] and rand.random() < args.multi_task_ratio:
@@ -236,8 +205,7 @@ def forward_step(data_iterator, model, args, timers, mems):
     
     logits, *mems = model(tokens, position_ids, attention_mask, *mems)
     
-    # losses = mpu.vocab_parallel_cross_entropy(logits.contiguous().float(),labels)
-    losses = mpu.cross_entropy.get_loss(logits.contiguous().float(),labels)
+    losses = get_loss(logits.contiguous().float(),labels)
     
     loss_mask = loss_mask.view((-1,))
     loss = flow.sum(losses.view((-1,)) * loss_mask)
@@ -390,7 +358,6 @@ def evaluate(data_iterator, model, args, timers, forward_step_func, verbose=Fals
         [total_lm_loss, total_gpt_loss, total_bert_loss, total_sent_loss, total_multi_loss, gpt_iters, bert_iters,
          sent_iters, multi_iters]).cuda()
     
-    # flow.distributed.all_reduce(loss_data, group=mpu.get_data_parallel_group())
     loss_data = loss_data.tolist()
     total_lm_loss = loss_data[0] / args.eval_iters / (args.world_size / args.model_parallel_size)
     total_gpt_loss = loss_data[1] / loss_data[5] if loss_data[5] > 0 else 0
@@ -412,49 +379,18 @@ def evaluate_and_print_results(prefix, data_iterator, model,
     return lm_loss
 
 
-def set_deepspeed_activation_checkpointing(args):
-    deepspeed.checkpointing.configure(mpu, deepspeed_config=args.deepspeed_config, num_checkpoints=args.num_layers)
-    mpu.checkpoint = deepspeed.checkpointing.checkpoint
-    mpu.get_cuda_rng_tracker = deepspeed.checkpointing.get_cuda_rng_tracker
-    mpu.model_parallel_cuda_manual_seed = deepspeed.checkpointing.model_parallel_cuda_manual_seed
-
-
-def initialize_distributed(args):
-    
-    device = args.rank % flow.cuda.device_count()
-    if args.local_rank is not None:
-        device = args.local_rank
-    flow.cuda.set_device(device)
-    
-    init_method = 'tcp://'
-    args.master_ip = os.getenv('MASTER_ADDR', 'localhost')
-    args.master_port = os.getenv('MASTER_PORT', '6000')
-    init_method += args.master_ip + ':' + args.master_port
-    flow.distributed.init_process_group(
-        backend=args.distributed_backend,
-        world_size=args.world_size, rank=args.rank,
-        init_method=init_method)
-
-    mpu.initialize_model_parallel(args.model_parallel_size)
-
-    if hasattr(args, "deepspeed") and args.deepspeed and args.deepspeed_activation_checkpointing:
-        set_deepspeed_activation_checkpointing(args)
-
-
 def set_random_seed(seed):
 
     if seed is not None and seed > 0:
         random.seed(seed)
         np.random.seed(seed)
         flow.manual_seed(seed)
-        mpu.model_parallel_cuda_manual_seed(seed)
 
 
 def get_train_val_test_data(args, tokenizer):
 
     (train_data, val_data, test_data) = (None, None, None)
 
-    # if mpu.get_model_parallel_rank() == 0:
     data_config = configure_data()
     
     # data_set_type:"Block"
@@ -469,16 +405,6 @@ def get_train_val_test_data(args, tokenizer):
     
     train_data, val_data, test_data = data_config.apply(args, tokenizer)
 
-    # data_counts = flow.cuda.LongTensor([int(args.do_train), int(args.do_valid), int(args.do_test)])
-    # else:
-    #     data_counts = flow.cuda.LongTensor([0, 0, 0])
-
-    # flow.distributed.broadcast(data_counts,
-    #                             mpu.get_model_parallel_src_rank(),
-    #                             group=mpu.get_model_parallel_group())
-    # args.do_train = data_counts[0].item()
-    # args.do_valid = data_counts[1].item()
-    # args.do_test = data_counts[2].item()
     args.do_train = 1
     args.do_valid = 1
     args.do_test = 1
