@@ -37,10 +37,6 @@ def _build_key_size_numel_dictionaries(keys, data):
         for i, s in enumerate(size):
             sizes[i + offset] = s
         offset += max_dim
-
-    # sizes_cuda = torch.cuda.LongTensor(sizes)
-    # torch.distributed.broadcast(sizes_cuda, get_model_parallel_src_rank(),
-    #                             group=get_model_parallel_group())
     
     sizes_cpu = flow.Tensor(sizes).to(flow.int64)
     # sizes_cpu = sizes_cuda.cpu()
@@ -74,13 +70,6 @@ def broadcast_data(keys, data, datatype):
     
     flatten_data = flow.cat(
             [data[key].contiguous().view((-1,)) for key in keys], dim=0).cuda()
-    # else:
-    #     flatten_data = torch.empty(total_numel,
-    #                                device=torch.cuda.current_device(),
-    #                                dtype=datatype)
-
-    # torch.distributed.broadcast(flatten_data, get_model_parallel_src_rank(),
-    #                             group=get_model_parallel_group())
 
     output = {}
     offset = 0

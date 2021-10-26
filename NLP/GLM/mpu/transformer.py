@@ -19,9 +19,7 @@ import math
 
 import oneflow as flow
 import oneflow.nn.init as init
-#from apex.normalization.fused_layer_norm import FusedLayerNorm as LayerNorm
 from  oneflow.nn import LayerNorm
-from torch._C import device
 
 from .distribute import get_model_parallel_world_size
 from .layers import ColumnParallelLinear
@@ -29,8 +27,6 @@ from .layers import RowParallelLinear
 
 import deepspeed
 
-from .random import checkpoint
-from .random import get_cuda_rng_tracker
 
 from .utils import divide
 from .utils import split_tensor_along_last_dim
@@ -88,10 +84,6 @@ class ParallelCrossAttention(flow.nn.Module):
                                        init_method=output_layer_init_method)
         self.output_dropout = flow.nn.Dropout(output_dropout_prob)
 
-        if deepspeed.checkpointing.is_configured():
-            global get_cuda_rng_tracker, checkpoint
-            get_cuda_rng_tracker = deepspeed.checkpointing.get_cuda_rng_tracker
-            checkpoint = deepspeed.checkpointing.checkpoint
 
     def _transpose_for_scores(self, tensor):
         new_tensor_shape = tensor.size()[:-1] + \
@@ -117,8 +109,7 @@ class ParallelCrossAttention(flow.nn.Module):
                                10000.0 * (1.0 - cross_mask)
 
         attention_probs = flow.nn.Softmax(dim=-1)(attention_scores)
-        with get_cuda_rng_tracker().fork():
-            attention_probs = self.attention_dropout(attention_probs)
+        attention_probs = self.attention_dropout(attention_probs)
 
         context_layer = flow.matmul(attention_probs, value_layer)
         context_layer = context_layer.permute(0, 2, 1, 3).contiguous()
@@ -171,10 +162,6 @@ class ParallelSelfAttention(flow.nn.Module):
                                        init_method=output_layer_init_method)
         self.output_dropout = flow.nn.Dropout(output_dropout_prob)
 
-        if deepspeed.checkpointing.is_configured():
-            global get_cuda_rng_tracker, checkpoint
-            get_cuda_rng_tracker = deepspeed.checkpointing.get_cuda_rng_tracker
-            checkpoint = deepspeed.checkpointing.checkpoint
 
     def _transpose_for_scores(self, tensor):
         
@@ -258,7 +245,6 @@ class ParallelSelfAttention(flow.nn.Module):
     
         attention_probs = flow.nn.Softmax(dim=-1)(attention_scores)
 
-        #with get_cuda_rng_tracker().fork():
         attention_probs = self.attention_dropout(attention_probs)
     
         context_layer = flow.matmul(attention_probs, value_layer)
@@ -559,12 +545,6 @@ class GPT2ParallelTransformer(flow.nn.Module):
 
         self.final_layernorm = LayerNorm(hidden_size, eps=layernorm_epsilon)
         
-        #False
-        if deepspeed.checkpointing.is_configured():
-            global get_cuda_rng_tracker, checkpoint
-            get_cuda_rng_tracker = deepspeed.checkpointing.get_cuda_rng_tracker
-            checkpoint = deepspeed.checkpointing.checkpoint
-
     def forward(self, hidden_states, position_ids, attention_mask, memory_states=None, encoder_states=None,
                 return_memory=False, detach_memory=True):     
         batch_size, query_length = hidden_states.size()[:2]
@@ -659,37 +639,17 @@ class GPT2ParallelTransformer(flow.nn.Module):
 
             return custom_forward
     
-        #True
-        if self.checkpoint_activations:
-            l = 0
-            num_layers = len(self.layers)
-            chunk_length = self.checkpoint_num_layers
-            
-            while l < num_layers:
-                args = [hidden_states, attention_mask] if not self.use_decoder_layer else [hidden_states,
-                                                                                           encoder_states,
-                                                                                           attention_mask]
-                #False
-                if self.relative_encoding:
-                    args += [position_embeddings, self.r_w_bias, self.r_r_bias]
-                #False
-                if memory_states:
-                    args += memory_states[l: l + chunk_length]
-
-                #hidden_states = checkpoint(custom(l, l + chunk_length), *args)
-                hidden_states = custom(l, l + chunk_length)(*args)
-                l += chunk_length
-        else:
-            for i, layer in enumerate(self.layers):
-                args = [hidden_states, attention_mask] if not self.use_decoder_layer else [hidden_states,
-                                                                                           encoder_states,
-                                                                                           attention_mask]
-                if self.relative_encoding:
-                    args += [position_embeddings, self.r_w_bias, self.r_r_bias]
-                mem_i = memory_states[i] if memory_states else None
-                hidden_states = layer(*args, mem=mem_i)
-                if self.max_memory_length > 0 or return_memory:
-                    mem_layers.append(check_detach(hidden_states))
+        
+        for i, layer in enumerate(self.layers):
+            args = [hidden_states, attention_mask] if not self.use_decoder_layer else [hidden_states,
+                                                                                        encoder_states,
+                                                                                        attention_mask]
+            if self.relative_encoding:
+                args += [position_embeddings, self.r_w_bias, self.r_r_bias]
+            mem_i = memory_states[i] if memory_states else None
+            hidden_states = layer(*args, mem=mem_i)
+            if self.max_memory_length > 0 or return_memory:
+                mem_layers.append(check_detach(hidden_states))
         output = self.final_layernorm(hidden_states)
         
         #False
@@ -739,11 +699,6 @@ class BertParallelSelfAttention(flow.nn.Module):
 
         self.dropout = flow.nn.Dropout(dropout_prob)
 
-        if deepspeed.checkpointing.is_configured():
-            global get_cuda_rng_tracker, checkpoint
-            get_cuda_rng_tracker = deepspeed.checkpointing.get_cuda_rng_tracker
-            checkpoint = deepspeed.checkpointing.checkpoint
-
     def _transpose_for_scores(self, tensor):
     
         new_tensor_shape = tensor.size()[:-1] + \
@@ -769,8 +724,7 @@ class BertParallelSelfAttention(flow.nn.Module):
         attention_scores += attention_mask
 
         attention_probs = flow.nn.Softmax(dim=-1)(attention_scores)
-        with get_cuda_rng_tracker().fork():
-            attention_probs = self.dropout(attention_probs)
+        attention_probs = self.dropout(attention_probs)
 
         context_layer = flow.matmul(attention_probs, value_layer)
 

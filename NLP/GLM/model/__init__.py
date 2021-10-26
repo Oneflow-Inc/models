@@ -14,5 +14,3 @@
 # limitations under the License.
 
 from .modeling_glm import GLMModel, glm_get_params_for_weight_decay_optimization
-from .downstream import GLMForMultiTokenCloze, GLMForMultiTokenClozeFast, GLMForSingleTokenCloze, \
-    GLMForSequenceClassification

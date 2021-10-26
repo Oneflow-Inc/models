@@ -26,34 +26,4 @@ import oneflow as flow
 
 
 def clip_grad_norm(parameters, max_norm, norm_type=2):
-    return 
-    if isinstance(parameters, flow.Tensor):
-        parameters = [parameters]
-    parameters = list(filter(lambda p: p.grad is not None, parameters))
-    max_norm = float(max_norm)
-    norm_type = float(norm_type)
-    # if norm_type == inf:
-    #     total_norm = max(p.grad.data.abs().max() for p in parameters)
-    #     total_norm_cuda = flow.cuda.FloatTensor([float(total_norm)])
-       
-    #     # flow.distributed.all_reduce(total_norm_cuda,
-    #     #                              op=flow.distributed.ReduceOp.MAX,
-    #     #                              group=get_model_parallel_group())
-    #     total_norm = total_norm_cuda[0].item()
-    # else:
-    total_norm = 0
-    for p in parameters:
-        param_norm = p.grad.data.norm(norm_type)
-        total_norm += param_norm.item() ** norm_type
-    
-    total_norm_cuda = torch.cuda.FloatTensor([float(total_norm)])
-    # torch.distributed.all_reduce(total_norm_cuda,
-    #                              op=torch.distributed.ReduceOp.SUM,
-    #                              group=get_model_parallel_group())
-    total_norm = total_norm_cuda[0].item() ** (1. / norm_type)
-    
-    clip_coef = max_norm / (total_norm + 1e-6)
-    if clip_coef < 1:
-        for p in parameters:
-            p.grad.data.mul_(clip_coef)
-    return total_norm
+    return

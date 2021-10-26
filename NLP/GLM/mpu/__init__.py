@@ -32,15 +32,10 @@ from .distribute import get_model_parallel_world_size
 from .distribute import model_parallel_is_initialized
 
 from .layers import ColumnParallelLinear
-# from .layers import ParallelEmbedding
 from .layers import RowParallelLinear
 from .layers import VocabParallelEmbedding
 
 
-from .random import checkpoint
-from .random import partition_activations_in_checkpoint
-from .random import get_cuda_rng_tracker
-from .random import model_parallel_cuda_manual_seed
 
 from .transformer import BertParallelSelfAttention
 from .transformer import BertParallelTransformerLayer

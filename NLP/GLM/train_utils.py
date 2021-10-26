@@ -1,15 +1,10 @@
 import oneflow as flow
 from oneflow.optim import Adam
-# from apex.optimizers import FusedAdam as Adam
-# from oneflow.nn import Adam
-# from torch import distributed as dist
 
 import mpu
 from loss_scaler import DynamicLossScaler
 from learning_rates import AnnealingLR
 from model import GLMModel, glm_get_params_for_weight_decay_optimization
-from model import GLMForMultiTokenCloze, GLMForMultiTokenClozeFast, GLMForSingleTokenCloze, GLMForSequenceClassification
-from model.modeling_bert import BertForMultipleChoice, BertForSequenceClassification
 from utils import print_rank_0, get_checkpoint_name, get_checkpoint_iteration
 
 
@@ -152,31 +147,7 @@ def get_model(args, model_type=None, multi_token=True, num_labels=None, spell_le
             model.freeze_transformer(tune_prefix_layers=args.tune_prefix_layers)
         #model_type:multiple_choice
         #model_type:none
-        if model_type is not None:
-            #True
-            if model_type == 'multiple_choice':
-                #True
-                if args.cloze_eval:
-                    #True
-                    if multi_token:
-                        #False
-                        if args.fast_decode:
-                            model = GLMForMultiTokenClozeFast(model, length_penalty=args.length_penalty)
-                        else:
-
-                            model = GLMForMultiTokenCloze(model, length_penalty=args.length_penalty)
-                    else:
-                        model = GLMForSingleTokenCloze(model, take_softmax=args.adapet)
-                else:
-                    model = GLMForSequenceClassification(model, args.hidden_size, args.output_dropout, args.pool_token,
-                                                         num_class=num_labels)
-            elif model_type == 'classification':
-                model = GLMForSequenceClassification(model, args.hidden_size, args.output_dropout, args.pool_token,
-                                                     num_class=num_labels)
-            elif model_type == 'generation':
-                pass
-            else:
-                raise NotImplementedError(model_type)
+        
     model.cuda()
     return model
 

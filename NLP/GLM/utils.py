@@ -209,49 +209,7 @@ def save_checkpoint(iteration, model, optimizer, lr_scheduler, args, tag=None, b
     if tag is None:
         tag = str(iteration)
     #True
-    if args.deepspeed and not no_deepspeed:
-        save_ds_checkpoint(iteration, model, lr_scheduler, args, tag=tag)
-    else:
-        if mpu.get_data_parallel_rank() == 0:
-            checkpoint_name = get_checkpoint_name(args.save, tag)
-            print('global rank {} is saving checkpoint at iteration {:7d} to {}'.
-                  format(flow.distributed.get_rank(), iteration, checkpoint_name))
-            sd = {'iteration': iteration}
-            if args.deepspeed:
-                model = model.module
-            state_dict = model.state_dict()
-            if only_changed_parameters:
-                requires_grad_dict = {}
-                for name, parameter in model.named_parameters():
-                    requires_grad_dict[name] = parameter.requires_grad
-                state_dict = {key: value for key, value in state_dict.items() if requires_grad_dict[key]}
-            sd['module'] = state_dict
-
-            if not args.no_save_optim and not no_save_optim:
-                if optimizer is not None:
-                    sd['optimizer'] = optimizer.state_dict()
-                if lr_scheduler is not None:
-                    sd['lr_scheduler'] = lr_scheduler.state_dict()
-
-            if not args.no_save_rng:
-                sd['random_rng_state'] = random.getstate()
-                sd['np_rng_state'] = np.random.get_state()
-                sd['torch_rng_state'] = flow.get_rng_state()
-                sd['cuda_rng_state'] = flow.cuda.get_rng_state()
-                sd['rng_tracker_states'] = mpu.get_cuda_rng_tracker().get_states()
-
-            ensure_directory_exists(checkpoint_name)
-            flow.save(sd, checkpoint_name)
-            print('  successfully saved {}'.format(checkpoint_name))
-    
-    
-    # if barrier:
-    #     flow.distributed.barrier()
-    # if flow.distributed.get_rank() == 0:
-    # tracker_filename = get_checkpoint_tracker_filename(args.save)
-    # with open(tracker_filename, 'w') as f:
-    #     f.write(tag)
-
+    save_ds_checkpoint(iteration, model, lr_scheduler, args, tag=tag)
 
 def save_ds_checkpoint(iteration, model, lr_scheduler, args, tag):
     sd = model.serialize(model)
@@ -263,9 +221,6 @@ def save_ds_checkpoint(iteration, model, lr_scheduler, args, tag):
     if not args.no_save_rng:
         sd['random_rng_state'] = random.getstate()
         sd['np_rng_state'] = np.random.get_state()
-        # sd['torch_rng_state'] = flow.get_rng_state()
-        # sd['cuda_rng_state'] = flow.cuda.get_rng_state()
-        # sd['rng_tracker_states'] = mpu.get_cuda_rng_tracker().get_states()
 
     flow.save(model.state_dict(), os.path.join(args.save, str(iteration)+"_glm_model.pt"))
     
@@ -351,22 +306,6 @@ def load_checkpoint(model, optimizer, lr_scheduler, args, no_deepspeed=False, no
                 print_rank_0('A metadata file exists but Unable to load iteration '
                              ' from checkpoint {}, starting from 0 iteration'.format(checkpoint_name))
                 iteration = 0
-
-    if not release and not args.finetune and not args.no_load_rng:
-        try:
-            random.setstate(sd['random_rng_state'])
-            np.random.set_state(sd['np_rng_state'])
-            flow.set_rng_state(sd['torch_rng_state'])
-            flow.cuda.set_rng_state(sd['cuda_rng_state'])
-            mpu.get_cuda_rng_tracker().set_states(sd['rng_tracker_states'])
-        except KeyError:
-            print_rank_0('Unable to load random state from checkpoint {}, exiting. '
-                         'Specify --no-load-rng or --finetune to prevent '
-                         'attempting to load the random '
-                         'state.'.format(checkpoint_name))
-
-    if mpu.get_data_parallel_rank() == 0:
-        print('  successfully loaded {}'.format(checkpoint_name))
 
     return iteration
 

@@ -20,7 +20,6 @@ import oneflow.nn as nn
 import oneflow.nn.functional as F
 
 import mpu
-from model.prompt import PromptSpell
 from utils import print_rank_0
 
 
@@ -94,9 +93,6 @@ class GLMModel(flow.nn.Module):
                                                        attention_scale=attention_scale,
                                                        relative_encoding=relative_encoding,
                                                        block_position_encoding=block_position_encoding)
-        #False
-        if spell_length is not None:
-            self.prompt_spell = PromptSpell(spell_length, self.hidden_size, spell_func)
 
     def freeze_transformer(self, tune_prefix_layers=None):
         log_str = "Freeze transformer"
