@@ -313,7 +313,6 @@ def train(model, optimizer, lr_scheduler,
                 summary_writer=summary_writer, forward_step_func=forward_step)
     te = time.time()
     print(te-tb)
-    print("ttt")
     exit(0)
     return args.iteration, skipped_iters
 

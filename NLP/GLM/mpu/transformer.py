@@ -26,7 +26,6 @@ from torch._C import device
 from .distribute import get_model_parallel_world_size
 from .layers import ColumnParallelLinear
 from .layers import RowParallelLinear
-from .mappings import gather_from_model_parallel_region
 
 import deepspeed
 
@@ -783,8 +782,6 @@ class BertParallelSelfAttention(flow.nn.Module):
 
         if self.output_parallel:
             output = context_layer
-        else:
-            output = gather_from_model_parallel_region(context_layer)
 
         return output
 

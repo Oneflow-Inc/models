@@ -143,7 +143,6 @@ class GLMModel(flow.nn.Module):
                 return (logits_parallel, *outputs)
             
             return (logits_parallel,*outputs)
-            #return (mpu.gather_from_model_parallel_region(logits_parallel), *outputs)
         else:
             return (logits, *outputs)
     
@@ -273,11 +272,7 @@ class EncoderDecoder(flow.nn.Module):
             # Parallel logits.
             output_parallel = mpu.copy_to_model_parallel_region(decoder_output)
             logits_parallel = F.linear(output_parallel, self.word_embeddings.weight)
-
-            if self.parallel_output:
-                return (logits_parallel,)
-
-            return (mpu.gather_from_model_parallel_region(logits_parallel),)
+            return (logits_parallel,)
         else:
             return (decoder_output,)
 

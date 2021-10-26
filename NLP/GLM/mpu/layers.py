@@ -25,14 +25,8 @@ import oneflow.nn.functional as F
 import oneflow.nn.init as init
 from oneflow.nn.parameter import Parameter
 
-#from apex.normalization.fused_layer_norm import FusedLayerNorm as LayerNorm
-
 from .distribute import get_model_parallel_rank
 from .distribute import get_model_parallel_world_size
-from .mappings import copy_to_model_parallel_region
-from .mappings import gather_from_model_parallel_region
-from .mappings import reduce_from_model_parallel_region
-from .mappings import scatter_to_model_parallel_region
 from .utils import divide
 from .utils import split_tensor_along_last_dim
 from .utils import VocabUtility
@@ -126,42 +120,6 @@ class VocabParallelEmbedding(flow.nn.Module):
         
         return output
 
-
-class ParallelEmbedding(flow.nn.Module):
-    def __init__(self, num_embeddings, embedding_dim,
-                 init_method=init.xavier_normal_,
-                 keep_master_weight_for_test=False):
-        super(ParallelEmbedding, self).__init__()
-        self.num_embeddings = num_embeddings
-        self.embedding_dim = embedding_dim
-        self.padding_idx = None
-        self.max_norm = None
-        self.norm_type = 2.
-        self.scale_grad_by_freq = False
-        self.sparse = False
-        self._weight = None
-        world_size = get_model_parallel_world_size()
-        self.embedding_dim_per_partition = divide(self.embedding_dim,
-                                                  world_size)
-
-        self.weight = Parameter(flow.Tensor(self.num_embeddings,
-                                             self.embedding_dim_per_partition))
-        self.weight.model_parallel = True
-        _initialize_affine_weight(
-            self.weight, self.num_embeddings, self.embedding_dim,
-            self.embedding_dim_per_partition, 1, init_method,
-            stride=1, return_master_weight=False)
-
-    def forward(self, input_):
-        input_parallel = copy_to_model_parallel_region(input_)
-        output_parallel = F.embedding(input_parallel, self.weight,
-                                      self.padding_idx, self.max_norm,
-                                      self.norm_type, self.scale_grad_by_freq,
-                                      self.sparse)
-        output = gather_from_model_parallel_region(output_parallel)
-        return output
-
-
 class ColumnParallelLinear(flow.nn.Module):
     def __init__(self, input_size, output_size, bias=True, gather_output=True,
                  init_method=init.xavier_normal_, stride=1,
@@ -195,15 +153,9 @@ class ColumnParallelLinear(flow.nn.Module):
             stride=stride, return_master_weight=keep_master_weight_for_test)
 
     def forward(self, input_):
-
-        #input_parallel = copy_to_model_parallel_region(input_)
         input_parallel = input_
 
         output_parallel = F.linear(input_parallel, self.weight, self.bias)
-        # if self.gather_output:
-        #     output = gather_from_model_parallel_region(output_parallel)
-        # else:
-        #     output = output_parallel
         return output_parallel
 
 
