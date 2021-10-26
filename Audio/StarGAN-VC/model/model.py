@@ -3,15 +3,16 @@ import oneflow.nn as nn
 
 
 class Down2d(nn.Module):
-
     def __init__(self, in_channel, out_channel, kernel, stride, padding):
         super(Down2d, self).__init__()
 
-        self.c1 = nn.Conv2d(in_channel, out_channel,
-                            kernel_size=kernel, stride=stride, padding=padding)
+        self.c1 = nn.Conv2d(
+            in_channel, out_channel, kernel_size=kernel, stride=stride, padding=padding
+        )
         self.n1 = nn.InstanceNorm2d(out_channel)
-        self.c2 = nn.Conv2d(in_channel, out_channel,
-                            kernel_size=kernel, stride=stride, padding=padding)
+        self.c2 = nn.Conv2d(
+            in_channel, out_channel, kernel_size=kernel, stride=stride, padding=padding
+        )
         self.n2 = nn.InstanceNorm2d(out_channel)
 
     def forward(self, x):
@@ -27,14 +28,15 @@ class Down2d(nn.Module):
 
 
 class Up2d(nn.Module):
-
     def __init__(self, in_channel, out_channel, kernel, stride, padding):
         super(Up2d, self).__init__()
         self.c1 = nn.ConvTranspose2d(
-            in_channel, out_channel, kernel_size=kernel, stride=stride, padding=padding)
+            in_channel, out_channel, kernel_size=kernel, stride=stride, padding=padding
+        )
         self.n1 = nn.InstanceNorm2d(out_channel)
         self.c2 = nn.ConvTranspose2d(
-            in_channel, out_channel, kernel_size=kernel, stride=stride, padding=padding)
+            in_channel, out_channel, kernel_size=kernel, stride=stride, padding=padding
+        )
         self.n2 = nn.InstanceNorm2d(out_channel)
 
     def forward(self, x):
@@ -50,7 +52,6 @@ class Up2d(nn.Module):
 
 
 class Generator(nn.Module):
-
     def __init__(self):
         super(Generator, self).__init__()
         self.downsample = nn.Sequential(
@@ -58,7 +59,7 @@ class Generator(nn.Module):
             Down2d(32, 64, (4, 8), (2, 2), (1, 3)),
             Down2d(64, 128, (4, 8), (2, 2), (1, 3)),
             Down2d(128, 64, (3, 5), (1, 1), (1, 2)),
-            Down2d(64, 5, (9, 5), (9, 1), (1, 2))
+            Down2d(64, 5, (9, 5), (9, 1), (1, 2)),
         )
 
         self.up1 = Up2d(9, 64, (9, 5), (9, 1), (0, 2))
@@ -95,7 +96,6 @@ class Generator(nn.Module):
 
 
 class Discriminator(nn.Module):
-
     def __init__(self):
         super(Discriminator, self).__init__()
 
@@ -137,7 +137,6 @@ class Discriminator(nn.Module):
 
 
 class DomainClassifier(nn.Module):
-
     def __init__(self):
         super(DomainClassifier, self).__init__()
         self.main = nn.Sequential(
@@ -147,7 +146,7 @@ class DomainClassifier(nn.Module):
             Down2d(32, 16, (3, 4), (1, 2), (1, 1)),
             nn.Conv2d(16, 4, (1, 4), (1, 2), (0, 1)),
             nn.AvgPool2d((1, 16)),
-            nn.LogSoftmax()
+            nn.LogSoftmax(),
         )
 
     def forward(self, x):
