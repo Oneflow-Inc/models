@@ -212,7 +212,7 @@ def forward_step(data_iterator, model, args, timers, mems):
     
     if loss_mask.sum().item() > 0:
         loss = loss / loss_mask.sum()
-    with open("loss.txt",'w') as f:
+    with open("loss.txt",'a') as f:
         f.write(str(loss.item())+'\n')
     # print(loss)
     return loss, mems, mode
@@ -278,7 +278,7 @@ def train(model, optimizer, lr_scheduler,
     import time
     tb = time.time()
     #0,200000
-    while args.iteration < 1000:
+    while args.iteration < 100:
     # while args.iteration < args.train_iters:
         lm_loss, skipped_iter, mems = train_step(train_data_iterator,
                                                  model,
@@ -533,16 +533,6 @@ def main():
     
     if args.save and iteration != 0:
         save_checkpoint(iteration, model, optimizer, lr_scheduler, args)
-
-    # if test_data is not None:
-    #     test_data_iterator = iter(test_data)
-    # else:
-    #     test_data_iterator = None
-
-    # if args.do_test:
-    #     prefix = 'the end of training for test data'
-    #     evaluate_and_print_results(prefix, (test_data_iterator, None),
-    #                                model, args, timers, verbose=True, forward_step_func=forward_step)
 
 
 if __name__ == "__main__":
