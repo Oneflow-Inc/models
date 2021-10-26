@@ -1,6 +1,5 @@
 import oneflow as flow
 import oneflow.utils.data
-import mpu
 import random
 import copy
 import numpy as np
@@ -38,8 +37,6 @@ class ConstructBlockStrategy:
         self.tokenizer = tokenizer
         self.count = 0
         self.max_seq_length = max_seq_length
-        # self.rank = mpu.get_data_parallel_rank()
-        # self.world_size = mpu.get_data_parallel_world_size()
         self.rank = 0
         self.world_size = 1
         assert 0.0 <= bert_prob <= 1.0

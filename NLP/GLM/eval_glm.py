@@ -12,7 +12,6 @@ from filelock import FileLock
 import pretrain_glm
 from pretrain_glm import forward_step as lm_forward_step
 import pathlib
-import mpu
 
 
 import oneflow as flow

@@ -29,8 +29,6 @@ from itertools import accumulate
 from bisect import bisect_right
 from tasks.superglue.dataset import SuperGlueDataset
 
-import mpu
-
 
 class MultiTaskDataset(flow.utils.data.Dataset):
     def __init__(self, tasks, datasets, reweight=True, temperature=0.8, max_limit=200000):
@@ -128,8 +126,6 @@ def prepare_tokenizer(args):
                                args.tokenizer_model_type, add_block_symbols=args.block_lm, cache_dir=args.cache_dir,
                                add_sentinel_token=add_sentinel_token, add_task_mask=args.task_mask,
                                add_decoder_mask=args.block_mask_prob > 0.0 or args.context_mask_ratio > 0.0)
-    #True
-    # if mpu.get_model_parallel_rank() == 0:
     num_tokens = tokenizer.num_tokens
     eod_token = tokenizer.get_command('eos').Id
     assert eod_token == tokenizer.get_command('pad').Id
@@ -144,12 +140,6 @@ def prepare_tokenizer(args):
     # token_counts = torch.cuda.LongTensor([after, eod_token])
     # else:
     #     token_counts = torch.cuda.LongTensor([0, 0])
-
-    # Broadcast num tokens.
-    # torch.distributed.broadcast(token_counts,
-    #                             mpu.get_model_parallel_src_rank(),
-    #                             group=mpu.get_model_parallel_group())
-
     num_tokens = after
     eod_token = eod_token
     args.vocab_size, args.eod_token = num_tokens, eod_token
@@ -157,8 +147,6 @@ def prepare_tokenizer(args):
 
 
 def make_data_loader(dataset, tokenizer, batch_size, num_iters, args, shuffle=False, block_collate=False):
-    # world_size = flow.distributed.get_world_size(group=mpu.get_data_parallel_group())
-    # rank = flow.distributed.get_rank(group=mpu.get_data_parallel_group())
     world_size = 1
     rank = 0
     #False
@@ -261,7 +249,6 @@ def make_loaders(args, tokenizer):
     if args.use_tfrecords:
         return make_tfrecord_loaders(args)
 
-    # world_size = flow.distributed.get_world_size(group=mpu.get_data_parallel_group())
     world_size = 1
 
     #False
@@ -307,7 +294,6 @@ def make_loaders(args, tokenizer):
         'save_test_data': args.save_test_data,
         'no_lazy_loader': args.no_lazy_loader,
         'loader_scatter': args.loader_scatter,
-        # 'data_parallel_rank': mpu.get_data_parallel_rank(),
         'data_parallel_rank': 0,
         "non_sentence_start": args.non_sentence_start,
         "half_lazy_loader": args.half_lazy_loader
@@ -380,26 +366,25 @@ def build_multi_task_dataset(args, tokenizer):
                  "agnews": "Agnews", "yelp-polarity": "yelp_review_polarity_csv", "yelp-full": "yelp_review_full_csv",
                  "yahoo": "Yahoo", "squad": "SQuAD", "race": "RACE"}
     train, valid = None, None
-    if mpu.get_model_parallel_rank() == 0:
-        multi_seq_length = args.seq_length
-        if args.multi_seq_length is not None:
-            multi_seq_length = args.multi_seq_length
-        train_datasets, valid_datasets = [], []
-        for task in args.multi_task_data:
-            task = task.lower()
-            data_dir = os.path.join(args.data_dir, task_dirs[task])
-            train_datasets.append(
-                SuperGlueDataset(args, task, data_dir, multi_seq_length, "train", tokenizer, pattern_ensemble=True))
-            valid_datasets.append(
-                SuperGlueDataset(args, task, data_dir, multi_seq_length, "dev", tokenizer, pattern_ensemble=True))
-        train = MultiTaskDataset(args.multi_task_data, train_datasets)
-        valid = MultiTaskDataset(args.multi_task_data, valid_datasets)
-        world_size = flow.distributed.get_world_size(group=mpu.get_data_parallel_group())
-        multi_batch_size = args.batch_size * world_size
-        if args.multi_batch_size is not None:
-            multi_batch_size = args.multi_batch_size * world_size
-        train = make_data_loader(train, tokenizer, multi_batch_size, args.train_iters, args, shuffle=True)
-        valid = make_data_loader(valid, tokenizer, multi_batch_size, args.train_iters, args, shuffle=True)
+    multi_seq_length = args.seq_length
+    if args.multi_seq_length is not None:
+        multi_seq_length = args.multi_seq_length
+    train_datasets, valid_datasets = [], []
+    for task in args.multi_task_data:
+        task = task.lower()
+        data_dir = os.path.join(args.data_dir, task_dirs[task])
+        train_datasets.append(
+            SuperGlueDataset(args, task, data_dir, multi_seq_length, "train", tokenizer, pattern_ensemble=True))
+        valid_datasets.append(
+            SuperGlueDataset(args, task, data_dir, multi_seq_length, "dev", tokenizer, pattern_ensemble=True))
+    train = MultiTaskDataset(args.multi_task_data, train_datasets)
+    valid = MultiTaskDataset(args.multi_task_data, valid_datasets)
+    world_size = flow.distributed.get_world_size(group=mpu.get_data_parallel_group())
+    multi_batch_size = args.batch_size * world_size
+    if args.multi_batch_size is not None:
+        multi_batch_size = args.multi_batch_size * world_size
+    train = make_data_loader(train, tokenizer, multi_batch_size, args.train_iters, args, shuffle=True)
+    valid = make_data_loader(valid, tokenizer, multi_batch_size, args.train_iters, args, shuffle=True)
     return train, valid
 
 
