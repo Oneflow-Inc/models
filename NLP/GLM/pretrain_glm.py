@@ -212,7 +212,7 @@ def forward_step(data_iterator, model, args, timers, mems):
     
     if loss_mask.sum().item() > 0:
         loss = loss / loss_mask.sum()
-    with open("loss.txt",'a') as f:
+    with open("/home/zhangxiaoyu/glm_flow_eager_loss.txt",'a') as f:
         f.write(str(loss.item())+'\n')
     # print(loss)
     return loss, mems, mode
@@ -265,6 +265,15 @@ def report_evaluate_metrics(summary_writer, prefix, loss, ppl, gpt_loss, bert_lo
 
 def train(model, optimizer, lr_scheduler,
           train_data_iterator, val_data_iterator, timers, args, summary_writer=None):
+
+    import torch
+    torch_params = torch.load("/home/zhangxiaoyu/mo.pt", map_location='cpu')
+    flow_params = {}
+    for k in torch_params.keys():
+        flow_params[k] = flow.Tensor(torch_params[k].numpy().astype("float32"))
+    model.load_state_dict(flow_params)
+    print("load pretraining model succeed!")
+
     model.train()
 
     total_lm_loss = 0.0
@@ -278,7 +287,7 @@ def train(model, optimizer, lr_scheduler,
     import time
     tb = time.time()
     #0,200000
-    while args.iteration < 100:
+    while args.iteration < 1000:
     # while args.iteration < args.train_iters:
         lm_loss, skipped_iter, mems = train_step(train_data_iterator,
                                                  model,

@@ -14,7 +14,7 @@ gpt_options=" \
        --seq-length 256 \
        --max-position-embeddings 256 \
        --save other/checkpoints \
-       --train-iters 200000 \
+       --train-iters 1000 \
        --resume-dataloader \
        --train-data bert-large \
        --tokenizer-type BertWordPieceTokenizer \
@@ -33,7 +33,7 @@ gpt_options=" \
 source $1
 DATESTR=$(date +"%m-%d-%H-%M")
 
-_DEVICE_NUM_PER_NODE=2
+_DEVICE_NUM_PER_NODE=1
 _MASTER_ADDR=127.0.0.1
 _NUM_NODES=1
 _NODE_RANK=0
