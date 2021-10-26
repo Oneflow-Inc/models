@@ -116,7 +116,7 @@ TASK="SST-2"
 
 We complete Multi-Genre Natural Language Inference task based on MNLI dataset in order to test our model.
 ```bash
-wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/nlp/roberta/MNLI.tar.gz
+wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/datasets/roberta/MNLI.tar.gz
 tar zxf MNLI.tar.gz
 ```
 ### Pertrain model
