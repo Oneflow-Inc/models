@@ -9,15 +9,15 @@ export PYTHONUNBUFFERED=1
 echo PYTHONUNBUFFERED=$PYTHONUNBUFFERED
 export NCCL_LAUNCH_MODE=PARALLEL
 echo NCCL_LAUNCH_MODE=$NCCL_LAUNCH_MODE
-export NCCL_DEBUG=INFO
-export ONEFLOW_DEBUG_MODE=True
+#export NCCL_DEBUG=INFO
+#export ONEFLOW_DEBUG_MODE=True
 
 
-NCCL_DEBUG=INFO \
+#NCCL_DEBUG=INFO 
 python3 -m oneflow.distributed.launch \
     --nproc_per_node $TOTAL_DEVICE_NUM \
     --nnodes $NUM_NODES \
     --node_rank $NODE_RANK \
     --master_addr $MASTER_ADDR \
     --master_port $MASTER_PORT \
-    train_ddp.py configs/ms1mv3_r50.py \
+    train_ddp.py configs/speed.py \

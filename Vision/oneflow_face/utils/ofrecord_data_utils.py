@@ -3,6 +3,7 @@ import oneflow.nn as nn
 import os
 from typing import List, Union
 
+
 class OFRecordDataLoader(nn.Module):
     def __init__(
         self,
@@ -11,7 +12,7 @@ class OFRecordDataLoader(nn.Module):
         dataset_size: int = 9469,
         batch_size: int = 1,
         total_batch_size: int = 1,
-        data_part_num: int =8 ,
+        data_part_num: int = 8,
         placement: flow.placement = None,
         sbp: Union[flow.sbp.sbp, List[flow.sbp.sbp]] = None,
     ):
@@ -35,9 +36,10 @@ class OFRecordDataLoader(nn.Module):
 
         color_space = "RGB"
         height = 112
-        width =112
+        width = 112
 
-        self.record_image_decoder = ( flow.nn.OFRecordImageDecoder("encoded", color_space=color_space))
+        self.record_image_decoder = (flow.nn.OFRecordImageDecoder(
+            "encoded", color_space=color_space))
         self.resize = (
             flow.nn.image.Resize(target_size=[height, width])
             if mode == "train"
@@ -46,9 +48,10 @@ class OFRecordDataLoader(nn.Module):
             )
         )
 
-        self.flip = flow.nn.CoinFlip(batch_size=batch_size,placement=placement, sbp=sbp) if mode == "train" else None
+        self.flip = flow.nn.CoinFlip(
+            batch_size=batch_size, placement=placement, sbp=sbp) if mode == "train" else None
 
-        rgb_mean =[127.5, 127.5, 127.5]
+        rgb_mean = [127.5, 127.5, 127.5]
         rgb_std = [127.5, 127.5, 127.5]
         self.crop_mirror_norm = (
             flow.nn.CropMirrorNormalize(
@@ -73,7 +76,7 @@ class OFRecordDataLoader(nn.Module):
         )
 
         self.batch_size = batch_size
-        self.total_batch_size=total_batch_size
+        self.total_batch_size = total_batch_size
         self.dataset_size = dataset_size
 
     def __len__(self):
@@ -90,3 +93,52 @@ class OFRecordDataLoader(nn.Module):
         image = self.crop_mirror_norm(image, rng)
 
         return image, label
+
+
+class SyntheticDataLoader(flow.nn.Module):
+    def __init__(
+        self, batch_size, image_size=112, num_classes=10000, placement=None, sbp=None,
+    ):
+        super().__init__()
+
+        self.image_shape = (batch_size, 3, image_size, image_size)
+        self.label_shape = (batch_size,)
+        self.num_classes = num_classes
+        self.placement = placement
+        self.sbp = sbp
+
+        if self.placement is not None and self.sbp is not None:
+            self.image = flow.nn.Parameter(
+                flow.randint(
+                    0,
+                    high=255,
+                    size=self.image_shape,
+                    dtype=flow.float32,
+                    placement=self.placement,
+                    sbp=self.sbp,
+                ),
+                requires_grad=False,
+            )
+            self.label = flow.nn.Parameter(
+                flow.randint(
+                    0,
+                    high=self.num_classes,
+                    size=self.label_shape,
+                    placement=self.placement,
+                    sbp=self.sbp,
+                ).to(dtype=flow.int32),
+                requires_grad=False,
+            )
+        else:
+            self.image = flow.randint(
+                0, high=255, size=self.image_shape, dtype=flow.float32, device="cpu"
+            )
+            self.label = flow.randint(
+                0, high=self.num_classes, size=self.label_shape, device="cpu",
+            ).to(dtype=flow.int32)
+
+    def __len__(self):
+        return 10000
+
+    def forward(self):
+        return self.image, self.label
