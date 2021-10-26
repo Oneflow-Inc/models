@@ -31,7 +31,7 @@ def make_data_loader(args, mode, is_consistent=False, synthetic=False):
             placement=placement,
             sbp=sbp,
         )
-        return data_loader.to("cuda")
+        return data_loader
 
     ofrecord_data_loader = OFRecordDataLoader(
         ofrecord_dir=args.ofrecord_path,
@@ -208,11 +208,9 @@ class SyntheticDataLoader(flow.nn.Module):
             )
         else:
             self.image = flow.randint(
-                0, high=256, size=self.image_shape, dtype=flow.float32, device="cuda"
-            )
+                0, high=256, size=self.image_shape, dtype=flow.float32)
             self.label = flow.randint(
-                0, high=self.num_classes, size=self.label_shape, device="cuda",
-            ).to(dtype=flow.int32)
+                0, high=self.num_classes, size=self.label_shape).to(dtype=flow.int32)
 
     def forward(self):
         return self.image, self.label

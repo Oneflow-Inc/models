@@ -47,8 +47,6 @@ class TrainGraph(flow.nn.Graph):
 
     def build(self):
         image, label = self.data_loader()
-        image = image.to("cuda")
-        label = label.to("cuda")
         logits = self.model(image)
         loss = self.cross_entropy(logits, label)
         if self.return_pred_and_label:
@@ -75,8 +73,6 @@ class EvalGraph(flow.nn.Graph):
 
     def build(self):
         image, label = self.data_loader()
-        image = image.to("cuda")
-        label = label.to("cuda")
         logits = self.model(image)
         pred = logits.softmax()
         return pred, label

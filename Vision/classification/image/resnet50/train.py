@@ -88,8 +88,7 @@ class Trainer(object):
             self.model = self.model.to_consistent(
                 placement=placement, sbp=flow.sbp.broadcast
             )
-        else:
-            self.model = self.model.to("cuda")
+
 
         if self.load_path is None:
             self.legacy_init_parameters()
@@ -306,8 +305,6 @@ class Trainer(object):
 
     def forward(self):
         image, label = self.train_data_loader()
-        image = image.to("cuda")
-        label = label.to("cuda")
         logits = self.model(image)
         loss = self.cross_entropy(logits, label)
         if self.metric_train_acc:
@@ -318,8 +315,6 @@ class Trainer(object):
 
     def inference(self):
         image, label = self.val_data_loader()
-        image = image.to("cuda")
-        label = label.to("cuda")
         with flow.no_grad():
             logits = self.model(image)
             pred = logits.softmax()

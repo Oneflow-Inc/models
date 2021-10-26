@@ -68,8 +68,6 @@ def setup(args):
     graph_model = resnet50()
     graph_model.load_state_dict(eager_model.state_dict())
 
-    eager_model.to("cuda")
-    graph_model.to("cuda")
     # optimizer setup
     eager_optimizer = flow.optim.SGD(
         eager_model.parameters(), lr=args.learning_rate, momentum=args.mom
@@ -80,7 +78,6 @@ def setup(args):
 
     # criterion setup
     criterion = flow.nn.CrossEntropyLoss()
-    criterion = criterion.to("cuda")
 
     class ModelTrainGraph(flow.nn.Graph):
         def __init__(self):
@@ -167,8 +164,6 @@ class Trainer(object):
 
             for b in range(len(train_data_loader)):
                 image, label = train_data_loader()
-                image = image.to("cuda")
-                label = label.to("cuda")
 
                 # oneflow graph train
                 graph_iter_start_time = time.time()
@@ -224,7 +219,6 @@ class Trainer(object):
             total_graph_infer_time, total_eager_infer_time = 0, 0
             for b in tqdm(range(len(val_data_loader))):
                 image, label = val_data_loader()
-                image = image.to("cuda")
 
                 # graph val
                 graph_infer_time = time.time()
