@@ -110,6 +110,7 @@ Please check our the following **demos** for a quick start
 - [Speech-Transformer](https://github.com/Oneflow-Inc/models/tree/main/Audio/Speech-Transformer)
 - [CycleGAN-VC2](https://github.com/Oneflow-Inc/models/tree/main/Audio/CycleGAN-VC2)
 - [MaskCycleGAN-VC](https://github.com/Oneflow-Inc/models/tree/main/Audio/MaskCycleGAN-VC)
+- [StarGAN-VC](https://github.com/Oneflow-Inc/models/tree/main/Audio/StarGAN-VC)
 </details>
 
 <details>
