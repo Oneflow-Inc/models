@@ -410,13 +410,6 @@ class BertSelfOutput(nn.Module):
             init_method = normal_init_method(mean=0.0,
                                              std=config.initializer_range)
         self.dense = nn.Linear(config.hidden_size, config.hidden_size, bias=True)
-        # self.dense = mpu.RowParallelLinear(
-        #     input_size=config.hidden_size,
-        #     output_size=config.hidden_size,
-        #     bias=True,
-        #     input_is_parallel=True,
-        #     stride=1,
-        #     init_method=init_method)
         self.fp32_layernorm = config.fp32_layernorm
         self.LayerNorm = BertLayerNorm(config.hidden_size, eps=config.layernorm_epsilon)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)

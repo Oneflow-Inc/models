@@ -21,16 +21,15 @@ from .data import broadcast_data
 
 from .grads import clip_grad_norm
 
-from .initialize import destroy_model_parallel
-from .initialize import get_data_parallel_group
-from .initialize import get_data_parallel_rank
-from .initialize import get_data_parallel_world_size
-from .initialize import get_model_parallel_group
-from .initialize import get_model_parallel_rank
-from .initialize import get_model_parallel_src_rank
-from .initialize import get_model_parallel_world_size
-from .initialize import initialize_model_parallel
-from .initialize import model_parallel_is_initialized
+from .distribute import destroy_model_parallel
+from .distribute import get_data_parallel_group
+from .distribute import get_data_parallel_rank
+from .distribute import get_data_parallel_world_size
+from .distribute import get_model_parallel_group
+from .distribute import get_model_parallel_rank
+from .distribute import get_model_parallel_src_rank
+from .distribute import get_model_parallel_world_size
+from .distribute import model_parallel_is_initialized
 
 from .layers import ColumnParallelLinear
 from .layers import ParallelEmbedding

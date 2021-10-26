@@ -26,8 +26,6 @@ import oneflow as flow
 import oneflow.utils.data
 from oneflow.utils.data.dataloader import default_collate
 
-import mpu
-
 
 def clean_text(text):
     text = text.replace("\n", " ")
@@ -320,11 +318,6 @@ class FakeDataloader:
 def build_data_loader(dataset, batch_size, num_workers, drop_last, shuffle=True, only_rank0=False):
     
     rank, world_size = 0, 1
-    # if only_rank0:
-    #     rank, world_size = 0, 1
-    # else:
-    #     world_size = mpu.get_data_parallel_world_size()
-    #     rank = mpu.get_data_parallel_rank()
     import torch
     sampler = flow.utils.data.DistributedSampler(
         dataset, num_replicas=world_size, rank=rank, shuffle=shuffle)

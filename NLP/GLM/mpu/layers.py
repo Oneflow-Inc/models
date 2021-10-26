@@ -27,16 +27,17 @@ from oneflow.nn.parameter import Parameter
 
 #from apex.normalization.fused_layer_norm import FusedLayerNorm as LayerNorm
 
-from .initialize import get_model_parallel_rank
-from .initialize import get_model_parallel_world_size
+from .distribute import get_model_parallel_rank
+from .distribute import get_model_parallel_world_size
 from .mappings import copy_to_model_parallel_region
 from .mappings import gather_from_model_parallel_region
 from .mappings import reduce_from_model_parallel_region
 from .mappings import scatter_to_model_parallel_region
-from .random import get_cuda_rng_tracker
 from .utils import divide
 from .utils import split_tensor_along_last_dim
 from .utils import VocabUtility
+
+
 
 
 def _initialize_affine_weight(weight, output_size, input_size,
@@ -229,8 +230,6 @@ class RowParallelLinear(flow.nn.Module):
 
         if bias:
             self.bias = Parameter(flow.Tensor(self.output_size))
-            # with torch.no_grad():
-            #     self.bias.zero_()
         else:
             self.register_parameter('bias', None)
         self.master_weight = _initialize_affine_weight(

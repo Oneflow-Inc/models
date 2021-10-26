@@ -21,7 +21,6 @@ import random
 import oneflow as flow
 import datetime
 
-import mpu
 from utils import print_rank_0, get_spare_port, debug_finetune_data
 from tasks.data_utils import build_data_loader
 from finetune_glm import process_batch
@@ -231,7 +230,6 @@ def multichoice_evaluate(model, dataloader, example_dict, args):
             labels = labels_.tolist()
             if args.task.lower() == 'wsc':
                 predicted = [1 if pred == 0 else 0 for pred in predicted]
-            # if mpu.get_model_parallel_rank() == 0:
             for uid, prediction, label in zip(uid_list, predicted, labels):
                 # store.set(uid, str((prediction, label)))
                 store[uid] = [prediction,label]
