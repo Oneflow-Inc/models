@@ -120,8 +120,7 @@ def main(args):
                     correct_of += 1
             end_t = time.time()
 
-        print("epoch %d, oneflow top1 val acc: %f" %
-              (epoch, correct_of / all_samples))
+        print("epoch %d, oneflow top1 val acc: %f" % (epoch, correct_of / all_samples))
 
         flow.save(
             repVGGA0.state_dict(),
