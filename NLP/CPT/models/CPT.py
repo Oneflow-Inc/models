@@ -17,17 +17,17 @@ from .bart_utils import (
 )
 
 ACT2FN = {
-    "relu": flow._C.relu,
+    "relu": flow.nn.functional.relu,
     # "silu": silu,
     # "swish": silu,
-    "gelu": flow._C.gelu,
-    "tanh": flow.tanh,
+    "gelu": flow.nn.functional.gelu,
+    "tanh": flow.nn.functional.tanh,
     # "gelu_new": gelu_new,
     # "gelu_fast": gelu_fast,
     # "quick_gelu": quick_gelu,
     # "mish": mish,
     # "linear": linear_act,
-    "sigmoid": flow.sigmoid,
+    "sigmoid": flow.nn.functional.sigmoid,
 }
 
 
@@ -189,7 +189,7 @@ class BartAttention(nn.Module):
         # attn_probs = flow.F.dropout(attn_weights, p=prob)
         # attn_output = flow.bmm(attn_probs, value_states)
         if self.training:
-            attn_weights = flow._C.dropout(attn_weights, p=self.dropout)
+            attn_weights = flow.nn.functional.dropout(attn_weights, p=self.dropout)
         attn_output = flow.bmm(attn_weights, value_states)
 
         assert attn_output.size() == (
@@ -271,7 +271,7 @@ class BartDecoderLayer(nn.Module):
             output_attentions,
         )
         if self.training:
-            hidden_states = flow._C.dropout(hidden_states, p=self.dropout)
+            hidden_states = flow.nn.functional.dropout(hidden_states, p=self.dropout)
         hidden_states = residual + hidden_states
         hidden_states = self.self_attn_layer_norm(hidden_states)
 
@@ -298,7 +298,7 @@ class BartDecoderLayer(nn.Module):
                 output_attentions,
             )
             if self.training:
-                hidden_states = flow._C.dropout(hidden_states, p=self.dropout)
+                hidden_states = flow.nn.functional.dropout(hidden_states, p=self.dropout)
             hidden_states = residual + hidden_states
             hidden_states = self.encoder_attn_layer_norm(hidden_states)
 
@@ -309,10 +309,10 @@ class BartDecoderLayer(nn.Module):
         residual = hidden_states
         hidden_states = self.activation_fn(self.fc1(hidden_states))
         if self.training:
-            hidden_states = flow._C.dropout(hidden_states, p=self.activation_dropout)
+            hidden_states = flow.nn.functional.dropout(hidden_states, p=self.activation_dropout)
         hidden_states = self.fc2(hidden_states)
         if self.training:
-            hidden_states = flow._C.dropout(hidden_states, p=self.dropout)
+            hidden_states = flow.nn.functional.dropout(hidden_states, p=self.dropout)
         hidden_states = residual + hidden_states
         hidden_states = self.final_layer_norm(hidden_states)
 
@@ -472,7 +472,7 @@ class BartDecoder(nn.Module):
         hidden_states = self.layernorm_embedding(hidden_states)
 
         if self.training:
-            hidden_states = flow._C.dropout(hidden_states, p=self.dropout)
+            hidden_states = flow.nn.functional.dropout(hidden_states, p=self.dropout)
 
         # decoder layers
         all_hidden_states = () if output_hidden_states else None
@@ -1494,10 +1494,7 @@ class CPTForQuestionAnswering(nn.Module):
         else:
             raise NotImplementedError
 
-        # start_logits, end_logits = logits.split(1, dim=-1)
-        # oneflow does not support split.
-        split_half = logits.shape[-1] // 2
-        start_logits, end_logits = logits[:, :, :split_half], logits[:, :, split_half:]
+        start_logits, end_logits = logits.split(1, dim=-1)
         start_logits = start_logits.squeeze(-1)
         end_logits = end_logits.squeeze(-1)
 
