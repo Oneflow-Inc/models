@@ -408,8 +408,7 @@ class ParallelTransformerLayer(flow.nn.Module):
        
         layernorm_output = self.input_layernorm(hidden_states)
         mem = self.input_layernorm(mem) if mem is not None else None
-        
-        
+
         attention_output = self.attention(layernorm_output, ltor_mask, position_embeddings, r_w_bias, r_r_bias, mem)
         
         
