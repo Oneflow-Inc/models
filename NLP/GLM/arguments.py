@@ -173,7 +173,7 @@ def add_training_args(parser):
                        help='Load model for finetuning. Do not load optimizer '
                             'or rng state from checkpoint and set iteration to 0. '
                             'Assumed when loading a release checkpoint.')
-    group.add_argument('--resume-dataloader', action='store_true',
+    group.add_argument('--resume-dataloader', action='store_true', default=False, 
                        help='Resume the dataloader when resuming training. '
                             'Does not apply to tfrecords dataloader, try resuming'
                             'with a different seed in this case.')

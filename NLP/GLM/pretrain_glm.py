@@ -25,7 +25,7 @@ from filelock import FileLock
 import numpy as np
 import oneflow as flow
 
-import deepspeed
+# import deepspeed
 from contextlib import ExitStack
 from arguments import get_args
 from configure_data import configure_data, prepare_tokenizer, build_multi_task_dataset
@@ -149,24 +149,33 @@ def get_batch(data, args):
 
 tokenizer = None
 
+global tokens, labels, loss_mask, attention_mask, position_ids 
+
+tokens = flow.randn(4,332).to("cuda")
+labels = flow.randn(4,332).to(device="cuda",dtype=oneflow.int64)
+loss_mask = flow.randn(4,332).to("cuda")
+attention_mask = flow.randn(4).to(device="cuda",dtype=oneflow.int64)
+position_ids = flow.randn(4,2,332).to(device="cuda",dtype=oneflow.int64)
 
 def forward_step(data_iterator, model, args, timers, mems):
-  
+    global tokens, labels, loss_mask, attention_mask, position_ids 
+
+
     timers('batch generator').start()
     timers('data loader').start()
     
     rand = random.Random(args.iteration * 1 + 0)
 
-    if data_iterator[1] and rand.random() < args.multi_task_ratio:
-        data = next(data_iterator[1]) if data_iterator[1] else None
-        data["mode"] = "multi-task"
-    else:
-        data = next(data_iterator[0]) if data_iterator[0] else None
+    # if data_iterator[1] and rand.random() < args.multi_task_ratio:
+    #     data = next(data_iterator[1]) if data_iterator[1] else None
+    #     data["mode"] = "multi-task"
+    # else:
+    #     data = next(data_iterator[0]) if data_iterator[0] else None
     
     timers('data loader').stop()
-    tokens, labels, loss_mask, attention_mask, position_ids = get_batch(data, args)
+    # tokens, labels, loss_mask, attention_mask, position_ids = get_batch(data, args)
     timers('batch generator').stop()
-    
+
     def print_masked_text(batch_id):
         block_position_ids = position_ids[:, 1]
         position_ids_ = position_ids[:, 0]
@@ -198,10 +207,11 @@ def forward_step(data_iterator, model, args, timers, mems):
                   tokenizer.DecodeIds(labels[batch_id, last_index:].tolist()).encode('utf-8'),
                   position_ids_[batch_id, last_index:].tolist(), block_position_ids[batch_id, last_index:].tolist())
 
-    if data is not None and "mode" in data:
-        mode = data['mode']
-    else:
-        mode = 'bert'
+    # if data is not None and "mode" in data:
+    #     mode = data['mode']
+    # else:
+    #     mode = 'bert'
+    mode = "glm"
     
     logits, *mems = model(tokens, position_ids, attention_mask, *mems)
     
@@ -212,9 +222,13 @@ def forward_step(data_iterator, model, args, timers, mems):
     
     if loss_mask.sum().item() > 0:
         loss = loss / loss_mask.sum()
-    with open("/home/zhangxiaoyu/glm_flow_eager_loss.txt",'a') as f:
-        f.write(str(loss.item())+'\n')
+
+
+    # may wrong?
+    # with open("/home/zhangxiaoyu/glm_flow_eager_loss.txt",'a') as f:
+    #     f.write(str(loss.item())+'\n')
     # print(loss)
+
     return loss, mems, mode
 
 
@@ -266,13 +280,13 @@ def report_evaluate_metrics(summary_writer, prefix, loss, ppl, gpt_loss, bert_lo
 def train(model, optimizer, lr_scheduler,
           train_data_iterator, val_data_iterator, timers, args, summary_writer=None):
 
-    import torch
-    torch_params = torch.load("/home/zhangxiaoyu/mo.pt", map_location='cpu')
-    flow_params = {}
-    for k in torch_params.keys():
-        flow_params[k] = flow.Tensor(torch_params[k].numpy().astype("float32"))
-    model.load_state_dict(flow_params)
-    print("load pretraining model succeed!")
+    # import torch
+    # torch_params = torch.load("/home/zhangxiaoyu/mo.pt", map_location='cpu')
+    # flow_params = {}
+    # for k in torch_params.keys():
+    #     flow_params[k] = flow.Tensor(torch_params[k].numpy().astype("float32"))
+    # model.load_state_dict(flow_params)
+    # print("load pretraining model succeed!")
 
     model.train()
 
@@ -287,9 +301,9 @@ def train(model, optimizer, lr_scheduler,
     import time
     tb = time.time()
     #0,200000
-    while args.iteration < 1000:
+    while args.iteration < 10:
     # while args.iteration < args.train_iters:
-        lm_loss, skipped_iter, mems = train_step(train_data_iterator,
+        lm_loss, skipped_iter, mems = train_step(None, # train_data_iterator,
                                                  model,
                                                  optimizer,
                                                  lr_scheduler,
@@ -446,7 +460,8 @@ def main():
     global tokenizer
     tokenizer = prepare_tokenizer(args)
 
-    train_data, val_data, test_data, = get_train_val_test_data(args, tokenizer)
+    # train_data, val_data, test_data, = get_train_val_test_data(args, tokenizer)
+    train_data, val_data, test_data, = None, None, None
 
     multi_train_data, multi_val_data = None, None
     
@@ -491,36 +506,42 @@ def main():
             start_iter_val = (args.iteration // args.eval_interval) * args.eval_iters * args.multi_task_ratio
             multi_val_data.batch_sampler.start_iter = start_iter_val % len(multi_val_data)
 
-    #True
-    if train_data is not None:
-        train_data_iterator = iter(train_data)
-    else:
-        train_data_iterator = None
+    # #True
+    # if train_data is not None:
+    #     train_data_iterator = iter(train_data)
+    # else:
+    #     train_data_iterator = None
     
-    #False
-    if multi_train_data is not None:
-        multi_train_iterator = iter(multi_train_data)
-    else:
-        multi_train_iterator = None
+    # #False
+    # if multi_train_data is not None:
+    #     multi_train_iterator = iter(multi_train_data)
+    # else:
+    #     multi_train_iterator = None
     
-    #True
-    if val_data is not None:
-        val_data_iterator = iter(val_data)
-    else:
-        val_data_iterator = None
+    # #True
+    # if val_data is not None:
+    #     val_data_iterator = iter(val_data)
+    # else:
+    #     val_data_iterator = None
     
-    #False
-    if multi_val_data is not None:
-        multi_val_iterator = iter(multi_val_data)
-    else:
-        multi_val_iterator = None
+    # #False
+    # if multi_val_data is not None:
+    #     multi_val_iterator = iter(multi_val_data)
+    # else:
+    #     multi_val_iterator = None
     
+
+    train_data_iterator = None
+    multi_train_iterator = None
+    val_data_iterator = None
+    multi_val_iterator = None
+
     
     iteration = 0
     #200000
     if args.train_iters > 0:
         #1
-        if args.do_train:
+        if True:
             with ExitStack() as stack:
                 
                 def save_on_exit(args_, model_, optimizer_, lr_scheduler_):

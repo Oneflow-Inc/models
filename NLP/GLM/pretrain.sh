@@ -14,7 +14,7 @@ gpt_options=" \
        --seq-length 256 \
        --max-position-embeddings 256 \
        --save other/checkpoints \
-       --train-iters 1000 \
+       --train-iters 5 \
        --resume-dataloader \
        --train-data bert-large \
        --tokenizer-type BertWordPieceTokenizer \

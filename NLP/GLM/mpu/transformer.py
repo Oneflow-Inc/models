@@ -25,7 +25,7 @@ from .distribute import get_model_parallel_world_size
 from .layers import ColumnParallelLinear
 from .layers import RowParallelLinear
 
-import deepspeed
+# import deepspeed
 
 
 from .utils import divide
