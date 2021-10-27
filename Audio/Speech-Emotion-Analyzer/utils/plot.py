@@ -1,13 +1,12 @@
 import wave
 import matplotlib
-matplotlib.use('Agg')
+
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import librosa
 import librosa.display
 import scipy.io.wavfile as wav
 import numpy as np
-
-
 
 
 def play_audio(file_path: str) -> None:
@@ -79,7 +78,6 @@ def radar(data_prob: np.ndarray, class_labels: list) -> None:
     ax.set_rlim(0, 1)
     ax.grid(True)
     plt.show()
-
 
 
 def waveform(file_path: str) -> None:

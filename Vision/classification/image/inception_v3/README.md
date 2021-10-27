@@ -11,23 +11,34 @@ wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/datasets/imagenette_ofre
 tar zxf imagenette_ofrecord.tar.gz
 ```
 
-### Download Pretrain Models
+#### Download Pretrain Models
 
 ```bash
 wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/cv/classification/inceptionv3/inceptionv3_oneflow_model.tar.gz
 ```
 
-### Run Oneflow Training script
+### Eager Training script
 
 ```bash
-bash train.sh
+bash eager/train.sh
 ```
 
 
-## Inference on Single Image
+### Eager Inference on Single Image
 
 ```bash
-bash infer.sh
+bash eager/infer.sh
+```
+
+### Graph Training script
+```bash
+bash graph/train_ddp.sh
+```
+- `DEVICE_NUM_PER_NODE`: to set the training gpu nums.
+
+### Graph Inference on Single Image
+```bash
+bash graph/infer.sh
 ```
 
 #### Util

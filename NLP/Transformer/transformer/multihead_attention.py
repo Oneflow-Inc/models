@@ -10,19 +10,17 @@ import oneflow as flow
 from oneflow import Tensor
 from oneflow.nn import Module, Parameter, Linear
 from oneflow.nn.init import xavier_uniform_, constant_, xavier_normal_
+from oneflow.nn.functional import pad
 
 from .utils import (
     _in_projection_packed,
     _scaled_dot_product_attention,
     linear,
     _in_projection,
-    pad,
 )
 
 
 class MultiheadAttention(Module):
-    def force_mirrored_forward(self, *args):
-        pass
 
     __constants__ = ["batch_first"]
     bias_k: Optional[Tensor]
@@ -39,10 +37,7 @@ class MultiheadAttention(Module):
         kdim=None,
         vdim=None,
         batch_first=False,
-        device=None,
-        dtype=None,
     ) -> None:
-        # factory_kwargs = {'device': device, 'dtype': dtype}
         super(MultiheadAttention, self).__init__()
 
         self.embed_dim = embed_dim
@@ -244,9 +239,9 @@ def multi_head_attention_forward(
 
     # prep attention mask
     if attn_mask is not None:
-        # TODO
-        # assert attn_mask.dtype.is_floating_point or attn_mask.dtype == flow.uint8, \
-        #    f"Only float, byte, and uint8 type are supported for attn_mask, not {attn_mask.dtype}"
+        assert (
+            attn_mask.dtype.is_floating_point == False
+        ), f"Only integer type are supported for attn_mask, not {attn_mask.dtype}"
         # ensure attn_mask's dim is 3
         if attn_mask.dim() == 2:
             correct_2d_size = (tgt_len, src_len)
@@ -338,13 +333,11 @@ def multi_head_attention_forward(
             attn_mask = attn_mask.expand(bsz * num_heads, -1, -1)
         if attn_mask is None:
             attn_mask = key_padding_mask
-        elif attn_mask.dtype == flow.int32:
-            attn_mask = flow.logical_or(attn_mask, key_padding_mask)
         else:
-            attn_mask = attn_mask.masked_fill(key_padding_mask, float("-inf"))
+            attn_mask = flow.logical_or(attn_mask, key_padding_mask)
 
     # convert mask to float
-    if attn_mask is not None and attn_mask.dtype == flow.int32:
+    if attn_mask is not None and attn_mask.dtype.is_floating_point == False:
         new_attn_mask = flow.zeros_like(attn_mask).to(flow.float)
         new_attn_mask = new_attn_mask.masked_fill(attn_mask, float("-inf"))
         attn_mask = new_attn_mask

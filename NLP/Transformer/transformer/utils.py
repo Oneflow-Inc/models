@@ -1,7 +1,6 @@
 r"""
 reference to PyTorch
 
-pad                             in torch.nn.functional
 linear                          in torch.nn.functional
 _scaled_dot_product_attention   in torch.nn.functional
 _in_projection_packed           in torch.nn.functional
@@ -12,22 +11,6 @@ import oneflow as flow
 from oneflow import Tensor
 from typing import Optional, Tuple, List
 import math
-
-
-# Some functions in torch.nn.functional
-
-
-def pad(input, padding, mode="constant"):
-    origin_dim = input.dim()
-    for i in range(4 - origin_dim):
-        input = input.unsqueeze(0)
-
-    input = flow._C.pad(input, padding, mode=mode)
-
-    for i in range(4 - origin_dim):
-        input = input.squeeze(0)
-
-    return input
 
 
 def linear(input, weight, bias=None):

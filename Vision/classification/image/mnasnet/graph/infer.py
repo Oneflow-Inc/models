@@ -10,7 +10,7 @@ from utils.numpy_data_utils import load_image
 
 
 def _parse_args():
-    parser = argparse.ArgumentParser("flags for test alexnet")
+    parser = argparse.ArgumentParser("flags for test mnasnet")
     parser.add_argument(
         "--model_path", type=str, default="./weight/mnasnet0_5", help="model path"
     )

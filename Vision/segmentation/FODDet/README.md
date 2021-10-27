@@ -3,20 +3,22 @@ A simple and effective road semantic segmentation model, easy to use, very suita
 
 ## Installation
 
-The code requires the following libraries:
-
-- **numpy**   
+Install OneFlow:
 - **oneflow**   0.5.0.dev20210801+cu102
-- **cv2**   
-- **matplotlib**   
-- **albumentations**   
+
+Install other requirements
+```
+$ pip install -r requirements.txt
+```    
 
 
 ## Dataset
-[https://oneflow-public.oss-cn-beijing.aliyuncs.com/datasets/models/seg/FODDET/CamVid.rar](https://oneflow-public.oss-cn-beijing.aliyuncs.com/datasets/models/seg/FODDET/CamVid.rar)
+Download required dataset from the following link:
+[https://oneflow-public.oss-cn-beijing.aliyuncs.com/datasets/models/seg/FODDET/CamVid.zip](https://oneflow-public.oss-cn-beijing.aliyuncs.com/datasets/models/seg/FODDET/CamVid.zip)
 
 ## Trained Models
-[https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/cv/seg/FODDET/UNetmodel.rar](https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/cv/seg/FODDET/UNetmodel.rar)
+Download pretrained model from the following link:
+[https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/cv/seg/FODDET/UNetmodel.zip](https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/cv/seg/FODDET/UNetmodel.zip)
 
 ## Code Function Introduction
 
@@ -25,13 +27,13 @@ The code requires the following libraries:
 - The test code `test.py` mainly visualizes the segmentation effect, and the code content mainly includes the import of the trained model and the test process.You can download the trained model and use it directly.
 
 ## Training Scripts 
-
- ` bash train_oneflow.sh`
-
+```
+$ bash train/train.sh
+```
 ## Test Images
-
- ` bash test_oneflow.sh`
-
+```
+$ bash test/test.sh
+```
 ## Demonstration
 The following shows some results of road image segmentation.
 

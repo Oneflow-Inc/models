@@ -1,0 +1,7 @@
+.vscode/
+__pycache__/
+*.log
+egs.py
+egs/
+nnet/compute_encoder.py
+*.npy

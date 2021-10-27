@@ -35,6 +35,7 @@ Please check our the following **demos** for a quick start
   - [PoseNet](https://github.com/Oneflow-Inc/models/tree/main/Vision/classification/image/poseNet)
   - [Scnet](https://github.com/Oneflow-Inc/models/tree/main/Vision/classification/image/scnet)
   - [Mnasnet](https://github.com/Oneflow-Inc/models/tree/main/Vision/classification/image/mnasnet)
+  - [ViT](https://github.com/Oneflow-Inc/models/tree/main/Vision/classification/image/ViT)
 
 </details>
 
@@ -106,6 +107,10 @@ Please check our the following **demos** for a quick start
 - [Wav2Letter](https://github.com/Oneflow-Inc/models/tree/main/Audio/Wav2Letter)
 - [AM_MobileNet1D](https://github.com/Oneflow-Inc/models/tree/main/Audio/AM-MobileNet1D)
 - [Speech-Emotion-Analyer](https://github.com/Oneflow-Inc/models/tree/main/Audio/Speech-Emotion-Analyzer)
+- [Speech-Transformer](https://github.com/Oneflow-Inc/models/tree/main/Audio/Speech-Transformer)
+- [CycleGAN-VC2](https://github.com/Oneflow-Inc/models/tree/main/Audio/CycleGAN-VC2)
+- [MaskCycleGAN-VC](https://github.com/Oneflow-Inc/models/tree/main/Audio/MaskCycleGAN-VC)
+- [StarGAN-VC](https://github.com/Oneflow-Inc/models/tree/main/Audio/StarGAN-VC)
 </details>
 
 <details>

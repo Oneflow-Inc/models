@@ -12,13 +12,8 @@ from typing import Optional, Any
 
 import oneflow as flow
 from oneflow import Tensor
-from oneflow.nn import Module, ModuleList, Dropout, Linear
+from oneflow.nn import Module, Dropout, Linear, LayerNorm, ModuleList
 from oneflow.nn.init import xavier_uniform_
-
-# fix the bug of LayerNorm in oneflow.nn
-from .dev_ops import LayerNorm
-
-# from oneflow.nn import LayerNorm
 
 from .multihead_attention import MultiheadAttention
 
@@ -45,9 +40,7 @@ class Transformer(Module):
             self.encoder = custom_encoder
         else:
             encoder_norm = LayerNorm(d_model, eps=layer_norm_eps)
-            # The following code should be replaced by the code in comment
-            self.encoder = TransformerEncoder(
-                num_encoder_layers,
+            encoder_layer = TransformerEncoderLayer(
                 d_model,
                 nhead,
                 dim_feedforward,
@@ -56,20 +49,16 @@ class Transformer(Module):
                 layer_norm_eps,
                 batch_first,
                 norm_first,
-                encoder_norm,
             )
-            # # The following API is same as PyTorch
-            # encoder_layer = TransformerEncoderLayer(d_model, nhead, dim_feedforward, dropout,
-            #                                         activation, layer_norm_eps, batch_first, norm_first)
-            # self.encoder = TransformerEncoder(encoder_layer, num_encoder_layers, encoder_norm)
+            self.encoder = TransformerEncoder(
+                encoder_layer, num_encoder_layers, encoder_norm
+            )
 
         if custom_decoder is not None:
             self.decoder = custom_decoder
         else:
             decoder_norm = LayerNorm(d_model, eps=layer_norm_eps)
-            # The following code should be replaced by the code in comment
-            self.decoder = TransformerDecoder(
-                num_decoder_layers,
+            decoder_layer = TransformerDecoderLayer(
                 d_model,
                 nhead,
                 dim_feedforward,
@@ -78,12 +67,10 @@ class Transformer(Module):
                 layer_norm_eps,
                 batch_first,
                 norm_first,
-                decoder_norm,
             )
-            # # The following API is same as PyTorch
-            # decoder_layer = TransformerDecoderLayer(d_model, nhead, dim_feedforward, dropout,
-            #                                         activation, layer_norm_eps, batch_first, norm_first)
-            # self.decoder = TransformerDecoder(decoder_layer, num_decoder_layers, decoder_norm)
+            self.decoder = TransformerDecoder(
+                decoder_layer, num_decoder_layers, decoder_norm
+            )
 
         self._reset_parameters()
 
@@ -126,7 +113,7 @@ class Transformer(Module):
         return output
 
     def generate_square_subsequent_mask(self, sz: int) -> Tensor:
-        return flow.triu(flow.ones((sz, sz)) * float("-inf"), diagonal=1)
+        return flow.triu(flow.ones((sz, sz)), diagonal=1).to(flow.int32)
 
     def _reset_parameters(self):
         for p in self.parameters():
@@ -137,44 +124,11 @@ class Transformer(Module):
 class TransformerEncoder(Module):
     __constants__ = ["norm"]
 
-    def __init__(
-        self,
-        num_layers,
-        d_model,
-        nhead,
-        dim_feedforward=2048,
-        dropout=0.1,
-        activation="relu",
-        layer_norm_eps=1e-5,
-        batch_first=False,
-        norm_first=False,
-        norm=None,
-    ):
+    def __init__(self, encoder_layer, num_layers, norm=None):
         super(TransformerEncoder, self).__init__()
-        self.layers = ModuleList(
-            [
-                TransformerEncoderLayer(
-                    d_model,
-                    nhead,
-                    dim_feedforward,
-                    dropout,
-                    activation,
-                    layer_norm_eps,
-                    batch_first,
-                    norm_first,
-                )
-                for i in range(num_layers)
-            ]
-        )
+        self.layers = _get_clones(encoder_layer, num_layers)
         self.num_layers = num_layers
         self.norm = norm
-
-    # # The following API is same as PyTorch
-    # def __init__(self, encoder_layer, num_layers, norm=None):
-    #     super(TransformerEncoder, self).__init__()
-    #     self.layers = _get_clones(encoder_layer, num_layers)
-    #     self.num_layers = num_layers
-    #     self.norm = norm
 
     def forward(
         self,
@@ -182,8 +136,8 @@ class TransformerEncoder(Module):
         mask: Optional[Tensor] = None,
         src_key_padding_mask: Optional[Tensor] = None,
     ) -> Tensor:
-        output = src
 
+        output = src
         for mod in self.layers:
             output = mod(output, mask, src_key_padding_mask)
 
@@ -196,44 +150,11 @@ class TransformerEncoder(Module):
 class TransformerDecoder(Module):
     __constants__ = ["norm"]
 
-    def __init__(
-        self,
-        num_layers,
-        d_model,
-        nhead,
-        dim_feedforward=2048,
-        dropout=0.1,
-        activation="relu",
-        layer_norm_eps=1e-5,
-        batch_first=False,
-        norm_first=False,
-        norm=None,
-    ):
+    def __init__(self, decoder_layer, num_layers, norm=None):
         super(TransformerDecoder, self).__init__()
-        self.layers = ModuleList(
-            [
-                TransformerDecoderLayer(
-                    d_model,
-                    nhead,
-                    dim_feedforward,
-                    dropout,
-                    activation,
-                    layer_norm_eps,
-                    batch_first,
-                    norm_first,
-                )
-                for i in range(num_layers)
-            ]
-        )
+        self.layers = _get_clones(decoder_layer, num_layers)
         self.num_layers = num_layers
         self.norm = norm
-
-    # # The following API is same as PyTorch
-    # def __init__(self, decoder_layer, num_layers, norm=None):
-    #     super(TransformerDecoder, self).__init__()
-    #     self.layers = _get_clones(decoder_layer, num_layers)
-    #     self.num_layers = num_layers
-    #     self.norm = norm
 
     def forward(
         self,
@@ -244,8 +165,8 @@ class TransformerDecoder(Module):
         tgt_key_padding_mask: Optional[Tensor] = None,
         memory_key_padding_mask: Optional[Tensor] = None,
     ) -> Tensor:
-        output = tgt
 
+        output = tgt
         for mod in self.layers:
             output = mod(
                 output,
@@ -299,6 +220,7 @@ class TransformerEncoderLayer(Module):
         src_mask: Optional[Tensor] = None,
         src_key_padding_mask: Optional[Tensor] = None,
     ) -> Tensor:
+
         if self.norm_first:
             src = self.norm1(src)
             src2 = self.self_attn(src, src, src, src_key_padding_mask, True, src_mask)[
@@ -396,9 +318,8 @@ class TransformerDecoderLayer(Module):
         return tgt
 
 
-# need deepcopy
 def _get_clones(module, N):
-    return ModuleList([copy.deepcopy(module) for i in range(N)])
+    return ModuleList([copy.deepcopy(module) for _ in range(N)])
 
 
 def _get_activation_fn(activation):
