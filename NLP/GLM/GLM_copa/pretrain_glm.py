@@ -204,6 +204,14 @@ def get_batch(data, args):
 tokenizer = None
 
 
+global tokens, labels, loss_mask, attention_mask, position_ids 
+
+tokens = torch.randn(4,332).to("cuda")
+labels = torch.randn(4,332).to(device="cuda",dtype=torch.int64)
+loss_mask = torch.randn(4,332).to("cuda")
+attention_mask = torch.randn(4).to(device="cuda",dtype=torch.int64)
+position_ids = torch.randn(4,2,332).to(device="cuda",dtype=torch.int64)
+
 def forward_step(data_iterator, model, args, timers, mems):
     """Forward step."""
 
@@ -212,14 +220,15 @@ def forward_step(data_iterator, model, args, timers, mems):
     timers('data loader').start()
     
     rand = random.Random(args.iteration * mpu.get_data_parallel_world_size() + mpu.get_data_parallel_rank())
-    if data_iterator[1] and rand.random() < args.multi_task_ratio:
-        data = next(data_iterator[1]) if data_iterator[1] else None
-        data["mode"] = "multi-task"
-    else:
-        data = next(data_iterator[0]) if data_iterator[0] else None
+    # if data_iterator[1] and rand.random() < args.multi_task_ratio:
+    #     data = next(data_iterator[1]) if data_iterator[1] else None
+    #     data["mode"] = "multi-task"
+    # else:
+    #     data = next(data_iterator[0]) if data_iterator[0] else None
     # print_rank_0("data iterator")
+    global tokens, labels, loss_mask, attention_mask, position_ids 
+
     timers('data loader').stop()
-    tokens, labels, loss_mask, attention_mask, position_ids = get_batch(data, args)
     timers('batch generator').stop()
     
     # print_rank_0("get batch")
@@ -255,11 +264,13 @@ def forward_step(data_iterator, model, args, timers, mems):
                   tokenizer.DecodeIds(labels[batch_id, last_index:].tolist()).encode('utf-8'),
                   position_ids_[batch_id, last_index:].tolist(), block_position_ids[batch_id, last_index:].tolist())
 
-    if data is not None and "mode" in data:
-        mode = data['mode']
-    else:
-        mode = 'bert'
+    # if data is not None and "mode" in data:
+    #     mode = data['mode']
+    # else:
+    #     mode = 'bert'
     
+    mode = "glm"
+
     #加载模型
     # model.load_state_dict(torch.load('../mo.pt'))
     # model.eval()
@@ -345,7 +356,7 @@ def train(model, optimizer, lr_scheduler,
     import time
     tb = time.time()
     #0,200000
-    while args.iteration < 1000:
+    while args.iteration < 20:
     # while args.iteration < args.train_iters:
 
         lm_loss, skipped_iter, mems = train_step(train_data_iterator,
@@ -536,9 +547,11 @@ def get_train_val_test_data(args, tokenizer):
         
         data_config.set_defaults(data_set_type=data_set_type, transpose=False)
 
-        train_data, val_data, test_data = data_config.apply(args, tokenizer)
+        # train_data, val_data, test_data = data_config.apply(args, tokenizer)
+        train_data, val_data, test_data, = None, None, None
 
-        data_counts = torch.cuda.LongTensor([int(args.do_train), int(args.do_valid), int(args.do_test)])
+        # data_counts = torch.cuda.LongTensor([int(args.do_train), int(args.do_valid), int(args.do_test)])
+        data_counts = torch.cuda.LongTensor([0, 0, 0])
     else:
         data_counts = torch.cuda.LongTensor([0, 0, 0])
 
