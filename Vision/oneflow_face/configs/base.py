@@ -1,3 +1,4 @@
+from pickle import TRUE
 from easydict import EasyDict as edict
 
 # make training faster
@@ -12,17 +13,17 @@ config.output = "ms1mv3_arcface_r50"
 
 config.dataset = "ms1m-retinaface-t1"
 config.embedding_size = 512
-config.sample_rate = 1
 config.fp16 = False
-config.model_parallel=False
-
-
+config.model_parallel = False
+config.sample_rate =1.0
+config.partial_fc = False
+config.graph=True
 
 config.momentum = 0.9
 config.weight_decay = 5e-4
 config.batch_size = 128
 config.lr = 0.1  # batch size is 512
-config.val_image_num={"lfw":12000,"cfp_fp":14000,"agedb_30":12000}
+config.val_image_num = {"lfw": 12000, "cfp_fp": 14000, "agedb_30": 12000}
 if config.dataset == "emore":
     config.rec = "/train_tmp/faces_emore"
     config.num_classes = 85742
@@ -33,7 +34,7 @@ if config.dataset == "emore":
     config.val_targets = ["lfw", ]
 
 elif config.dataset == "ms1m-retinaface-t1":
-    config.ofrecord_path="/dev/shm/ms1m-retinaface-t1/ofrecord"
+    config.ofrecord_path = "/dev/shm/ms1m-retinaface-t1/ofrecord"
     config.num_classes = 93431
     config.num_image = 5179510
     config.num_epoch = 25

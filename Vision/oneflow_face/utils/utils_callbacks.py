@@ -9,66 +9,62 @@ from eval import verification
 from utils.utils_logging import AverageMeter
 
 
-
 class CallBackVerification(object):
-    def __init__(self, frequent, rank, val_targets, rec_prefix, image_size=(112, 112),image_nums={},world_size=1,is_consistent=False):
+    def __init__(self, frequent, rank, val_targets, rec_prefix, image_size=(112, 112), world_size=1, is_consistent=False):
         self.frequent: int = frequent
         self.rank: int = rank
         self.highest_acc: float = 0.0
         self.highest_acc_list: List[float] = [0.0] * len(val_targets)
         self.ver_list: List[object] = []
         self.ver_name_list: List[str] = []
-        self.world_size=world_size
-        if self.rank is 0:
-            self.init_dataset(val_targets=val_targets, data_dir=rec_prefix, image_size=image_size,image_nums=image_nums,world_size=world_size,is_consistent=is_consistent)
+        self.world_size = world_size
+        self.is_consistent = is_consistent
 
-    def ver_test(self, backbone: flow.nn.Module, global_step: int,is_consistent=False,world_size=1,placement=None,sbp=None):
+        if self.is_consistent:
+            self.init_dataset(val_targets=val_targets,
+                              data_dir=rec_prefix, image_size=image_size)
+        else:
+            if self.rank is 0:
+                self.init_dataset(val_targets=val_targets,
+                                  data_dir=rec_prefix, image_size=image_size)
+
+    def ver_test(self, backbone: flow.nn.Module, global_step: int):
         results = []
         for i in range(len(self.ver_list)):
-   
+
             acc1, std1, acc2, std2, xnorm, embeddings_list = verification.test(
-                self.ver_list[i], backbone, 10, 10,is_consistent,world_size=world_size,placement=placement,sbp=sbp)
-            logging.info('[%s][%d]XNorm: %f' % (self.ver_name_list[i], global_step, xnorm))
-            logging.info('[%s][%d]Accuracy-Flip: %1.5f+-%1.5f' % (self.ver_name_list[i], global_step, acc2, std2))
+                self.ver_list[i], backbone, 10, 10, self.is_consistent)
+            logging.info('[%s][%d]XNorm: %f' %
+                         (self.ver_name_list[i], global_step, xnorm))
+            logging.info('[%s][%d]Accuracy-Flip: %1.5f+-%1.5f' %
+                         (self.ver_name_list[i], global_step, acc2, std2))
             if acc2 > self.highest_acc_list[i]:
                 self.highest_acc_list[i] = acc2
             logging.info(
                 '[%s][%d]Accuracy-Highest: %1.5f' % (self.ver_name_list[i], global_step, self.highest_acc_list[i]))
             results.append(acc2)
 
-    def ver_test_print(self, backbone: flow.nn.Module, global_step: int,):
-        results = []
-        for i in range(len(self.ver_list)):
-            acc1, std1, acc2, std2, xnorm, embeddings_list = verification.test(
-                self.ver_list[i], backbone, 10, 10)
-            print('[%s][%d]XNorm: %f' % (self.ver_name_list[i], global_step, xnorm))
-            print('[%s][%d]Accuracy-Flip: %1.5f+-%1.5f' % (self.ver_name_list[i], global_step, acc2, std2))
-            if acc2 > self.highest_acc_list[i]:
-                self.highest_acc_list[i] = acc2
-            print(
-                '[%s][%d]Accuracy-Highest: %1.5f' % (self.ver_name_list[i], global_step, self.highest_acc_list[i]))
-            results.append(acc2)
-
-    def init_dataset(self, val_targets, data_dir, image_size,image_nums={},world_size=1,is_consistent=False):
+    def init_dataset(self, val_targets, data_dir, image_size):
 
         for name in val_targets:
-            path = os.path.join(data_dir, "val",name)
-            #path = os.path.join(data_dir,name+".bin")
-            image_num=image_nums[name]
+            path = os.path.join(data_dir, name+".bin")
             if os.path.exists(path):
-                data_set = verification.load_bin(path, image_size,image_num,world_size=world_size,is_consistent=is_consistent)
+                data_set = verification.load_bin_cv(path, image_size)
                 self.ver_list.append(data_set)
                 self.ver_name_list.append(name)
 
-    def __call__(self, num_update, backbone: flow.nn.Module,backbone_graph=None,is_consistent=False,placement=None,sbp=None):
-
-        if self.rank is 0 and num_update > 0 and num_update % self.frequent == 0:
-            backbone.eval()
-            # if backbone_graph is not None:
-                # self.ver_test(backbone_graph, num_update,is_consistent,world_size=self.world_size,placement=placement,sbp=sbp)
-            # else:
-            self.ver_test(backbone, num_update,is_consistent)
-            backbone.train()
+    def __call__(self, num_update, backbone: flow.nn.Module, backbone_graph=None):
+        
+        if self.is_consistent:
+            if num_update > 0 and num_update % self.frequent == 0:
+                backbone.eval()
+                self.ver_test(backbone_graph, num_update)
+                backbone.train()
+        else:
+            if self.rank is 0 and num_update > 0 and num_update % self.frequent == 0:
+                backbone.eval()
+                self.ver_test(backbone, num_update)
+                backbone.train()
 
 
 class CallBackLogging(object):
@@ -91,10 +87,11 @@ class CallBackLogging(object):
                  fp16: bool,
                  learning_rate: float,
                  grad_scaler=None):
-        if self.rank == 0  and global_step % self.frequent == 0:
+        if self.rank == 0 and global_step % self.frequent == 0:
             if self.init:
                 try:
-                    speed: float = self.frequent * self.batch_size / (time.time() - self.tic)
+                    speed: float = self.frequent * \
+                        self.batch_size / (time.time() - self.tic)
                     speed_total = speed * self.world_size
                 except ZeroDivisionError:
                     speed_total = float('inf')
@@ -103,8 +100,10 @@ class CallBackLogging(object):
                 time_total = time_now / ((global_step + 1) / self.total_step)
                 time_for_end = time_total - time_now
                 if self.writer is not None:
-                    self.writer.add_scalar('time_for_end', time_for_end, global_step)
-                    self.writer.add_scalar('learning_rate', learning_rate, global_step)
+                    self.writer.add_scalar(
+                        'time_for_end', time_for_end, global_step)
+                    self.writer.add_scalar(
+                        'learning_rate', learning_rate, global_step)
                     self.writer.add_scalar('loss', loss.avg, global_step)
                 if fp16:
                     msg = "Speed %.2f samples/sec   Loss %.4f   LearningRate %.4f   Epoch: %d   Global Step: %d   " \
@@ -130,16 +129,15 @@ class CallBackModelCheckpoint(object):
         self.rank: int = rank
         self.output: str = output
 
-    def __call__(self, global_step,epoch, backbone,is_consistent=False ):
-
+    def __call__(self, global_step, epoch, backbone, is_consistent=False):
 
         if global_step > 100 and backbone is not None :
             path_module = os.path.join(self.output, "epoch_%d" % (epoch))
 
-
             if is_consistent:
-                flow.save(backbone.state_dict(), path_module, consistent_dst_rank=0)
+                flow.save(backbone.state_dict(),
+                          path_module, consistent_dst_rank=0)
             else:
-                if self.rank==0:
+                if self.rank == 0:
                     flow.save(backbone.state_dict(), path_module)
             logging.info("oneflow Model Saved in '{}'".format(path_module))

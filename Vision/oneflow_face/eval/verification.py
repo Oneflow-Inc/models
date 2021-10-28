@@ -1,4 +1,4 @@
-"""Helper for evaluation on the Labeled Faces in the Wild dataset 
+"""Helper for evaluation on the Labeled Faces in the Wild dataset
 """
 
 # MIT License
@@ -37,6 +37,8 @@ from scipy import interpolate
 from sklearn.decomposition import PCA
 from sklearn.model_selection import KFold
 import cv2 as cv
+import logging
+
 
 class LFold:
     def __init__(self, n_splits=2, shuffle=False):
@@ -197,82 +199,40 @@ def evaluate(embeddings, actual_issame, nrof_folds=10, pca=0):
     return tpr, fpr, accuracy, val, val_std, far
 
 
-##@flow.no_grad()
-def load_bin(path, image_size,image_num,world_size=1,is_consistent=False):
-    color_space = "RGB"
-    val_dataset_dir=path
- 
-    val_batch_size=image_num
-    val_data_part_num=8
-    mode="val"
-
-    placement = None
-    sbp = None
-    if is_consistent:
-        world_size = flow.env.get_world_size()
-        placement = flow.placement("cpu", {0: range(world_size)})
-        sbp = flow.sbp.split(0)
-        # NOTE(zwx): consistent view, only consider logical batch size
-        batch_size = image_num
-
-    ofrecord = flow.nn.OfrecordReader(
-        val_dataset_dir,
-        batch_size=val_batch_size,
-        data_part_num=val_data_part_num,
-        part_name_suffix_length=1,
-        random_shuffle=False,
-        shuffle_after_epoch=False,
-        # placement=placement,
-        # sbp=sbp
-    )
-
-
-
-
-    image_reader = flow.nn.OFRecordImageDecoder( "encoded", color_space=color_space)
-    
-    record_image_decoder = flow.nn.OFRecordImageDecoder("encoded", color_space=color_space)
-  
-    issame_reader = flow.nn.OfrecordRawDecoder( "issame", shape=(), dtype=flow.int32)
-    
-    image_of=ofrecord() 
-    # if is_consistent:   
-        # image=record_image_decoder (image_of).to_local().numpy()
-        # issame_list=issame_reader(image_of).to_local().numpy()
-
-    # else:
-    image=record_image_decoder (image_of).numpy() 
-    issame_list=issame_reader(image_of).numpy() 
-    issame = np.array(issame_list).flatten().reshape(-1, 1)[:image_num, :]
-    issame_list = [bool(x) for x in issame[0::2]]
-
-
+def load_bin_cv(path, image_size):
+    bins, issame_list = pickle.load(open(path, 'rb'), encoding='bytes')
     data_list = []
     for flip in [0, 1]:
-        data = flow.empty(len(issame_list)*2 , 3, image_size[0], image_size[1])
+        data = flow.empty(len(issame_list)*2, 3, image_size[0], image_size[1])
         data_list.append(data)
-    for idx in range(len(issame_list)*2):
-        img=image[idx]       
+    for i in range(len(issame_list) * 2):
+        _bin = bins[i]
+        img_ori = cv.imdecode(_bin, cv.IMREAD_COLOR)[:, :, ::-1]
+
         for flip in [0, 1]:
+            img = img_ori.copy()
             if flip == 1:
-                img = np.fliplr(img)
-            data_list[flip][idx] = flow.Tensor(img.transpose((2, 0, 1)))
-        if idx % 1000 == 0:
-            print('loading bin', idx)
-    print(data_list[0].shape)
+                img = cv.flip(img, 1)
+            img = np.array(img).transpose((2, 0, 1))
+            img = (img - 127.5) * 0.00784313725
+            data_list[flip][i] = flow.Tensor(img)
+
+        if i % 1000 == 0:
+            logging.info('loading bin:%d', i)
+    logging.info(data_list[0].shape)
     return data_list, issame_list
 
 
-
-
-#@flow.no_grad()
-def test(data_set, backbone, batch_size, nfolds=10,is_consistent=False,world_size=1,placement=None,sbp=None):
-    print('testing verification..')
+@flow.no_grad()
+def test(data_set, backbone, batch_size, nfolds=10, is_consistent=False):
+    logging.info('testing verification..')
     data_list = data_set[0]
     issame_list = data_set[1]
     embeddings_list = []
     time_consumed = 0.0
-
+    if is_consistent:
+        placement = flow.env.all_device_placement("cpu")
+        sbp = flow.sbp.split(0)
 
     for i in range(len(data_list)):
         data = data_list[i]
@@ -281,20 +241,14 @@ def test(data_set, backbone, batch_size, nfolds=10,is_consistent=False,world_siz
         while ba < data.shape[0]:
             bb = min(ba + batch_size, data.shape[0])
             count = bb - ba
-            _data = data[bb - batch_size: bb]
+            img = data[bb - batch_size: bb]
             time0 = datetime.datetime.now()
-            img = ((_data / 255) - 0.5) / 0.5
+            #img = ((_data / 255) - 0.5) / 0.5
             with flow.no_grad():
-
-                # placement = flow.placement("cuda", {0: [0]})
-                # Broadcast = [flow.sbp.broadcast]
-                # sbp = flow.sbp.split(0)
-                # #img = flow.randint(0, 16, (10,3,112,112), placement=placement, sbp=sbp)
-                # print("#########")                
-                # img=img.to_consistent(placement=placement, sbp=Broadcast)
-                # print("#########")
+                if is_consistent:
+                    img = img.to_consistent(placement=placement, sbp=sbp)
                 net_out = backbone(img.to("cuda"))
-                #print("#########")
+
             if is_consistent:
                 _embeddings = net_out.to_local().numpy()
             else:
@@ -324,9 +278,10 @@ def test(data_set, backbone, batch_size, nfolds=10,is_consistent=False,world_siz
     std1 = 0.0
     embeddings = embeddings_list[0] + embeddings_list[1]
     embeddings = sklearn.preprocessing.normalize(embeddings)
-    print(embeddings.shape)
-    print('infer time', time_consumed)
-    _, _, accuracy, val, val_std, far = evaluate(embeddings, issame_list, nrof_folds=nfolds)
+    logging.info(embeddings.shape)
+    logging.info('infer time:%f' % time_consumed)
+    _, _, accuracy, val, val_std, far = evaluate(
+        embeddings, issame_list, nrof_folds=nfolds)
     acc2, std2 = np.mean(accuracy), np.std(accuracy)
     return acc1, std1, acc2, std2, _xnorm, embeddings_list
 

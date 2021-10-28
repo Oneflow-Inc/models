@@ -25,8 +25,8 @@ class OFRecordDataLoader(nn.Module):
             batch_size=batch_size,
             data_part_num=data_part_num,
             part_name_suffix_length=5,
-            random_shuffle=False if mode == "train" else False,
-            shuffle_after_epoch=False if mode == "train" else False,
+            random_shuffle=True if mode == "train" else False,
+            shuffle_after_epoch=True if mode == "train" else False,
             placement=placement,
             sbp=sbp,
         )
@@ -131,10 +131,10 @@ class SyntheticDataLoader(flow.nn.Module):
             )
         else:
             self.image = flow.randint(
-                0, high=255, size=self.image_shape, dtype=flow.float32, device="cpu"
+                0, high=255, size=self.image_shape, dtype=flow.float32, device="cuda"
             )
             self.label = flow.randint(
-                0, high=self.num_classes, size=self.label_shape, device="cpu",
+                0, high=self.num_classes, size=self.label_shape, device="cuda",
             ).to(dtype=flow.int32)
 
     def __len__(self):
