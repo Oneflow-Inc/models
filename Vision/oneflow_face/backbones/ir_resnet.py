@@ -4,26 +4,6 @@ from oneflow import Tensor
 from typing import Type, Any, Callable, Union, List, Optional
 
 
-
-
-
-
-# def get_weight(name):
-#     weight_initializer = flow.truncated_normal(0.1)
-#     weight_regularizer = flow.regularizers.l2(0.0005)
-#     weight_shape = (filters,
-#                     input_shape[1],
-#                     kernel_size[0],
-#                     kernel_size[1])
-
-#     weight = flow.get_variable(
-#         name + "-weight",
-#         shape=weight_shape,
-#         initializer=weight_initializer,
-#         regularizer=weight_regularizer,
-#     )
-
-
 def conv3x3(
     in_planes: int, out_planes: int, stride: int = 1, groups: int = 1, dilation: int = 1
 ) -> nn.Conv2d:
@@ -47,13 +27,16 @@ def conv1x1(in_planes: int, out_planes: int, stride: int = 1) -> nn.Conv2d:
 
 class IBasicBlock(nn.Module):
     expansion = 1
+
     def __init__(self, inplanes, planes, stride=1, downsample=None,
                  groups=1, base_width=64, dilation=1):
         super(IBasicBlock, self).__init__()
         if groups != 1 or base_width != 64:
-            raise ValueError('BasicBlock only supports groups=1 and base_width=64')
+            raise ValueError(
+                'BasicBlock only supports groups=1 and base_width=64')
         if dilation > 1:
-            raise NotImplementedError("Dilation > 1 not supported in BasicBlock")
+            raise NotImplementedError(
+                "Dilation > 1 not supported in BasicBlock")
         self.bn1 = nn.BatchNorm2d(inplanes, eps=1e-05,)
         self.conv1 = conv3x3(inplanes, planes)
         self.bn2 = nn.BatchNorm2d(planes, eps=1e-05,)
@@ -79,6 +62,7 @@ class IBasicBlock(nn.Module):
 
 class IResNet(nn.Module):
     fc_scale = 7 * 7
+
     def __init__(self,
                  block, layers, dropout=0, num_features=512, zero_init_residual=False,
                  groups=1, width_per_group=64, replace_stride_with_dilation=None, fp16=False):
@@ -93,7 +77,8 @@ class IResNet(nn.Module):
                              "or a 3-element tuple, got {}".format(replace_stride_with_dilation))
         self.groups = groups
         self.base_width = width_per_group
-        self.conv1 = nn.Conv2d(3, self.inplanes, kernel_size=3, stride=1, padding=1, bias=False)
+        self.conv1 = nn.Conv2d(
+            3, self.inplanes, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(self.inplanes, eps=1e-05)
         self.prelu = nn.PReLU(self.inplanes)
         self.layer1 = self._make_layer(block, 64, layers[0], stride=2)
@@ -114,7 +99,8 @@ class IResNet(nn.Module):
                                        dilate=replace_stride_with_dilation[2])
         self.bn2 = nn.BatchNorm2d(512 * block.expansion, eps=1e-05,)
         self.dropout = nn.Dropout(p=dropout, inplace=True)
-        self.fc = nn.Linear(512 * block.expansion * self.fc_scale, num_features)
+        self.fc = nn.Linear(512 * block.expansion *
+                            self.fc_scale, num_features)
         self.features = nn.BatchNorm1d(num_features, eps=1e-05)
         nn.init.constant_(self.features.weight, 1.0)
         self.features.weight.requires_grad = False
@@ -175,7 +161,6 @@ class IResNet(nn.Module):
         return x
 
 
-
 def _iresnet(arch, block, layers, pretrained, progress, **kwargs):
     model = IResNet(block, layers, **kwargs)
     if pretrained:
@@ -206,4 +191,3 @@ def iresnet100(pretrained=False, progress=True, **kwargs):
 def iresnet200(pretrained=False, progress=True, **kwargs):
     return _iresnet('iresnet200', IBasicBlock, [6, 26, 60, 6], pretrained,
                     progress, **kwargs)
-

@@ -18,16 +18,10 @@ class CosFace(nn.Module):
         self.m = m
 
     def forward(self, cosine, label):
-        index=label.numpy()
-        index = np.where(index != -1)[0]
-        index=oneflow.Tensor(index,dtype=oneflow.int32,device=cosine.device)
-
-
-        m_hot = oneflow.zeros(index.size()[0], cosine.size()[1], device=cosine.device)
-              
+        index = oneflow.where(label != -1)[0]
+        m_hot = oneflow.zeros(index.size()[0], cosine.size()[1], device=cosine.device) 
 
         m_hot=oneflow.scatter(m_hot,1, label[index, None], self.m)
-        #cosine[index] -= m_hot
         cosine=cosine[index] - m_hot
 
         ret = cosine * self.s
