@@ -2,6 +2,8 @@ import oneflow as flow
 import oneflow.nn.init as init
 from  oneflow.nn import LayerNorm, Parameter
 import oneflow.nn.functional as F 
+
+
 import math
 
 def ensure_divisibility(numerator, denominator):
@@ -23,7 +25,7 @@ def split_tensor_along_last_dim(tensor, num_partitions,
     return tensor_list
 
 def unscaled_init_method(sigma):
-    
+
 
     def init_(tensor):
         return flow.nn.init.normal_(tensor, mean=0.0, std=sigma)
@@ -32,7 +34,7 @@ def unscaled_init_method(sigma):
 
 
 def scaled_init_method(sigma, num_layers):
-  
+
     std = sigma / math.sqrt(2.0 * num_layers)
 
     def init_(tensor):
@@ -59,7 +61,7 @@ class ColumnParallelLinear(flow.nn.Module):
         self.input_size = input_size
         self.output_size = output_size
         self.gather_output = gather_output
-        
+
         world_size = 1
         # world_size = get_model_parallel_world_size()
 
@@ -104,7 +106,7 @@ class RowParallelLinear(flow.nn.Module):
 
         self.input_size_per_partition = divide(input_size, world_size)
 
-    
+
         self.weight = Parameter(flow.Tensor(self.output_size,
                                              self.input_size_per_partition))
         # self.weight.model_parallel = True
@@ -119,14 +121,14 @@ class RowParallelLinear(flow.nn.Module):
             stride=stride, return_master_weight=keep_master_weight_for_test)
 
     def forward(self, input_):
-        
+
         # if self.input_is_parallel:
         #     input_parallel = input_
         # else:
         #     input_parallel = scatter_to_model_parallel_region(input_)
-      
+
         output_parallel = F.linear(input_, self.weight)
-      
+
         # output_ = reduce_from_model_parallel_region(output_parallel)
         if self.bias is not None:
             output = output_parallel + self.bias
@@ -145,7 +147,7 @@ class ParallelSelfAttention(flow.nn.Module):
 
         if output_layer_init_method is None:
             output_layer_init_method = init_method
-        
+
         world_size = 1
         # world_size = get_model_parallel_world_size()
 
@@ -156,7 +158,7 @@ class ParallelSelfAttention(flow.nn.Module):
                                                         world_size)
         self.relative_encoding = relative_encoding
         self.attention_scale = attention_scale
-        
+
         self.query_key_value = ColumnParallelLinear(hidden_size, 3 * hidden_size,
                                                     stride=3,
                                                     gather_output=False,
@@ -164,7 +166,7 @@ class ParallelSelfAttention(flow.nn.Module):
         if relative_encoding:
             self.relative = ColumnParallelLinear(hidden_size, hidden_size, gather_output=False,
                                                  init_method=init_method)
-       
+
         self.attention_dropout = flow.nn.Dropout(attention_dropout_prob)
 
         self.dense = RowParallelLinear(hidden_size,
@@ -175,13 +177,13 @@ class ParallelSelfAttention(flow.nn.Module):
 
 
     def _transpose_for_scores(self, tensor):
-        
+
         #不支持
         # new_tensor_shape = tensor.size()[:-1] + \
         #                    (self.num_attention_heads_per_partition,
         #                     self.hidden_size_per_attention_head)
         new_tensor_shape = [*tensor.size()[:-1],self.num_attention_heads_per_partition,self.hidden_size_per_attention_head]
-       
+
         tensor = tensor.reshape(*new_tensor_shape)
         return tensor.permute(0, 2, 1, 3)
 
@@ -203,7 +205,7 @@ class ParallelSelfAttention(flow.nn.Module):
 
     def forward(self, hidden_states, ltor_mask, position_embeddings=None, r_w_bias=None, r_r_bias=None, mem=None):
         query_length = hidden_states.size(1)
-        
+
         #True
         if mem is None:
             mixed_x_layer = self.query_key_value(hidden_states)
@@ -217,7 +219,7 @@ class ParallelSelfAttention(flow.nn.Module):
              mixed_key_layer,
              mixed_value_layer) = split_tensor_along_last_dim(mixed_x_layer, 3)
             mixed_query_layer = mixed_query_layer[:, -query_length:]
-        
+
 
         query_layer = self._transpose_for_scores(mixed_query_layer)
 
@@ -245,7 +247,7 @@ class ParallelSelfAttention(flow.nn.Module):
                 attention_scores = flow.matmul(query_layer, key_layer.transpose(-1, -2) / math.sqrt(
                     self.hidden_size_per_attention_head))
 
-        
+
         attention_scores = flow.mul(attention_scores, ltor_mask)
         if self.attention_scale > 1.0:
             max_attention_scores = attention_scores.max(dim=-1, keepdim=True)[0]
@@ -253,20 +255,20 @@ class ParallelSelfAttention(flow.nn.Module):
             attention_scores *= self.attention_scale
 
         attention_scores = attention_scores + (-65504.0) * (1.0 - ltor_mask)
-    
+
         attention_probs = flow.nn.Softmax(dim=-1)(attention_scores)
 
         attention_probs = self.attention_dropout(attention_probs)
-    
+
         context_layer = flow.matmul(attention_probs, value_layer)
 
         context_layer = context_layer.permute(0, 2, 1, 3).contiguous()
-        
+
         # new_context_layer_shape = context_layer.size()[:-2] + \
         #                           (self.hidden_size_per_partition,)
         new_context_layer_shape = [*context_layer.size()[:-2],self.hidden_size_per_partition]
         context_layer = context_layer.reshape(*new_context_layer_shape)
-        
+
         output = self.dense(context_layer)
         output = self.output_dropout(output)
 
@@ -300,4 +302,10 @@ position_embeddings = None
 r_w_bias = None
 r_r_bias = None
 mem = None
-attention_output = attention(layernorm_output, ltor_mask, position_embeddings, r_w_bias, r_r_bias, mem)
+attention = attention.to("cuda")
+layernorm_output = layernorm_output.to("cuda")
+ltor_mask = ltor_mask.to("cuda")
+
+
+for i in range(10000):
+    attention_output = attention(layernorm_output, ltor_mask, position_embeddings, r_w_bias, r_r_bias, mem)
