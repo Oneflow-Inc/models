@@ -169,8 +169,9 @@ class ParallelSelfAttention(flow.nn.Module):
         # new_tensor_shape = tensor.size()[:-1] + \
         #                    (self.num_attention_heads_per_partition,
         #                     self.hidden_size_per_attention_head)
-        new_tensor_shape = [*tensor.size()[:-1],self.num_attention_heads_per_partition,self.hidden_size_per_attention_head]
-       
+        # new_tensor_shape = [*tensor.size()[:-1],self.num_attention_heads_per_partition,self.hidden_size_per_attention_head]
+        size = tensor.size()
+        new_tensor_shape = [size[0], size[1],self.num_attention_heads_per_partition,self.hidden_size_per_attention_head]
         tensor = tensor.reshape(*new_tensor_shape)
         return tensor.permute(0, 2, 1, 3)
 
@@ -728,8 +729,10 @@ class BertParallelSelfAttention(flow.nn.Module):
         context_layer = flow.matmul(attention_probs, value_layer)
 
         context_layer = context_layer.permute(0, 2, 1, 3).contiguous()
-        new_context_layer_shape = context_layer.size()[:-2] + \
-                                  (self.hidden_size_per_partition,)
+        # new_context_layer_shape = context_layer.size()[:-2] + \
+        #                           (self.hidden_size_per_partition,)
+        context_layer_size = context_layer.size()
+        new_context_layer_shape = [context_layer_size[0], context_layer_size[1],self.hidden_size_per_partition]
 
         context_layer = context_layer.view(*new_context_layer_shape)
 
