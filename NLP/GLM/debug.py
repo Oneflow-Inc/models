@@ -292,10 +292,10 @@ attention = ParallelSelfAttention(
             output_layer_init_method=output_layer_init_method,
             relative_encoding=relative_encoding,
             performer=performer,
-            attention_scale=attention_scale)
+            attention_scale=attention_scale).to("cuda")
 
-layernorm_output = flow.randn(4, 332, 512)
-ltor_mask = flow.randn(4, 1, 332, 332)
+layernorm_output = flow.randn(4, 332, 512).to("cuda")
+ltor_mask = flow.randn(4, 1, 332, 332).to("cuda")
 position_embeddings = None
 r_w_bias = None
 r_r_bias = None
