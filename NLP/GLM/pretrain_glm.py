@@ -149,13 +149,13 @@ def get_batch(data, args):
 
 tokenizer = None
 
-global tokens, labels, loss_mask, attention_mask, position_ids
+# global tokens, labels, loss_mask, attention_mask, position_ids
 
-tokens = flow.zeros(4,332).to("cuda")
-labels = flow.zeros(4,332).to(device="cuda",dtype=oneflow.int64)
-loss_mask = flow.zeros(4,332).to("cuda")
-attention_mask = flow.zeros(4).to(device="cuda",dtype=oneflow.int64)
-position_ids = flow.zeros(4,2,332).to(device="cuda",dtype=oneflow.int64)
+# tokens = flow.zeros(4,332).to("cuda")
+# labels = flow.zeros(4,332).to(device="cuda",dtype=oneflow.int64)
+# loss_mask = flow.zeros(4,332).to("cuda")
+# attention_mask = flow.zeros(4).to(device="cuda",dtype=oneflow.int64)
+# position_ids = flow.zeros(4,2,332).to(device="cuda",dtype=oneflow.int64)
 
 def forward_step(data_iterator, model, args, timers, mems):
   
@@ -164,15 +164,15 @@ def forward_step(data_iterator, model, args, timers, mems):
     
     rand = random.Random(args.iteration * 1 + 0)
 
-    # if data_iterator[1] and rand.random() < args.multi_task_ratio:
-    #     data = next(data_iterator[1]) if data_iterator[1] else None
-    #     data["mode"] = "multi-task"
-    # else:
-    #     data = next(data_iterator[0]) if data_iterator[0] else None
+    if data_iterator[1] and rand.random() < args.multi_task_ratio:
+        data = next(data_iterator[1]) if data_iterator[1] else None
+        data["mode"] = "multi-task"
+    else:
+        data = next(data_iterator[0]) if data_iterator[0] else None
     
     timers('data loader').stop()
-    # tokens, labels, loss_mask, attention_mask, position_ids = get_batch(data, args)
-    global tokens, labels, loss_mask, attention_mask, position_ids
+    tokens, labels, loss_mask, attention_mask, position_ids = get_batch(data, args)
+    # global tokens, labels, loss_mask, attention_mask, position_ids
     timers('batch generator').stop()
     
     def print_masked_text(batch_id):
@@ -221,8 +221,8 @@ def forward_step(data_iterator, model, args, timers, mems):
     
     if loss_mask.sum().item() > 0:
         loss = loss / loss_mask.sum()
-    with open("/home/zhangxiaoyu/glm_flow_eager_loss.txt",'a') as f:
-        f.write(str(loss.item())+'\n')
+    # with open("/home/zhangxiaoyu/glm_flow_eager_loss.txt",'a') as f:
+    #     f.write(str(loss.item())+'\n')
     # print(loss)
     return loss, mems, mode
 

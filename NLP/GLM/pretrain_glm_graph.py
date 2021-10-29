@@ -275,6 +275,8 @@ def train(model, optimizer, lr_scheduler,
             self.glm = model
             self.add_optimizer(optimizer, lr_sch=None)
             self._train_data_loader = train_data_iterator
+            self.config.allow_fuse_add_to_output(True)
+            self.config.allow_fuse_model_update_ops(True)
         
         def build(self,tokens,position_ids,attention_mask,labels,loss_mask):
 
@@ -441,6 +443,9 @@ def get_train_val_test_data(args, tokenizer):
 def main():
     
     flow.backends.cudnn.enabled = False
+
+    flow.boxing.nccl.set_fusion_threshold_mbytes(16)
+    flow.boxing.nccl.set_fusion_max_ops_num(24)
 
     timers = Timers()
     
