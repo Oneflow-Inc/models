@@ -121,8 +121,7 @@ class GLMModel(flow.nn.Module):
             embeddings[batch_index, prompt_pos] = prompt_embeds
         # Transformer.
         flow._oneflow_internal.profiler.RangePush('transformer')
-        transformer_output = self.transformer(embeddings, position_ids, attention_mask, mems,
-                                              return_memory=return_memory, detach_memory=detach_memory)
+        transformer_output = self.transformer(embeddings, position_ids, attention_mask)
         flow._oneflow_internal.profiler.RangePop()
         logits, hidden_layers = transformer_output
         outputs = hidden_layers

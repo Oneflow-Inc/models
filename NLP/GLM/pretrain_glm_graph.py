@@ -21,6 +21,8 @@ import random
 import math
 
 import oneflow.distributed
+import oneflow as flow
+import oneflow.nn as nn
 from filelock import FileLock
 import numpy as np
 import oneflow as flow
@@ -203,17 +205,8 @@ def forward_step(data_iterator, model, args, timers, mems):
     else:
         mode = 'bert'
     
-    logits, *mems = model(tokens, position_ids, attention_mask, *mems)
-    
-    losses = get_loss(logits.contiguous().float(),labels)
-    
-    loss_mask = loss_mask.view((-1,))
-    loss = flow.sum(losses.view((-1,)) * loss_mask)
-    
-    if loss_mask.sum().item() > 0:
-        loss = loss / loss_mask.sum()
-    with open("/home/zhangxiaoyu/glm_flow_eager_loss.txt",'a') as f:
-        f.write(str(loss.item())+'\n')
+    loss = model(tokens,position_ids,attention_mask,labels,loss_mask)
+
     # print(loss)
     return loss, mems, mode
 
@@ -265,14 +258,38 @@ def report_evaluate_metrics(summary_writer, prefix, loss, ppl, gpt_loss, bert_lo
 
 def train(model, optimizer, lr_scheduler,
           train_data_iterator, val_data_iterator, timers, args, summary_writer=None):
-
+    #加载模型
     import torch
-    torch_params = torch.load("/home/zhangxiaoyu/mo.pt", map_location='cpu')
+    torch_params = torch.load("/home/chengpeng/data/mo.pt", map_location='cpu')
     flow_params = {}
     for k in torch_params.keys():
         flow_params[k] = flow.Tensor(torch_params[k].numpy().astype("float32"))
     model.load_state_dict(flow_params)
     print("load pretraining model succeed!")
+    
+    
+    #create train graph
+    class GLMGraph(nn.Graph):
+        def __init__(self):
+            super().__init__()
+            self.glm = model
+            self.add_optimizer(optimizer, lr_sch=None)
+            self._train_data_loader = train_data_iterator
+        
+        def build(self,tokens,position_ids,attention_mask,labels,loss_mask):
+
+            logits, *mems = self.glm(tokens, position_ids, attention_mask)
+            losses = get_loss(logits.contiguous().float(),labels)
+            
+            loss_mask = loss_mask.view((-1,))
+            loss = flow.sum(losses.view((-1,)) * loss_mask)
+            
+            # if loss_mask.sum().item() > 0:
+            loss = loss / loss_mask.sum()
+            loss.backward()
+            return loss
+
+    glm_graph = GLMGraph()
 
     model.train()
 
@@ -290,15 +307,16 @@ def train(model, optimizer, lr_scheduler,
     while args.iteration < 1000:
     # while args.iteration < args.train_iters:
         lm_loss, skipped_iter, mems = train_step(train_data_iterator,
-                                                 model,
+                                                 glm_graph,
                                                  optimizer,
                                                  lr_scheduler,
-                                                 args, timers, mems=mems, forward_step_func=forward_step)
+                                                 args, timers, mems=mems, forward_step_func=forward_step, backward=False)
+
         skipped_iters += skipped_iter
         args.iteration += 1
         # print(args.iteration)
         total_lm_loss += lm_loss.data.detach().float()
-       
+        
         #True
         if False:
         # if args.iteration % args.log_interval == 0:
@@ -309,6 +327,7 @@ def train(model, optimizer, lr_scheduler,
             report_iteration_metrics(summary_writer, optimizer, learning_rate, avg_lm_loss,
                                      elapsed_time * 1000.0 / args.log_interval, args.iteration, args.train_iters, args)
             total_lm_loss = 0.0
+
         
         if False:
         # if args.save and args.save_interval and args.iteration % args.save_interval == 0:
@@ -426,7 +445,7 @@ def main():
     timers = Timers()
     
     args = get_args()
-
+   
     args.mem_length = args.mem_length if args.transformer_xl else 0
     
     #experiment_name:blocklm-large-blank10-11-12-02
@@ -515,7 +534,7 @@ def main():
     else:
         multi_val_iterator = None
     
-    
+
     iteration = 0
     #200000
     if args.train_iters > 0:
@@ -542,6 +561,7 @@ def main():
     
     if args.save and iteration != 0:
         save_checkpoint(iteration, model, optimizer, lr_scheduler, args)
+
 
 
 if __name__ == "__main__":

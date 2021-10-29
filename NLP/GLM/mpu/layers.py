@@ -101,7 +101,7 @@ class VocabParallelEmbedding(flow.nn.Module):
         masked_input = (input_.clone() - self.vocab_start_index).to(flow.int)
         
         #不支持切片索引
-        masked_input[input_mask] = 0
+        # masked_input[input_mask] = 0
 
         output_parallel = F.embedding(masked_input, 
                                       self.weight,
@@ -113,7 +113,7 @@ class VocabParallelEmbedding(flow.nn.Module):
                                       
         #不支持切片索引
         #output_parallel[input_mask, :] = 0.0
-        output_parallel[input_mask[...,None].expand(*output_parallel.shape).to(flow.int8)] = 0
+        # output_parallel[input_mask[...,None].expand(*output_parallel.shape).to(flow.int8)] = 0
    
         #output = reduce_from_model_parallel_region(output_parallel)
         output = output_parallel

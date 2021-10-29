@@ -279,7 +279,7 @@ def see_memory_usage(message, force=False):
 
 
 def train_step(data_iterator, model, optimizer, lr_scheduler, args, timers, forward_step_func, mems=None,
-               single_step=False):
+               single_step=False, backward=True):
     lm_loss_total, count = 0.0, 0
     mems = [] if mems is None else mems
 
@@ -303,13 +303,15 @@ def train_step(data_iterator, model, optimizer, lr_scheduler, args, timers, forw
             count += 1
 
             timers('backward').start()
-            backward_step(optimizer, model, lm_loss, args, timers)
+            if backward:
+                backward_step(optimizer, model, lm_loss, args, timers)
             timers('backward').stop()
             
             timers('optimizer').start()
             
             # optimizer.zero_grad()
-            optimizer.step()
+            if backward:
+                optimizer.step()
             complete = True
             lr_scheduler.step()
        

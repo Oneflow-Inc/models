@@ -501,7 +501,8 @@ def get_loss(vocab_parallel_logits,target):
     target_mask = ((target < vocab_start_index) | (target >= vocab_end_index))
     masked_target = (target.clone() - vocab_start_index)
    
-    masked_target[target_mask] = 0
+    # del
+    # masked_target[target_mask] = 0
     
     logits_2d = logits.view(-1, partition_vocab_size)
 
@@ -511,15 +512,8 @@ def get_loss(vocab_parallel_logits,target):
                                 device=logits_2d.device).to(flow.int)
     predicted_logits_1d = logits_2d[arange_1d, masked_target_1d]
     predicted_logits = predicted_logits_1d.reshape(*target.size())
-    predicted_logits[target_mask] = 0.0
-
-    # flow.distributed.all_reduce(predicted_logits,
-    #                                 op=flow.distributed.ReduceOp.SUM,
-    #                                 group=get_model_parallel_group())
+    # del
+    # predicted_logits[target_mask] = 0.0
 
     loss = flow.log(sum_exp_logits) - predicted_logits
-
-    # exp_logits.div_(sum_exp_logits.unsqueeze(dim=-1))
-    # ctx.save_for_backward(exp_logits, target_mask, masked_target_1d)
-
     return loss

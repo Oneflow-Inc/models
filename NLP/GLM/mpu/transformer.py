@@ -516,39 +516,26 @@ class GPT2ParallelTransformer(flow.nn.Module):
             flow.nn.init.normal_(self.position_embeddings.weight, mean=0.0, std=init_method_std)
 
         def get_layer():
-            #False
-            if use_decoder_layer:
-                return ParallelDecoderLayer(
-                    hidden_size,
-                    num_attention_heads,
-                    attention_dropout_prob,
-                    output_dropout_prob,
-                    layernorm_epsilon,
-                    unscaled_init_method(init_method_std),
-                    output_layer_init_method=output_layer_init_method
-                )
-            else:
-                return ParallelTransformerLayer(
-                    hidden_size,
-                    num_attention_heads,
-                    attention_dropout_prob,
-                    output_dropout_prob,
-                    layernorm_epsilon,
-                    unscaled_init_method(init_method_std),
-                    output_layer_init_method=output_layer_init_method,
-                    relative_encoding=relative_encoding,
-                    performer=performer,
-                    attention_scale=attention_scale)
+            return ParallelTransformerLayer(
+                hidden_size,
+                num_attention_heads,
+                attention_dropout_prob,
+                output_dropout_prob,
+                layernorm_epsilon,
+                unscaled_init_method(init_method_std),
+                output_layer_init_method=output_layer_init_method,
+                relative_encoding=relative_encoding,
+                performer=performer,
+                attention_scale=attention_scale)
 
         self.layers = flow.nn.ModuleList(
             [get_layer() for _ in range(num_layers)])
 
         self.final_layernorm = LayerNorm(hidden_size, eps=layernorm_epsilon)
         
-    def forward(self, hidden_states, position_ids, attention_mask, memory_states=None, encoder_states=None,
-                return_memory=False, detach_memory=True):     
+    def forward(self, hidden_states, position_ids, attention_mask):     
         batch_size, query_length = hidden_states.size()[:2]
-        memory_length = memory_states[0].size(1) if memory_states else 0
+        memory_length = 0
         key_length = query_length + memory_length
         
         is_scalar = flow.numel(attention_mask) == 1
@@ -578,10 +565,6 @@ class GPT2ParallelTransformer(flow.nn.Module):
                     #expand_as 不支持
                     m = m.masked_fill(mask.unsqueeze(1).expand_as(m), 1)
                    
-                #False
-                if memory_length > 0:
-                    m = m.expand(batch_size, -1, -1)
-                    m = flow.cat((hidden_states.new_ones((batch_size, seq_length, memory_length)), m), dim=2)
                 m = m.unsqueeze(1)
                 return m
             
@@ -610,17 +593,8 @@ class GPT2ParallelTransformer(flow.nn.Module):
                 block_position_embeddings = self.block_position_embeddings(block_position_ids)
                 hidden_states = hidden_states + block_position_embeddings
         hidden_states = self.embedding_dropout(hidden_states)
-
-        def check_detach(_hidden_states):
-            if detach_memory:
-                return _hidden_states.detach()
-            return _hidden_states
-        
-        #False
-        if self.max_memory_length > 0 or return_memory:
-            mem_layers = [check_detach(hidden_states)]
-        else:
-            mem_layers = []
+   
+        mem_layers = []
 
         def custom(start, end):
             def custom_forward(*inputs):
@@ -632,37 +606,27 @@ class GPT2ParallelTransformer(flow.nn.Module):
                     inputs, mems_ = inputs[:1], inputs[1:]
                 for i, layer in enumerate(layers_):
                     mem_i_ = mems_[i] if mems_ else None
-                    x_ = layer(x_, *inputs, mem=mem_i_)
-                    if self.max_memory_length > 0 or return_memory:
-                        mem_layers.append(check_detach(x_))
+                    x_ = layer(x_, *inputs)
                 return x_
 
             return custom_forward
     
         
         for i, layer in enumerate(self.layers):
-            args = [hidden_states, attention_mask] if not self.use_decoder_layer else [hidden_states,
-                                                                                        encoder_states,
-                                                                                        attention_mask]
+            args = [hidden_states, attention_mask]
             if self.relative_encoding:
                 args += [position_embeddings, self.r_w_bias, self.r_r_bias]
-            mem_i = memory_states[i] if memory_states else None
-            hidden_states = layer(*args, mem=mem_i)
-            if self.max_memory_length > 0 or return_memory:
-                mem_layers.append(check_detach(hidden_states))
+            mem_i = None
+            hidden_states = layer(*args)
         output = self.final_layernorm(hidden_states)
         
         #False
-        if self.max_memory_length > 0 or return_memory:
-            mem_layers = self.update_mems(mem_layers, memory_states, return_memory=return_memory)
         return (output, mem_layers)
 
-    def update_mems(self, hiddens, mems, return_memory=False):
-        memory_length = mems[0].size(1) if mems else 0
+    def update_mems(self, hiddens, mems):
+        memory_length = 0
         query_length = hiddens[0].size(1)
         new_memory_length = memory_length + query_length
-        if not return_memory:
-            new_memory_length = min(self.max_memory_length, new_memory_length)
         new_mems = []
        
         for i in range(len(hiddens)):
