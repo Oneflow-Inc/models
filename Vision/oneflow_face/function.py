@@ -41,7 +41,7 @@ def make_data_loader(args, mode, is_consistent=False, synthetic=False):
 
     ofrecord_data_loader = OFRecordDataLoader(
         ofrecord_root=args.ofrecord_path,
-        mode= mode,
+        mode=mode,
         dataset_size=num_samples,
         batch_size=batch_size,
         total_batch_size=total_batch_size,
@@ -54,11 +54,6 @@ def make_data_loader(args, mode, is_consistent=False, synthetic=False):
 
 def make_optimizer(args, model):
     param_group = {"params": [p for p in model.parameters() if p is not None]}
-
-    # if args.grad_clipping > 0.0:
-    #     assert args.grad_clipping == 1.0, "ONLY support grad_clipping == 1.0"
-    #     param_group["clip_grad_max_norm"] = (1.0,)
-    #     param_group["clip_grad_norm_type"] = (2.0,)
 
     optimizer = flow.optim.SGD(
         [param_group],

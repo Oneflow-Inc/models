@@ -40,7 +40,6 @@ def load_train_data(data_dir):
     imgrec = recordio.MXIndexedRecordIO(
         path_imgidx, path_imgrec, "r", key_type=int
     )
-    # TODO: key_type ??
 
     # Read header0 to get some info.
     identity_key_start = 0
@@ -64,15 +63,6 @@ def load_train_data(data_dir):
 
     else:
         imgidx_list = imgrec.keys
-
-    # print id2range to txt file
-    # with open('id2range.txt', 'w') as f:
-    #   for identity in range(identity_key_start, identity_key_end):
-    #     l = str(identity) \
-    #         + ' ' \
-    #         + str(id2range[identity][0]) \
-    #         + ' ' + str(id2range[identity][1]) + '\n'
-    #     f.write(l)
     return imgrec, imgidx_list
 
 

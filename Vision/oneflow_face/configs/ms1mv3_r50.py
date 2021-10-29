@@ -11,7 +11,7 @@ config.resume = False
 config.output = "partial_fc"
 config.embedding_size = 512
 config.model_parallel = True
-config.partial_fc = 1
+config.partial_fc = 0
 config.sample_rate = 0.1
 config.fp16 = True
 config.momentum = 0.9
@@ -27,6 +27,4 @@ config.num_image = 5179510
 config.num_epoch = 25
 config.warmup_epoch = -1
 config.decay_epoch = [10, 16, 22]
-
-
 config.val_targets = ["lfw", "cfp_fp", "agedb_30"]

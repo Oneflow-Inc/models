@@ -243,7 +243,6 @@ def test(data_set, backbone, batch_size, nfolds=10, is_consistent=False):
             count = bb - ba
             img = data[bb - batch_size: bb]
             time0 = datetime.datetime.now()
-            #img = ((_data / 255) - 0.5) / 0.5
             with flow.no_grad():
                 if is_consistent:
                     img = img.to_consistent(placement=placement, sbp=sbp)

@@ -20,7 +20,7 @@ config.batch_size = 128
 config.lr = 0.1  # batch size is 512
 
 config.dataset = "glint360k"
-config.ofrecord_path = "/data/disk1/insightface/glint360k/"
+config.ofrecord_path = "/train_tmp/glint360k/"
 config.ofrecord_part_num = 200
 config.num_classes = 360232
 config.num_image = 17091657

@@ -154,7 +154,7 @@ Only need to execute 2.1 or 2.2
 
 Run 
 ```
-python tools/mx_recordio_2_ofrecord_shuffled_npart.py  --data_dir datasets/faces_emore --output_filepath faces_emore/ofrecord/train --part_num 16
+python tools/mx_recordio_2_ofrecord_shuffled_npart.py  --data_dir datasets/faces_emore --output_filepath faces_emore/ofrecord/train --num_part 16
 ```
 And you will get the number of `part_num` parts of OFRecord, it's 16 parts in this example, it showed like this
 ```

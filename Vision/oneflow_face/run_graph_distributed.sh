@@ -1,3 +1,5 @@
+# set -aux
+
 MASTER_ADDR=127.0.0.1
 MASTER_PORT=17788
 TOTAL_DEVICE_NUM=8
@@ -14,7 +16,7 @@ echo NCCL_LAUNCH_MODE=$NCCL_LAUNCH_MODE
 export ONEFLOW_DEBUG_MODE=True
 
 
-#NCCL_DEBUG=INFO 
+#NCCL_DEBUG=INFO
 python3 -m oneflow.distributed.launch \
 --nproc_per_node $TOTAL_DEVICE_NUM \
 --nnodes $NUM_NODES \
