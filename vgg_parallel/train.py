@@ -14,6 +14,7 @@ from oneflow.nn.parallel import DistributedDataParallel as ddp
 from config import get_args
 from graph import make_train_graph, make_eval_graph
 from models.resnet50 import resnet50, Bottleneck
+from models.vgg import vgg16_bn
 from models.data import make_data_loader
 from models.optimizer import make_optimizer
 from models.optimizer import make_lr_scheduler
@@ -46,7 +47,8 @@ class Trainer(object):
         if self.use_fp16 and self.num_nodes * self.num_devices_per_node > 1:
             flow.boxing.nccl.enable_use_buffer_to_fuse_all_reduce(False)
 
-        self.model = resnet50(zero_init_residual=self.zero_init_residual)
+        # self.model = resnet50(zero_init_residual=self.zero_init_residual)
+        self.model = vgg16_bn()
         self.init_model()
         self.cross_entropy = make_cross_entropy(args)
 
