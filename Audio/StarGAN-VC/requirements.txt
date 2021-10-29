@@ -1,0 +1,6 @@
+numpy
+librosa
+oneflow
+SoundFile
+pyworld
+scikit_learn
