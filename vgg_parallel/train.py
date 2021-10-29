@@ -190,11 +190,11 @@ class Trainer(object):
             self.logger.meter("top1", top1)
 
         self.logger.meter("time", num_samples)
-
         if do_print:
-            self.logger.print_metrics()
+            throughput = self.logger.print_metrics()
             if self.gpu_stat is not None:
                 self.gpu_stat.stat()
+            return throughput
 
     def meter_train_iter(self, loss, top1):
         assert self.is_train is True
@@ -206,7 +206,8 @@ class Trainer(object):
             self.cur_iter % self.print_interval == 0
             or self.cur_iter == self.batches_per_epoch
         )
-        self.meter(
+        do_print = True
+        return self.meter(
             loss=loss,
             lr=lr,
             top1=top1,
@@ -224,13 +225,13 @@ class Trainer(object):
             if self.cur_batch == self.total_batches:
                 break
 
-            if not self.skip_eval:
-                acc = self.eval()
-            else:
-                acc = 0
+            # if not self.skip_eval:
+            #     acc = self.eval()
+            # else:
+            acc = 0
 
             save_dir = f"epoch_{self.cur_epoch}_val_acc_{acc}"
-            self.save(save_dir)
+            # self.save(save_dir)
             self.cur_epoch += 1
             self.cur_iter = 0
 
@@ -238,7 +239,10 @@ class Trainer(object):
         self.model.train()
         self.is_train = True
 
-        for _ in range(self.batches_per_epoch):
+        throughputs = []
+        # for _ in range(self.batches_per_epoch):
+        for _ in range(100):
+            # 一次 iter 的训练
             if self.graph:
                 loss, pred, label = self.train_graph()
             else:
@@ -254,11 +258,14 @@ class Trainer(object):
             else:
                 top1_acc = 0
 
-            self.meter_train_iter(loss, top1_acc)
-
+            throughput = self.meter_train_iter(loss, top1_acc)
+            if throughput is not None:
+                throughputs.append(throughput)
             self.cur_batch += 1
             if self.cur_batch == self.total_batches:
                 break
+        with open(f"throughput.rank{flow.env.get_rank()}.txt", "w") as f:
+            f.writelines([str(i)+"\n" for i in throughputs])
 
     def train_eager(self):
         loss, pred, label = self.forward()

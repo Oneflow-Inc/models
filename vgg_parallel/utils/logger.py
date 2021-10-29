@@ -49,6 +49,8 @@ class Logger(object):
             meter = m["meter"]
             print_format = m["print_format"]
             result = meter.get()
+            if isinstance(meter, TimeMeter):
+                throughput = result
             if isinstance(result, (list, tuple)):
                 field = print_format.format(*result)
             else:
@@ -63,6 +65,7 @@ class Logger(object):
                 "[rank:{}] {}".format(self.rank, ", ".join(fields)),
                 datetime.now().strftime("| %Y-%m-%d %H:%M:%S.%f")[:-3],
             )
+        return throughput
 
     def print(self, *args, print_ranks=None):
         do_print = self.rank in (print_ranks or self.print_ranks)
