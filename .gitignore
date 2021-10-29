@@ -147,3 +147,7 @@ result
 ._data
 *.tar.gz
 imagenette2/
+NLP/BERT/*
+reid/*
+resnet50/*
+Transformer/*
