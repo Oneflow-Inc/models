@@ -10,22 +10,145 @@ __all__ = [
 ]
 
 
+def get_placement(device_type="cuda"):
+    return flow.placement(device_type, {0: range(flow.env.get_world_size())})
+
+
+class ColumnParallelLinear(nn.Module):
+    """Linear layer with column parallelism.
+    The linear layer is defined as Y = XA + b, where A is parallelized along 
+    the second dimension as A = [A_1, ..., A_p].
+    Arguments:
+        layer_idx: the layer index, which determines the placement.
+        input_size: first dimension of matrix A.
+        output_size: second dimension of matrix A.
+        init_method: method to initialize weights.
+        activation: name of the activation function
+        bias_gelu_fusion: whether fuse add bias and gelu.
+    """
+
+    def __init__(
+        self, input_size, output_size, init_method=nn.init.xavier_normal_,
+    ):
+        super().__init__()
+
+        # column parallel linear weight sbp sign S(1)
+        self.weight = flow.nn.Parameter(
+            flow.empty(
+                (input_size, output_size),
+                dtype=flow.float32,
+                placement=get_placement(),
+                sbp=flow.sbp.split(1),
+            ),
+        )
+        init_method(self.weight)
+
+        # column parallel linear bias sbp: [B, S(0)]
+        self.bias = flow.nn.Parameter(
+            flow.empty(
+                (output_size,),
+                dtype=flow.float32,
+                placement=get_placement(),
+                sbp=flow.sbp.split(0),
+            )
+        )
+        flow.nn.init.zeros_(self.bias)
+
+    def forward(self, x):
+        # x sbp: B
+        # x.grad sbp: P -> B
+        x = x.to_consistent(grad_sbp=x.sbp)
+        # matmul sbp sign: [S(0), B] x [B, S(1)] -> [S(0), S(1)]
+        # x.grad sbp sign: [S(0), S(1)] x [B, S(0)] (weight.T) -> [S(0), P]
+        x = flow.matmul(x, self.weight)
+        # broadcast_add shape sign:
+        # (input_size, output_size) + (output_size, ) = (input_size, output_size)
+        # bias_add sbp sign: [S(0), S(1)] + [B, S(0)] = [S(0), S(1)]
+        x = x + self.bias
+
+        return x
+
+
+class RowParallelLinear(flow.nn.Module):
+    """Linear layer with row parallelism.
+    The linear layer is defined as Y = XA + b, where A is parallelized along 
+    the first dimension and X along its second dimension as:
+                | A_1 |
+                |  .  |
+            A = |  .  |         X = [X_1, ..., X_p]
+                |  .  |
+                | A_p |
+    Arguments:
+        layer_idx: the layer index, which determines the placement.
+        input_size: first dimension of matrix A.
+        output_size: second dimension of matrix A.
+        init_method: method to initialize weights.
+        output_dropout_prob: dropout probability of output. (Supporting bias and dropout fusion)
+        bias_dropout_fusion: whether fuse add bias and dropout.
+    """
+
+    def __init__(
+        self, input_size, output_size, init_method=nn.init.xavier_normal_,
+    ):
+        super().__init__()
+
+        # row parallel linear weight sbp: [B, S(0)]
+        self.weight = flow.nn.Parameter(
+            flow.empty(
+                (input_size, output_size),
+                dtype=flow.float32,
+                placement=get_placement(),
+                sbp=flow.sbp.split(0),
+            )
+        )
+        init_method(self.weight)
+
+        # row parallel linear bias sbp: [B, B]
+        self.bias = flow.nn.Parameter(
+            flow.empty(
+                (output_size,),
+                dtype=flow.float32,
+                placement=get_placement(),
+                sbp=flow.sbp.broadcast,
+            ),
+        )
+        flow.nn.init.zeros_(self.bias)
+
+    def forward(self, x):
+        # x.sbp: [S(0), S(1)]
+        # matmul sbp sign: [S(0), S(1)] x [B, S(0)] -> [S(0), P]
+        # backward x.grad sbp sign: [S(0), B] x [B, S(1)] (weight.T) -> [S(0), S(1)]
+        x = flow.matmul(x, self.weight)
+        # x.sbp: [S(0), P] -> [S(0), B]
+        x = x.to_consistent(sbp=flow.sbp.broadcast)
+        x = x + self.bias
+
+        return x
+
+
 class VGG(nn.Module):
     def __init__(
         self, features: nn.Module, num_classes: int = 1000, init_weights: bool = True
     ) -> None:
         super(VGG, self).__init__()
-        self.features = features
-        self.avgpool = nn.AdaptiveAvgPool2d((7, 7))
-        self.classifier = nn.Sequential(
-            nn.Linear(512 * 7 * 7, 4096),
-            nn.ReLU(True),
-            nn.Dropout(),
-            nn.Linear(4096, 4096),
-            nn.ReLU(True),
-            nn.Dropout(),
-            nn.Linear(4096, num_classes),
+        self.features = features.to_consistent(
+            placement=get_placement(), sbp=flow.sbp.broadcast
         )
+        self.avgpool = nn.AdaptiveAvgPool2d((7, 7))
+        # column split A --> [A_1, A_2, ..., A_p]
+        self.fc1 = ColumnParallelLinear(512 * 7 * 7, 4096)
+        # row split
+        #     | A_1 |
+        #     |  .  |
+        # A = |  .  |
+        #     |  .  |
+        #     | A_p |
+        self.fc2 = RowParallelLinear(4096, 4096)
+        # column split
+        self.classifier = ColumnParallelLinear(4096, num_classes)
+
+        self.relu = nn.ReLU(True)
+        self.dropout = nn.Dropout()
         if init_weights:
             self._initialize_weights()
 
@@ -33,6 +156,16 @@ class VGG(nn.Module):
         x = self.features(x)
         x = self.avgpool(x)
         x = flow.flatten(x, 1)
+        # NOTE(lxy): all_gather input from other device
+        x = x.to_consistent(placement=x.placement, sbp=flow.sbp.broadcast)
+        x = self.fc1(x)
+        x = self.relu(x)
+        x = self.dropout(x)
+        x = self.fc2(x)
+        # NOTE(lxy): because x's sbp sign is P, so all reduce for relu
+        x = x.to_consistent(placement=x.placement, sbp=flow.sbp.broadcast)
+        x = self.relu(x)
+        x = self.dropout(x)
         x = self.classifier(x)
         return x
 

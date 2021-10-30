@@ -85,12 +85,13 @@ class Trainer(object):
         self.logger.print("***** Model Init *****", print_ranks=[0])
         start_t = time.perf_counter()
 
-        if self.is_consistent:
-            placement = flow.env.all_device_placement("cuda")
-            self.model = self.model.to_consistent(
-                placement=placement, sbp=flow.sbp.broadcast
-            )
-        else:
+        # if self.is_consistent:
+        # NOTE(lxy): to_consistent 在模型内部手动进行指定，因为 backbone 部分使用数据并行，fc 部分使用模型并行
+        # placement = flow.env.all_device_placement("cuda")
+        # self.model = self.model.to_consistent(
+        #     placement=placement, sbp=flow.sbp.broadcast
+        # )
+        if not self.is_consistent:
             self.model = self.model.to("cuda")
 
         if self.load_path is None:
@@ -265,7 +266,7 @@ class Trainer(object):
             if self.cur_batch == self.total_batches:
                 break
         with open(f"throughput.rank{flow.env.get_rank()}.txt", "w") as f:
-            f.writelines([str(i)+"\n" for i in throughputs])
+            f.writelines([str(i) + "\n" for i in throughputs])
 
     def train_eager(self):
         loss, pred, label = self.forward()
