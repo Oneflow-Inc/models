@@ -93,9 +93,8 @@ class FC7(flow.nn.Module):
         else:
             weight = self.weight
         weight = flow.nn.functional.l2_normalize(
-            input=weight, dim=1, epsilon=1e-10)
-        weight = weight.transpose(0, 1)
-        x = flow.matmul(x, weight)
+            input=weight, dim=1, epsilon=1e-10)       
+        x = flow.matmul(x, weight,transpose_b=True))
         if x.is_consistent:
             return x, label
         else:
