@@ -153,7 +153,7 @@ class Trainer(object):
         self.optimizer = make_optimizer(cfg, self.train_module)
 
         # data
-        self.train_data_loader = make_data_loader(cfg, 'train', self.cfg.graph)
+        self.train_data_loader = make_data_loader(cfg, 'train', self.cfg.graph,self.cfg.synthetic)
 
         # loss
         if cfg.loss == "cosface":
