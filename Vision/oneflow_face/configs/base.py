@@ -25,7 +25,7 @@ config.batch_size = 128
 config.lr = 0.1  # batch size is 512
 config.val_image_num = {"lfw": 12000, "cfp_fp": 14000, "agedb_30": 12000}
 if config.dataset == "emore":
-    config.rec = "/train_tmp/faces_emore"
+    config.ofrecord_path = "/train_tmp/faces_emore"
     config.num_classes = 85742
     config.num_image = 5822653
     config.num_epoch = 16

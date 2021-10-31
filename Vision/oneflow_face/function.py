@@ -226,8 +226,7 @@ class Trainer(object):
                     sbp=flow.sbp.broadcast).to_local().numpy()
                 self.losses.update(loss, 1)
                 self.callback_logging(self.global_step,  self.losses, epoch, False,
-                                      self.scheduler.get_last_lr()[0])
-
+                                      self.scheduler.get_last_lr()[0])  
                 self.callback_verification(
                     self.global_step, self.train_module, val_graph)
             self.callback_checkpoint(self.global_step, epoch,
@@ -241,7 +240,6 @@ class Trainer(object):
             one_epoch_steps = len(self.train_data_loader)
             for steps in range(one_epoch_steps):
                 self.global_step += 1
-
                 image, label = self.train_data_loader()
                 image = image.to("cuda")
                 label = label.to("cuda")
@@ -249,7 +247,6 @@ class Trainer(object):
                 features_fc7 = self.margin_softmax(features_fc7, label)*64
                 loss = self.of_cross_entropy(features_fc7, label)
                 loss.backward()
-
                 self.optimizer.step()
                 self.optimizer.zero_grad()
 
