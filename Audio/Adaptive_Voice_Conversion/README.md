@@ -10,15 +10,16 @@ Our code is inspired by the Pytorch implementation [adaptive_voice_conversion](h
 - numpy 1.16.0
 - librosa 0.6.3
 - SoundFile 0.10.2 
-<br>
 We also use some preprocess script from [Kyubyong/tacotron](https://github.com/Kyubyong/tacotron) and [magenta/magenta/models/gansynth](https://github.com/tensorflow/magenta/tree/master/magenta/models/gansynth).
 
 # Data
 We make use of VCTK dataset, which can be downloaded from  [CSTR VCTK Corpus](https://homepages.inf.ed.ac.uk/jyamagis/page3/page58/page58.html)
-# Preprocess
 
-The preprocess code is at ```preprocess/```.
-The configuation for preprocessing is at ```preprocess/vctk.config```. 
+# Preprocess
+```bash
+bash preprocess/preprocess_vctk.sh
+```
+The preprocess code is at `preprocess/`.The configuation for preprocessing is at `preprocess/vctk.config`. 
 where:
 - **segment\_size** is the segment size for training. Default: 128
 - **data\_dir** is the directory to put preprocessed files. 
@@ -31,22 +32,27 @@ where:
 - **train_set**: only for LibriTTS. The subset used for training. Default: train-clean-100.
 - **test_set**: only for LibriTTS. The subset used for testing. Default: dev-clean.
 
-Once you edited the config file, you can run ```preprocess_vctk.sh```  to preprocess the dataset. 
+Once you edited the config file, you can run `preprocess_vctk.sh`  to preprocess the dataset. 
 <br>
-Also, you can change the feature extraction config in ```preprocess/tacotron/hyperparams.py```
+Also, you can change the feature extraction config in `preprocess/tacotron/hyperparams.py`
 
 # Training
-The default arguments can be found in ```train.sh```. The usage of each arguments are listed below. 
-- **-c**: the path of config file, the default hyper-parameters can be found at ```config.yaml```.
+```bash
+bash train.sh
+```
+The default arguments can be found in `train.sh`. The usage of each arguments are listed below. 
+- **-c**: the path of config file, the default hyper-parameters can be found at `config.yaml`.
 - **-iters**: train the model with how many iterations. default: 200000
 - **-summary_steps**: record training loss every n steps.
-- **-train_set**: the data file for training (```train``` if the file is train.pkl). Default: ```train```
-- **-train_index_file**: the name of training index file. Default: ```train_samples_128.json```
+- **-train_set**: the data file for training (`train` if the file is train.pkl). Default: `train`
+- **-train_index_file**: the name of training index file. Default: `train_samples_128.json`
 - **-data_dir**: the directory for processed data.
 - **-store_model_path**: the path to store the model.
 
 # Inference
-You can use ```inference.py``` to inference.
+```bash
+bash infer.sh
+```
 - **-c**: the path of config file.
 - **-m**: the path of model checkpoint.
 - **-a**: the attribute file for normalization ad denormalization.
