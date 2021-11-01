@@ -124,21 +124,22 @@ class TrainGraph(flow.nn.Graph):
 class FC7(flow.nn.Module):
     def __init__(self, embedding_size, num_classes, bias=False):
         super(FC7, self).__init__()
-
         self.weight = flow.nn.Parameter(
-            flow.empty(embedding_size, num_classes))
+            flow.empty(num_classes, embedding_size))
         flow.nn.init.normal_(self.weight, mean=0, std=0.01)
 
     def forward(self, x):
         x = flow.nn.functional.l2_normalize(input=x, dim=1, epsilon=1e-10)
         weight = self.weight
         weight = flow.nn.functional.l2_normalize(
-            input=weight, dim=0, epsilon=1e-10)
+            input=weight, dim=1, epsilon=1e-10)       
         if x.is_consistent:
             x = x.to_consistent(sbp=flow.sbp.broadcast)
-        x = flow.matmul(x, weight)
-        return x
+        #weight = weight.transpose(0, 1)
+        #x = flow.matmul(x, weight)
+        x = flow.matmul(x, weight,transpose_b=True)
 
+        return x
 
 
 
