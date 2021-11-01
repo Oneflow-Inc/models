@@ -1,21 +1,24 @@
 # -*- coding: utf-8 -*-
 # /usr/bin/python2
-'''
+"""
 By kyubyong park. kbpark.linguist@gmail.com.
 https://www.github.com/kyubyong/dc_tts
-'''
+"""
 from __future__ import print_function, division
 import os
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 from .hyperparams import Hyperparams as hp
 import numpy as np
 import librosa
 import copy
 import matplotlib
-matplotlib.use('pdf')
+
+matplotlib.use("pdf")
 import matplotlib.pyplot as plt
 from scipy import signal
 import os
+
 
 def _mel_to_linear_matrix(sr, n_fft, n_mels):
     m = librosa.filters.mel(sr, n_fft, n_mels)
@@ -24,15 +27,16 @@ def _mel_to_linear_matrix(sr, n_fft, n_mels):
     d = [1.0 / x if np.abs(x) > 1.0e-8 else x for x in np.sum(p, axis=0)]
     return np.matmul(m_t, np.diag(d))
 
+
 def get_spectrograms(fpath):
-    '''Returns normalized log(melspectrogram) and log(magnitude) from `sound_file`.
+    """Returns normalized log(melspectrogram) and log(magnitude) from `sound_file`.
     Args:
       sound_file: A string. The full path of a sound file.
 
     Returns:
       mel: A 2d array of shape (T, n_mels) <- Transposed
       mag: A 2d array of shape (T, 1+n_fft/2) <- Transposed
-    '''
+    """
 
     # Loading sound file
     y, sr = librosa.load(fpath, sr=hp.sr)
@@ -44,10 +48,9 @@ def get_spectrograms(fpath):
     y = np.append(y[0], y[1:] - hp.preemphasis * y[:-1])
 
     # stft
-    linear = librosa.stft(y=y,
-                          n_fft=hp.n_fft,
-                          hop_length=hp.hop_length,
-                          win_length=hp.win_length)
+    linear = librosa.stft(
+        y=y, n_fft=hp.n_fft, hop_length=hp.hop_length, win_length=hp.win_length
+    )
 
     # magnitude spectrogram
     mag = np.abs(linear)  # (1+n_fft//2, T)
@@ -70,8 +73,9 @@ def get_spectrograms(fpath):
 
     return mel, mag
 
+
 def melspectrogram2wav(mel):
-    '''# Generate wave file from spectrogram'''
+    """# Generate wave file from spectrogram"""
     # transpose
     mel = mel.T
 
@@ -94,8 +98,9 @@ def melspectrogram2wav(mel):
 
     return wav.astype(np.float32)
 
+
 def spectrogram2wav(mag):
-    ''' Generate wave file from spectrogram'''
+    """ Generate wave file from spectrogram"""
     # transpose
     mag = mag.T
 
@@ -118,8 +123,8 @@ def spectrogram2wav(mag):
 
 
 def griffin_lim(spectrogram):
-    '''Applies Griffin-Lim's raw.
-    '''
+    """Applies Griffin-Lim's raw.
+    """
     X_best = copy.deepcopy(spectrogram)
     for i in range(hp.n_iter):
         X_t = invert_spectrogram(X_best)
@@ -133,10 +138,12 @@ def griffin_lim(spectrogram):
 
 
 def invert_spectrogram(spectrogram):
-    '''
+    """
     spectrogram: [f, t]
-    '''
-    return librosa.istft(spectrogram, hp.hop_length, win_length=hp.win_length, window="hann")
+    """
+    return librosa.istft(
+        spectrogram, hp.hop_length, win_length=hp.win_length, window="hann"
+    )
 
 
 def plot_alignment(alignment, gs):
@@ -149,14 +156,15 @@ def plot_alignment(alignment, gs):
 
     cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
     fig.colorbar(im)
-    plt.title('{} Steps'.format(gs))
-    plt.savefig('{}/alignment_{}k.png'.format(hp.logdir, gs//1000), format='png')
+    plt.title("{} Steps".format(gs))
+    plt.savefig("{}/alignment_{}k.png".format(hp.logdir, gs // 1000), format="png")
+
 
 def load_spectrograms(fpath):
     fname = os.path.basename(fpath)
     mel, mag = get_spectrograms(fpath)
     t = mel.shape[0]
-    num_paddings = hp.r - (t % hp.r) if t % hp.r != 0 else 0 # for reduction
+    num_paddings = hp.r - (t % hp.r) if t % hp.r != 0 else 0  # for reduction
     mel = np.pad(mel, [[0, num_paddings], [0, 0]], mode="constant")
     mag = np.pad(mag, [[0, num_paddings], [0, 0]], mode="constant")
-    return fname, mel.reshape((-1, hp.n_mels*hp.r)), mag
+    return fname, mel.reshape((-1, hp.n_mels * hp.r)), mag

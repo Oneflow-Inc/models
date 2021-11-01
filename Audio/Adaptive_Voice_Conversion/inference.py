@@ -10,6 +10,7 @@ from scipy.io.wavfile import write
 from preprocess.tacotron.utils import melspectrogram2wav
 from preprocess.tacotron.utils import get_spectrograms
 
+
 class Inferencer(object):
     def __init__(self, config, args):
         # config store the value of hyperparameters, turn to attr by AttrDict
@@ -26,15 +27,15 @@ class Inferencer(object):
         # load model
         self.load_model()
 
-        with open(self.args.attr, 'rb') as f:
+        with open(self.args.attr, "rb") as f:
             self.attr = pickle.load(f)
 
     def load_model(self):
-        print(f'Load model from {self.args.model}')
-        self.model.load_state_dict(flow.load(f'{self.args.model}'))
+        print(f"Load model from {self.args.model}")
+        self.model.load_state_dict(flow.load(f"{self.args.model}"))
         return
 
-    def build_model(self): 
+    def build_model(self):
         # create model, discriminator, optimizers
         self.model = cc(AE(self.config))
         print(self.model)
@@ -42,8 +43,8 @@ class Inferencer(object):
         return
 
     def utt_make_frames(self, x):
-        frame_size = self.config['data_loader']['frame_size']
-        remains = x.size(0) % frame_size 
+        frame_size = self.config["data_loader"]["frame_size"]
+        remains = x.size(0) % frame_size
         if remains != 0:
             x = F.pad(x, (0, remains))
         out = x.view(1, x.size(0) // frame_size, frame_size * x.size(1)).transpose(1, 2)
@@ -60,12 +61,12 @@ class Inferencer(object):
         return wav_data, dec
 
     def denormalize(self, x):
-        m, s = self.attr['mean'], self.attr['std']
+        m, s = self.attr["mean"], self.attr["std"]
         ret = x * s + m
         return ret
 
     def normalize(self, x):
-        m, s = self.attr['mean'], self.attr['std']
+        m, s = self.attr["mean"], self.attr["std"]
         ret = (x - m) / s
         return ret
 
@@ -82,17 +83,18 @@ class Inferencer(object):
         self.write_wav_to_file(conv_wav, self.args.output)
         return
 
+
 parser = ArgumentParser()
-parser.add_argument('-attr', '-a', help='attr file path')
-parser.add_argument('-config', '-c', help='config file path')
-parser.add_argument('-model', '-m', help='model path')
-parser.add_argument('-source', '-s', help='source wav path')
-parser.add_argument('-target', '-t', help='target wav path')
-parser.add_argument('-output', '-o', help='output wav path')
-parser.add_argument('-sample_rate', '-sr', help='sample rate', default=24000, type=int)
+parser.add_argument("-attr", "-a", help="attr file path")
+parser.add_argument("-config", "-c", help="config file path")
+parser.add_argument("-model", "-m", help="model path")
+parser.add_argument("-source", "-s", help="source wav path")
+parser.add_argument("-target", "-t", help="target wav path")
+parser.add_argument("-output", "-o", help="output wav path")
+parser.add_argument("-sample_rate", "-sr", help="sample rate", default=24000, type=int)
 args = parser.parse_args()
-# load config file 
+# load config file
 with open(args.config) as f:
-    config = yaml.load(f,Loader=yaml.FullLoader)
+    config = yaml.load(f, Loader=yaml.FullLoader)
 inferencer = Inferencer(config=config, args=args)
 inferencer.inference_from_path()
