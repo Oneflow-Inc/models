@@ -133,7 +133,7 @@ class FC7(flow.nn.Module):
         x = flow.nn.functional.l2_normalize(input=x, dim=1, epsilon=1e-10)
         weight = self.weight
         weight = flow.nn.functional.l2_normalize(
-            input=weight, dim=1, epsilon=1e-10)
+            input=weight, dim=0, epsilon=1e-10)
         if x.is_consistent:
             x = x.to_consistent(sbp=flow.sbp.broadcast)
         x = flow.matmul(x, weight)
