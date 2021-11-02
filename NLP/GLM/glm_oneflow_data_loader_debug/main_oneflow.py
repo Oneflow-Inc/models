@@ -27,8 +27,8 @@ def get_train_val_test_data(args, tokenizer):
     cnt = 0
     iteration_dataset_start = time.time()
     for it in train_data:
-        if cnt % 1000 == 0:
-            print(cnt)
+        if cnt == 10000:
+            break
         cnt += 1
     # for it in val_data:
     #     continue
