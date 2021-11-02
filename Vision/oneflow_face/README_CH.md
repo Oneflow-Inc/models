@@ -20,7 +20,7 @@
   - [训练和验证](#训练和验证)
     - [训练](#训练)
     - [验证](#验证)
-    
+    - [OneFLow2ONNX](#OneFLow2ONNX)
     
 
 ## 背景介绍
@@ -204,10 +204,14 @@ ofrecord/test/
 
 运行脚本：
 
+#### eager 
 ```
-./run.sh
+./train_ddp.sh
 ```
-
+#### Graph
+```
+train_graph_distributed.sh
+```
 
 ### 验证
 
@@ -217,4 +221,11 @@ ofrecord/test/
 
 ```
 ./val.sh
+```
+
+## OneFLow2ONNX
+
+```
+pip install oneflow-onnx==0.5.1
+./convert.sh
 ```

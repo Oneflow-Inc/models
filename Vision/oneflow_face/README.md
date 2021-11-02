@@ -30,7 +30,7 @@ It introduces how to train InsightFace in OneFlow, and do verification over the 
  \- [Training and verification](#training-and-verification)
 
   \- [Training](#training)
-
+\- [OneFLow2ONNX](#OneFLow2ONNX)
 
 ## Background
 
@@ -239,9 +239,15 @@ ofrecord/test/
 
 To reduce the usage cost of user, OneFlow draws close the scripts to Torch style, you can directly modify parameters via configs/*.py
 
+#### eager 
 ```
-./run.sh
+./train_ddp.sh
 ```
+#### Graph
+```
+train_graph_distributed.sh
+```
+
 
 ### Varification
 
@@ -250,4 +256,10 @@ Moreover, OneFlow offers a validation script to do verification separately, val.
 ```
 ./val.sh
 
+```
+## OneFLow2ONNX
+
+```
+pip install oneflow-onnx==0.5.1
+./convert.sh
 ```
