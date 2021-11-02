@@ -5,7 +5,7 @@ from utils.utils_logging import AverageMeter
 from utils.utils_callbacks import CallBackVerification, CallBackLogging, CallBackModelCheckpoint
 from backbones import get_model
 from graph import TrainGraph, EvalGraph
-import losses
+from losses import CrossEntropyLoss_sbp
 import logging
 
 
@@ -94,7 +94,7 @@ class FC7(flow.nn.Module):
             weight = self.weight
         weight = flow.nn.functional.l2_normalize(
             input=weight, dim=1, epsilon=1e-10)       
-        x = flow.matmul(x, weight,transpose_b=True))
+        x = flow.matmul(x, weight,transpose_b=True)
         if x.is_consistent:
             return x, label
         else:
@@ -161,7 +161,10 @@ class Trainer(object):
         else:
             self.margin_softmax = flow.nn.CombinedMarginLoss(
                 1, 0.5, 0.).to("cuda")
-        self.of_cross_entropy = flow.nn.CrossEntropyLoss().to("cuda")
+        if cfg.model_parallel:
+            self.of_cross_entropy = CrossEntropyLoss_sbp()
+        else:
+            self.of_cross_entropy = flow.nn.CrossEntropyLoss().to("cuda")
 
         # lr_scheduler
         self.decay_step = self.cal_decay_step()

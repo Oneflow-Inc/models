@@ -1,4 +1,3 @@
-
 import oneflow as flow
 import oneflow.nn as nn
 
@@ -27,8 +26,7 @@ class TrainGraph(flow.nn.Graph):
         cross_entropy,
         data_loader,
         optimizer,
-        lr_scheduler=None,
-        return_pred_and_label=True,
+        lr_scheduler=None
     ):
         super().__init__()
 
