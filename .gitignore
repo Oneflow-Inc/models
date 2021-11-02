@@ -147,3 +147,8 @@ result
 ._data
 *.tar.gz
 imagenette2/
+
+other.zip
+other/
+log/
+logs/

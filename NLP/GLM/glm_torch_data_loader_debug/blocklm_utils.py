@@ -1,5 +1,5 @@
-import oneflow as flow
-import oneflow.utils.data
+import torch
+import torch.utils.data
 import random
 import copy
 import numpy as np
@@ -7,8 +7,8 @@ import math
 from scipy.stats import poisson
 
 # def print_rank_0(message):
-#     # if flow.distributed.is_initialized():
-#     #     if flow.distributed.get_rank() == 0:
+#     # if torch.distributed.is_initialized():
+#     #     if torch.distributed.get_rank() == 0:
 #     #         print(message, flush=True)
 #     # else:
 #     print(message, flush=True)
@@ -134,8 +134,8 @@ class ConstructBlockStrategy:
                     spans = self.sample_spans(masked_lengths[mask_index: mask_index + current_count], length, rng,
                                               offset=offset)
                     mask_spans += spans
-                if mask_index + current_count < len(masked_lengths) - 1:
-                    print(length, masked_lengths[mask_index:], masked_lengths[:mask_index], indices)
+                # if mask_index + current_count < len(masked_lengths) - 1:
+                #     print(length, masked_lengths[mask_index:], masked_lengths[:mask_index], indices)
             else:
                 current_masked_total = int(length * self.bert_ratio)
                 current_masked_length, current_count = 0, 0
@@ -303,7 +303,7 @@ class ConstructBlockStrategy:
         return new_samples
 
     def construct_blocks(self, samples):
-        # worker_info = flow.utils.data.get_worker_info()
+        # worker_info = torch.utils.data.get_worker_info()
         # if worker_info is not None:
         #     worker_id, num_workers = worker_info.id, worker_info.num_workers
         # else:
@@ -369,8 +369,8 @@ class ConstructBlockStrategy:
                         last_index = i + 1
                 if last_index < len(tokens):
                     sentence_spans.append((last_index, len(tokens)))
-                if not sentence_spans:
-                    print(self.tokenizer.DecodeIds(tokens[1:]).encode('utf-8'))
+                # if not sentence_spans:
+                #     print(self.tokenizer.DecodeIds(tokens[1:]).encode('utf-8'))
                 rng.shuffle(sentence_spans)
                 block_spans, block_length = [], 0
                 for start, end in sentence_spans:
@@ -431,23 +431,23 @@ class ConstructBlockStrategy:
                     target_batch.append(targets)
                     loss_mask_batch.append(loss_masks)
                     position_id_batch.append(position_ids)
-                    if tokens is None:
-                        print(sample, generation_length, multiple_doc)
+                    # if tokens is None:
+                    #     print(sample, generation_length, multiple_doc)
         
         if self.encoder_decoder:
             return {
-                'text': flow.tensor(source_batch, dtype=flow.long),
-                'target': flow.tensor(target_batch, dtype=flow.long),
-                'loss_mask': flow.tensor(loss_mask_batch, dtype=flow.long)}
+                'text': torch.tensor(source_batch, dtype=torch.long),
+                'target': torch.tensor(target_batch, dtype=torch.long),
+                'loss_mask': torch.tensor(loss_mask_batch, dtype=torch.long)}
         else:
             token_batch, target_batch, loss_mask_batch, position_id_batch = self.pad_batch(token_batch, target_batch,
                                                                                            loss_mask_batch,
                                                                                            position_id_batch)
-            return {'text': flow.tensor(token_batch, dtype=flow.long),
-                    'target': flow.tensor(target_batch, dtype=flow.long),
-                    'loss_mask': flow.tensor(loss_mask_batch, dtype=flow.long),
-                    'position_id': flow.tensor(position_id_batch, dtype=flow.long),
-                    'attention_mask': flow.tensor(attention_mask, dtype=flow.long),
+            return {'text': torch.tensor(token_batch, dtype=torch.long),
+                    'target': torch.tensor(target_batch, dtype=torch.long),
+                    'loss_mask': torch.tensor(loss_mask_batch, dtype=torch.long),
+                    'position_id': torch.tensor(position_id_batch, dtype=torch.long),
+                    'attention_mask': torch.tensor(attention_mask, dtype=torch.long),
                     'mode': mode}
 
     def pad_batch(self,token_batch, target_batch, loss_mask_batch, position_id_batch):

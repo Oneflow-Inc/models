@@ -23,19 +23,19 @@ def get_train_val_test_data(args, tokenizer):
     
     train_data, val_data, test_data = data_config.apply(args, tokenizer)
     prepare_dataset_end = time.time()
-    print('prepare dataset time: ', prepare_dataset_end-prepare_dataset_start)
-
+    print('torch prepare dataset time: ', prepare_dataset_end-prepare_dataset_start)
     cnt = 0
     iteration_dataset_start = time.time()
     for it in train_data:
-        cnt+=1
-    for it in val_data:
-        cnt+=1
-    for it in test_data:
-        cnt+=1
+        if cnt % 1000 == 0:
+            print(cnt)
+        cnt += 1
+    # for it in val_data:
+    #     continue
+    # for it in test_data:
+    #     continue
     iteration_dataset_end = time.time()
-    print('iteration dataset time: ', iteration_dataset_end-iteration_dataset_start)
-    print(cnt)
+    print('torch iteration dataset time: ', iteration_dataset_end-iteration_dataset_start)
 
     args.do_train = 1
     args.do_valid = 1

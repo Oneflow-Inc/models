@@ -126,8 +126,8 @@ def get_dataset(name, tokenizer, pre_tokenize, data_parallel_rank, loader_scatte
             for i in range(10):
                 rand_id = i if i < 5 else random.randrange(len(text))
                 sample_tokens = text[rand_id]['tokens'][:1024]
-                print(sample_tokens)
-                print(tokenizer.DecodeIds(sample_tokens).encode('utf-8'))
+                # print(sample_tokens)
+                # print(tokenizer.DecodeIds(sample_tokens).encode('utf-8'))
         else:
             for scatter_id in range(loader_scatter):
                 if data_parallel_rank % loader_scatter == scatter_id and data_parallel_rank // loader_scatter == 0:

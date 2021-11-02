@@ -39,7 +39,7 @@ _NUM_NODES=1
 _NODE_RANK=0
 
 mkdir logs
-run_cmd="python3 main.py ${gpt_options} 2>&1 | tee logs/log-${DATESTR}.txt"
+run_cmd="python3 main_oneflow.py ${gpt_options} 2>&1 | tee logs/log-${DATESTR}.txt"
 
 echo ${run_cmd}
 eval ${run_cmd}

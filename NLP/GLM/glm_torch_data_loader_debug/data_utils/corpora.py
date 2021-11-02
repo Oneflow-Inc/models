@@ -21,12 +21,12 @@ import tqdm
 from multiprocessing import Queue, Process
 from queue import Empty
 from collections import defaultdict
-from oneflow.utils import data
+from torch.utils import data
 from .lazy_loader import LazyLoader
 
 # def print_rank_0(message):
-#     # if flow.distributed.is_initialized():
-#     #     if flow.distributed.get_rank() == 0:
+#     # if torch.distributed.is_initialized():
+#     #     if torch.distributed.get_rank() == 0:
 #     #         print(message, flush=True)
 #     # else:
 #     print(message, flush=True)
@@ -151,7 +151,7 @@ class DataReader:
                 self.write_result(data, self.writers)
                 progress_bar.update()
         progress_bar.close()
-        self.print_info(info_queue)
+        # self.print_info(info_queue)
 
     @staticmethod
     def write_result(data, writers):
