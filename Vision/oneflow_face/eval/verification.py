@@ -215,7 +215,7 @@ def load_bin_cv(path, image_size):
                 img = cv.flip(img, 1)
             img = np.array(img).transpose((2, 0, 1))
             img = (img - 127.5) * 0.00784313725
-            data_list[flip][i] = flow.Tensor(img)
+            data_list[flip][i] = flow.tensor(img, dtype=flow.float)
 
         if i % 1000 == 0:
             logging.info('loading bin:%d', i)

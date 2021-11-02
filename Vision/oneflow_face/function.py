@@ -3,9 +3,9 @@ from oneflow.nn.parallel import DistributedDataParallel as ddp
 from utils.ofrecord_data_utils import OFRecordDataLoader, SyntheticDataLoader
 from utils.utils_logging import AverageMeter
 from utils.utils_callbacks import CallBackVerification, CallBackLogging, CallBackModelCheckpoint
+from utils.import CrossEntropyLoss_sbp
 from backbones import get_model
 from graph import TrainGraph, EvalGraph
-from losses import CrossEntropyLoss_sbp
 import logging
 
 
@@ -93,8 +93,8 @@ class FC7(flow.nn.Module):
         else:
             weight = self.weight
         weight = flow.nn.functional.l2_normalize(
-            input=weight, dim=1, epsilon=1e-10)       
-        x = flow.matmul(x, weight,transpose_b=True)
+            input=weight, dim=1, epsilon=1e-10)
+        x = flow.matmul(x, weight, transpose_b=True)
         if x.is_consistent:
             return x, label
         else:
@@ -152,7 +152,8 @@ class Trainer(object):
         self.optimizer = make_optimizer(cfg, self.train_module)
 
         # data
-        self.train_data_loader = make_data_loader(cfg, 'train', self.cfg.graph,self.cfg.synthetic)
+        self.train_data_loader = make_data_loader(
+            cfg, 'train', self.cfg.graph, self.cfg.synthetic)
 
         # loss
         if cfg.loss == "cosface":
@@ -228,7 +229,7 @@ class Trainer(object):
                     sbp=flow.sbp.broadcast).to_local().numpy()
                 self.losses.update(loss, 1)
                 self.callback_logging(self.global_step,  self.losses, epoch, False,
-                                      self.scheduler.get_last_lr()[0])  
+                                      self.scheduler.get_last_lr()[0])
                 self.callback_verification(
                     self.global_step, self.train_module, val_graph)
             self.callback_checkpoint(self.global_step, epoch,
