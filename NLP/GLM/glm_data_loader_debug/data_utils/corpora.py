@@ -24,12 +24,12 @@ from collections import defaultdict
 from oneflow.utils import data
 from .lazy_loader import LazyLoader
 
-def print_rank_0(message):
-    # if flow.distributed.is_initialized():
-    #     if flow.distributed.get_rank() == 0:
-    #         print(message, flush=True)
-    # else:
-    print(message, flush=True)
+# def print_rank_0(message):
+#     # if flow.distributed.is_initialized():
+#     #     if flow.distributed.get_rank() == 0:
+#     #         print(message, flush=True)
+#     # else:
+#     print(message, flush=True)
 
 NUM_PROCESSES = 100
 
@@ -108,7 +108,7 @@ class DataReader:
 
     def __init__(self, writers, tokenizer=None, tokenize=False, **kwargs):
         assert os.path.exists(self.PATH), self.assert_str
-        print_rank_0(f"Creating dataset from {self.PATH}")
+        # print_rank_0(f"Creating dataset from {self.PATH}")
         self.tokenizer = tokenizer
         self.tokenize = tokenize
         self.writers = writers
@@ -129,11 +129,11 @@ class DataReader:
 
         def read_input_to_queue():
             for path in paths:
-                print_rank_0(f"Start reading {path}")
+                # print_rank_0(f"Start reading {path}")
                 with open(path) as file:
                     for row in file:
                         task_queue.put(row)
-            print_rank_0("Read input complete")
+            # print_rank_0("Read input complete")
             for i in range(len(processes)):
                 task_queue.put('STOP')
 
@@ -364,7 +364,7 @@ class OpenWebText(PromptReader):
         import fasttext
         super().__init__(*args, **kwargs)
         self.model = fasttext.load_model('/dataset/fd5061f6/english_data/lid.176.bin')
-        print_rank_0("Load language detection model")
+        # print_rank_0("Load language detection model")
 
     def process_line(self, data, tokenizer, tokenize):
         text = data['text']
@@ -429,7 +429,7 @@ class Pile(PromptReader):
                     total_dict[source] += length
             except Empty:
                 break
-        print_rank_0(total_dict)
+        # print_rank_0(total_dict)
 
     def tokenize_worker(self, input, output, info, tokenizer, tokenize):
         source_dict = defaultdict(int)

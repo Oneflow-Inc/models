@@ -6,12 +6,12 @@ import numpy as np
 import math
 from scipy.stats import poisson
 
-def print_rank_0(message):
-    # if flow.distributed.is_initialized():
-    #     if flow.distributed.get_rank() == 0:
-    #         print(message, flush=True)
-    # else:
-    print(message, flush=True)
+# def print_rank_0(message):
+#     # if flow.distributed.is_initialized():
+#     #     if flow.distributed.get_rank() == 0:
+#     #         print(message, flush=True)
+#     # else:
+#     print(message, flush=True)
 
 def rindex(lst, val, start=None):
     if start is None:
@@ -69,12 +69,12 @@ class ConstructBlockStrategy:
         self.gap_sentence_mask = self.tokenizer.get_command(self.gap_sentence_mask).Id
         self.random_position = random_position
         self.masked_lm = masked_lm
-        print_rank_0(
-            f"BERT prob {self.bert_prob}, gap sent prob {self.gap_sentence_prob}, GPT prob {self.gpt_prob}, infill prob {self.infill_prob}")
-        print_rank_0(
-            f"generation min ratio {self.gpt_min_ratio}, block ratio {self.bert_ratio}, gap sent ratio {self.gap_sentence_ratio}")
-        print_rank_0(f"block length distribution {self.block_length_distribution}")
-        print_rank_0(f"block mask prob {self.block_mask_prob}, context mask ratio {self.context_mask_ratio}")
+        # print_rank_0(
+        #     f"BERT prob {self.bert_prob}, gap sent prob {self.gap_sentence_prob}, GPT prob {self.gpt_prob}, infill prob {self.infill_prob}")
+        # print_rank_0(
+        #     f"generation min ratio {self.gpt_min_ratio}, block ratio {self.bert_ratio}, gap sent ratio {self.gap_sentence_ratio}")
+        # print_rank_0(f"block length distribution {self.block_length_distribution}")
+        # print_rank_0(f"block mask prob {self.block_mask_prob}, context mask ratio {self.context_mask_ratio}")
 
     def contains_sentence_end(self, tok):
         tok = self.tokenizer.IdToToken(tok)

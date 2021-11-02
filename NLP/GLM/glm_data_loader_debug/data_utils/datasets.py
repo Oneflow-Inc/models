@@ -35,12 +35,12 @@ from nltk import tokenize
 
 from .lazy_loader import LazyLoader, exists_lazy
 
-def print_rank_0(message):
-    # if flow.distributed.is_initialized():
-    #     if flow.distributed.get_rank() == 0:
-    #         print(message, flush=True)
-    # else:
-    print(message, flush=True)
+# def print_rank_0(message):
+#     # if flow.distributed.is_initialized():
+#     #     if flow.distributed.get_rank() == 0:
+#     #         print(message, flush=True)
+#     # else:
+#     print(message, flush=True)
 
 
 class ShuffleDataset(data.Dataset):
@@ -196,7 +196,7 @@ def split_ds(ds, split=None, shuffle=True, save_splits=None, load_splits=None):
     if load_splits is not None:
         inds = np.load(load_splits)
         assert len(inds) == ds_len
-        print_rank_0(f"Load split indices from {load_splits}")
+        # print_rank_0(f"Load split indices from {load_splits}")
     elif save_splits is not None:
         if flow.distributed.get_rank() == 0:
             np.save(save_splits, inds)
@@ -457,7 +457,7 @@ class XLDataset(data.Dataset):
         else:
             lens = np.array([len(d['prompt']) + len(d['text']) if isinstance(d, dict) else len(d) for d in self.ds])
         self.indices = list(accumulate(lens))
-        print_rank_0(f"Dataset document count {len(lens)}, token count {self.indices[-1]}")
+        # print_rank_0(f"Dataset document count {len(lens)}, token count {self.indices[-1]}")
         self.num_samples = self.indices[-1] // self.max_seq_len + 1
 
     def __len__(self):
@@ -524,7 +524,7 @@ class BlockDataset(data.Dataset):
         if self.filter_english:
             import fasttext
             self.model = fasttext.load_model('/mnt/lid.176.bin')
-            print_rank_0("Load language detection model")
+            # print_rank_0("Load language detection model")
         if hasattr(self.ds, 'is_lazy') and self.ds.is_lazy:
             self.is_lazy = True
         self.init_weighting()
@@ -535,8 +535,8 @@ class BlockDataset(data.Dataset):
         else:
             lens = np.array([len(d['text']) if isinstance(d, dict) else len(d) for d in self.ds])
         self.total_len = np.sum(lens)
-        print_rank_0(
-            f"Dataset document count {len(lens)}, token count {self.total_len}, non sentence start{self.non_sentence_start}")
+        # print_rank_0(
+        #     f"Dataset document count {len(lens)}, token count {self.total_len}, non sentence start{self.non_sentence_start}")
         self.weighting = list(accumulate(lens))
 
     def get_weighted_samples(self, np_rng):
@@ -678,7 +678,7 @@ class GPT2Dataset(data.Dataset):
                 lens = np.array([len(d['text']) if isinstance(d, dict)
                                  else len(d) for d in self.ds])
             self.total_len = np.sum(lens)
-            print_rank_0(f"Dataset document count {len(lens)}, token count {self.total_len}")
+            # print_rank_0(f"Dataset document count {len(lens)}, token count {self.total_len}")
             self.weighting = list(accumulate(lens))
         else:
             self.weighting = None

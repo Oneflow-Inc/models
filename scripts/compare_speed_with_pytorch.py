@@ -50,10 +50,10 @@ def gpu_memory_used():
     return mem_used_by_me
 
 
-def print_rank_0(*args, **kwargs):
-    rank = int(os.getenv("RANK", "0"))
-    if rank == 0:
-        print(*args, **kwargs)
+# def print_rank_0(*args, **kwargs):
+#     rank = int(os.getenv("RANK", "0"))
+#     if rank == 0:
+#         print(*args, **kwargs)
 
 
 def test(
@@ -152,24 +152,24 @@ def test(
     end = time.time()
     total_time_ms = (end - start) * 1000
     time_per_run_ms = total_time_ms / times
-    if no_verbose:
-        print_rank_0(f"{framework_name}: {time_per_run_ms:.1f}ms")
-    else:
-        print_rank_0(
-            f"{framework_name} {module_name} time: {time_per_run_ms:.1f}ms (= {total_time_ms:.1f}ms / {times}, input_shape={input_shape}{', backward is disabled' if disable_backward else ''}{', ddp' if ddp else ''}{', ddp_broadcast_buffers is disabled' if not ddp_broadcast_buffers else ''}{f', world size={flow.env.get_world_size()}' if flow.env.get_world_size() != 1 else ''})"
-        )
+    # if no_verbose:
+    #     print_rank_0(f"{framework_name}: {time_per_run_ms:.1f}ms")
+    # else:
+    #     print_rank_0(
+    #         f"{framework_name} {module_name} time: {time_per_run_ms:.1f}ms (= {total_time_ms:.1f}ms / {times}, input_shape={input_shape}{', backward is disabled' if disable_backward else ''}{', ddp' if ddp else ''}{', ddp_broadcast_buffers is disabled' if not ddp_broadcast_buffers else ''}{f', world size={flow.env.get_world_size()}' if flow.env.get_world_size() != 1 else ''})"
+    #     )
     if show_memory:
         global gpu_memory_used_by_oneflow
-        if test_oneflow:
-            gpu_memory_used_by_oneflow = gpu_memory_used()
+        # if test_oneflow:
+        #     gpu_memory_used_by_oneflow = gpu_memory_used()
 
-            print_rank_0(
-                f"{framework_name} GPU used (rank 0): {gpu_memory_used_by_oneflow} MiB"
-            )
-        else:
-            print_rank_0(
-                f"{framework_name} GPU used (rank 0, estimated): {gpu_memory_used() - gpu_memory_used_by_oneflow} MiB"
-            )
+        #     print_rank_0(
+        #         f"{framework_name} GPU used (rank 0): {gpu_memory_used_by_oneflow} MiB"
+        #     )
+        # else:
+        #     print_rank_0(
+        #         f"{framework_name} GPU used (rank 0, estimated): {gpu_memory_used() - gpu_memory_used_by_oneflow} MiB"
+        #     )
     if ddp and not test_oneflow:
         import torch.distributed as dist
 
@@ -228,9 +228,9 @@ if __name__ == "__main__":
 
     if not args.only_pytorch and not args.only_oneflow:
         relative_speed = pytorch_time / oneflow_time
-        if args.no_verbose:
-            print_rank_0(f"Relative speed: {relative_speed:.2f}")
-        else:
-            print_rank_0(
-                f"Relative speed: {relative_speed:.2f} (= {pytorch_time:.1f}ms / {oneflow_time:.1f}ms)"
-            )
+        # if args.no_verbose:
+        #     print_rank_0(f"Relative speed: {relative_speed:.2f}")
+        # else:
+        #     print_rank_0(
+        #         f"Relative speed: {relative_speed:.2f} (= {pytorch_time:.1f}ms / {oneflow_time:.1f}ms)"
+        #     )

@@ -27,12 +27,12 @@ from itertools import accumulate
 from bisect import bisect_right
 import data_utils
 
-def print_rank_0(message):
-    # if flow.distributed.is_initialized():
-    #     if flow.distributed.get_rank() == 0:
-    #         print(message, flush=True)
-    # else:
-    print(message, flush=True)
+# def print_rank_0(message):
+#     # if flow.distributed.is_initialized():
+#     #     if flow.distributed.get_rank() == 0:
+#     #         print(message, flush=True)
+#     # else:
+#     print(message, flush=True)
 
 
 class MultiTaskDataset(flow.utils.data.Dataset):
@@ -46,10 +46,10 @@ class MultiTaskDataset(flow.utils.data.Dataset):
         self.weights = np.array([min(l, max_limit) ** temperature for l in self.lens])
         self.total_len = sum(self.lens)
         self.cumulative_lens = list(accumulate(self.lens))
-        if self.reweight:
-            print_rank_0(list(zip(self.tasks, self.lens, self.weights)))
-        else:
-            print_rank_0(list(zip(self.tasks, self.lens)))
+        # if self.reweight:
+        #     print_rank_0(list(zip(self.tasks, self.lens, self.weights)))
+        # else:
+        #     print_rank_0(list(zip(self.tasks, self.lens)))
         self.weights /= self.weights.sum()
 
     def __len__(self):
@@ -139,9 +139,9 @@ def prepare_tokenizer(args):
     multiple = args.make_vocab_size_divisible_by
     while (after % multiple) != 0:
         after += 1
-    print_rank_0('> padded vocab (size: {}) with {} dummy '
-                    'tokens (new size: {})'.format(before, after - before, after))
-    print_rank_0('> found end-of-document token: {}'.format(eod_token))
+    # print_rank_0('> padded vocab (size: {}) with {} dummy '
+    #                 'tokens (new size: {})'.format(before, after - before, after))
+    # print_rank_0('> found end-of-document token: {}'.format(eod_token))
     # token_counts = torch.cuda.LongTensor([after, eod_token])
     # else:
     #     token_counts = torch.cuda.LongTensor([0, 0])
