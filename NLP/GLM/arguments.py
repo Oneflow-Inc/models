@@ -207,6 +207,8 @@ def add_training_args(parser):
     group.add_argument('--context-mask-ratio', type=float, default=0.0)
     group.add_argument('--random-position', action='store_true',
                        help="Use random start position to cover all the position embeddings")
+    group.add_argument('--ddp', action='store_true',
+                       help="Use eager ddp")
     return parser
 
 
