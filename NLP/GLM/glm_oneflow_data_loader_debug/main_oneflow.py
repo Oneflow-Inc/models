@@ -1,8 +1,41 @@
 import os
 import time
+import oneflow as flow
 from datetime import datetime
 from arguments import get_args
 from configure_data import configure_data, prepare_tokenizer
+from util import broadcast_data
+
+def get_batch(data, args):
+    keys = ['text', 'loss_mask']
+    if args.transformer_xl or args.block_lm:
+        keys += ['target', 'attention_mask']
+    if args.block_lm:
+        keys += ['position_id']
+    datatype = flow.int64
+
+    data_b = broadcast_data(keys, data, datatype)
+
+    if args.transformer_xl:
+        tokens = data_b['text'].long()
+        labels = data_b['target'].long()
+        attention_mask = data_b['attention_mask'].float()
+        loss_mask = data_b['loss_mask'].float()
+    elif args.block_lm:
+        tokens = data_b['text'].long()
+        labels = data_b['target'].long()
+        attention_mask = data_b['attention_mask'].long()
+        loss_mask = data_b['loss_mask'].float()
+        position_ids = data_b['position_id'].long()
+    else:
+        tokens_ = data_b['text'].long()
+        loss_mask = data_b['loss_mask'].float()
+        labels = tokens_[:, 1:].contiguous()
+        loss_mask = loss_mask[:, 1:].contiguous()
+        tokens = tokens_[:, :-1].contiguous()
+        attention_mask = None
+
+    return tokens, labels, loss_mask, attention_mask, position_ids
 
 def get_train_val_test_data(args, tokenizer):
 
@@ -20,16 +53,20 @@ def get_train_val_test_data(args, tokenizer):
 
     prepare_dataset_start = time.time()
     data_config.set_defaults(data_set_type=data_set_type, transpose=False)
-    
     train_data, val_data, test_data = data_config.apply(args, tokenizer)
+    train_data_iterator = iter(train_data)
     prepare_dataset_end = time.time()
     print('oneflow prepare dataset time: ', prepare_dataset_end-prepare_dataset_start)
+
     cnt = 0
     iteration_dataset_start = time.time()
-    for it in train_data:
-        if cnt == 10000:
-            break
-        cnt += 1
+    # for it in train_data:
+    #     if cnt == 10000:
+    #         break
+    #     cnt += 1
+    for it in range(10000):
+        data = next(train_data_iterator)
+        tokens, labels, loss_mask, attention_mask, position_ids = get_batch(data, args)
     # for it in val_data:
     #     continue
     # for it in test_data:
