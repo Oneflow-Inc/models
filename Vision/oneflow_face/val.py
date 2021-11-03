@@ -15,10 +15,10 @@ def main(args):
     logging.basicConfig(level=logging.NOTSET)
     logging.info(args.model_path)
 
-    backbone = get_model(cfg.network, dropout=0.0,
-                         num_features=cfg.embedding_size).to("cuda")
-    val_callback = CallBackVerification(
-        1, 0, cfg.val_targets, cfg.ofrecord_path)
+    backbone = get_model(cfg.network, dropout=0.0, num_features=cfg.embedding_size).to(
+        "cuda"
+    )
+    val_callback = CallBackVerification(1, 0, cfg.val_targets, cfg.ofrecord_path)
 
     state_dict = flow.load(args.model_path)
 
@@ -38,7 +38,7 @@ def main(args):
 
 if __name__ == "__main__":
 
-    parser = argparse.ArgumentParser(description='OneFlow ArcFace val')
-    parser.add_argument('config', type=str, help='py config file')
-    parser.add_argument('--model_path', type=str, help='model path')
+    parser = argparse.ArgumentParser(description="OneFlow ArcFace val")
+    parser.add_argument("config", type=str, help="py config file")
+    parser.add_argument("--model_path", type=str, help="model path")
     main(parser.parse_args())

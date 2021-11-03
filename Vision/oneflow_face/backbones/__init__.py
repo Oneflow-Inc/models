@@ -1,5 +1,6 @@
 from .ir_resnet import iresnet18, iresnet34, iresnet50, iresnet100, iresnet200
 
+
 def get_model(name, **kwargs):
     if name == "r18":
         return iresnet18(False, **kwargs)

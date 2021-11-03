@@ -26,7 +26,7 @@ class TrainGraph(flow.nn.Graph):
         cross_entropy,
         data_loader,
         optimizer,
-        lr_scheduler=None
+        lr_scheduler=None,
     ):
         super().__init__()
 
@@ -52,7 +52,7 @@ class TrainGraph(flow.nn.Graph):
         label = label.to("cuda")
 
         logits, label = self.model(image, label)
-        logits = self.combine_margin(logits, label)*64
+        logits = self.combine_margin(logits, label) * 64
         loss = self.cross_entropy(logits, label)
 
         loss.backward()

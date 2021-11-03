@@ -23,8 +23,9 @@ class ModelGraph(flow.nn.Graph):
 
 def convert_func(cfg, model_path, out_path):
 
-    model_module = get_model(cfg.network, dropout=0.0,
-                             num_features=cfg.embedding_size).to("cuda")
+    model_module = get_model(
+        cfg.network, dropout=0.0, num_features=cfg.embedding_size
+    ).to("cuda")
     model_module.eval()
     print(model_module)
     model_graph = ModelGraph(model_module)
@@ -43,7 +44,11 @@ def convert_func(cfg, model_path, out_path):
         model_module.load_state_dict(new_parameters)
         flow.save(model_module.state_dict(), tmpdirname)
         convert_to_onnx_and_check(
-            model_graph, flow_weight_dir=tmpdirname, onnx_model_path="./", print_outlier=True)
+            model_graph,
+            flow_weight_dir=tmpdirname,
+            onnx_model_path="./",
+            print_outlier=True,
+        )
 
 
 def main(args):
@@ -57,9 +62,8 @@ def main(args):
 
 if __name__ == "__main__":
 
-    parser = argparse.ArgumentParser(description='OneFlow ArcFace val')
-    parser.add_argument('config', type=str, help='py config file')
-    parser.add_argument('--model_path', type=str, help='model path')
-    parser.add_argument('--out_path', type=str,
-                        default="onnx_model", help='out path')
+    parser = argparse.ArgumentParser(description="OneFlow ArcFace val")
+    parser.add_argument("config", type=str, help="py config file")
+    parser.add_argument("--model_path", type=str, help="model path")
+    parser.add_argument("--out_path", type=str, default="onnx_model", help="out path")
     main(parser.parse_args())

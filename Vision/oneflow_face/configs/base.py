@@ -15,9 +15,9 @@ config.dataset = "ms1m-retinaface-t1"
 config.embedding_size = 512
 config.fp16 = False
 config.model_parallel = False
-config.sample_rate =1.0
+config.sample_rate = 1.0
 config.partial_fc = False
-config.graph=True
+config.graph = True
 config.synthetic = False
 
 config.momentum = 0.9
@@ -31,8 +31,13 @@ if config.dataset == "emore":
     config.num_image = 5822653
     config.num_epoch = 16
     config.warmup_epoch = -1
-    config.decay_epoch = [8, 14, ]
-    config.val_targets = ["lfw", ]
+    config.decay_epoch = [
+        8,
+        14,
+    ]
+    config.val_targets = [
+        "lfw",
+    ]
 
 elif config.dataset == "ms1m-retinaface-t1":
     config.ofrecord_path = "/dev/shm/ms1m-retinaface-t1/ofrecord"

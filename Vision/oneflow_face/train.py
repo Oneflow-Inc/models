@@ -32,9 +32,12 @@ def main(args):
 
 if __name__ == "__main__":
 
-    parser = argparse.ArgumentParser(description='OneFlow ArcFace Training')
-    parser.add_argument('config', type=str, help='py config file')
-    parser.add_argument("--graph", action="store_true",
-                        help="Run model in graph mode,else run model in ddp mode.")
-    parser.add_argument('--local_rank', type=int, default=0, help='local_rank')
+    parser = argparse.ArgumentParser(description="OneFlow ArcFace Training")
+    parser.add_argument("config", type=str, help="py config file")
+    parser.add_argument(
+        "--graph",
+        action="store_true",
+        help="Run model in graph mode,else run model in ddp mode.",
+    )
+    parser.add_argument("--local_rank", type=int, default=0, help="local_rank")
     main(parser.parse_args())
