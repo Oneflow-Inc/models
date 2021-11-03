@@ -143,10 +143,11 @@ class Trainer(object):
         self.model.load_state_dict(state_dict)
 
     def init_logger(self):
-        if self.metric_local:
-            print_ranks = list(range(self.world_size))
-        else:
-            print_ranks = [0]
+        # if self.metric_local:
+        #     print_ranks = list(range(self.world_size))
+        # else:
+        #     print_ranks = [0]
+        print_ranks = [0]
 
         self.logger = log.get_logger(self.rank, print_ranks)
         self.logger.register_metric("job", log.IterationMeter(), "[{}]")
@@ -200,10 +201,11 @@ class Trainer(object):
         if self.meter_lr:
             lr = self.optimizer.param_groups[0]["lr"]
 
-        do_print = (
-            self.cur_iter % self.print_interval == 0
-            or self.cur_iter == self.batches_per_epoch
-        )
+        # do_print = (
+        #     self.cur_iter % self.print_interval == 0
+        #     or self.cur_iter == self.batches_per_epoch
+        # )
+        do_print = True
         self.meter(
             loss=loss,
             lr=lr,
@@ -228,7 +230,7 @@ class Trainer(object):
                 acc = 0
 
             save_dir = f"epoch_{self.cur_epoch}_val_acc_{acc}"
-            self.save(save_dir)
+            # self.save(save_dir)
             self.cur_epoch += 1
             self.cur_iter = 0
 

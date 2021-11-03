@@ -8,7 +8,7 @@ if [ ! -d "$CHECKPOINT_SAVE_PATH" ]; then
     mkdir $CHECKPOINT_SAVE_PATH
 fi
 
-OFRECORD_PATH="./mini-imagenet/ofrecord"
+OFRECORD_PATH="/home/liyipeng/models/Vision/classification/image/data/mini-imagenet/ofrecord"
 
 if [ ! -d "$OFRECORD_PATH" ]; then
     wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/online_document/dataset/imagenet/mini-imagenet.zip

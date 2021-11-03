@@ -293,9 +293,9 @@ def parse_args(ignore_unknown_args=False):
         assert args.val_global_batch_size % args.val_batch_size == 0
 
     if args.batches_per_epoch is None:
-        args.batches_per_epoch = math.ceil(
+        args.batches_per_epoch = min(100, math.ceil(
             args.samples_per_epoch // args.train_global_batch_size
-        )
+        ))
 
     if args.val_batches_per_epoch is None:
         args.val_batches_per_epoch = int(

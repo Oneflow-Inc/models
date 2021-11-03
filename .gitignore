@@ -147,3 +147,9 @@ result
 ._data
 *.tar.gz
 imagenette2/
+
+# output files
+out
+meta
+snapshot_done
+*.txt
