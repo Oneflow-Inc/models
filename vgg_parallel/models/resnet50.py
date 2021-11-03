@@ -2,6 +2,7 @@ import oneflow as flow
 import oneflow.nn as nn
 from oneflow import Tensor
 from typing import Type, Any, Callable, Union, List, Optional
+from .vgg import get_placement, Linear1D
 
 
 def conv3x3(
@@ -129,10 +130,11 @@ class Bottleneck(nn.Module):
 class ResNet(nn.Module):
     def __init__(
         self,
+        parallel_way: str,
         block: Type[Union[BasicBlock, Bottleneck]],
         layers: List[int],
         num_classes: int = 1000,
-        zero_init_residual: bool = False,
+        zero_init_residual: bool = True,
         groups: int = 1,
         width_per_group: int = 64,
         replace_stride_with_dilation: Optional[List[bool]] = None,
@@ -158,22 +160,27 @@ class ResNet(nn.Module):
         self.base_width = width_per_group
         self.conv1 = nn.Conv2d(
             3, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False
+        ).to_consistent(placement=get_placement(), sbp=flow.sbp.broadcast)
+        self.bn1 = norm_layer(self.inplanes).to_consistent(
+            placement=get_placement(), sbp=flow.sbp.broadcast
         )
-        self.bn1 = norm_layer(self.inplanes)
         self.relu = nn.ReLU()
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
-        self.layer1 = self._make_layer(block, 64, layers[0])
+        self.layer1 = self._make_layer(block, 64, layers[0]).to_consistent(
+            placement=get_placement(), sbp=flow.sbp.broadcast
+        )
         self.layer2 = self._make_layer(
             block, 128, layers[1], stride=2, dilate=replace_stride_with_dilation[0]
-        )
+        ).to_consistent(placement=get_placement(), sbp=flow.sbp.broadcast)
         self.layer3 = self._make_layer(
             block, 256, layers[2], stride=2, dilate=replace_stride_with_dilation[1]
-        )
+        ).to_consistent(placement=get_placement(), sbp=flow.sbp.broadcast)
         self.layer4 = self._make_layer(
             block, 512, layers[3], stride=2, dilate=replace_stride_with_dilation[2]
-        )
+        ).to_consistent(placement=get_placement(), sbp=flow.sbp.broadcast)
         self.avgpool = nn.AvgPool2d((7, 7))
-        self.fc = nn.Linear(512 * block.expansion, num_classes)
+        
+        self.fc = Linear1D(512 * block.expansion, num_classes, parallel_way[0])
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -262,17 +269,21 @@ class ResNet(nn.Module):
 
 
 def _resnet(
+    parallel_way: str,
     arch: str,
     block: Type[Union[BasicBlock, Bottleneck]],
     layers: List[int],
-    **kwargs: Any
+    num_classes: int,
+    **kwargs: Any,
 ) -> ResNet:
-    model = ResNet(block, layers, **kwargs)
+    model = ResNet(parallel_way, block, layers, num_classes=num_classes, **kwargs)
     return model
 
 
-def resnet50(**kwargs: Any) -> ResNet:
+def resnet50(parallel_way, num_classes, **kwargs: Any) -> ResNet:
     r"""ResNet-5
     `"Deep Residual Learning for Image Recognition" <https://arxiv.org/pdf/1512.03385.pdf>`_.
     """
-    return _resnet("resnet50", Bottleneck, [3, 4, 6, 3], **kwargs)
+    return _resnet(
+        parallel_way, "resnet50", Bottleneck, [3, 4, 6, 3], num_classes, **kwargs
+    )

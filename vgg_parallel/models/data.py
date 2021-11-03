@@ -53,7 +53,7 @@ class OFRecordDataLoader(flow.nn.Module):
         self,
         ofrecord_dir="./ofrecord",
         ofrecord_part_num=1,
-        dataset_size=9469,
+        dataset_size=109469,
         mode="train",
         batch_size=1,
         total_batch_size=1,

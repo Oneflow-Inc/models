@@ -7,6 +7,8 @@ class Accuracy(flow.nn.Module):
         super().__init__()
 
     def forward(self, preds, labels):
+        # if preds.is_consistent:
+        #     preds = preds.to_consistent(placement=preds.placement, sbp=flow.sbp.split(0))
         top1_num = flow.zeros(1, dtype=flow.float32)
         num_samples = 0
         for pred, label in zip(preds, labels):

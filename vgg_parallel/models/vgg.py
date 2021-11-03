@@ -14,113 +14,71 @@ def get_placement(device_type="cuda"):
     return flow.placement(device_type, {0: range(flow.env.get_world_size())})
 
 
-class ColumnParallelLinear(nn.Module):
-    """Linear layer with column parallelism.
-    The linear layer is defined as Y = XA + b, where A is parallelized along 
-    the second dimension as A = [A_1, ..., A_p].
-    Arguments:
-        layer_idx: the layer index, which determines the placement.
-        input_size: first dimension of matrix A.
-        output_size: second dimension of matrix A.
-        init_method: method to initialize weights.
-        activation: name of the activation function
-        bias_gelu_fusion: whether fuse add bias and gelu.
-    """
+class Linear1D(nn.Module):
+    """Linear layer with 1D sbp"""
 
     def __init__(
-        self, input_size, output_size, init_method=nn.init.xavier_normal_,
+        self,
+        input_size,
+        output_size,
+        parallel="data",
+        placement=get_placement(),
+        init_method=nn.init.xavier_normal_,
     ):
         super().__init__()
 
-        # column parallel linear weight sbp sign S(1)
+        if parallel == "col":
+            # column parallel linear weight sbp: S(1)
+            w_sbp = flow.sbp.split(1)
+            b_sbp = flow.sbp.split(0)
+        elif parallel == "row":
+            # row parallel linear weight sbp: S(0)
+            w_sbp = flow.sbp.split(0)
+            b_sbp = flow.sbp.broadcast
+        elif parallel == "data":
+            w_sbp = flow.sbp.broadcast
+            b_sbp = flow.sbp.broadcast
+        else:
+            raise KeyError(
+                f"{parallel} is not supported! Only support ('data', 'row' and 'col')"
+            )
+
         self.weight = flow.nn.Parameter(
             flow.empty(
                 (input_size, output_size),
                 dtype=flow.float32,
-                placement=get_placement(),
-                sbp=flow.sbp.split(1),
+                placement=placement,
+                sbp=w_sbp,
             ),
         )
-        init_method(self.weight)
-
-        # column parallel linear bias sbp: [B, S(0)]
         self.bias = flow.nn.Parameter(
             flow.empty(
-                (output_size,),
-                dtype=flow.float32,
-                placement=get_placement(),
-                sbp=flow.sbp.split(0),
+                (output_size,), dtype=flow.float32, placement=placement, sbp=b_sbp,
             )
         )
+
+        init_method(self.weight)
         flow.nn.init.zeros_(self.bias)
 
     def forward(self, x):
-        # x sbp: B
+        if self.weight.sbp == flow.sbp.split(1):
+            # 限定 x sbp: B，这样可以确保一定进行的是 tensor s(1) 切分
+            x = x.to_consistent(sbp=flow.sbp.broadcast)
+        elif self.weight.sbp == flow.sbp.split(0):
+            #  限定 x.sbp: S(1), 确保一定进行的是 tensor s(0) 划分
+            x = x.to_consistent(sbp=flow.sbp.split(1))
+        elif self.weight.sbp == flow.sbp.broadcast:
+            x = x.to_consistent(sbp=flow.sbp.split(0))
         # x.grad sbp: P -> B
-        x = x.to_consistent(grad_sbp=x.sbp)
+        # x = x.to_consistent(grad_sbp=x.sbp)
         # matmul sbp sign: [S(0), B] x [B, S(1)] -> [S(0), S(1)]
         # x.grad sbp sign: [S(0), S(1)] x [B, S(0)] (weight.T) -> [S(0), P]
         x = flow.matmul(x, self.weight)
         # broadcast_add shape sign:
         # (input_size, output_size) + (output_size, ) = (input_size, output_size)
         # bias_add sbp sign: [S(0), S(1)] + [B, S(0)] = [S(0), S(1)]
-        x = x + self.bias
-
-        return x
-
-
-class RowParallelLinear(flow.nn.Module):
-    """Linear layer with row parallelism.
-    The linear layer is defined as Y = XA + b, where A is parallelized along 
-    the first dimension and X along its second dimension as:
-                | A_1 |
-                |  .  |
-            A = |  .  |         X = [X_1, ..., X_p]
-                |  .  |
-                | A_p |
-    Arguments:
-        layer_idx: the layer index, which determines the placement.
-        input_size: first dimension of matrix A.
-        output_size: second dimension of matrix A.
-        init_method: method to initialize weights.
-        output_dropout_prob: dropout probability of output. (Supporting bias and dropout fusion)
-        bias_dropout_fusion: whether fuse add bias and dropout.
-    """
-
-    def __init__(
-        self, input_size, output_size, init_method=nn.init.xavier_normal_,
-    ):
-        super().__init__()
-
-        # row parallel linear weight sbp: [B, S(0)]
-        self.weight = flow.nn.Parameter(
-            flow.empty(
-                (input_size, output_size),
-                dtype=flow.float32,
-                placement=get_placement(),
-                sbp=flow.sbp.split(0),
-            )
-        )
-        init_method(self.weight)
-
-        # row parallel linear bias sbp: [B, B]
-        self.bias = flow.nn.Parameter(
-            flow.empty(
-                (output_size,),
-                dtype=flow.float32,
-                placement=get_placement(),
-                sbp=flow.sbp.broadcast,
-            ),
-        )
-        flow.nn.init.zeros_(self.bias)
-
-    def forward(self, x):
-        # x.sbp: [S(0), S(1)]
-        # matmul sbp sign: [S(0), S(1)] x [B, S(0)] -> [S(0), P]
-        # backward x.grad sbp sign: [S(0), B] x [B, S(1)] (weight.T) -> [S(0), S(1)]
-        x = flow.matmul(x, self.weight)
-        # x.sbp: [S(0), P] -> [S(0), B]
-        x = x.to_consistent(sbp=flow.sbp.broadcast)
+        if self.weight.sbp == flow.sbp.split(1):
+            x = x.to_consistent(sbp=flow.sbp.broadcast)
         x = x + self.bias
 
         return x
@@ -128,27 +86,28 @@ class RowParallelLinear(flow.nn.Module):
 
 class VGG(nn.Module):
     def __init__(
-        self, features: nn.Module, num_classes: int = 1000, init_weights: bool = True
+        self,
+        parallel_way,
+        features: nn.Module,
+        num_classes: int = 1000,
+        init_weights: bool = True,
     ) -> None:
         super(VGG, self).__init__()
         self.features = features.to_consistent(
             placement=get_placement(), sbp=flow.sbp.broadcast
         )
         self.avgpool = nn.AdaptiveAvgPool2d((7, 7))
-        # column split A --> [A_1, A_2, ..., A_p]
-        self.fc1 = ColumnParallelLinear(512 * 7 * 7, 4096)
-        # row split
-        #     | A_1 |
-        #     |  .  |
-        # A = |  .  |
-        #     |  .  |
-        #     | A_p |
-        self.fc2 = RowParallelLinear(4096, 4096)
-        # column split
-        self.classifier = ColumnParallelLinear(4096, num_classes)
 
-        self.relu = nn.ReLU(True)
-        self.dropout = nn.Dropout()
+        self.classifier = nn.Sequential(
+            Linear1D(512 * 7 * 7, 4096, parallel_way[0]),
+            nn.ReLU(True),
+            nn.Dropout(),
+            Linear1D(4096, 4096, parallel_way[1]),
+            nn.ReLU(True),
+            nn.Dropout(),
+            Linear1D(4096, num_classes, parallel_way[2]),
+        )
+
         if init_weights:
             self._initialize_weights()
 
@@ -156,18 +115,7 @@ class VGG(nn.Module):
         x = self.features(x)
         x = self.avgpool(x)
         x = flow.flatten(x, 1)
-        # NOTE(lxy): all_gather input from other device
-        x = x.to_consistent(placement=x.placement, sbp=flow.sbp.broadcast)
-        x = self.fc1(x)
-        x = self.relu(x)
-        x = self.dropout(x)
-        x = self.fc2(x)
-        # NOTE(lxy): because x's sbp sign is P, so all reduce for relu
-        x = x.to_consistent(placement=x.placement, sbp=flow.sbp.broadcast)
-        x = self.relu(x)
-        x = self.dropout(x)
-        x = self.classifier(x)
-        return x
+        return self.classifier(x)
 
     def _initialize_weights(self) -> None:
         for m in self.modules():
@@ -249,8 +197,10 @@ cfgs: Dict[str, List[Union[str, int]]] = {
 }
 
 
-def _vgg(arch: str, cfg: str, batch_norm: bool) -> VGG:
-    return VGG(make_layers(cfgs[cfg], batch_norm=batch_norm))
+def _vgg(
+    parallel_way: str, arch: str, cfg: str, batch_norm: bool, num_classes=1000
+) -> VGG:
+    return VGG(parallel_way, make_layers(cfgs[cfg], batch_norm=batch_norm), num_classes)
 
 
 def vgg16() -> VGG:
@@ -263,14 +213,14 @@ def vgg16() -> VGG:
     return _vgg("vgg16", "D", False)
 
 
-def vgg16_bn() -> VGG:
+def vgg16_bn(parallel_way, num_classes) -> VGG:
     r"""VGG 16-layer model (configuration "D") with batch normalization
     `"Very Deep Convolutional Networks For Large-Scale Image Recognition" <https://arxiv.org/pdf/1409.1556.pdf>`_.
     The required minimum input size of the model is 32x32.
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
     """
-    return _vgg("vgg16_bn", "D", True)
+    return _vgg(parallel_way, "vgg16_bn", "D", True, num_classes=num_classes)
 
 
 def vgg19() -> VGG:

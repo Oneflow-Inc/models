@@ -258,6 +258,14 @@ def parse_args(ignore_unknown_args=False):
     parser.add_argument("--graph", action="store_true", help="Run model in graph mode.")
     parser.add_argument("--ddp", action="store_true", help="Run model in ddp mode.")
 
+    parser.add_argument(
+        "--write-file", type=str, help="file name for saving throughput"
+    )
+    parser.add_argument("--model-name", type=str, help="model name for training")
+    parser.add_argument(
+        "--parallel-way", nargs='+', default=[], help="way of parallel training"
+    )
+
     if ignore_unknown_args:
         args, _ = parser.parse_known_args()
     else:
