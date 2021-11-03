@@ -37,9 +37,7 @@ def load_train_data(data_dir):
         )
     )
 
-    imgrec = recordio.MXIndexedRecordIO(
-        path_imgidx, path_imgrec, "r", key_type=int
-    )
+    imgrec = recordio.MXIndexedRecordIO(path_imgidx, path_imgrec, "r", key_type=int)
 
     # Read header0 to get some info.
     identity_key_start = 0
@@ -119,11 +117,7 @@ def main(args):
     with open(output_file, "wb") as f:
         for idx in imgidx_list:
             if idx % 10000 == 0:
-                print(
-                    "Converting images: {} of {}".format(
-                        idx, len(imgidx_list)
-                    )
-                )
+                print("Converting images: {} of {}".format(idx, len(imgidx_list)))
 
             img_data = {}
             rec = imgrec.read_idx(idx)

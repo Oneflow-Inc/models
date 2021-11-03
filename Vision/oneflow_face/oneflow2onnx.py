@@ -21,7 +21,7 @@ class ModelGraph(flow.nn.Graph):
         return out
 
 
-def convert_func(cfg, model_path, out_path, image_size):
+def convert_func(cfg, model_path, out_path,image_size):
 
     model_module = get_model(cfg.network, dropout=0.0,
                              num_features=cfg.embedding_size).to("cuda")
@@ -52,7 +52,7 @@ def main(args):
     cfg = get_config(args.config)
     if not os.path.exists(args.out_path):
         mkdir(args.out_path)
-    convert_func(cfg, args.model_path, args.out_path, args.image_size)
+    convert_func(cfg, args.model_path, args.out_path,args.image_size)
 
 
 if __name__ == "__main__":
@@ -64,4 +64,4 @@ if __name__ == "__main__":
                         default=112, help='input image size')
     parser.add_argument('--out_path', type=str,
                         default="onnx_model", help='out path')
-    main(parser.parse_args())
+

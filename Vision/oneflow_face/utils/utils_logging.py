@@ -37,4 +37,4 @@ def init_logging(log_root, rank, models_root):
         handler_stream.setFormatter(formatter)
         log_root.addHandler(handler_file)
         log_root.addHandler(handler_stream)
-        log_root.info('rank_id: %d' % rank)
+        log_root.info("rank_id: %d" % rank)
