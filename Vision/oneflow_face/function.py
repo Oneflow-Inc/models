@@ -3,9 +3,9 @@ from oneflow.nn.parallel import DistributedDataParallel as ddp
 from utils.ofrecord_data_utils import OFRecordDataLoader, SyntheticDataLoader
 from utils.utils_logging import AverageMeter
 from utils.utils_callbacks import CallBackVerification, CallBackLogging, CallBackModelCheckpoint
-from utils.import CrossEntropyLoss_sbp
 from backbones import get_model
 from graph import TrainGraph, EvalGraph
+from losses import CrossEntropyLoss_sbp
 import logging
 
 
@@ -162,10 +162,8 @@ class Trainer(object):
         else:
             self.margin_softmax = flow.nn.CombinedMarginLoss(
                 1, 0.5, 0.).to("cuda")
-        if cfg.model_parallel:
-            self.of_cross_entropy = CrossEntropyLoss_sbp()
-        else:
-            self.of_cross_entropy = flow.nn.CrossEntropyLoss().to("cuda")
+
+        self.of_cross_entropy = CrossEntropyLoss_sbp()
 
         # lr_scheduler
         self.decay_step = self.cal_decay_step()
@@ -178,7 +176,7 @@ class Trainer(object):
             50, rank, cfg.total_step, cfg.batch_size, world_size, None)
         # val
         self.callback_verification = CallBackVerification(
-            6000, rank, cfg.val_targets, cfg.ofrecord_path, is_consistent=cfg.graph)
+            600, rank, cfg.val_targets, cfg.ofrecord_path, is_consistent=cfg.graph)
         # save checkpoint
         self.callback_checkpoint = CallBackModelCheckpoint(rank, cfg.output)
 
