@@ -1,6 +1,6 @@
 import os
 import sys
-from shutil import copy
+from shutil import copy,copytree
 import numpy as np
 import matplotlib.pyplot as plt
 from numpy.core.fromnumeric import var
@@ -111,11 +111,12 @@ def merge_param_from_old_version(src, dst):
         ["deep_scores.bias", "deep_scores-bias"],
     ]
     for new_name, old_name in param_list:
-        src_file = os.path.join(src, old_name, "out")
-        dst_file = os.path.join(dst, new_name, "out")
-        copy(src_file, dst_file)
+        src_file = os.path.join(src, old_name)
+        dst_file = os.path.join(dst, new_name)
+        copytree(src_file, dst_file)
         print(src_file, dst_file)
 
 
 if __name__ == "__main__":
-    walk_compare_npy("output/old_0", "output/0")
+    # walk_compare_npy("output/old_0", "output/0")
+    merge_param_from_old_version('/home/shiyunxiao/checkpoint_old','/home/shiyunxiao/checkpoint_new')

@@ -1,8 +1,6 @@
 from collections import OrderedDict
-
 import oneflow as flow
 import oneflow.nn as nn
-
 from typing import Any
 
 
@@ -46,6 +44,7 @@ class Dense(nn.Module):
 class WideAndDeep(nn.Module):
     def __init__(self, FLAGS) -> None:
         super(WideAndDeep, self).__init__()
+        self.FLAGS = FLAGS
         self.wide_embedding = Embedding(vocab_size=FLAGS.wide_vocab_size, embed_size=1)
         self.deep_embedding = Embedding(
             vocab_size=FLAGS.deep_vocab_size,
@@ -79,7 +78,6 @@ class WideAndDeep(nn.Module):
     ) -> flow.Tensor:
         wide_embedding = self.wide_embedding(wide_sparse_fields)
         wide_scores = flow.sum(wide_embedding, dim=1, keepdim=True)
-
         deep_embedding = self.deep_embedding(deep_sparse_fields)
         deep_features = flow.cat([deep_embedding, dense_fields], dim=1)
         deep_features = self.linear_layers(deep_features)
