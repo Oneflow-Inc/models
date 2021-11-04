@@ -35,9 +35,10 @@ source $1
 DATESTR=$(date +"%m-%d-%H-%M")
 
 _DEVICE_NUM_PER_NODE=8
-_MASTER_ADDR=127.0.0.1
-_NUM_NODES=1
+_MASTER_ADDR=10.0.22.16
+_NUM_NODES=2
 _NODE_RANK=0
+_MASTER_PORT=8089
 
 mkdir logs
 run_cmd="python3 -m oneflow.distributed.launch \
@@ -45,6 +46,7 @@ run_cmd="python3 -m oneflow.distributed.launch \
     --nnodes $_NUM_NODES \
     --node_rank $_NODE_RANK \
     --master_addr $_MASTER_ADDR \
+    --master_port $_MASTER_PORT \
     pretrain_glm.py ${gpt_options} 2>&1 | tee logs/log-${DATESTR}.txt"
 
 echo ${run_cmd}
