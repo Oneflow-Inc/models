@@ -47,8 +47,16 @@ class Trainer(object):
         if self.use_fp16 and self.num_nodes * self.num_devices_per_node > 1:
             flow.boxing.nccl.enable_use_buffer_to_fuse_all_reduce(False)
 
-        # self.model = resnet50(zero_init_residual=self.zero_init_residual)
-        self.model = vgg16_bn()
+        if self.model_name == "resnet":
+            self.model = resnet50(
+                parallel_way=self.parallel_way, num_classes=self.num_classes
+            )
+        elif self.model_name == "vgg":
+            self.model = vgg16_bn(
+                parallel_way=self.parallel_way, num_classes=self.num_classes
+            )
+        else:
+            raise KeyError(f"{self.model_name} model is not supported!")
         self.init_model()
         self.cross_entropy = make_cross_entropy(args)
 
@@ -242,7 +250,7 @@ class Trainer(object):
 
         throughputs = []
         # for _ in range(self.batches_per_epoch):
-        for _ in range(100):
+        for _ in range(1000):
             # 一次 iter 的训练
             if self.graph:
                 loss, pred, label = self.train_graph()
@@ -253,6 +261,10 @@ class Trainer(object):
 
             loss = tol(loss, self.metric_local)
             if pred is not None and label is not None:
+                if pred.is_consistent:
+                    pred = pred.to_consistent(
+                        placement=pred.placement, sbp=flow.sbp.split(0)
+                    )
                 pred = tol(pred, self.metric_local)
                 label = tol(label, self.metric_local)
                 top1_acc = self.acc([pred], [label])
@@ -265,8 +277,11 @@ class Trainer(object):
             self.cur_batch += 1
             if self.cur_batch == self.total_batches:
                 break
-        with open(f"throughput.rank{flow.env.get_rank()}.txt", "w") as f:
-            f.writelines([str(i) + "\n" for i in throughputs])
+        if flow.env.get_rank() == 0:
+            if not os.path.exists(os.path.dirname(self.write_file)):
+                os.makedirs(os.path.dirname(self.write_file))
+            with open(self.write_file, "w") as f:
+                f.writelines([str(i) + "\n" for i in throughputs])
 
     def train_eager(self):
         loss, pred, label = self.forward()
