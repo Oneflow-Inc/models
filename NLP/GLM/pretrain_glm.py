@@ -41,6 +41,7 @@ from utils import print_rank_0
 from utils import get_sample_writer, get_log_dir, get_hostname
 from utils import broadcast_data, get_loss
 import oneflow.distributed as dist
+from oneflow.nn.parallel import DistributedDataParallel as ddp
 
 
 def get_masks_and_position_ids(data,
@@ -283,8 +284,10 @@ def train(model, optimizer, lr_scheduler,
     model.load_state_dict(flow_params)
     print("load pretraining model succeed!")
 
-    # model.train()
-    model.eval()
+    model.train()
+    if args.ddp:
+        print("using eager ddp!")
+        model = ddp(model)
 
     total_lm_loss = 0.0
 
@@ -293,13 +296,6 @@ def train(model, optimizer, lr_scheduler,
     timers('interval time').start()
     report_memory_flag = True
     mems = []
-    
-    # for i in range(20):
-    #     lm_loss, skipped_iter, mems = train_step(train_data_iterator,
-    #                                              model,
-    #                                              optimizer,
-    #                                              lr_scheduler,
-    #                                              args, timers, mems=mems, forward_step_func=forward_step)
 
     import time
     tb = time.time()
@@ -338,7 +334,8 @@ def train(model, optimizer, lr_scheduler,
                 prefix, val_data_iterator, model, args, timers, verbose=False, step=args.iteration,
                 summary_writer=summary_writer, forward_step_func=forward_step)
     te = time.time()
-    print(te-tb)
+    if flow.env.get_rank() == 0:
+        print(te-tb)
     exit(0)
     return args.iteration, skipped_iters
 
