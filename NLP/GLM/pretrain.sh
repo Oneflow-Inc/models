@@ -26,7 +26,7 @@ gpt_options=" \
        --lr-decay-ratio 0.05 \
        --warmup .05 \
        --num-workers 1 \
-       --hidden-dropout 0.0 \
+       --hidden-dropout 0.1 \
        # --fp16 \
 "
 
@@ -40,7 +40,7 @@ _NUM_NODES=1
 _NODE_RANK=0
 
 mkdir logs
-run_cmd="python3 -m oneflow.distributed.launch \
+run_cmd="numactl --cpubind=0 --membind=0 python3 -m oneflow.distributed.launch \
     --nproc_per_node $_DEVICE_NUM_PER_NODE \
     --nnodes $_NUM_NODES \
     --node_rank $_NODE_RANK \
