@@ -1,10 +1,8 @@
-
-
 unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY
 
 declare -a arr=("data" "row" "col")
-declare -a batch_size=(1 4 16 54 128)
-declare -a num_classes=(16 64 256 1024 4096 16384)
+declare -a batch_size=(16 32 64)
+declare -a num_classes=(1024 4096 16384 32768 65536 131072)
 
 ## now loop through the above array
 for bs in "${batch_size[@]}"
@@ -20,7 +18,7 @@ do
             --train-batch-size $bs \
             --model-name resnet \
             --parallel-way $fc \
-            --write-file "resnet_throughput/bsz_$bs.cls_$cls.fc_$fc.txt"
+            --write-file "resnet_throughput/bsz_$bs.cls_$cls.fc_$fc.txt" 2>&1 | tee "resnet_log/bsz_$bs.cls_$cls.fc_$fc.txt"
         done
     done
 done

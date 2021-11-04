@@ -179,7 +179,7 @@ class ResNet(nn.Module):
             block, 512, layers[3], stride=2, dilate=replace_stride_with_dilation[2]
         ).to_consistent(placement=get_placement(), sbp=flow.sbp.broadcast)
         self.avgpool = nn.AvgPool2d((7, 7))
-        
+
         self.fc = Linear1D(512 * block.expansion, num_classes, parallel_way[0])
 
         for m in self.modules():

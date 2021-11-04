@@ -263,7 +263,7 @@ def parse_args(ignore_unknown_args=False):
     )
     parser.add_argument("--model-name", type=str, help="model name for training")
     parser.add_argument(
-        "--parallel-way", nargs='+', default=[], help="way of parallel training"
+        "--parallel-way", nargs="+", default=[], help="way of parallel training"
     )
 
     if ignore_unknown_args:
