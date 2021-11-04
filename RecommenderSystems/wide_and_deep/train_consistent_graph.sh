@@ -10,7 +10,6 @@ python3 -m oneflow.distributed.launch \
     --node_rank $NODE_RANK \
     --master_addr $MASTER_ADDR \
     train.py \
-        --model_save_dir ./checkpoints \
         --print_interval 100 \
         --deep_dropout_rate 0 \
         --max_iter 1000 \
