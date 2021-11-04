@@ -40,7 +40,7 @@ _NUM_NODES=1
 _NODE_RANK=0
 
 mkdir logs
-run_cmd="numactl --cpubind=0 --membind=0 python3 -m oneflow.distributed.launch \
+run_cmd="python3 -m oneflow.distributed.launch \
     --nproc_per_node $_DEVICE_NUM_PER_NODE \
     --nnodes $_NUM_NODES \
     --node_rank $_NODE_RANK \
