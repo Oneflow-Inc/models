@@ -69,21 +69,33 @@ class ParallelCrossAttention(flow.nn.Module):
       
         self.query = ColumnParallelLinear(hidden_size, hidden_size,
                                           gather_output=False,
-                                          init_method=init_method)
+                                          init_method=init_method, 
+                                          if_use_gelu=False, 
+                                          if_use_dropout=False
+                                          )
         self.key_value = ColumnParallelLinear(hidden_size, 2 * hidden_size,
                                               stride=2,
                                               gather_output=False,
-                                              init_method=init_method)
+                                              init_method=init_method, 
+                                              if_use_gelu=False, 
+                                              if_use_dropout=False)
       
         self.attention_dropout = flow.nn.Dropout(attention_dropout_prob)
+
+
+        # self.dense = RowParallelLinear(hidden_size,
+        #                                hidden_size,
+        #                                input_is_parallel=True,
+        #                                init_method=output_layer_init_method)
+        # self.output_dropout = flow.nn.Dropout(output_dropout_prob)
 
 
         self.dense = RowParallelLinear(hidden_size,
                                        hidden_size,
                                        input_is_parallel=True,
-                                       init_method=output_layer_init_method)
-        self.output_dropout = flow.nn.Dropout(output_dropout_prob)
-
+                                       init_method=output_layer_init_method, 
+                                       if_use_dropout=True, 
+                                       dropout_rate=output_dropout_prob)
 
     def _transpose_for_scores(self, tensor):
         new_tensor_shape = tensor.size()[:-1] + \
@@ -117,8 +129,12 @@ class ParallelCrossAttention(flow.nn.Module):
                                   (self.hidden_size_per_partition,)
         context_layer = context_layer.view(*new_context_layer_shape)
 
+        # Previous
+        # output = self.dense(context_layer)
+        # output = self.output_dropout(output)
+
+        # Fused Bias add and Dropout
         output = self.dense(context_layer)
-        output = self.output_dropout(output)
 
         return output
 
@@ -156,12 +172,18 @@ class ParallelSelfAttention(flow.nn.Module):
        
         self.attention_dropout = flow.nn.Dropout(attention_dropout_prob)
 
+        # self.dense = RowParallelLinear(hidden_size,
+                                    #    hidden_size,
+                                    #    input_is_parallel=True,
+                                    #    init_method=output_layer_init_method)
+        # self.output_dropout = flow.nn.Dropout(output_dropout_prob)
+
         self.dense = RowParallelLinear(hidden_size,
                                        hidden_size,
                                        input_is_parallel=True,
-                                       init_method=output_layer_init_method)
-        self.output_dropout = flow.nn.Dropout(output_dropout_prob)
-
+                                       init_method=output_layer_init_method, 
+                                       if_use_dropout=True, 
+                                       dropout_rate=output_dropout_prob)
 
     def _transpose_for_scores(self, tensor):
         
@@ -171,7 +193,7 @@ class ParallelSelfAttention(flow.nn.Module):
         #                     self.hidden_size_per_attention_head)
         # new_tensor_shape = [*tensor.size()[:-1],self.num_attention_heads_per_partition,self.hidden_size_per_attention_head]
         size = tensor.size()
-        new_tensor_shape = [size[0], size[1],self.num_attention_heads_per_partition,self.hidden_size_per_attention_head]
+        new_tensor_shape = [size[0], size[1], self.num_attention_heads_per_partition, self.hidden_size_per_attention_head]
         tensor = tensor.reshape(*new_tensor_shape)
         return tensor.permute(0, 2, 1, 3)
 
@@ -257,8 +279,12 @@ class ParallelSelfAttention(flow.nn.Module):
         new_context_layer_shape = [*context_layer.size()[:-2],self.hidden_size_per_partition]
         context_layer = context_layer.reshape(*new_context_layer_shape)
         
+        # Previous
+        # output = self.dense(context_layer)
+        # output = self.output_dropout(output)
+
+        # Fused bias add and Dropout
         output = self.dense(context_layer)
-        output = self.output_dropout(output)
 
         return output
 
@@ -271,6 +297,7 @@ def gelu_impl(x):
 
 def gelu(x):
     return gelu_impl(x)
+    # return flow._C.gelu(x)
 
 
 class ParallelMLP(flow.nn.Module):
@@ -282,23 +309,46 @@ class ParallelMLP(flow.nn.Module):
         if output_layer_init_method is None:
             output_layer_init_method = init_method
        
+        # self.dense_h_to_4h = ColumnParallelLinear(hidden_size, 4 * hidden_size,
+        #                                           gather_output=False,
+        #                                           init_method=init_method)
+
         self.dense_h_to_4h = ColumnParallelLinear(hidden_size, 4 * hidden_size,
                                                   gather_output=False,
-                                                  init_method=init_method)
-       
+                                                  init_method=init_method, 
+                                                  if_use_gelu=True)
+
+        # self.dense_4h_to_h = RowParallelLinear(
+            # 4 * hidden_size,
+            # hidden_size,
+            # input_is_parallel=True,
+            # init_method=output_layer_init_method)
+        # self.dropout = flow.nn.Dropout(output_dropout_prob)
+
         self.dense_4h_to_h = RowParallelLinear(
             4 * hidden_size,
             hidden_size,
             input_is_parallel=True,
-            init_method=output_layer_init_method)
-        self.dropout = flow.nn.Dropout(output_dropout_prob)
+            init_method=output_layer_init_method, 
+            if_use_dropout=True, 
+            dropout_rate=output_dropout_prob)
 
     def forward(self, hidden_states):
+        # previous
+        # intermediate_parallel = self.dense_h_to_4h(hidden_states)
+        # intermediate_parallel = gelu(intermediate_parallel)
+        
+        # Fused bias add and Gelu
         intermediate_parallel = self.dense_h_to_4h(hidden_states)
-        intermediate_parallel = gelu(intermediate_parallel)
 
+
+        # previous
+        # output = self.dense_4h_to_h(intermediate_parallel)
+        # output = self.dropout(output)
+        
+        # Fused bias add and Dropout
         output = self.dense_4h_to_h(intermediate_parallel)
-        output = self.dropout(output)
+
         return output
 
 

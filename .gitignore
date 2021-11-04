@@ -153,3 +153,12 @@ runs/
 log/
 logs/
 *.txt
+
+# GLM
+other/
+other.zip
+*.png
+log/
+logs/
+runs/
+oneflow-graph.*

@@ -13,7 +13,7 @@ def _parse_args():
         help="your txt root dir",
     )
     parser.add_argument(
-        "--save_root", type=str, default="./loss_txt/", help="your draw image save dir",
+        "--save_root", type=str, default=".", help="your draw image save dir",
     )
     return parser.parse_args()
 
@@ -97,19 +97,19 @@ if __name__ == "__main__":
     os.makedirs(save_root, exist_ok=True)
     draw_and_save(
         {
-            "title": "glm_pytorch_vs_eager_loss_singleGPU_compare",
-            "save_path": add_pth(save_root, "glm_pytorch_vs_eager_loss.png"),
+            "title": "glm_eager_vs_eager_fuse_bias_eval_loss_singleGPU_compare",
+            "save_path": add_pth(save_root, "glm_eager_vs_eager_fuse_bias_eval_loss.png"),
             "txts": [
                 # "loss_txt/bert_graph_sgd_amp_consistent_ddp_1gpu_loss.txt",
                 # "../../OneFlow-Benchmark/LanguageModeling/BERT/loss_txt/loss_info_sgd_amp_ddp_4gpu_diffpart_zwx.txt",
                 # "../../OneFlow-Benchmark/LanguageModeling/BERT/loss_txt/loss_info_sgd_amp_ddp_4gpu_shuffle_zwx.txt",
                 # "../../OneFlow-Benchmark/LanguageModeling/BERT/loss_txt/loss_info_sgd_amp_ddp_4gpu_shuffle.txt",
-                "/home/zhangxiaoyu/glm_pytorch_loss.txt",
-                "/home/zhangxiaoyu/glm_flow_eager_loss.txt",
+                "/home/zhangxiaoyu/glm_flow_eager_eval_loss_origin.txt",
+                "/home/zhangxiaoyu/glm_flow_eager_eval_loss.txt",
             ],
             "names": [
-                "glm_pytorch_loss",
                 "glm_eager_loss",
+                "glm_eager_fuse_bias_loss",
             ],  # "lazy_reapeat4part_loss"
             "xlabel": "iter",
             "ylabel": "loss",

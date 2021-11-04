@@ -221,7 +221,7 @@ def forward_step(data_iterator, model, args, timers, mems):
     
     if loss_mask.sum().item() > 0:
         loss = loss / loss_mask.sum()
-    # with open("/home/zhangxiaoyu/glm_flow_eager_loss.txt",'a') as f:
+    # with open("/home/zhangxiaoyu/glm_flow_eager_eval_loss.txt",'a') as f:
     #     f.write(str(loss.item())+'\n')
     # print(loss)
     return loss, mems, mode
@@ -276,14 +276,15 @@ def train(model, optimizer, lr_scheduler,
           train_data_iterator, val_data_iterator, timers, args, summary_writer=None):
 
     import torch
-    torch_params = torch.load("/home/chengpeng/data/mo.pt", map_location='cpu')
+    torch_params = torch.load("/home/zhangxiaoyu/mo.pt", map_location='cpu')
     flow_params = {}
     for k in torch_params.keys():
         flow_params[k] = flow.Tensor(torch_params[k].numpy().astype("float32"))
     model.load_state_dict(flow_params)
     print("load pretraining model succeed!")
 
-    model.train()
+    # model.train()
+    model.eval()
 
     total_lm_loss = 0.0
 
@@ -293,18 +294,18 @@ def train(model, optimizer, lr_scheduler,
     report_memory_flag = True
     mems = []
     
-    for i in range(20):
-        lm_loss, skipped_iter, mems = train_step(train_data_iterator,
-                                                 model,
-                                                 optimizer,
-                                                 lr_scheduler,
-                                                 args, timers, mems=mems, forward_step_func=forward_step)
+    # for i in range(20):
+    #     lm_loss, skipped_iter, mems = train_step(train_data_iterator,
+    #                                              model,
+    #                                              optimizer,
+    #                                              lr_scheduler,
+    #                                              args, timers, mems=mems, forward_step_func=forward_step)
 
     import time
     tb = time.time()
     #0,200000
-    while args.iteration < 1000:
-    # while args.iteration < args.train_iters:
+    # while args.iteration < 1000:
+    while args.iteration < args.train_iters:
         lm_loss, skipped_iter, mems = train_step(train_data_iterator,
                                                  model,
                                                  optimizer,

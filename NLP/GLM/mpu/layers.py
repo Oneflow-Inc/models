@@ -123,8 +123,16 @@ class VocabParallelEmbedding(flow.nn.Module):
 class ColumnParallelLinear(flow.nn.Module):
     def __init__(self, input_size, output_size, bias=True, gather_output=True,
                  init_method=init.xavier_normal_, stride=1,
-                 keep_master_weight_for_test=False):
+                 keep_master_weight_for_test=False, 
+                 if_use_gelu=False, 
+                 if_use_dropout=False, 
+                 dropout_rate=0.0
+                 ):
         super(ColumnParallelLinear, self).__init__()
+
+        self.if_use_gelu = if_use_gelu
+        self.if_use_dropout = if_use_dropout
+        self.dropout_rate = dropout_rate
 
         self.input_size = input_size
         self.output_size = output_size
@@ -155,16 +163,33 @@ class ColumnParallelLinear(flow.nn.Module):
     def forward(self, input_):
         input_parallel = input_
 
-        output_parallel = F.linear(input_parallel, self.weight, self.bias)
-        return output_parallel
+        # previous 
+        # output_parallel = F.linear(input_parallel, self.weight, self.bias)
+
+        # Fused!
+        output_parallel = F.linear(input_parallel, self.weight)
+        if self.if_use_gelu: 
+            return flow._C.fused_bias_add_gelu(output_parallel, self.bias, axis=2)
+        elif self.if_use_dropout: 
+            return flow._C.fused_bias_add_dropout(output_parallel, self.bias, p=self.dropout_rate, axis=2)
+        else: 
+            # Do nothing
+            return flow._C.bias_add(output_parallel, self.bias, axis=2)
 
 
 class RowParallelLinear(flow.nn.Module):
     def __init__(self, input_size, output_size, bias=True,
                  input_is_parallel=False,
                  init_method=init.xavier_normal_, stride=1,
-                 keep_master_weight_for_test=False):
+                 keep_master_weight_for_test=False, 
+                 if_use_gelu=False, 
+                 if_use_dropout=False, 
+                 dropout_rate=0.0):
         super(RowParallelLinear, self).__init__()
+
+        self.if_use_gelu = if_use_gelu 
+        self.if_use_dropout = if_use_dropout
+        self.dropout_rate = dropout_rate
 
         self.input_size = input_size
         self.output_size = output_size
@@ -196,12 +221,26 @@ class RowParallelLinear(flow.nn.Module):
         # else:
         #     input_parallel = scatter_to_model_parallel_region(input_)
       
-        output_parallel = F.linear(input_, self.weight)
+        # output_parallel = F.linear(input_, self.weight)
       
         # output_ = reduce_from_model_parallel_region(output_parallel)
-        if self.bias is not None:
-            output = output_parallel + self.bias
-        else:
-            output = output_parallel
-        return output
+        # if self.bias is not None:
+        #     output = output_parallel + self.bias
+        # else:
+        #     output = output_parallel
+        # return output
+
+        # previous 
+        # output_parallel = F.linear(input_parallel, self.weight, self.bias)
+
+        # Fused!
+        output_parallel = F.linear(input_, self.weight)
+        if self.if_use_gelu: 
+            return flow._C.fused_bias_add_gelu(output_parallel, self.bias, axis=2)
+        elif self.if_use_dropout: 
+            return flow._C.fused_bias_add_dropout(output_parallel, self.bias, p=self.dropout_rate, axis=2)
+        else: 
+            # Do nothing
+            return flow._C.bias_add(output_parallel, self.bias, axis=2)
+
 
