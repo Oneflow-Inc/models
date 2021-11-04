@@ -46,6 +46,13 @@ run_cmd="python3 -m oneflow.distributed.launch \
     --master_addr $_MASTER_ADDR \
     pretrain_glm_graph.py ${gpt_options} 2>&1 | tee logs/log-${DATESTR}.txt"
 
+# env_cmd="export ONEFLOW_KERNEL_ENABLE_CUDA_GRAPH=1 \
+#         export ONEFLOW_THREAD_ENABLE_LOCAL_MESSAGE_QUEUE=1 \
+#         export ONEFLOW_KERNEL_DISABLE_BLOB_ACCESS_CHECKER=1 \
+#         export ONEFLOW_ACTOR_ENABLE_LIGHT_ACTOR=1 \
+#         export ONEFLOW_STREAM_REUSE_CUDA_EVENT=1"
+
+# echo ${env_cmd}
 echo ${run_cmd}
 eval ${run_cmd}
 

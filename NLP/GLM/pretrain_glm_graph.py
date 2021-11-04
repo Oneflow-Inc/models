@@ -274,7 +274,6 @@ def train(model, optimizer, lr_scheduler,
             super().__init__()
             self.glm = model
             self.add_optimizer(optimizer, lr_sch=None)
-            self._train_data_loader = train_data_iterator
             self.config.allow_fuse_add_to_output(True)
             self.config.allow_fuse_model_update_ops(True)
         
