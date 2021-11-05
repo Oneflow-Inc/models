@@ -12,7 +12,10 @@ from utils.numpy_data_utils import load_image
 def _parse_args():
     parser = argparse.ArgumentParser("flags for test Swin Transformer")
     parser.add_argument(
-        "--model_path", type=str, default="./swin_tiny_patch4_window7_224_oneflow_model", help="model path"
+        "--model_path",
+        type=str,
+        default="./swin_tiny_patch4_window7_224_oneflow_model",
+        help="model path",
     )
     parser.add_argument("--image_path", type=str, default="", help="input image path")
     return parser.parse_args()
