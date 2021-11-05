@@ -582,6 +582,8 @@ class GPT2ParallelTransformer(flow.nn.Module):
             [get_layer() for _ in range(num_layers)])
 
         self.final_layernorm = LayerNorm(hidden_size, eps=layernorm_epsilon)
+
+        self.register_buffer("ids", flow._C.arange(332, dtype=flow.int64).view(1, -1))
         
     def forward(self, hidden_states, position_ids, attention_mask):     
         batch_size, query_length = hidden_states.size()[:2]
@@ -601,7 +603,10 @@ class GPT2ParallelTransformer(flow.nn.Module):
             sep = attention_mask.item() if is_scalar else attention_mask
             
             def build_mask_matrix(seq_length, sep, memory_length=0):
-                m = hidden_states.new_ones((1, seq_length, seq_length))
+                if hidden_states.is_consistent:
+                    m = flow.ones((1, seq_length, seq_length), placement=hidden_states.placement, sbp=hidden_states.sbp, dtype=hidden_states.dtype)
+                else:
+                    m = hidden_states.new_ones((1, seq_length, seq_length))
                 m = flow.tril(m)
                 
                 #False
@@ -609,7 +614,8 @@ class GPT2ParallelTransformer(flow.nn.Module):
                     m[0, :, :sep] = 1
                 else:
                     m = m.expand(batch_size, -1, -1)
-                    ids = flow._C.arange(seq_length, device=sep.device, dtype=sep.dtype).view(1, -1)
+                    # ids = flow._C.arange(seq_length, device=sep.device, dtype=sep.dtype).view(1, -1)
+                    ids = self.ids
                     mask = ids < sep.view(-1, 1)
                     
                     #expand_as 不支持

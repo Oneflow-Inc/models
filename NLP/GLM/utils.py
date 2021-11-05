@@ -470,16 +470,16 @@ class VocabUtility:
             per_partition_vocab_size, rank, world_size)
 
 def get_loss(vocab_parallel_logits,target):
-    logits = vocab_parallel_logits.clone()
+    # logits = vocab_parallel_logits.clone()
        
-    logits_max = flow.max(logits, dim=-1)[0]
+    logits_max = flow.max(vocab_parallel_logits, dim=-1)[0]
     
     # flow.distributed.all_reduce(logits_max,
     #                                 op=flow.distributed.ReduceOp.MAX,
     #                                 group=get_model_parallel_group())
     
     # logits.sub_(logits_max.unsqueeze(dim=-1))
-    logits = logits - logits_max.unsqueeze(dim=-1)
+    logits = vocab_parallel_logits - logits_max.unsqueeze(dim=-1)
 
     exp_logits = logits.exp()
 
@@ -499,7 +499,8 @@ def get_loss(vocab_parallel_logits,target):
         partition_vocab_size, rank, world_size)
     
     target_mask = ((target < vocab_start_index) | (target >= vocab_end_index))
-    masked_target = (target.clone() - vocab_start_index)
+    # masked_target = (target.clone() - vocab_start_index)
+    masked_target = (target - vocab_start_index)
    
     # del
     # masked_target[target_mask] = 0
@@ -508,9 +509,16 @@ def get_loss(vocab_parallel_logits,target):
 
     masked_target_1d = masked_target.view((-1,)).to(flow.int)
 
-    arange_1d = flow._C.arange(start=0, end=logits_2d.size()[0],
-                                device=logits_2d.device).to(flow.int)
-    predicted_logits_1d = logits_2d[arange_1d, masked_target_1d]
+    if logits_2d.is_consistent:
+        arange_1d = flow._C.consistent_arange(start=0, end=logits_2d.size()[0],
+                                    placement=logits_2d.placement, sbp=logits_2d.sbp).to(flow.int)
+    else:
+        arange_1d = flow._C.arange(start=0, end=logits_2d.size()[0],
+                                    device=logits_2d.device).to(flow.int)
+
+    idx_1d = flow.stack([arange_1d, masked_target_1d], dim=1)
+    predicted_logits_1d = flow.gather_nd(logits_2d, idx_1d)
+    # predicted_logits_1d = logits_2d[arange_1d, masked_target_1d]
     predicted_logits = predicted_logits_1d.reshape(*target.size())
     # del
     # predicted_logits[target_mask] = 0.0

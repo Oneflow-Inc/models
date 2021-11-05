@@ -277,7 +277,7 @@ def train(model, optimizer, lr_scheduler,
           train_data_iterator, val_data_iterator, timers, args, summary_writer=None):
 
     import torch
-    torch_params = torch.load("/home/zhangxiaoyu/mo.pt", map_location='cpu')
+    torch_params = torch.load("/home/chengpeng/data/mo.pt", map_location='cpu')
     flow_params = {}
     for k in torch_params.keys():
         flow_params[k] = flow.Tensor(torch_params[k].numpy().astype("float32"))

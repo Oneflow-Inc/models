@@ -98,7 +98,8 @@ class VocabParallelEmbedding(flow.nn.Module):
         #              (input_ >= self.vocab_end_index)
         input_mask = flow._C.logical_or(input_ < self.vocab_start_index, input_ >= self.vocab_end_index)
         
-        masked_input = (input_.clone() - self.vocab_start_index).to(flow.int)
+        # masked_input = (input_.clone() - self.vocab_start_index).to(flow.int)
+        masked_input = (input_ - self.vocab_start_index).to(flow.int)
         
         #不支持切片索引
         # masked_input[input_mask] = 0

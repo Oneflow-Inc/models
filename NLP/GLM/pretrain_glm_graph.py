@@ -204,6 +204,15 @@ def forward_step(data_iterator, model, args, timers, mems):
         mode = data['mode']
     else:
         mode = 'bert'
+
+    placement = flow.env.all_device_placement("cuda")
+    sbp=flow.sbp.split(0)
+
+    tokens = tokens.to_consistent(placement=placement, sbp=sbp)
+    position_ids = position_ids.to_consistent(placement=placement, sbp=sbp)
+    attention_mask = attention_mask.to_consistent(placement=placement, sbp=sbp)
+    labels = labels.to_consistent(placement=placement, sbp=sbp)
+    loss_mask = loss_mask.to_consistent(placement=placement, sbp=sbp)
     
     loss = model(tokens,position_ids,attention_mask,labels,loss_mask)
 
@@ -259,13 +268,13 @@ def report_evaluate_metrics(summary_writer, prefix, loss, ppl, gpt_loss, bert_lo
 def train(model, optimizer, lr_scheduler,
           train_data_iterator, val_data_iterator, timers, args, summary_writer=None):
     #加载模型
-    import torch
-    torch_params = torch.load("/home/chengpeng/data/mo.pt", map_location='cpu')
-    flow_params = {}
-    for k in torch_params.keys():
-        flow_params[k] = flow.Tensor(torch_params[k].numpy().astype("float32"))
-    model.load_state_dict(flow_params)
-    print("load pretraining model succeed!")
+    # import torch
+    # torch_params = torch.load("/home/chengpeng/data/mo.pt", map_location='cpu')
+    # flow_params = {}
+    # for k in torch_params.keys():
+    #     flow_params[k] = flow.Tensor(torch_params[k].numpy().astype("float32"))
+    # model.load_state_dict(flow_params)
+    # print("load pretraining model succeed!")
     
     
     #create train graph
@@ -305,7 +314,7 @@ def train(model, optimizer, lr_scheduler,
     import time
     tb = time.time()
     #0,200000
-    while args.iteration < 1000:
+    while args.iteration < 10:
     # while args.iteration < args.train_iters:
         lm_loss, skipped_iter, mems = train_step(train_data_iterator,
                                                  glm_graph,
@@ -342,7 +351,6 @@ def train(model, optimizer, lr_scheduler,
                 summary_writer=summary_writer, forward_step_func=forward_step)
     te = time.time()
     print(te-tb)
-    exit(0)
     return args.iteration, skipped_iters
 
 
@@ -558,14 +566,15 @@ def main():
                                            summary_writer=summary_writer
                                            )
         
-        if args.do_valid:
-            prefix = 'the end of training for val data'
-            val_loss = evaluate_and_print_results(prefix, (val_data_iterator, multi_val_iterator),
-                                                  model, args, timers, verbose=False, forward_step_func=forward_step)
+    #     if args.do_valid:
+    #         prefix = 'the end of training for val data'
+    #         val_loss = evaluate_and_print_results(prefix, (val_data_iterator, multi_val_iterator),
+    #                                               model, args, timers, verbose=False, forward_step_func=forward_step)
     
-    if args.save and iteration != 0:
-        save_checkpoint(iteration, model, optimizer, lr_scheduler, args)
+    # if args.save and iteration != 0:
+    #     save_checkpoint(iteration, model, optimizer, lr_scheduler, args)
 
+    print("all end !!!!!!!")
 
 
 if __name__ == "__main__":
