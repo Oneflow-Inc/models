@@ -1,9 +1,8 @@
 # GLM-OneFlow
 
 ## Install:
-
+install [oneflow](https://github.com/Oneflow-Inc/oneflow)
 ```shell
-  install [oneflow](https://github.com/Oneflow-Inc/oneflow)
   pip3 install -r requirements.txt
 ```
 
