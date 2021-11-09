@@ -604,7 +604,7 @@ class GPT2ParallelTransformer(flow.nn.Module):
             
             def build_mask_matrix(seq_length, sep, memory_length=0):
                 if hidden_states.is_consistent:
-                    m = flow.ones((1, seq_length, seq_length), placement=hidden_states.placement, sbp=hidden_states.sbp, dtype=hidden_states.dtype)
+                    m = flow.ones((1, seq_length, seq_length), placement=hidden_states.placement, sbp=flow.sbp.broadcast, dtype=hidden_states.dtype)
                 else:
                     m = hidden_states.new_ones((1, seq_length, seq_length))
                 m = flow.tril(m)

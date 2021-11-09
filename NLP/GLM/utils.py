@@ -511,7 +511,7 @@ def get_loss(vocab_parallel_logits,target):
 
     if logits_2d.is_consistent:
         arange_1d = flow._C.consistent_arange(start=0, end=logits_2d.size()[0],
-                                    placement=logits_2d.placement, sbp=logits_2d.sbp).to(flow.int)
+                                    placement=logits_2d.placement, sbp=flow.sbp.broadcast).to(flow.int)
     else:
         arange_1d = flow._C.arange(start=0, end=logits_2d.size()[0],
                                     device=logits_2d.device).to(flow.int)
