@@ -228,6 +228,15 @@ def parse_args(ignore_unknown_args=False):
         dest="print_interval",
         help="print loss every n iteration",
     )
+
+    parser.add_argument(
+        "--exit-num",
+        type=int,
+        default=301,
+        dest="exit_num",
+        help="exit iter",
+    )
+    
     parser.add_argument(
         "--print-timestamp", action="store_true", dest="print_timestamp",
     )

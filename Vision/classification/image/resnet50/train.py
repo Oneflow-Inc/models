@@ -228,7 +228,7 @@ class Trainer(object):
                 acc = 0
 
             save_dir = f"epoch_{self.cur_epoch}_val_acc_{acc}"
-            self.save(save_dir)
+            # self.save(save_dir)
             self.cur_epoch += 1
             self.cur_iter = 0
 
@@ -243,6 +243,9 @@ class Trainer(object):
                 loss, pred, label = self.train_eager()
 
             self.cur_iter += 1
+
+            if self.cur_iter == self.exit_num:
+                exit(0)
 
             loss = tol(loss, self.metric_local)
             if pred is not None and label is not None:
