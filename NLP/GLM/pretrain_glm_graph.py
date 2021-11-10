@@ -285,6 +285,15 @@ def train(model, optimizer, lr_scheduler,
             self.add_optimizer(optimizer, lr_sch=None)
             self.config.allow_fuse_add_to_output(True)
             self.config.allow_fuse_model_update_ops(True)
+            if args.fp16:
+                self.config.enable_amp(True)
+                grad_scaler = flow.amp.GradScaler(
+                    init_scale=2 ** 30,
+                    growth_factor=2.0,
+                    backoff_factor=0.5,
+                    growth_interval=2000,
+                )
+                self.set_grad_scaler(grad_scaler)
         
         def build(self,tokens,position_ids,attention_mask,labels,loss_mask):
 
@@ -314,8 +323,8 @@ def train(model, optimizer, lr_scheduler,
     import time
     tb = time.time()
     #0,200000
-    while args.iteration < 10:
-    # while args.iteration < args.train_iters:
+    # while args.iteration < 10:
+    while args.iteration < args.train_iters:
         lm_loss, skipped_iter, mems = train_step(train_data_iterator,
                                                  glm_graph,
                                                  optimizer,
@@ -454,10 +463,11 @@ def main():
     flow.boxing.nccl.set_fusion_threshold_mbytes(16)
     flow.boxing.nccl.set_fusion_max_ops_num(24)
 
+    
     timers = Timers()
     
     args = get_args()
-   
+
     args.mem_length = args.mem_length if args.transformer_xl else 0
     
     #experiment_name:blocklm-large-blank10-11-12-02

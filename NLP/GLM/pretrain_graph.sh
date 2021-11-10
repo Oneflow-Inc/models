@@ -26,7 +26,7 @@ gpt_options=" \
        --lr-decay-ratio 0.05 \
        --warmup .05 \
        --num-workers 1\
-       # --fp16 \
+       --fp16 \
 "
 
 
