@@ -26,14 +26,14 @@ gpt_options=" \
        --lr-decay-ratio 0.05 \
        --warmup .05 \
        --num-workers 1\
-       --fp16 \
+       --graph_fp16 \
 "
 
 
 source $1
 DATESTR=$(date +"%m-%d-%H-%M")
 
-_DEVICE_NUM_PER_NODE=1
+_DEVICE_NUM_PER_NODE=2
 _MASTER_ADDR=127.0.0.1
 _NUM_NODES=1
 _NODE_RANK=0

@@ -285,7 +285,7 @@ def train(model, optimizer, lr_scheduler,
             self.add_optimizer(optimizer, lr_sch=None)
             self.config.allow_fuse_add_to_output(True)
             self.config.allow_fuse_model_update_ops(True)
-            if args.fp16:
+            if args.graph_fp16:
                 self.config.enable_amp(True)
                 grad_scaler = flow.amp.GradScaler(
                     init_scale=2 ** 30,
@@ -462,7 +462,6 @@ def main():
 
     flow.boxing.nccl.set_fusion_threshold_mbytes(16)
     flow.boxing.nccl.set_fusion_max_ops_num(24)
-
     
     timers = Timers()
     
@@ -509,13 +508,13 @@ def main():
         lr_scheduler.switch_linear(args)
 
     summary_writer = None
-    # if flow.distributed.get_rank() == 0:
-    print('Pretrain GPT2 model')
-    args.log_dir = None
-    if args.train_iters > 0:
-        args.log_dir = get_log_dir(base=args.summary_dir, name=args.experiment_name)
-        summary_writer = get_sample_writer(log_dir=args.log_dir, iteration=args.iteration)
-    print_and_save_args(args, verbose=True, log_dir=args.log_dir)
+    if flow.env.get_rank() == 0:
+        print('Pretrain GPT2 model')
+        args.log_dir = None
+        if args.train_iters > 0:
+            args.log_dir = get_log_dir(base=args.summary_dir, name=args.experiment_name)
+            summary_writer = get_sample_writer(log_dir=args.log_dir, iteration=args.iteration)
+        print_and_save_args(args, verbose=True, log_dir=args.log_dir)
     
     #True
     if args.resume_dataloader:

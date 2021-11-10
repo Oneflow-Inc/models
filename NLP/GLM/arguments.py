@@ -76,6 +76,8 @@ def add_fp16_config_args(parser):
 
     group.add_argument('--fp16', action='store_true',
                        help='Run model in fp16 mode')
+    group.add_argument('--graph_fp16', action='store_true',
+                       help='Run model in fp16 mode in graph')
     group.add_argument('--fp32-embedding', action='store_true',
                        help='embedding in fp32')
     group.add_argument('--fp32-layernorm', action='store_true',
