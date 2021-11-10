@@ -138,6 +138,24 @@ class GPTGraph(flow.nn.Graph):
         self.config.allow_fuse_model_update_ops(True)
         self.config.allow_fuse_cast_scale(True)
 
+        # zero optimization
+        optimizer_split_strategy = "non_distributed"
+        flow.boxing.nccl.enable_use_compute_stream(False)
+        flow.boxing.nccl.disable_group_boxing_by_dst_parallel(False)
+        if args.zero_stage_1:
+            print("zero stage 1 optimization")
+            optimizer_split_strategy = "distributed_split"
+        if args.zero_stage_2:
+            print("zero stage 2 optimization")
+            optimizer_split_strategy = "distributed_split"
+            flow.boxing.nccl.enable_use_compute_stream(True)
+        if args.zero_stage_3:
+            print("zero stage 3 optimization")
+            optimizer_split_strategy = "distributed_split"
+            flow.boxing.nccl.enable_use_compute_stream(True)
+            flow.boxing.nccl.disable_group_boxing_by_dst_parallel(True)
+        self.config.set_zero_redundancy_optimizer_mode(optimizer_split_strategy)
+
     def set_activation_checkpointing(self):
         for module_block in self.model.modules():
             if isinstance(module_block.origin, TransformerLayer):

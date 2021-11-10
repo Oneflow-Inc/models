@@ -30,6 +30,7 @@ def parse_args(ignore_unknown_args=False):
     parser = _add_validation_args(parser)
     parser = _add_data_args(parser)
     parser = _add_misc_args(parser)
+    parser = _add_zero_optimization_args(parser)
 
     if ignore_unknown_args:
         args, _ = parser.parse_known_args()
@@ -624,6 +625,18 @@ def _add_misc_args(parser):
     )
     return parser
 
+def _add_zero_optimization_args(parser):
+    group = parser.add_argument_group(title="zero_optimization")
+    group.add_argument(
+        "--zero_stage_1", action="store_true", help="Use zero_stage_1 optimization mode.",
+    )
+    group.add_argument(
+        "--zero_stage_2", action="store_true", help="Use zero_stage_2 optimization mode.",
+    )
+    group.add_argument(
+        "--zero_stage_3", action="store_true", help="Use zero_stage_3 optimization mode.",
+    )
+    return parser
 
 if __name__ == "__main__":
     get_args()
