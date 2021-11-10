@@ -219,15 +219,16 @@ def get_learning_rate_scheduler(optimizer, args):
     return lr_scheduler
 
 
-def setup_model_and_optimizer(args, model_type=None, multi_token=True, num_labels=None, spell_length=None):
+def setup_model_and_optimizer(args, model_type=None, multi_token=True, num_labels=None, spell_length=None, graph=False):
 
     model = get_model(args, model_type=model_type, multi_token=multi_token, num_labels=num_labels,
                       spell_length=spell_length)
 
-    placement = flow.env.all_device_placement("cuda")
-    model = model.to_consistent(
-        placement=placement, sbp=flow.sbp.broadcast
-    )
+    if graph:
+        placement = flow.env.all_device_placement("cuda")
+        model = model.to_consistent(
+            placement=placement, sbp=flow.sbp.broadcast
+        )
     param_groups = get_optimizer_param_groups(model)
 
     #False
@@ -297,8 +298,9 @@ def train_step(data_iterator, model, optimizer, lr_scheduler, args, timers, forw
         timers('forward').stop()
         
         lm_loss /= args.gradient_accumulation_steps
-
-        lm_loss = lm_loss.to_local()
+        
+        if lm_loss.is_consistent:
+            lm_loss = lm_loss.to_local()
 
         reduced_loss = lm_loss.detach().clone().view((1,))
         # flow.distributed.all_reduce(reduced_loss.data, group=mpu.get_data_parallel_group())

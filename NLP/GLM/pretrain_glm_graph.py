@@ -494,7 +494,7 @@ def main():
     if args.multi_task_ratio > 0.0:
         multi_train_data, multi_val_data = build_multi_task_dataset(args, tokenizer)
 
-    model, optimizer, lr_scheduler = setup_model_and_optimizer(args)
+    model, optimizer, lr_scheduler = setup_model_and_optimizer(args, graph=True)
     
     #False
     if args.load is not None:
