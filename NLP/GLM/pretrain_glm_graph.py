@@ -267,15 +267,6 @@ def report_evaluate_metrics(summary_writer, prefix, loss, ppl, gpt_loss, bert_lo
 
 def train(model, optimizer, lr_scheduler,
           train_data_iterator, val_data_iterator, timers, args, summary_writer=None):
-    #加载模型
-    # import torch
-    # torch_params = torch.load("/home/chengpeng/data/mo.pt", map_location='cpu')
-    # flow_params = {}
-    # for k in torch_params.keys():
-    #     flow_params[k] = flow.Tensor(torch_params[k].numpy().astype("float32"))
-    # model.load_state_dict(flow_params)
-    # print("load pretraining model succeed!")
-    
     
     #create train graph
     class GLMGraph(nn.Graph):

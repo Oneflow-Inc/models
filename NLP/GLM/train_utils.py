@@ -224,6 +224,14 @@ def setup_model_and_optimizer(args, model_type=None, multi_token=True, num_label
     model = get_model(args, model_type=model_type, multi_token=multi_token, num_labels=num_labels,
                       spell_length=spell_length)
 
+    import torch
+    torch_params = torch.load("/home/chengpeng/data/mo.pt", map_location='cpu')
+    flow_params = {}
+    for k in torch_params.keys():
+        flow_params[k] = flow.Tensor(torch_params[k].numpy().astype("float32"))
+    model.load_state_dict(flow_params, strict=False)
+    print("load pretraining model succeed!")
+
     if graph:
         placement = flow.env.all_device_placement("cuda")
         model = model.to_consistent(
