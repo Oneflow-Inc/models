@@ -16,19 +16,20 @@ transform = vision.transforms.Compose(
 trainset = vision.datasets.CIFAR10(root='./data', train=True,
                                         download=True, transform=transform)
 trainloader = flow.utils.data.DataLoader(trainset, batch_size=64,
-                                          shuffle=True, num_workers=1)
+                                         shuffle=True, num_workers=1)
 
 testset = vision.datasets.CIFAR10(root='./data', train=False,
                                        download=True, transform=transform)
 testloader = flow.utils.data.DataLoader(testset, batch_size=64,
-                                         shuffle=False, num_workers=1)
+                                        shuffle=False, num_workers=1)
 
 classes = ('plane', 'car', 'bird', 'cat',
            'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
 
 
 device = flow.device('cpu')
-net = MoE(input_size=3072,output_size= 10, num_experts=10, hidden_size=256, noisy_gating=True, k=4)
+net = MoE(input_size=3072, output_size=10, num_experts=10,
+          hidden_size=256, noisy_gating=True, k=4)
 net.to(device)
 
 
@@ -54,7 +55,6 @@ for epoch in range(10):  # loop over the dataset multiple times
         total_loss = loss + aux_loss
         total_loss.backward()
         optimizer.step()
-
 
         # print statistics
         running_loss += loss.item()
