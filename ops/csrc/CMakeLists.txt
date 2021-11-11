@@ -21,7 +21,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 set(CUDA_HOST_COMPILER g++)
 set(CUDA_SEPARABLE_COMPILATION ON)
 set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} -O3 -Xcompiler -Wextra --disable-warnings -DWITH_CUDA)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${ONEFLOW_COMPILE_FLAGS} -O3 -g -std=c++11 -Wall -Wno-sign-compare -Wno-unused-function -fPIC")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${ONEFLOW_COMPILE_FLAGS} -O3 -g -std=c++14 -Wall -Wno-sign-compare -Wno-unused-function -fPIC")
 set(CUDA_VERBOSE_BUILD OFF)
 
 file(GLOB_RECURSE SRC "*.cpp")
