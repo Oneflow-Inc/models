@@ -248,7 +248,8 @@ def setup_model_and_optimizer(args, model_type=None, multi_token=True, num_label
                             weight_decay=args.weight_decay,
                             betas=(args.adam_beta1, args.adam_beta2),
                             eps=args.adam_eps)
-        lr_scheduler = get_learning_rate_scheduler(optimizer, args)
+        # lr_scheduler = get_learning_rate_scheduler(optimizer, args)
+        lr_scheduler = flow.optim.lr_scheduler.StepLR(optimizer, step_size=100000)
     else:
         optimizer, lr_scheduler = None, None
    

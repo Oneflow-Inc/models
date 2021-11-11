@@ -273,7 +273,7 @@ def train(model, optimizer, lr_scheduler,
         def __init__(self):
             super().__init__()
             self.glm = model
-            self.add_optimizer(optimizer, lr_sch=None)
+            self.add_optimizer(optimizer, lr_sch=lr_scheduler)
             self.config.allow_fuse_add_to_output(True)
             self.config.allow_fuse_model_update_ops(True)
             if args.graph_fp16:
