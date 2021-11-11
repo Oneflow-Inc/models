@@ -139,8 +139,6 @@ class GPTGraph(flow.nn.Graph):
         self.config.allow_fuse_cast_scale(True)
 
         # zero optimization
-        flow.boxing.nccl.enable_use_compute_stream(False)
-        flow.boxing.nccl.disable_group_boxing_by_dst_parallel(False)
         if args.zero_stage_1:
             print("zero stage 1 optimization")
             self.config.set_zero_redundancy_optimizer_mode("distributed_split")
