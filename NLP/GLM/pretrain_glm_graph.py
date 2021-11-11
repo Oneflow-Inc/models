@@ -277,6 +277,7 @@ def train(model, optimizer, lr_scheduler,
             self.config.allow_fuse_add_to_output(True)
             self.config.allow_fuse_model_update_ops(True)
             if args.graph_fp16:
+                print("using amp fp16!!")
                 self.config.enable_amp(True)
                 grad_scaler = flow.amp.GradScaler(
                     init_scale=2 ** 30,
@@ -289,7 +290,8 @@ def train(model, optimizer, lr_scheduler,
         def build(self,tokens,position_ids,attention_mask,labels,loss_mask):
 
             logits, *mems = self.glm(tokens, position_ids, attention_mask)
-            losses = get_loss(logits.contiguous().float(),labels)
+            losses = flow._C.sparse_softmax_cross_entropy(logits, labels)
+            # losses = get_loss(logits.contiguous().float(),labels)
             
             loss_mask = loss_mask.view((-1,))
             loss = flow.sum(losses.view((-1,)) * loss_mask)
@@ -453,6 +455,7 @@ def main():
 
     flow.boxing.nccl.set_fusion_threshold_mbytes(16)
     flow.boxing.nccl.set_fusion_max_ops_num(24)
+    flow.boxing.nccl.enable_use_compute_stream(True)
     
     timers = Timers()
     
