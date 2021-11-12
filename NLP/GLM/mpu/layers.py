@@ -104,7 +104,10 @@ class VocabParallelEmbedding(flow.nn.Module):
         #不支持切片索引
         # masked_input[input_mask] = 0
 
-        weight_fp16 = flow._C.amp_white_identity(self.weight) 
+        try:
+            weight_fp16 = flow._C.amp_white_identity(self.weight) 
+        except:
+            weight_fp16 = self.weight
 
         output_parallel = F.embedding(masked_input, 
                                       weight_fp16,
