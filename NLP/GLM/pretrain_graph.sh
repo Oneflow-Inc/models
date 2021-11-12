@@ -25,8 +25,9 @@ gpt_options=" \
        --lr-decay-iters 160000 \
        --lr-decay-ratio 0.05 \
        --warmup .05 \
-       --num-workers 1\
-       --graph_fp16 \
+       --num-workers 1 \
+       --hidden-dropout 0.0 \
+    #    --graph_fp16 \
 "
 
 

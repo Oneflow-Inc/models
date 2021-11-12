@@ -176,6 +176,8 @@ class ColumnParallelLinear(flow.nn.Module):
         output_parallel = F.linear(input_parallel, self.weight)
         if self.if_use_gelu: 
             return flow._C.fused_bias_add_gelu(output_parallel, self.bias, axis=2)
+        elif self.dropout_rate - 0.0 < 1e-9:
+            return flow._C.bias_add(output_parallel, self.bias, axis=2)
         elif self.if_use_dropout: 
             return flow._C.fused_bias_add_dropout(output_parallel, self.bias, p=self.dropout_rate, axis=2)
         else: 
@@ -243,6 +245,8 @@ class RowParallelLinear(flow.nn.Module):
         output_parallel = F.linear(input_, self.weight)
         if self.if_use_gelu: 
             return flow._C.fused_bias_add_gelu(output_parallel, self.bias, axis=2)
+        elif self.dropout_rate - 0.0 < 1e-9:
+            return flow._C.bias_add(output_parallel, self.bias, axis=2)
         elif self.if_use_dropout: 
             return flow._C.fused_bias_add_dropout(output_parallel, self.bias, p=self.dropout_rate, axis=2)
         else: 

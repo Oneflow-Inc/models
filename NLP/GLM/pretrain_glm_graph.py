@@ -217,6 +217,8 @@ def forward_step(data_iterator, model, args, timers, mems):
     loss = model(tokens,position_ids,attention_mask,labels,loss_mask)
 
     # print(loss)
+    with open("/home/chengpeng/glm_flow_graph_loss.txt",'a') as f:
+        f.write(str(loss.item())+'\n')
     return loss, mems, mode
 
 
@@ -303,7 +305,8 @@ def train(model, optimizer, lr_scheduler,
 
     glm_graph = GLMGraph()
 
-    model.train()
+    # model.train()
+    model.eval()
 
     total_lm_loss = 0.0
 
