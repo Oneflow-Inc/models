@@ -27,7 +27,7 @@ classes = ('plane', 'car', 'bird', 'cat',
            'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
 
 
-device = flow.device('cpu')
+device = flow.device('cuda')
 net = MoE(input_size=3072, output_size=10, num_experts=10,
           hidden_size=256, noisy_gating=True, k=4)
 net.to(device)
