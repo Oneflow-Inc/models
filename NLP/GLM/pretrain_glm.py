@@ -215,14 +215,15 @@ def forward_step(data_iterator, model, args, timers, mems):
     
     logits, *mems = model(tokens, position_ids, attention_mask, *mems)
     
-    losses = get_loss(logits.contiguous().float(),labels)
+    # losses = get_loss(logits.contiguous().float(),labels)
+    losses = flow._C.sparse_softmax_cross_entropy(logits, labels)
     
     loss_mask = loss_mask.view((-1,))
     loss = flow.sum(losses.view((-1,)) * loss_mask)
     
     if loss_mask.sum().item() > 0:
         loss = loss / loss_mask.sum()
-    # with open("/home/zhangxiaoyu/glm_flow_eager_eval_loss.txt",'a') as f:
+    # with open("/home/chengpeng/glm_flow_eager_loss2.txt",'a') as f:
     #     f.write(str(loss.item())+'\n')
     # print(loss)
     return loss, mems, mode
