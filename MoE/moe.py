@@ -87,7 +87,10 @@ class SparseDispatcher(object):
         # assigns samples to experts whose gate is nonzero
         # expand according to batch index so we can just split by _part_sizes
         inp_exp = inp[self._batch_index].squeeze(1)
+        
         return flow.split(inp_exp, self._part_sizes, dim=0)
+        
+            
 
     def combine(self, expert_out, multiply_by_gates=True):
         """Sum together the expert output, weighted by the gates.
@@ -105,7 +108,6 @@ class SparseDispatcher(object):
         # apply exp to expert outputs, so we are not longer in log space
 
         stitched = flow.cat(expert_out, 0).exp()
-        stitched = stitched.to("cuda")      
 
         if multiply_by_gates:
             stitched = stitched.mul(self._nonzero_gates)
@@ -319,9 +321,10 @@ class MoE(nn.Module):
         loss = self.cv_squared(importance) + self.cv_squared(load)
         loss *= loss_coef
 
-        dispatcher = SparseDispatcher(self.num_experts, gates)
+        dispatcher = SparseDispatcher(self.num_experts, gates)      
         expert_inputs = dispatcher.dispatch(x)
-        gates = dispatcher.expert_to_gates()
+
+        gates = dispatcher.expert_to_gates() 
 
         expert_outputs = []
         # TODO, vectorize this part after fixing the zero dimension bug
@@ -329,7 +332,7 @@ class MoE(nn.Module):
             if expert_inputs[i].shape.numel() != 0:
                 expert_outputs.append(self.experts[i](expert_inputs[i]))
             else:
-                expert_outputs.append(flow.zeros(0, self.output_size))
+                expert_outputs.append(flow.zeros(0, self.output_size, device=x.device))
 #        expert_outputs = [self.experts[i](expert_inputs[i]) for i in range(self.num_experts)]
         y = dispatcher.combine(expert_outputs)
         return y, loss
