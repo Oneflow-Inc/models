@@ -24,11 +24,6 @@ def get_args(print_args=True):
     parser.add_argument(
         "--dataset_format", type=str, default="ofrecord", help="ofrecord or onerec"
     )
-    parser.add_argument(
-        "--use_single_dataloader_thread",
-        action="store_true",
-        help="use single dataloader threads per node or not.",
-    )
     parser.add_argument("--model_load_dir", type=str, default="")
     parser.add_argument("--model_save_dir", type=str, default="")
     parser.add_argument(
@@ -36,7 +31,6 @@ def get_args(print_args=True):
         action="store_true",
         help="save initial model parameters or not.",
     )
-    parser.add_argument("--num_dataloader_thread_per_gpu", type=int, default=2)
     parser.add_argument(
         "--data_dir", type=str, default="/dataset/wdl_ofrecord/ofrecord"
     )
