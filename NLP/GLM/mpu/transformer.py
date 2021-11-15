@@ -603,25 +603,39 @@ class GPT2ParallelTransformer(flow.nn.Module):
             sep = attention_mask.item() if is_scalar else attention_mask
             
             def build_mask_matrix(seq_length, sep, memory_length=0):
+                print("=========m sbp==============")
                 if hidden_states.is_consistent:
-                    m = flow.ones((1, seq_length, seq_length), placement=hidden_states.placement, sbp=flow.sbp.broadcast, dtype=hidden_states.dtype)
+                    m = flow.ones((batch_size, seq_length, seq_length), placement=hidden_states.placement, sbp=flow.sbp.split(0), dtype=hidden_states.dtype)
+                    print("initial m:", m)
                 else:
                     m = hidden_states.new_ones((1, seq_length, seq_length))
                 m = flow.tril(m)
+                print("flow.tril m:", m)
                 
                 #False
                 if is_scalar:
                     m[0, :, :sep] = 1
                 else:
-                    m = m.expand(batch_size, -1, -1)
+                    # m = m.expand(batch_size, -1, -1)
+                    # print("expand m:", m)
                     # ids = flow._C.arange(seq_length, device=sep.device, dtype=sep.dtype).view(1, -1)
                     ids = self.ids
+                    print("ids :", ids)
                     mask = ids < sep.view(-1, 1)
+                    print("sep :", sep)
+                    print("mask :", mask)
                     
                     #expand_as 不支持
-                    m = m.masked_fill(mask.unsqueeze(1).expand_as(m), 1)
-                   
+                    a = mask.unsqueeze(1)
+                    print("mask.unsqueeze(1):", a)
+                    b = a.expand_as(m)
+                    print("mask.unsqueeze(1).expand_as(m):", b)
+                    # m = m.masked_fill(mask.unsqueeze(1).expand_as(m), 1)
+                    m = m.masked_fill(b, 1)
+                    print("m.masked_fill(mask.unsqueeze(1).expand_as(m), 1):", m)
+                
                 m = m.unsqueeze(1)
+                print("m.unsqueeze(1):", m)
                 return m
             
             #True
