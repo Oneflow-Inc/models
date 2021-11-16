@@ -344,7 +344,6 @@ def train(model, optimizer, lr_scheduler,
         if args.iteration % print_iter == 0:
             t1 = time.time()
             total_batch_size =  flow.env.get_world_size() * \
-                                flow.env.get_node_size() * \
                                 args.batch_size * \
                                 print_iter
             though_out = total_batch_size / (t1 - t0)
@@ -375,7 +374,6 @@ def train(model, optimizer, lr_scheduler,
                 summary_writer=summary_writer, forward_step_func=forward_step)
     te = time.time()
     total_batch_size =  flow.env.get_world_size() * \
-                        flow.env.get_node_size() * \
                         args.batch_size * \
                         args.train_iters
     avg_though_out = total_batch_size / (te - tb)
