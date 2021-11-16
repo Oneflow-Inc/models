@@ -26,7 +26,8 @@ class WideAndDeepGraph(flow.nn.Graph):
 
         predicts = self.module(dense_fields, wide_sparse_fields, deep_sparse_fields)
         loss = self.bce_loss(predicts, labels)
-        return predicts, labels, loss
+        reduce_loss = flow.mean(loss)
+        return predicts, labels, reduce_loss
 
 
 class WideAndDeepTrainGraph(WideAndDeepGraph):

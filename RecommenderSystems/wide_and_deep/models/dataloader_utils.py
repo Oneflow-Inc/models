@@ -3,40 +3,65 @@ import oneflow as flow
 import oneflow.nn as nn
 
 
+def make_data_loader(args, mode, is_consistent=False):
+    assert mode in ("train", "val")
+
+    if mode == "train":
+        total_batch_size = args.batch_size
+        batch_size_per_proc = args.batch_size_per_proc
+    else:
+        total_batch_size = args.val_batch_size
+        batch_size_per_proc = args.val_batch_size_per_proc
+
+    placement = None
+    sbp = None
+
+    if is_consistent:
+        placement = flow.env.all_device_placement("cpu")
+        sbp = flow.sbp.split(0)
+        batch_size_per_proc = total_batch_size
+    
+    ofrecord_data_loader = OFRecordDataLoader(
+        data_dir=args.data_dir,
+        data_part_num=args.data_part_num,
+        num_dense_fields=args.num_dense_fields,
+        num_wide_sparse_fields=args.num_wide_sparse_fields,
+        num_deep_sparse_fields=args.num_deep_sparse_fields,
+        batch_size=batch_size_per_proc,
+        total_batch_size=total_batch_size,
+        mode=mode,
+        shuffle=False,
+        placement=placement,
+        sbp=sbp,
+    )
+    return ofrecord_data_loader
+    
+
+
 class OFRecordDataLoader(nn.Module):
     def __init__(
         self,
-        FLAGS,
+        data_dir: str = "/dataset/wdl_ofrecord/ofrecord",
         data_part_num: int = 256,
         part_name_suffix_length: int = 5,
+        num_dense_fields: int = 13,
+        num_wide_sparse_fields: int = 2,
+        num_deep_sparse_fields: int = 26,
+        batch_size: int = 1,
+        total_batch_size: int = 1,
         mode: str = "train",
+        shuffle: bool = True,
+        placement=None,
+        sbp=None,
     ):
         super(OFRecordDataLoader, self).__init__()
-        assert FLAGS.num_dataloader_thread_per_gpu >= 1
-        self.num_dataloader_thread_per_gpu = FLAGS.num_dataloader_thread_per_gpu
-        if FLAGS.use_single_dataloader_thread:
-            self.devices = ["{}:0".format(i) for i in range(FLAGS.num_nodes)]
-        else:
-            num_dataloader_thread = (
-                FLAGS.num_dataloader_thread_per_gpu * FLAGS.gpu_num_per_node
-            )
-            self.devices = [
-                "{}:0-{}".format(i, num_dataloader_thread - 1)
-                for i in range(FLAGS.num_nodes)
-            ]
-        data_root = FLAGS.data_dir
-        batch_size = FLAGS.batch_size
-        is_consistent = (
-            flow.env.get_world_size() > 1 and not FLAGS.ddp
-        ) or FLAGS.execution_mode == "graph"
-        placement = None
-        sbp = None
-        if is_consistent == True:
-            placement = flow.placement("cpu", {0: range(flow.env.get_world_size())})
-            sbp = flow.sbp.split(0)
-        shuffle = mode == "train"
+        assert mode in ("train", "val")
+        self.batch_size = batch_size
+        self.total_batch_size = total_batch_size
+        self.mode = mode
+  
         self.reader = nn.OfrecordReader(
-            os.path.join(data_root, mode),
+            os.path.join(data_dir, mode),
             batch_size=batch_size,
             data_part_num=data_part_num,
             part_name_suffix_length=part_name_suffix_length,
@@ -51,13 +76,13 @@ class OFRecordDataLoader(nn.Module):
 
         self.labels = _blob_decoder("labels", (1,))
         self.dense_fields = _blob_decoder(
-            "dense_fields", (FLAGS.num_dense_fields,), flow.float
+            "dense_fields", (num_dense_fields,), flow.float
         )
         self.wide_sparse_fields = _blob_decoder(
-            "wide_sparse_fields", (FLAGS.num_wide_sparse_fields,)
+            "wide_sparse_fields", (num_wide_sparse_fields,)
         )
         self.deep_sparse_fields = _blob_decoder(
-            "deep_sparse_fields", (FLAGS.num_deep_sparse_fields,)
+            "deep_sparse_fields", (num_deep_sparse_fields,)
         )
 
     def forward(self):

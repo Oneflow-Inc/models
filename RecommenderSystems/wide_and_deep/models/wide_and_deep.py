@@ -4,7 +4,7 @@ import oneflow.nn as nn
 from typing import Any
 
 
-__all__ = ["WideAndDeep", "wide_and_deep"]
+__all__ = ["WideAndDeep", "wide_and_deep", "make_wide_and_deep_module"]
 
 
 class Embedding(nn.Embedding):
@@ -42,18 +42,27 @@ class Dense(nn.Module):
 
 
 class WideAndDeep(nn.Module):
-    def __init__(self, FLAGS) -> None:
+    def __init__(
+        self,
+        wide_vocab_size: int,
+        deep_vocab_size: int,
+        deep_embedding_vec_size: int = 16,
+        num_deep_sparse_fields: int = 26,
+        num_dense_fields: int = 13,
+        hidden_size: int = 1024,
+        hidden_units_num: int = 7,
+        deep_dropout_rate: float = 0.5,
+    ):
         super(WideAndDeep, self).__init__()
-        self.FLAGS = FLAGS
-        self.wide_embedding = Embedding(vocab_size=FLAGS.wide_vocab_size, embed_size=1)
+        self.wide_embedding = Embedding(vocab_size=wide_vocab_size, embed_size=1)
         self.deep_embedding = Embedding(
-            vocab_size=FLAGS.deep_vocab_size,
-            embed_size=FLAGS.deep_embedding_vec_size,
+            vocab_size=deep_vocab_size,
+            embed_size=deep_embedding_vec_size,
             split_axis=1,
         )
         deep_feature_size = (
-            FLAGS.deep_embedding_vec_size * FLAGS.num_deep_sparse_fields
-            + FLAGS.num_dense_fields
+            deep_embedding_vec_size * num_deep_sparse_fields
+            + num_dense_fields
         )
         self.linear_layers = nn.Sequential(
             OrderedDict(
@@ -61,16 +70,16 @@ class WideAndDeep(nn.Module):
                     (
                         f"fc{i}",
                         Dense(
-                            deep_feature_size if i == 0 else FLAGS.hidden_size,
-                            FLAGS.hidden_size,
-                            FLAGS.deep_dropout_rate,
+                            deep_feature_size if i == 0 else hidden_size,
+                            hidden_size,
+                            deep_dropout_rate,
                         ),
                     )
-                    for i in range(FLAGS.hidden_units_num)
+                    for i in range(hidden_units_num)
                 ]
             )
         )
-        self.deep_scores = nn.Linear(FLAGS.hidden_size, 1)
+        self.deep_scores = nn.Linear(hidden_size, 1)
         self.sigmoid = nn.Sigmoid()
 
     def forward(
@@ -95,4 +104,17 @@ def wide_and_deep(
         progress (bool): If True, displays a progress bar of the download to stderr
     """
     model = WideAndDeep(**kwargs)
+    return model
+
+def make_wide_and_deep_module(args):
+    model = WideAndDeep(
+        wide_vocab_size=args.wide_vocab_size,
+        deep_vocab_size=args.deep_vocab_size,
+        deep_embedding_vec_size=args.deep_embedding_vec_size,
+        num_deep_sparse_fields=args.num_deep_sparse_fields,
+        num_dense_fields=args.num_dense_fields,
+        hidden_size=args.hidden_size,
+        hidden_units_num=args.hidden_units_num,
+        deep_dropout_rate=args.deep_dropout_rate,
+    )
     return model

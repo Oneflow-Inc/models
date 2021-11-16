@@ -9,9 +9,9 @@ import numpy as np
 from sklearn.metrics import roc_auc_score
 import oneflow as flow
 from config import get_args
-from models.dataloader_utils import OFRecordDataLoader
+from models.dataloader_utils import make_data_loader
 from oneflow.framework import distribute
-from models.wide_and_deep import WideAndDeep
+from models.wide_and_deep import make_wide_and_deep_module
 from oneflow.nn.parallel import DistributedDataParallel as ddp
 from graph import WideAndDeepGraph, WideAndDeepTrainGraph
 import warnings
@@ -52,7 +52,7 @@ class Trainer(object):
     def prepare_modules(self):
         args = self.args
         is_consistent = self.is_consistent
-        self.wdl_module = WideAndDeep(args)
+        self.wdl_module = make_wide_and_deep_module(args)
         if is_consistent == True:
             world_size = self.world_size
             placement = flow.placement("cuda", {0: range(world_size)})
@@ -68,10 +68,10 @@ class Trainer(object):
         if args.save_initial_model and args.model_save_dir != "":
             self.save(os.path.join(args.model_save_dir, "initial_checkpoint"))
 
-        train_dataloader = OFRecordDataLoader(args)
-        val_dataloader = OFRecordDataLoader(args, mode="val")
+        train_dataloader = make_data_loader(args, mode="train", is_consistent=self.is_consistent)
+        val_dataloader = make_data_loader(args, mode="val", is_consistent=self.is_consistent)
 
-        bce_loss = flow.nn.BCELoss(reduction="mean")
+        bce_loss = flow.nn.BCELoss(reduction="none")
         bce_loss.to("cuda")
 
         opt = flow.optim.SGD(
@@ -121,24 +121,30 @@ class Trainer(object):
         args = self.args
         for i in range(args.max_iter):
             loss = self.train_one_step()
-            losses.append(loss.numpy())
-            if (i + 1) % args.print_interval == 0:
+            record_loss = tol(loss, False)
+            if self.ddp:
+                # In ddp mode, the loss needs to be averaged
+                record_loss = flow.comm.all_reduce(record_loss)
+                losses.append(record_loss.numpy() / self.world_size)
+            else:
+                losses.append(record_loss.numpy())
+
+            if (i + 1) % args.print_interval == 0 and flow.env.get_rank() == 0:
                 l = sum(losses) / len(losses)
                 losses = []
-                rank = flow.env.get_rank()
-                print(f"device {rank}: iter {i+1} train_loss {l} time {time.time()}")
-                if args.eval_batchs <= 0:
+                print(f"iter {i+1} train_loss {l} time {time.time()}")
+                if args.val_batch_size <= 0:
                     continue
                 eval_loss_acc = 0.0
                 lables_list = []
                 predicts_list = []
-                for j in range(args.eval_batchs):
+                for j in range(args.val_batch_size):
                     predicts, labels, eval_loss = self.eval_one_step()
                     eval_loss_acc += eval_loss.numpy()
                     lables_list.append(labels.numpy())
                     predicts_list.append(predicts.numpy())
                 self.print_eval_metrics(
-                    i + 1, eval_loss_acc / args.eval_batchs, lables_list, predicts_list
+                    i + 1, eval_loss_acc / args.val_batch_size, lables_list, predicts_list
                 )
                 self.wdl_module.train()
 
@@ -164,9 +170,9 @@ class Trainer(object):
         predicts = self.wdl_module(
             dense_fields, wide_sparse_fields, deep_sparse_fields
         )
-        #计算loss出错
         loss = self.loss(predicts,labels)
-        return predicts,labels,loss
+        reduce_loss = flow.mean(loss)
+        return predicts,labels,reduce_loss
 
     def train_eager(self):
         predicts,labels,loss = self.forward()
@@ -193,6 +199,17 @@ class Trainer(object):
         else:
             predicts, labels, train_loss = self.train_eager()
         return train_loss
+
+
+def tol(tensor, pure_local=True):
+    """ to local """
+    if tensor.is_consistent:
+        if pure_local:
+            tensor = tensor.to_local()
+        else:
+            tensor = tensor.to_consistent(sbp=flow.sbp.broadcast).to_local()
+
+    return tensor
 
 
 if __name__ == "__main__":

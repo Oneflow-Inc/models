@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 import argparse
-
+import oneflow as flow
 
 def get_args(print_args=True):
     def str_list(x):
@@ -24,11 +24,7 @@ def get_args(print_args=True):
     parser.add_argument(
         "--dataset_format", type=str, default="ofrecord", help="ofrecord or onerec"
     )
-    parser.add_argument(
-        "--use_single_dataloader_thread",
-        action="store_true",
-        help="use single dataloader threads per node or not.",
-    )
+    parser.add_argument("--data_part_num", type=int, default=256)
     parser.add_argument("--model_load_dir", type=str, default="")
     parser.add_argument("--model_save_dir", type=str, default="")
     parser.add_argument(
@@ -36,13 +32,14 @@ def get_args(print_args=True):
         action="store_true",
         help="save initial model parameters or not.",
     )
-    parser.add_argument("--num_dataloader_thread_per_gpu", type=int, default=2)
     parser.add_argument(
         "--data_dir", type=str, default="/dataset/wdl_ofrecord/ofrecord"
     )
     parser.add_argument("--print_interval", type=int, default=1000)
-    parser.add_argument("--eval_batchs", type=int, default=20)
+    parser.add_argument("--val_batch_size", type=int, default=20)
+    parser.add_argument("--val_batch_size_per_proc", type=int, default=None)
     parser.add_argument("--batch_size", type=int, default=16384)
+    parser.add_argument("--batch_size_per_proc", type=int, default=None)
     parser.add_argument("--learning_rate", type=float, default=1e-3)
     parser.add_argument("--wide_vocab_size", type=int, default=1603616)
     parser.add_argument("--deep_vocab_size", type=int, default=1603616)
@@ -76,10 +73,24 @@ def get_args(print_args=True):
         "--execution_mode", type=str, default="eager", help="graph or eager"
     )
 
-    FLAGS = parser.parse_args()
-    if print_args:
-        _print_args(FLAGS)
-    return FLAGS
+    args = parser.parse_args()
+
+    world_size = flow.env.get_world_size()
+    if args.batch_size_per_proc is None:
+        assert args.batch_size % world_size == 0
+        args.batch_size_per_proc = args.batch_size // world_size
+    else:
+        assert args.batch_size % args.batch_size_per_proc == 0
+    
+    if args.val_batch_size_per_proc is None:
+        assert args.val_batch_size % world_size == 0
+        args.val_batch_size_per_proc = args.val_batch_size // world_size
+    else:
+        assert args.val_batch_size % args.val_batch_size_per_proc == 0
+
+    if print_args and flow.env.get_rank() == 0:
+        _print_args(args)
+    return args
 
 
 def _print_args(args):
