@@ -312,6 +312,16 @@ def train(model, optimizer, lr_scheduler,
         # print(args.iteration)
         total_lm_loss += lm_loss.data.detach().float()
        
+         if args.iteration % print_iter == 0:
+            t1 = time.time()
+            total_batch_size =  flow.env.get_world_size() * \
+                                flow.env.get_node_size() * \
+                                args.batch_size * \
+                                print_iter
+            though_out = total_batch_size / (t1 - t0)
+            t0 = time.time()
+            if flow.env.get_rank() == 0:
+                print(f"iter: {args.iteration}, though_out: {though_out}")
         #True
         if False:
         # if args.iteration % args.log_interval == 0:
@@ -334,8 +344,13 @@ def train(model, optimizer, lr_scheduler,
                 prefix, val_data_iterator, model, args, timers, verbose=False, step=args.iteration,
                 summary_writer=summary_writer, forward_step_func=forward_step)
     te = time.time()
+    total_batch_size =  flow.env.get_world_size() * \
+                        flow.env.get_node_size() * \
+                        args.batch_size * \
+                        args.train_iters
+    avg_though_out = total_batch_size / (te - tb)
     if flow.env.get_rank() == 0:
-        print(te-tb)
+        print(f"avg_though_out: {avg_though_out}, total time: {te - tb}s")
     exit(0)
     return args.iteration, skipped_iters
 
