@@ -613,7 +613,8 @@ class GPT2ParallelTransformer(flow.nn.Module):
                 if is_scalar:
                     m[0, :, :sep] = 1
                 else:
-                    # m = m.expand(batch_size, -1, -1)
+                    if not m.is_consistent:
+                        m = m.expand(batch_size, -1, -1)
                     # ids = flow._C.arange(seq_length, device=sep.device, dtype=sep.dtype).view(1, -1)
                     ids = self.ids
                     mask = ids < sep.view(-1, 1)
