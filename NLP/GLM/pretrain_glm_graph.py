@@ -316,7 +316,8 @@ def train(model, optimizer, lr_scheduler,
     report_memory_flag = True
     mems = []
 
-    lm_loss, skipped_iter, mems = train_step(train_data_iterator,
+    for i in range(10):
+        lm_loss, skipped_iter, mems = train_step(train_data_iterator,
                                         glm_graph,
                                         optimizer,
                                         lr_scheduler,
