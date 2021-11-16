@@ -69,7 +69,7 @@ if __name__ == "__main__":
     for i in range(1):
         labels, dense_fields, wide_sparse_fields, deep_sparse_fields = dataloader()
         if dense_fields.is_consistent:
-            print(f'is_consistent={labels.is_consistent}, placement={labels.placement}, sbp={labels.sbp}, values={labels.numpy().flatten()}')
+            print(f'is_consistent={labels.is_consistent}; placement={labels.placement}; sbp={labels.sbp}; values={labels.numpy().flatten()}')
         else:
-            print(f'is_consistent={labels.is_consistent}, device={labels.device}, values={labels.numpy().flatten()}')
+            print(f'is_consistent={labels.is_consistent}; device={labels.device}; values={labels.numpy().flatten()}')
 
