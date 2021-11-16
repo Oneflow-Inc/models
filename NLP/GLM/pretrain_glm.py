@@ -292,13 +292,15 @@ def train(model, optimizer, lr_scheduler,
 
     for i in range(10):
         lm_loss, skipped_iter, mems = train_step(train_data_iterator,
-                                    glm_graph,
+                                    model,
                                     optimizer,
                                     lr_scheduler,
                                     args, timers, mems=mems, forward_step_func=forward_step, backward=False)
 
     import time
     tb = time.time()
+    print_iter = 10
+    t0 = time.time()
     #0,200000
     # while args.iteration < 1000:
     while args.iteration < args.train_iters:
@@ -312,7 +314,7 @@ def train(model, optimizer, lr_scheduler,
         # print(args.iteration)
         total_lm_loss += lm_loss.data.detach().float()
        
-         if args.iteration % print_iter == 0:
+        if args.iteration % print_iter == 0:
             t1 = time.time()
             total_batch_size =  flow.env.get_world_size() * \
                                 flow.env.get_node_size() * \
