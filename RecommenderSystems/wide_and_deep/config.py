@@ -36,7 +36,7 @@ def get_args(print_args=True):
     )
     parser.add_argument("--print_interval", type=int, default=1000)
     parser.add_argument("--eval_batchs", type=int, default=20)
-    parser.add_argument("--batch_size", type=int, default=16384)
+    parser.add_argument("--batch_size", type=int, default=16384, help='global batch size per step')
     parser.add_argument("--learning_rate", type=float, default=1e-3)
     parser.add_argument("--wide_vocab_size", type=int, default=1603616)
     parser.add_argument("--deep_vocab_size", type=int, default=1603616)
@@ -73,6 +73,8 @@ def get_args(print_args=True):
     FLAGS = parser.parse_args()
     if print_args:
         _print_args(FLAGS)
+    if FLAGS.ddp and FLAGS.execution_mode=='graph':
+        print('DDP is not applicable when exection_mode is `graph`.')
     return FLAGS
 
 

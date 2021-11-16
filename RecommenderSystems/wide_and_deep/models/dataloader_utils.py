@@ -12,26 +12,20 @@ class OFRecordDataLoader(nn.Module):
         mode: str = "train",
     ):
         super(OFRecordDataLoader, self).__init__()
-        self.rank = flow.env.get_rank()
-        self.world_size = flow.env.get_world_size()
-        print(self.rank, self.world_size)
-        print('all_device_placement', flow.env.all_device_placement('cpu'))
-        print('all_device_placement', flow.env.all_device_placement('cuda'))
-        print('get_local_rank', flow.env.get_local_rank())
-        print('get_node_size', flow.env.get_node_size())
-        print('machine', flow.env.machine())
-        print('*'*100)
-
         data_root = FLAGS.data_dir
-        batch_size = FLAGS.batch_size
         is_consistent = (
             flow.env.get_world_size() > 1 and not FLAGS.ddp
         ) or FLAGS.execution_mode == "graph"
-        placement = None
-        sbp = None
+
         if is_consistent == True:
+            batch_size = FLAGS.batch_size
             placement = flow.placement("cpu", {0: range(flow.env.get_world_size())})
             sbp = flow.sbp.split(0)
+        else:
+            batch_size = FLAGS.batch_size // flow.env.get_world_size()
+            placement = None
+            sbp = None
+
         shuffle = mode == "train"
         self.reader = nn.OfrecordReader(
             os.path.join(data_root, mode),
@@ -70,8 +64,12 @@ class OFRecordDataLoader(nn.Module):
 if __name__ == "__main__":
     from config import get_args
 
-    FLAGS = get_args()
+    FLAGS = get_args(print_args=False)
     dataloader = OFRecordDataLoader(FLAGS)
-    # for i in range(10):
-    #     labels, dense_fields, wide_sparse_fields, deep_sparse_fields = dataloader()
-    #     print(deep_sparse_fields)
+    for i in range(1):
+        labels, dense_fields, wide_sparse_fields, deep_sparse_fields = dataloader()
+        if dense_fields.is_consistent:
+            print(f'is_consistent={labels.is_consistent}, placement={labels.placement}, sbp={labels.sbp}, values={labels.numpy().flatten()}')
+        else:
+            print(f'is_consistent={labels.is_consistent}, device={labels.device}, values={labels.numpy().flatten()}')
+
