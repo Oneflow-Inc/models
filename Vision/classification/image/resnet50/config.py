@@ -73,6 +73,20 @@ def parse_args(ignore_unknown_args=False):
         help="Use synthetic data",
     )
 
+    # fuse bn relu or bn add relu
+    parser.add_argument(
+        "--fuse-bn-relu",
+        action="store_true",
+        dest="fuse_bn_relu",
+        help="Whether to use use fuse batch_normalization and relu.",
+    )
+    parser.add_argument(
+        "--fuse-bn-add-relu",
+        action="store_true",
+        dest="fuse_bn_add_relu",
+        help="Whether to use use fuse batch_normalization, add and relu.",
+    )
+
     # training hyper-parameters
     parser.add_argument(
         "--train-batch-size",
