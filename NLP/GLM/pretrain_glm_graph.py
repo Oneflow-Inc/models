@@ -315,6 +315,12 @@ def train(model, optimizer, lr_scheduler,
     timers('interval time').start()
     report_memory_flag = True
     mems = []
+
+    lm_loss, skipped_iter, mems = train_step(train_data_iterator,
+                                        glm_graph,
+                                        optimizer,
+                                        lr_scheduler,
+                                        args, timers, mems=mems, forward_step_func=forward_step, backward=False)
     
     import time
     tb = time.time()
@@ -458,7 +464,7 @@ def main():
 
     flow.boxing.nccl.set_fusion_threshold_mbytes(16)
     flow.boxing.nccl.set_fusion_max_ops_num(24)
-    flow.boxing.nccl.enable_use_compute_stream(True)
+    # flow.boxing.nccl.enable_use_compute_stream(True)
     
     timers = Timers()
     

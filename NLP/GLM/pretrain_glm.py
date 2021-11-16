@@ -290,6 +290,13 @@ def train(model, optimizer, lr_scheduler,
     report_memory_flag = True
     mems = []
 
+    for i in range(10):
+        lm_loss, skipped_iter, mems = train_step(train_data_iterator,
+                                    glm_graph,
+                                    optimizer,
+                                    lr_scheduler,
+                                    args, timers, mems=mems, forward_step_func=forward_step, backward=False)
+
     import time
     tb = time.time()
     #0,200000
