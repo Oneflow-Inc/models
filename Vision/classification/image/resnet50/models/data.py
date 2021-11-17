@@ -40,7 +40,7 @@ def make_data_loader(args, mode, is_consistent=False, synthetic=False):
         mode=mode,
         batch_size=batch_size,
         total_batch_size=total_batch_size,
-        channel_last=args.channels_last,
+        channel_last=args.channel_last,
         placement=placement,
         sbp=sbp,
         use_gpu_decode=args.use_gpu_decode,

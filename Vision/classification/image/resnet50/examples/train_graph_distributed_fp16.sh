@@ -53,3 +53,4 @@ python3 -m oneflow.distributed.launch \
         --metric-train-acc True \
         --fuse-bn-relu \
         --fuse-bn-add-relu \
+        --channel-last \

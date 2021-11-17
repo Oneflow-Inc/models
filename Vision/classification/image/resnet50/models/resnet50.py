@@ -165,7 +165,8 @@ class ResNet(nn.Module):
         replace_stride_with_dilation: Optional[List[bool]] = None,
         norm_layer: Optional[Callable[..., nn.Module]] = None,
         fuse_bn_relu=False,
-        fuse_bn_add_relu=False
+        fuse_bn_add_relu=False,
+        channel_last=False,
     ) -> None:
         super(ResNet, self).__init__()
         if norm_layer is None:
@@ -173,8 +174,8 @@ class ResNet(nn.Module):
         self._norm_layer = norm_layer
         self.fuse_bn_relu = fuse_bn_relu
         self.fuse_bn_add_relu = fuse_bn_add_relu
+        self.channel_last = channel_last
         self.pad_input = True
-        self.channel_last = False
 
         self.inplanes = 64
         self.dilation = 1
@@ -194,9 +195,15 @@ class ResNet(nn.Module):
             channel_size = 4
         else:
             channel_size = 3
+        if self.channel_last:
+            data_format = "NHWC"
+        else:
+            data_format = "NCHW"
         self.conv1 = nn.Conv2d(
-            channel_size, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False
+            channel_size, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False, data_format=data_format
         )
+        print(">>>>>> ", self.conv1.__repr__())
+        print(">>>>>> ", self.conv1.weight._meta_repr())
 
         if self.fuse_bn_relu:
             self.bn1 = nn.FusedBatchNorm2d(self.inplanes)
@@ -219,7 +226,7 @@ class ResNet(nn.Module):
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
-                nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
+                nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu", data_format=data_format)
             elif isinstance(m, nn.BatchNorm2d):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
