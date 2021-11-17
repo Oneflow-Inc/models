@@ -72,7 +72,9 @@ class Trainer(object):
                 self.lr_scheduler,
                 return_pred_and_label=self.metric_train_acc,
             )
+            self.train_graph.debug()
             self.eval_graph = make_eval_graph(self.model, self.val_data_loader)
+            self.eval_graph.debug()
 
         if self.gpu_stat_file is not None:
             self.gpu_stat = CudaUtilMemStat(

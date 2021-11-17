@@ -173,6 +173,8 @@ class ResNet(nn.Module):
         self._norm_layer = norm_layer
         self.fuse_bn_relu = fuse_bn_relu
         self.fuse_bn_add_relu = fuse_bn_add_relu
+        self.pad_input = True
+        self.channel_last = False
 
         self.inplanes = 64
         self.dilation = 1
@@ -187,9 +189,15 @@ class ResNet(nn.Module):
             )
         self.groups = groups
         self.base_width = width_per_group
+
+        if self.pad_input:
+            channel_size = 4
+        else:
+            channel_size = 3
         self.conv1 = nn.Conv2d(
-            3, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False
+            channel_size, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False
         )
+
         if self.fuse_bn_relu:
             self.bn1 = nn.FusedBatchNorm2d(self.inplanes)
         else:
@@ -279,6 +287,16 @@ class ResNet(nn.Module):
         return nn.Sequential(*layers)
 
     def _forward_impl(self, x: Tensor) -> Tensor:
+        print("image shape ", x.shape)
+        if self.pad_input:
+            if self.channel_last:
+                # NHWC
+                paddings = (0, 1)
+            else:
+                # NCHW
+                paddings = (0, 0, 0, 0, 0, 1)
+            x = flow._C.pad(x, pad=paddings, mode="constant", value=0)
+        print("image shape after padding", x.shape)
         x = self.conv1(x)
         if self.fuse_bn_relu:
             x = self.bn1(x, None)
