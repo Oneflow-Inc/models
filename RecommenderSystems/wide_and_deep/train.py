@@ -15,6 +15,7 @@ from models.wide_and_deep import make_wide_and_deep_module
 from oneflow.nn.parallel import DistributedDataParallel as ddp
 from graph import WideAndDeepGraph, WideAndDeepTrainGraph
 import warnings
+import pandas as pd
 
 
 class Trainer(object):
@@ -48,6 +49,7 @@ class Trainer(object):
             self.train_graph = WideAndDeepTrainGraph(
                 self.wdl_module, self.train_dataloader, self.loss, self.opt
             )
+        self.record=[]
 
     def prepare_modules(self):
         args = self.args
@@ -110,8 +112,7 @@ class Trainer(object):
             if np.isnan(all_predicts).any()
             else roc_auc_score(all_labels, all_predicts)
         )
-        rank = flow.env.get_rank()
-        print(f"device {rank}: iter {step} eval_loss {loss} auc {auc}")
+        print(f"device {self.rank}: iter {step} eval_loss {loss} auc {auc}")
 
     def __call__(self):
         self.train()
@@ -129,10 +130,12 @@ class Trainer(object):
             else:
                 losses.append(record_loss.numpy())
 
-            if (i + 1) % args.print_interval == 0 and flow.env.get_rank() == 0:
+            if (i + 1) % args.print_interval == 0 and self.rank == 0:
                 l = sum(losses) / len(losses)
                 losses = []
-                print(f"iter {i+1} train_loss {l} time {time.time()}")
+                if (i + 1) % 100 == 0:
+                    print(f"iter {i+1} train_loss {l} time {time.time()}")
+                self.to_record(i+1, l)
                 if args.val_batch_size <= 0:
                     continue
                 eval_loss_acc = 0.0
@@ -147,6 +150,9 @@ class Trainer(object):
                     i + 1, eval_loss_acc / args.val_batch_size, lables_list, predicts_list
                 )
                 self.wdl_module.train()
+            time_begin=time.time()
+        if self.rank == 0: 
+            self.record_to_csv()
 
     def eval_one_step(self):
         self.wdl_module.eval()
@@ -199,6 +205,47 @@ class Trainer(object):
         else:
             predicts, labels, train_loss = self.train_eager()
         return train_loss
+
+
+    def get_memory_usage(self):
+        currentPath=os.path.dirname(os.path.abspath(__file__))
+        nvidia_smi_report_file_dir = os.path.join(currentPath, 'log/gpu_info')
+        isExists=os.path.exists(nvidia_smi_report_file_dir)
+        if not isExists:
+             os.makedirs(nvidia_smi_report_file_dir)
+        nvidia_smi_report_file_path = os.path.join(nvidia_smi_report_file_dir, 'gpu_memory_usage_%s.csv' % self.rank)
+        cmd = "nvidia-smi --query-gpu=utilization.gpu,memory.used --format=csv"
+        if nvidia_smi_report_file_path is not None:
+            cmd += f" -f {nvidia_smi_report_file_path}"
+        os.system(cmd)
+        df=pd.read_csv(nvidia_smi_report_file_path)
+        memory=df.iat[self.rank,1].split()[0]
+        return memory
+  
+    
+    def record_to_csv(self):
+        currentPath=os.path.dirname(os.path.abspath(__file__))
+        dir_path=os.path.join(currentPath, 'log/%s' % (self.args.test_name))
+        isExists=os.path.exists(dir_path)
+        if not isExists:
+             os.makedirs(dir_path) 
+        filePath=os.path.join(dir_path,'record_%s_%s.csv'%(self.args.batch_size, self.rank))
+        df_record=pd.DataFrame.from_dict(self.record, orient='columns')
+        df_record.to_csv(filePath,index=False)
+        print("Record info is writting to %s" % filePath)
+    
+    def to_record(self,iter=0,loss=0,latency=0):
+        data={}
+        data['node']=1
+        data['device']=self.rank
+        data['batch_size']=self.args.batch_size
+        data['deep_vocab_size']=self.args.deep_vocab_size
+        data['deep_embedding_vec_size']=self.args.deep_embedding_vec_size
+        data['hidden_units_num']=self.args.hidden_units_num
+        data['iter']=iter
+        data['memory_usage/MB']=self.get_memory_usage()
+        data['loss']=loss      
+        self.record.append(data)
 
 
 def tol(tensor, pure_local=True):

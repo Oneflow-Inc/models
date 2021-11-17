@@ -26,4 +26,5 @@ python3 -m oneflow.distributed.launch \
     --node_ips $MASTER_ADDR \
     --val_batch_size 0 \
     --model_load_dir './initial_checkpoint' \
-    --execution_mode 'eager'
+    --execution_mode 'eager' \
+    --test_name 'train_eager_conisitent'

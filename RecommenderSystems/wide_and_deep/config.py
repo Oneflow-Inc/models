@@ -72,6 +72,9 @@ def get_args(print_args=True):
     parser.add_argument(
         "--execution_mode", type=str, default="eager", help="graph or eager"
     )
+    parser.add_argument(
+        "--test_name", type=str, default="noname_test"
+    )
 
     args = parser.parse_args()
 
