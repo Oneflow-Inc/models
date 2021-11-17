@@ -4,16 +4,17 @@
 ## Directory description
 ```
 .
-├── config.py                   #Argument configuration
-├── dataloader_utils.py         #Read data
-├── eager_train.py              #Python script for eager mode
-├── eager_train.sh              #Shell script for starting training in eager mode
-├── graph_train.py              #Python script for graph mode
-├── graph_train.sh              #Shell script for starting training in graph mode
-├── __init__.py
-├── README.md                   #Documentation
-├── util.py                     #Some utility methods are defined
-└── wide_and_deep_module.py     #Wide&Deep model structure
+|-- models
+    |-- wide_and_deep.py     #Wide&Deep model structure
+    |-- dataloader_utils.py         #Read data
+|-- config.py                   #Argument configuration
+|-- train.py              #Python script for train mode
+|-- train_consistent_eager.sh              #Shell script for starting training in eager mode
+|-- train_consistent_graph.sh              #Shell script for starting training in graph mode
+|-- train_ddp.sh              #Shell script for starting training in ddp mode
+|-- __init__.py
+|-- README.md                   #Documentation
+└── util.py                     #Some utility methods are defined
 ```
 ## Arguments description
 |Argument Name|Argument Explanation|Default Value|
@@ -48,6 +49,10 @@ Running Wide&Deep model requires downloading [OneFlow](https://github.com/Oneflo
 Please view [how_to_make_ofrecord_for_wdl](https://github.com/Oneflow-Inc/OneFlow-Benchmark/blob/master/ClickThroughRate/WideDeepLearning/how_to_make_ofrecord_for_wdl.md)
 
 ## Start training by Oneflow
+
+First, download [initial_model](https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/wdl_initial_model/initial_checkpoint.zip) and unzip in this directory.
+
+Then start train by the following step.
 ### Train by using ddp
 ```
 bash train_ddp.sh
