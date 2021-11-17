@@ -100,8 +100,8 @@ class Bottleneck(nn.Module):
         self.conv1 = conv1x1(inplanes, width)
 
         if self.fuse_bn_relu:
-            self.bn1 = nn.FusedBatchNorm2d(width, has_addend=False)
-            self.bn2 = nn.FusedBatchNorm2d(width, has_addend=False)
+            self.bn1 = nn.FusedBatchNorm2d(width)
+            self.bn2 = nn.FusedBatchNorm2d(width)
         else:
             self.bn1 = norm_layer(width)
             self.bn2 = norm_layer(width)
@@ -111,7 +111,7 @@ class Bottleneck(nn.Module):
         self.conv3 = conv1x1(width, planes * self.expansion)
 
         if self.fuse_bn_add_relu:
-            self.bn3 = nn.FusedBatchNorm2d(planes * self.expansion, has_addend=True)
+            self.bn3 = nn.FusedBatchNorm2d(planes * self.expansion)
         else:
             self.bn3 = norm_layer(planes * self.expansion)
             self.relu = nn.ReLU()
@@ -191,7 +191,7 @@ class ResNet(nn.Module):
             3, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False
         )
         if self.fuse_bn_relu:
-            self.bn1 = nn.FusedBatchNorm2d(self.inplanes, has_addend=False)
+            self.bn1 = nn.FusedBatchNorm2d(self.inplanes)
         else:
             self.bn1 = norm_layer(self.inplanes)
             self.relu = nn.ReLU()
