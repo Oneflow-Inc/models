@@ -182,18 +182,7 @@ class Trainer(object):
 
     def train_eager(self):
         predicts,labels,loss = self.forward()
-        if loss.is_consistent:
-            # NOTE(zwx): scale init grad with world_size
-            # consistent 模式下，mean 在计算得时候除以得是总的batch size = world_size * local_batch
-            #所以要先乘以 world_size 再 backward, 每张卡上得 梯度才正常
-            #然后grad 要再除以 world_size 是因为，做了 allreduce 之后，只把所有卡得梯度累加了
-            loss.backward()
-            for param_group in self.opt.param_groups:
-                for param in param_group.parameters:
-                    param.grad *= self.world_size
-        else:
-            loss.backward()
-            #loss = loss / self.world_size
+        loss.backward()
         self.opt.step()
         self.opt.zero_grad()
         return predicts,labels,loss

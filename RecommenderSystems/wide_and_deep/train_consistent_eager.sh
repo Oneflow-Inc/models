@@ -11,7 +11,7 @@ python3 -m oneflow.distributed.launch \
     --node_rank $NODE_RANK \
     --master_addr $MASTER_ADDR \
     train.py \
-    --learning_rate 0.0005 \
+    --learning_rate 0.001 \
     --batch_size 32 \
     --data_dir $DATA_DIR \
     --print_interval 1 \
