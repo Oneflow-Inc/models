@@ -48,3 +48,5 @@ python3 -m oneflow.distributed.launch \
         --use-fp16 \
         --metric-local True \
         --metric-train-acc True \
+        --fuse-bn-relu \
+        --fuse-bn-add-relu \

@@ -47,3 +47,5 @@ python3 -m oneflow.distributed.launch \
         --use-gpu-decode \
         --scale-grad \
         --graph \
+        --fuse-bn-relu \
+        --fuse-bn-add-relu \

@@ -87,19 +87,35 @@ class Bottleneck(nn.Module):
         base_width: int = 64,
         dilation: int = 1,
         norm_layer: Optional[Callable[..., nn.Module]] = None,
+        fuse_bn_relu=False,
+        fuse_bn_add_relu=False
     ) -> None:
         super(Bottleneck, self).__init__()
+        self.fuse_bn_relu = fuse_bn_relu
+        self.fuse_bn_add_relu = fuse_bn_add_relu
         if norm_layer is None:
             norm_layer = nn.BatchNorm2d
         width = int(planes * (base_width / 64.0)) * groups
         # Both self.conv2 and self.downsample layers downsample the input when stride != 1
         self.conv1 = conv1x1(inplanes, width)
-        self.bn1 = norm_layer(width)
+
+        if self.fuse_bn_relu:
+            self.bn1 = nn.FusedBatchNorm2d(width)
+            self.bn2 = nn.FusedBatchNorm2d(width)
+        else:
+            self.bn1 = norm_layer(width)
+            self.bn2 = norm_layer(width)
+            self.relu = nn.ReLU()
+
         self.conv2 = conv3x3(width, width, stride, groups, dilation)
-        self.bn2 = norm_layer(width)
         self.conv3 = conv1x1(width, planes * self.expansion)
-        self.bn3 = norm_layer(planes * self.expansion)
-        self.relu = nn.ReLU()
+
+        if self.fuse_bn_add_relu:
+            self.bn3 = nn.FusedBatchNorm2d(planes * self.expansion)
+        else:
+            self.bn3 = norm_layer(planes * self.expansion)
+            self.relu = nn.ReLU()
+
         self.downsample = downsample
         self.stride = stride
 
@@ -107,21 +123,32 @@ class Bottleneck(nn.Module):
         identity = x
 
         out = self.conv1(x)
-        out = self.bn1(out)
-        out = self.relu(out)
+        
+        if self.fuse_bn_relu:
+            out = self.bn1(out, None)
+        else:
+            out = self.bn1(out)
+            out = self.relu(out)
 
         out = self.conv2(out)
-        out = self.bn2(out)
-        out = self.relu(out)
+
+        if self.fuse_bn_relu:
+            out = self.bn2(out, None)
+        else:
+            out = self.bn2(out)
+            out = self.relu(out)
 
         out = self.conv3(out)
-        out = self.bn3(out)
 
         if self.downsample is not None:
             identity = self.downsample(x)
 
-        out += identity
-        out = self.relu(out)
+        if self.fuse_bn_add_relu:
+            out = self.bn3(out, identity)
+        else:
+            out = self.bn3(out)
+            out += identity
+            out = self.relu(out)
 
         return out
 
@@ -137,11 +164,15 @@ class ResNet(nn.Module):
         width_per_group: int = 64,
         replace_stride_with_dilation: Optional[List[bool]] = None,
         norm_layer: Optional[Callable[..., nn.Module]] = None,
+        fuse_bn_relu=False,
+        fuse_bn_add_relu=False
     ) -> None:
         super(ResNet, self).__init__()
         if norm_layer is None:
             norm_layer = nn.BatchNorm2d
         self._norm_layer = norm_layer
+        self.fuse_bn_relu = fuse_bn_relu
+        self.fuse_bn_add_relu = fuse_bn_add_relu
 
         self.inplanes = 64
         self.dilation = 1
@@ -159,8 +190,11 @@ class ResNet(nn.Module):
         self.conv1 = nn.Conv2d(
             3, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False
         )
-        self.bn1 = norm_layer(self.inplanes)
-        self.relu = nn.ReLU()
+        if self.fuse_bn_relu:
+            self.bn1 = nn.FusedBatchNorm2d(self.inplanes)
+        else:
+            self.bn1 = norm_layer(self.inplanes)
+            self.relu = nn.ReLU()
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
         self.layer1 = self._make_layer(block, 64, layers[0])
         self.layer2 = self._make_layer(
@@ -223,6 +257,8 @@ class ResNet(nn.Module):
                 self.base_width,
                 previous_dilation,
                 norm_layer,
+                fuse_bn_relu=self.fuse_bn_relu,
+                fuse_bn_add_relu=self.fuse_bn_add_relu
             )
         )
         self.inplanes = planes * block.expansion
@@ -235,6 +271,8 @@ class ResNet(nn.Module):
                     base_width=self.base_width,
                     dilation=self.dilation,
                     norm_layer=norm_layer,
+                    fuse_bn_relu=self.fuse_bn_relu,
+                    fuse_bn_add_relu=self.fuse_bn_add_relu
                 )
             )
 
@@ -242,8 +280,11 @@ class ResNet(nn.Module):
 
     def _forward_impl(self, x: Tensor) -> Tensor:
         x = self.conv1(x)
-        x = self.bn1(x)
-        x = self.relu(x)
+        if self.fuse_bn_relu:
+            x = self.bn1(x, None)
+        else:
+            x = self.bn1(x)
+            x = self.relu(x)
         x = self.maxpool(x)
 
         x = self.layer1(x)
