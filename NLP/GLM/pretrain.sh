@@ -26,7 +26,7 @@ gpt_options=" \
        --lr-decay-ratio 0.05 \
        --warmup .05 \
        --num-workers 1 \
-       --hidden-dropout 0.1 \
+       --hidden-dropout 0.0 \
        # --fp16 \
 "
 

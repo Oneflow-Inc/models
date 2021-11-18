@@ -225,7 +225,7 @@ def setup_model_and_optimizer(args, model_type=None, multi_token=True, num_label
                       spell_length=spell_length)
 
     import torch
-    torch_params = torch.load("/home/chengpeng/data/mo.pt", map_location='cpu')
+    torch_params = torch.load("/home/zhangxiaoyu/mo.pt", map_location='cpu')
     flow_params = {}
     for k in torch_params.keys():
         flow_params[k] = flow.Tensor(torch_params[k].numpy().astype("float32"))
@@ -241,17 +241,23 @@ def setup_model_and_optimizer(args, model_type=None, multi_token=True, num_label
 
     #False
     #True
-    if args.train_data is not None or args.data_dir is not None and (args.epochs > 0 or args.train_iters > 0):
-        #False
-        optimizer =  Adam(model.parameters(),
-                            lr=args.lr,
-                            weight_decay=args.weight_decay,
-                            betas=(args.adam_beta1, args.adam_beta2),
-                            eps=args.adam_eps)
-        # lr_scheduler = get_learning_rate_scheduler(optimizer, args)
-        lr_scheduler = flow.optim.lr_scheduler.StepLR(optimizer, step_size=100000)
-    else:
-        optimizer, lr_scheduler = None, None
+    # if args.train_data is not None or args.data_dir is not None and (args.epochs > 0 or args.train_iters > 0):
+    #     #False
+    #     optimizer =  Adam(model.parameters(),
+    #                         lr=args.lr,
+    #                         weight_decay=args.weight_decay,
+    #                         betas=(args.adam_beta1, args.adam_beta2),
+    #                         eps=args.adam_eps)
+    #     # lr_scheduler = get_learning_rate_scheduler(optimizer, args)
+    #     lr_scheduler = flow.optim.lr_scheduler.StepLR(optimizer, step_size=100000)
+    # else:
+    #     optimizer, lr_scheduler = None, None
+    optimizer = flow.optim.AdamW(
+            model.parameters(),
+            lr=args.lr,
+        )
+    lr_scheduler = flow.optim.lr_scheduler.StepLR(optimizer, step_size=100000)  
+
    
     return model, optimizer, lr_scheduler
 

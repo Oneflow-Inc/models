@@ -97,19 +97,19 @@ if __name__ == "__main__":
     os.makedirs(save_root, exist_ok=True)
     draw_and_save(
         {
-            "title": "glm_eager_vs_eager_fuse_bias_eval_loss_singleGPU_compare",
-            "save_path": add_pth(save_root, "glm_eager_vs_eager_fuse_bias_eval_loss.png"),
+            "title": "glm_fp32_torch_vs_oneflow_adam",
+            "save_path": add_pth(save_root, "glm_fp32_torch_vs_oneflow_adam.png"),
             "txts": [
                 # "loss_txt/bert_graph_sgd_amp_consistent_ddp_1gpu_loss.txt",
                 # "../../OneFlow-Benchmark/LanguageModeling/BERT/loss_txt/loss_info_sgd_amp_ddp_4gpu_diffpart_zwx.txt",
                 # "../../OneFlow-Benchmark/LanguageModeling/BERT/loss_txt/loss_info_sgd_amp_ddp_4gpu_shuffle_zwx.txt",
                 # "../../OneFlow-Benchmark/LanguageModeling/BERT/loss_txt/loss_info_sgd_amp_ddp_4gpu_shuffle.txt",
-                "/home/zhangxiaoyu/glm_flow_eager_eval_loss_origin.txt",
-                "/home/zhangxiaoyu/glm_flow_eager_eval_loss.txt",
+                "/home/zhangxiaoyu/glm_flow_adamw_fp32_loss.txt",
+                "/home/zhangxiaoyu/glm_torch_adam_fp32.txt",
             ],
             "names": [
-                "glm_eager_loss",
-                "glm_eager_fuse_bias_loss",
+                "glm_eager_fp32_oneflow_loss",
+                "glm_eager_fp32_pytorch_loss",
             ],  # "lazy_reapeat4part_loss"
             "xlabel": "iter",
             "ylabel": "loss",
