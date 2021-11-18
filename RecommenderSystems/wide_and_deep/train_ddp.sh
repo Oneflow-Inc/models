@@ -14,7 +14,8 @@ python3 -m oneflow.distributed.launch \
     --learning_rate 0.001 \
     --batch_size 32 \
     --data_dir $DATA_DIR \
-    --print_interval 1 \
+    --loss_print_every_n_iter 100 \
+    --eval_interval 0 \
     --deep_dropout_rate 0 \
     --max_iter 1100 \
     --hidden_units_num 7 \
@@ -22,9 +23,6 @@ python3 -m oneflow.distributed.launch \
     --wide_vocab_size $EMBD_SIZE \
     --deep_vocab_size $EMBD_SIZE \
     --data_part_num 256 \
-    --gpu_num_per_nod 1 \
-    --node_ips $MASTER_ADDR \
-    --val_batch_size 0 \
-    --model_load_dir './initial_checkpoint' \
+    --data_part_name_suffix_length 5 \
     --ddp \
     --test_name 'train_ddp_'$DEVICE_NUM_PER_NODE'gpu'

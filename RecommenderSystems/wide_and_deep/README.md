@@ -6,7 +6,10 @@
 .
 |-- models
     |-- wide_and_deep.py     #Wide&Deep model structure
-    |-- dataloader_utils.py         #Read data
+    |-- data.py         #Read data
+|-- utils
+    |-- logger.py     #Loger info
+    |-- util.py         #Some utility methods are defined
 |-- config.py                   #Argument configuration
 |-- train.py              #Python script for train mode
 |-- train_consistent_eager.sh              #Shell script for starting training in eager mode
@@ -34,7 +37,7 @@
 |model_save_dir|model saving directory||
 |num_deep_sparse_fields|number of sparse id features|26|
 |num_dense_fields|number of dense features|13|
-|print_interval|print train loss and validate the model after training every number of batche times|1000|
+|loss_print_every_n_iter|print train loss and validate the model after training every number of batche times|1000|
 |save_initial_model|save the initial arguments of the modelor not|False|
 
 ## Prepare running
@@ -50,9 +53,6 @@ Please view [how_to_make_ofrecord_for_wdl](https://github.com/Oneflow-Inc/OneFlo
 
 ## Start training by Oneflow
 
-First, download [initial_model](https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/wdl_initial_model/initial_checkpoint.zip) and unzip in this directory.
-
-Then start train by the following step.
 ### Train by using ddp
 ```
 bash train_ddp.sh

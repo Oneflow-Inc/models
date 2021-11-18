@@ -4,25 +4,27 @@ import sys
 sys.path.append(
     os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
 )
-import time
 import numpy as np
 from sklearn.metrics import roc_auc_score
 import oneflow as flow
 from config import get_args
-from models.dataloader_utils import make_data_loader
-from oneflow.framework import distribute
+from models.data import make_data_loader
 from models.wide_and_deep import make_wide_and_deep_module
-from oneflow.nn.parallel import DistributedDataParallel as ddp
-from graph import WideAndDeepGraph, WideAndDeepTrainGraph
+from oneflow.nn.parallel import DistributedDataParallel as DDP
+from graph import WideAndDeepValGraph, WideAndDeepTrainGraph
 import warnings
-import pandas as pd
+import utils.logger as log
 
 
 class Trainer(object):
     def __init__(self):
         args = get_args()
         self.args = args
+        self.save_path = args.model_save_dir
+        self.save_init = args.save_initial_model
         self.execution_mode = args.execution_mode
+        self.max_iter = args.max_iter
+        self.loss_print_every_n_iter = args.loss_print_every_n_iter
         self.ddp = args.ddp
         if self.ddp == 1 and self.execution_mode == "graph":
             warnings.warn(
@@ -35,52 +37,69 @@ class Trainer(object):
         ) or args.execution_mode == "graph"
         self.rank = flow.env.get_rank()
         self.world_size = flow.env.get_world_size()
-        (
-            self.train_dataloader,
-            self.val_dataloader,
-            self.wdl_module,
-            self.loss,
-            self.opt,
-        ) = self.prepare_modules()
+        self.cur_iter = 0
+        self.eval_interval = args.eval_interval
+        self.eval_batchs = args.eval_batchs
+        self.init_logger()
+        self.train_dataloader = make_data_loader(args, "train", self.is_consistent)
+        self.val_dataloader = make_data_loader(args, "val", self.is_consistent)
+        self.wdl_module = make_wide_and_deep_module(args)
+        self.init_model()
+        self.opt = flow.optim.AdamW(
+            self.wdl_module.parameters(), lr=args.learning_rate
+        )
+        self.loss = flow.nn.BCELoss(reduction="none").to("cuda")
         if self.execution_mode == "graph":
-            self.eval_graph = WideAndDeepGraph(
-                self.wdl_module, self.val_dataloader, self.loss
+            self.eval_graph = WideAndDeepValGraph(
+                self.wdl_module, self.val_dataloader
             )
             self.train_graph = WideAndDeepTrainGraph(
                 self.wdl_module, self.train_dataloader, self.loss, self.opt
             )
-        self.record=[]
 
-    def prepare_modules(self):
+    def init_model(self):
         args = self.args
-        is_consistent = self.is_consistent
-        self.wdl_module = make_wide_and_deep_module(args)
-        if is_consistent == True:
-            world_size = self.world_size
-            placement = flow.placement("cuda", {0: range(world_size)})
+        if self.is_consistent == True:
+            placement = placement = flow.env.all_device_placement("cuda")
             self.wdl_module = self.wdl_module.to_consistent(
                 placement=placement, sbp=flow.sbp.broadcast
             )
         else:
-            self.wdl_module=self.wdl_module.to("cuda")
+            self.wdl_module = self.wdl_module.to("cuda")
         if args.model_load_dir != "":
             self.load_state_dict()
         if self.ddp:
-            self.wdl_module = ddp(self.wdl_module)
-        if args.save_initial_model and args.model_save_dir != "":
+            self.wdl_module = DDP(self.wdl_module)
+        if self.save_init and args.model_save_dir != "":
             self.save(os.path.join(args.model_save_dir, "initial_checkpoint"))
+    
+    def init_logger(self):
+        print_ranks = [0]
+        self.logger = log.get_logger(self.rank, print_ranks)
+        self.logger.register_metric("iter", log.IterationMeter(), "iter: {}/{}")
+        self.logger.register_metric("loss", log.AverageMeter(), "loss: {:.16f}", True)
+        self.logger.register_metric("latency", log.LatencyMeter(), "latency(ms): {:.16f}", True)
+    
+    def meter(
+        self,
+        loss=None,
+        do_print=False,
+    ):
+        self.logger.meter("iter", (self.cur_iter, self.max_iter))
+        if loss is not None:
+            self.logger.meter("loss", loss)
+        self.logger.meter("latency")
+        if do_print:
+            self.logger.print_metrics()
 
-        train_dataloader = make_data_loader(args, mode="train", is_consistent=self.is_consistent)
-        val_dataloader = make_data_loader(args, mode="val", is_consistent=self.is_consistent)
-
-        bce_loss = flow.nn.BCELoss(reduction="none")
-        bce_loss.to("cuda")
-
-        opt = flow.optim.SGD(
-            self.wdl_module.parameters(), lr=args.learning_rate, momentum=0.9
+    def meter_train_iter(self, loss):
+        do_print = (
+            self.cur_iter % self.loss_print_every_n_iter == 0
         )
-
-        return train_dataloader, val_dataloader, self.wdl_module, bce_loss, opt
+        self.meter(
+            loss=loss,
+            do_print=do_print,
+        )
 
     def load_state_dict(self):
         print(f"Loading model from {self.args.model_load_dir}")
@@ -92,10 +111,12 @@ class Trainer(object):
             return
         self.wdl_module.load_state_dict(state_dict)
 
-    def save(self, save_path):
-        if save_path is None:
+    def save(self, subdir):
+        if self.save_path is None:
             return
-        print(f"Saving model to {save_path}")
+        save_path = os.path.join(self.save_path, subdir)
+        if self.rank == 0:
+            print(f"Saving model to {save_path}")
         state_dict = self.wdl_module.state_dict()
         if self.is_consistent:
             flow.save(state_dict, save_path, consistent_dst_rank=0)
@@ -119,48 +140,62 @@ class Trainer(object):
 
     def train(self):
         losses = []
-        args = self.args
-        for i in range(args.max_iter):
+        self.wdl_module.train()
+        for i in range(self.max_iter):
+            self.cur_iter += 1
             loss = self.train_one_step()
-            record_loss = tol(loss, False)
+            
             if self.ddp:
                 # In ddp mode, the loss needs to be averaged
-                record_loss = flow.comm.all_reduce(record_loss)
-                losses.append(record_loss.numpy() / self.world_size)
-            else:
-                losses.append(record_loss.numpy())
+                loss = flow.comm.all_reduce(loss)
+                loss = loss / self.world_size
+            
+            loss = tol(loss, False)
 
-            if (i + 1) % args.print_interval == 0 and self.rank == 0:
-                l = sum(losses) / len(losses)
-                losses = []
-                if (i + 1) % 100 == 0:
-                    print(f"iter {i+1} train_loss {l} time {time.time()}")
-                self.to_record(i+1, l)
-                if args.val_batch_size <= 0:
-                    continue
-                eval_loss_acc = 0.0
-                lables_list = []
-                predicts_list = []
-                for j in range(args.val_batch_size):
-                    predicts, labels, eval_loss = self.eval_one_step()
-                    eval_loss_acc += eval_loss.numpy()
-                    lables_list.append(labels.numpy())
-                    predicts_list.append(predicts.numpy())
-                self.print_eval_metrics(
-                    i + 1, eval_loss_acc / args.val_batch_size, lables_list, predicts_list
-                )
-                self.wdl_module.train()
-            time_begin=time.time()
-        if self.rank == 0: 
-            self.record_to_csv()
-
-    def eval_one_step(self):
+            self.meter_train_iter(loss)
+            
+            if self.eval_interval > 0 and (i + 1) % self.eval_interval == 0:
+                self.eval()
+        
+        auc = self.eval()
+        sub_save_dir = f"iter_{self.cur_iter}_val_auc_{auc}"
+        self.save(sub_save_dir)
+    
+    def eval(self):
         self.wdl_module.eval()
-        if self.execution_mode == "graph":
-            predicts, labels, eval_loss = self.eval_graph()
-        else:
-            predicts,labels,eval_loss=self.forward()
-        return predicts, labels, eval_loss
+        labels = np.array([[0]])
+        preds = np.array([[0]])
+        for _ in range(self.eval_batchs):
+            if self.execution_mode == "graph":
+                pred, label = self.eval_graph()
+            else:
+                pred, label = self.inference()
+            label_ = label.numpy().astype(np.float32)
+            labels = np.concatenate((labels, label_), axis=0)
+            preds = np.concatenate((preds, pred.numpy()), axis=0)
+        auc = roc_auc_score(labels[1:], preds[1:])
+        if self.rank == 0:
+            print("iter:", self.cur_iter, "eval_auc:", auc)
+        self.wdl_module.train()
+        return auc 
+
+    def inference(self):
+        (
+            labels,
+            dense_fields,
+            wide_sparse_fields,
+            deep_sparse_fields,
+        ) = self.train_dataloader()
+        labels = labels.to("cuda").to(dtype=flow.float32)
+        dense_fields = dense_fields.to("cuda")
+        wide_sparse_fields = wide_sparse_fields.to("cuda")
+        deep_sparse_fields = deep_sparse_fields.to("cuda")
+        with flow.no_grad():
+            logits = self.wdl_module(
+                dense_fields, wide_sparse_fields, deep_sparse_fields
+            )
+            predicts = logits.softmax()
+        return predicts, labels
 
     def forward(self):
         (
@@ -194,47 +229,6 @@ class Trainer(object):
         else:
             predicts, labels, train_loss = self.train_eager()
         return train_loss
-
-
-    def get_memory_usage(self):
-        currentPath=os.path.dirname(os.path.abspath(__file__))
-        nvidia_smi_report_file_dir = os.path.join(currentPath, 'log/gpu_info')
-        isExists=os.path.exists(nvidia_smi_report_file_dir)
-        if not isExists:
-             os.makedirs(nvidia_smi_report_file_dir)
-        nvidia_smi_report_file_path = os.path.join(nvidia_smi_report_file_dir, 'gpu_memory_usage_%s.csv' % self.rank)
-        cmd = "nvidia-smi --query-gpu=utilization.gpu,memory.used --format=csv"
-        if nvidia_smi_report_file_path is not None:
-            cmd += f" -f {nvidia_smi_report_file_path}"
-        os.system(cmd)
-        df=pd.read_csv(nvidia_smi_report_file_path)
-        memory=df.iat[self.rank,1].split()[0]
-        return memory
-  
-    
-    def record_to_csv(self):
-        currentPath=os.path.dirname(os.path.abspath(__file__))
-        dir_path=os.path.join(currentPath, 'log/%s' % (self.args.test_name))
-        isExists=os.path.exists(dir_path)
-        if not isExists:
-             os.makedirs(dir_path) 
-        filePath=os.path.join(dir_path,'record_%s_%s.csv'%(self.args.batch_size, self.rank))
-        df_record=pd.DataFrame.from_dict(self.record, orient='columns')
-        df_record.to_csv(filePath,index=False)
-        print("Record info is writting to %s" % filePath)
-    
-    def to_record(self,iter=0,loss=0,latency=0):
-        data={}
-        data['node']=1
-        data['device']=self.rank
-        data['batch_size']=self.args.batch_size
-        data['deep_vocab_size']=self.args.deep_vocab_size
-        data['deep_embedding_vec_size']=self.args.deep_embedding_vec_size
-        data['hidden_units_num']=self.args.hidden_units_num
-        data['iter']=iter
-        data['memory_usage/MB']=self.get_memory_usage()
-        data['loss']=loss      
-        self.record.append(data)
 
 
 def tol(tensor, pure_local=True):
