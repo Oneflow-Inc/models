@@ -11,6 +11,7 @@ export NCCL_LAUNCH_MODE=PARALLEL
 echo NCCL_LAUNCH_MODE=$NCCL_LAUNCH_MODE
 export NCCL_DEBUG=INFO
 export ONEFLOW_DEBUG_MODE=True
+export CUDA_VISIABLE_DEVICES=2
 
 CHECKPOINT_SAVE_PATH="./graph_distributed_fp16_checkpoints"
 if [ ! -d "$CHECKPOINT_SAVE_PATH" ]; then
@@ -24,8 +25,9 @@ OFRECORD_PART_NUM=256
 LEARNING_RATE=1.536
 MOM=0.875
 EPOCH=50
-TRAIN_BATCH_SIZE=19
+#TRAIN_BATCH_SIZE=19
 #TRAIN_BATCH_SIZE=192
+TRAIN_BATCH_SIZE=128
 VAL_BATCH_SIZE=5
 #VAL_BATCH_SIZE=50
 
@@ -53,4 +55,5 @@ python3 -m oneflow.distributed.launch \
         --metric-train-acc True \
         --fuse-bn-relu \
         --fuse-bn-add-relu \
+        --use-gpu-decode \
         --channel-last \
