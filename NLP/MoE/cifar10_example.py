@@ -54,7 +54,7 @@ for epoch in range(10):  # loop over the dataset multiple times
         loss = criterion(outputs, labels)
         total_loss = loss + aux_loss
         total_loss.backward()
-        optimizer.step()
+        optimizer.step()       
 
         # print statistics
         running_loss += loss.item()
@@ -65,12 +65,14 @@ for epoch in range(10):  # loop over the dataset multiple times
 
 print('Finished Training')
 
-
 correct = 0
 total = 0
 with torch.no_grad():
-    for data in testloader:
+    for i,data in enumerate(testloader, 0):
         images, labels = data
+        images, labels = images.to(device), labels.to(device)
+
+
         outputs, _ = net(images.view(images.shape[0], -1))
         _, predicted = torch.max(outputs.data, 1)
         total += labels.size(0)
@@ -79,4 +81,4 @@ with torch.no_grad():
 print('Accuracy of the network on the 10000 test images: %d %%' % (
     100 * correct / total))
 
-# yields a test accuracy of around 39 %
+# yields a test accuracy of around 47 %

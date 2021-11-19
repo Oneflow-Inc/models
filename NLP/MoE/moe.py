@@ -1,13 +1,3 @@
-# Sparsely-Gated Mixture-of-Experts Layers.
-# See "Outrageously Large Neural Networks"
-# https://arxiv.org/abs/1701.06538
-#
-# Author: David Rau
-#
-# The code is based on the TensorFlow implementation:
-# https://github.com/tensorflow/tensor2tensor/blob/master/tensor2tensor/utils/expert_utils.py
-
-
 import math
 import oneflow
 import oneflow as flow
@@ -86,8 +76,7 @@ class SparseDispatcher(object):
 
         # assigns samples to experts whose gate is nonzero
         # expand according to batch index so we can just split by _part_sizes
-        inp_exp = inp[self._batch_index].squeeze(1)
-        
+        inp_exp = inp[self._batch_index].squeeze(1)   
         return flow.split(inp_exp, self._part_sizes, dim=0)
         
             
@@ -108,6 +97,7 @@ class SparseDispatcher(object):
         # apply exp to expert outputs, so we are not longer in log space
 
         stitched = flow.cat(expert_out, 0).exp()
+     
 
         if multiply_by_gates:
             stitched = stitched.mul(self._nonzero_gates)
@@ -116,7 +106,7 @@ class SparseDispatcher(object):
 
         # spanning a index matrix
         batch_index = np.zeros([stitched.shape[0], stitched.shape[1]])
-
+        
         for i in range(stitched.shape[0]):
             batch_index[i, :] = np.ones(
                 batch_index.shape[1])*self._batch_index[i].item()
@@ -321,9 +311,8 @@ class MoE(nn.Module):
         loss = self.cv_squared(importance) + self.cv_squared(load)
         loss *= loss_coef
 
-        dispatcher = SparseDispatcher(self.num_experts, gates)      
+        dispatcher = SparseDispatcher(self.num_experts, gates)     
         expert_inputs = dispatcher.dispatch(x)
-
         gates = dispatcher.expert_to_gates() 
 
         expert_outputs = []
@@ -331,8 +320,6 @@ class MoE(nn.Module):
         for i in range(self.num_experts):
             if expert_inputs[i].shape.numel() != 0:
                 expert_outputs.append(self.experts[i](expert_inputs[i]))
-            else:
-                expert_outputs.append(flow.zeros(0, self.output_size, device=x.device))
-#        expert_outputs = [self.experts[i](expert_inputs[i]) for i in range(self.num_experts)]
-        y = dispatcher.combine(expert_outputs)
+
+        y = dispatcher.combine(expert_outputs)       
         return y, loss

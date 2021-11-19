@@ -1,11 +1,3 @@
-# Sparsely-Gated Mixture-of-Experts Layers.
-# See "Outrageously Large Neural Networks"
-# https://arxiv.org/abs/1701.06538
-#
-# Author: David Rau
-#
-
-#import torch.nn as nn
 import oneflow.nn as nn
 
 
