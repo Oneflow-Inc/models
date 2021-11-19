@@ -30,6 +30,7 @@ def make_data_loader(args, mode, is_consistent=False, synthetic=False):
             num_classes=args.num_classes,
             placement=placement,
             sbp=sbp,
+            channel_last=args.channels_last,
         )
         return data_loader.to("cuda")
 
@@ -104,7 +105,7 @@ class OFRecordDataLoader(flow.nn.Module):
             if self.use_gpu_decode:
                 self.bytesdecoder_img = flow.nn.OFRecordBytesDecoder("encoded")
                 self.image_decoder = flow.nn.OFRecordImageGpuDecoderRandomCropResize(
-                    target_width=image_width, target_height=image_height, num_workers=3
+                    target_width=image_width, target_height=image_height, num_workers=3, warmup_size=2048
                 )
             else:
                 self.image_decoder = flow.nn.OFRecordImageDecoderRandomCrop(
@@ -174,11 +175,14 @@ class OFRecordDataLoader(flow.nn.Module):
 
 class SyntheticDataLoader(flow.nn.Module):
     def __init__(
-        self, batch_size, image_size=224, num_classes=1000, placement=None, sbp=None,
+        self, batch_size, image_size=224, num_classes=1000, placement=None, sbp=None, channel_last=False,
     ):
         super().__init__()
 
-        self.image_shape = (batch_size, 3, image_size, image_size)
+        if channel_last:
+            self.image_shape = (batch_size, image_size, image_size, 3)
+        else:
+            self.image_shape = (batch_size, 3, image_size, image_size)
         self.label_shape = (batch_size,)
         self.num_classes = num_classes
         self.placement = placement
