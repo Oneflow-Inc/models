@@ -112,7 +112,7 @@ class Trainer(object):
         self.wdl_module.load_state_dict(state_dict)
 
     def save(self, subdir):
-        if self.save_path is None or self.save_path=='':
+        if self.save_path is None or self.save_path == '':
             return
         save_path = os.path.join(self.save_path, subdir)
         if self.rank == 0:
