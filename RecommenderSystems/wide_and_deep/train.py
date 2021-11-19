@@ -143,7 +143,7 @@ class Trainer(object):
     def train(self):
         losses = []
         self.wdl_module.train()
-        for i in range(self.max_iter):
+        for _ in range(self.max_iter):
             self.cur_iter += 1
             loss = self.train_one_step()
 
@@ -156,7 +156,7 @@ class Trainer(object):
 
             self.meter_train_iter(loss)
 
-            if self.eval_interval > 0 and (i + 1) % self.eval_interval == 0:
+            if self.eval_interval > 0 and self.cur_iter % self.eval_interval == 0:
                 self.eval(self.save_model_after_each_eval)
         self.eval(True)
 
