@@ -9,15 +9,16 @@ This repository contains the Oneflow re-implementation of the sparsely-gated MoE
 
 # Usage
 
+
+
 ```python
 
-from moe import MoE
+model = ...
 
-# instantiate the MoE layer
-model = MoE(input_size=1000, num_classes=20, num_experts=10,hidden_size=66, k= 4, noisy_gating=True)
+from fmoe.megatron import fmoefy
+model = fmoefy(model, num_experts=<number of experts per worker>)
 
-# forward
-y_hat, aux_loss = model(X)
+train(model, ...)
 
 
 ```
