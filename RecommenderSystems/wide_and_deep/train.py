@@ -125,16 +125,6 @@ class Trainer(object):
         else:
             return
 
-    def print_eval_metrics(self, step, loss, lables_list, predicts_list):
-        all_labels = np.concatenate(lables_list, axis=0)
-        all_predicts = np.concatenate(predicts_list, axis=0)
-        auc = (
-            "NaN"
-            if np.isnan(all_predicts).any()
-            else roc_auc_score(all_labels, all_predicts)
-        )
-        print(f"device {self.rank}: iter {step} eval_loss {loss} auc {auc}")
-
     def __call__(self):
         self.train()
 
@@ -194,7 +184,7 @@ class Trainer(object):
             logits = self.wdl_module(
                 dense_fields, wide_sparse_fields, deep_sparse_fields
             )
-            predicts = logits.softmax()
+            predicts = flow.sigmoid(logits)
         return predicts, labels
 
     def forward(self):
@@ -213,7 +203,7 @@ class Trainer(object):
         )
         loss = self.loss(predicts,labels)
         reduce_loss = flow.mean(loss)
-        return predicts,labels,reduce_loss
+        return predicts, labels, reduce_loss
 
     def train_eager(self):
         predicts,labels,loss = self.forward()
