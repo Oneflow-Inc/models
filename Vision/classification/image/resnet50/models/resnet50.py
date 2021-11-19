@@ -177,7 +177,10 @@ class ResNet(nn.Module):
         self.fuse_bn_relu = fuse_bn_relu
         self.fuse_bn_add_relu = fuse_bn_add_relu
         self.channel_last = channel_last
-        self.pad_input = True
+        if self.channel_last:
+            self.pad_input = True
+        else:
+            self.pad_input = False
 
         self.inplanes = 64
         self.dilation = 1
