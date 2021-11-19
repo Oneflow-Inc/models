@@ -76,10 +76,10 @@ class Trainer(object):
     
     def init_logger(self):
         print_ranks = [0]
-        self.logger = log.make_logger(self.rank, print_ranks)
-        self.logger.register_metric("iter", log.IterationMeter(), "iter: {}/{}")
-        self.logger.register_metric("loss", log.AverageMeter(), "loss: {:.16f}", True)
-        self.logger.register_metric("latency", log.LatencyMeter(), "latency(ms): {:.16f}", True)
+        self.train_logger = log.make_logger(self.rank, print_ranks)
+        self.train_logger.register_metric("iter", log.IterationMeter(), "iter: {}/{}")
+        self.train_logger.register_metric("loss", log.AverageMeter(), "loss: {:.16f}", True)
+        self.train_logger.register_metric("latency", log.LatencyMeter(), "latency(ms): {:.16f}", True)
 
         self.val_logger = log.make_logger(self.rank, print_ranks)
         self.val_logger.register_metric("iter", log.IterationMeter(), "iter: {}/{}")
@@ -90,12 +90,12 @@ class Trainer(object):
         loss=None,
         do_print=False,
     ):
-        self.logger.meter("iter", (self.cur_iter, self.max_iter))
+        self.train_logger.meter("iter", (self.cur_iter, self.max_iter))
         if loss is not None:
-            self.logger.meter("loss", loss)
-        self.logger.meter("latency")
+            self.train_logger.meter("loss", loss)
+        self.train_logger.meter("latency")
         if do_print:
-            self.logger.print_metrics()
+            self.train_logger.print_metrics()
 
     def meter_train_iter(self, loss):
         do_print = (
