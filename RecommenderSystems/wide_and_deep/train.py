@@ -72,14 +72,14 @@ class Trainer(object):
             self.wdl_module = DDP(self.wdl_module)
         if self.save_init and args.model_save_dir != "":
             self.save(os.path.join(args.model_save_dir, "initial_checkpoint"))
-    
+
     def init_logger(self):
         print_ranks = [0]
         self.logger = log.get_logger(self.rank, print_ranks)
         self.logger.register_metric("iter", log.IterationMeter(), "iter: {}/{}")
         self.logger.register_metric("loss", log.AverageMeter(), "loss: {:.16f}", True)
         self.logger.register_metric("latency", log.LatencyMeter(), "latency(ms): {:.16f}", True)
-    
+
     def meter(
         self,
         loss=None,
@@ -112,7 +112,7 @@ class Trainer(object):
         self.wdl_module.load_state_dict(state_dict)
 
     def save(self, subdir):
-        if self.save_path is None:
+        if self.save_path is None or self.save_path=='':
             return
         save_path = os.path.join(self.save_path, subdir)
         if self.rank == 0:
@@ -134,24 +134,26 @@ class Trainer(object):
         for i in range(self.max_iter):
             self.cur_iter += 1
             loss = self.train_one_step()
-            
+
             if self.ddp:
                 # In ddp mode, the loss needs to be averaged
                 loss = flow.comm.all_reduce(loss)
                 loss = loss / self.world_size
-            
+
             loss = tol(loss, False)
 
             self.meter_train_iter(loss)
-            
+
             if self.eval_interval > 0 and (i + 1) % self.eval_interval == 0:
                 self.eval()
-        
+
         auc = self.eval()
         sub_save_dir = f"iter_{self.cur_iter}_val_auc_{auc}"
         self.save(sub_save_dir)
-    
+
     def eval(self):
+        if self.eval_batchs <= 0:
+            return
         self.wdl_module.eval()
         labels = np.array([[0]])
         preds = np.array([[0]])
@@ -167,7 +169,7 @@ class Trainer(object):
         if self.rank == 0:
             print("iter:", self.cur_iter, "eval_auc:", auc)
         self.wdl_module.train()
-        return auc 
+        return auc
 
     def inference(self):
         (
