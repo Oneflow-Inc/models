@@ -3,7 +3,6 @@ import oneflow
 import oneflow as flow
 import oneflow.nn as nn
 
-from mlp import MLP
 import numpy as np
 
 
@@ -150,18 +149,17 @@ class MoE(nn.Module):
     k: an integer - how many experts to use for each batch element
     """
 
-    def __init__(self, input_size, output_size, num_experts, hidden_size, noisy_gating=True, k=4):
+    def __init__(self, model, input_size, output_size, num_experts, noisy_gating=True, k=4):
         super(MoE, self).__init__()
         self.noisy_gating = noisy_gating
         self.num_experts = num_experts
         self.output_size = output_size
         self.input_size = input_size
-        self.hidden_size = hidden_size
         self.k = k
 
         # instantiate experts
         self.experts = nn.ModuleList(
-            [MLP(self.input_size, self.output_size, self.hidden_size) for i in range(self.num_experts)])
+            [model for i in range(self.num_experts)])
 
         self.w_gate = nn.Parameter(flow.zeros(
             input_size, num_experts), requires_grad=True)

@@ -4,8 +4,9 @@ import oneflow as torch
 import oneflow as flow
 import oneflow.nn as nn
 import oneflow.nn.functional as F
-from moe import MoE
 import oneflow.optim as optim
+from mlp import MLP
+from moe import MoE
 
 import flowvision as vision
 
@@ -28,8 +29,8 @@ classes = ('plane', 'car', 'bird', 'cat',
 
 
 device = flow.device('cuda')
-net = MoE(input_size=3072, output_size=10, num_experts=10,
-          hidden_size=256, noisy_gating=True, k=4)
+expert_network = MLP(input_size=3072, output_size=10, hidden_size=256)
+net = MoE(expert_network, 3072, 10, num_experts=10, noisy_gating=True, k=4)
 net.to(device)
 
 
