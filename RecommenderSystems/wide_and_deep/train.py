@@ -73,7 +73,7 @@ class Trainer(object):
             self.wdl_module = DDP(self.wdl_module)
         if self.save_init and args.model_save_dir != "":
             self.save(os.path.join(args.model_save_dir, "initial_checkpoint"))
-    
+
     def init_logger(self):
         print_ranks = [0]
         self.train_logger = log.make_logger(self.rank, print_ranks)
@@ -84,7 +84,7 @@ class Trainer(object):
         self.val_logger = log.make_logger(self.rank, print_ranks)
         self.val_logger.register_metric("iter", log.IterationMeter(), "iter: {}/{}")
         self.val_logger.register_metric("auc", log.IterationMeter(), "eval_auc: {}")
-    
+
     def meter(
         self,
         loss=None,
@@ -105,13 +105,13 @@ class Trainer(object):
             loss=loss,
             do_print=do_print,
         )
-    
+
     def meter_eval(self, auc):
         self.val_logger.meter("iter", (self.cur_iter, self.max_iter))
         if auc is not None:
             self.val_logger.meter("auc", auc)
         self.val_logger.print_metrics()
-  
+
 
     def load_state_dict(self):
         print(f"Loading model from {self.args.model_load_dir}")
@@ -124,7 +124,7 @@ class Trainer(object):
         self.wdl_module.load_state_dict(state_dict)
 
     def save(self, subdir):
-        if self.save_path is None:
+        if self.save_path is None or self.save_path == '':
             return
         save_path = os.path.join(self.save_path, subdir)
         if self.rank == 0:
@@ -146,21 +146,23 @@ class Trainer(object):
         for i in range(self.max_iter):
             self.cur_iter += 1
             loss = self.train_one_step()
-            
+
             if self.ddp:
                 # In ddp mode, the loss needs to be averaged
                 loss = flow.comm.all_reduce(loss)
                 loss = loss / self.world_size
-            
+
             loss = tol(loss, False)
 
             self.meter_train_iter(loss)
-            
+
             if self.eval_interval > 0 and (i + 1) % self.eval_interval == 0:
                 self.eval(self.save_model_after_each_eval)
-        self.eval(True)     
-    
+        self.eval(True)
+
     def eval(self, save_model=False):
+        if self.eval_batchs <= 0:
+            return
         self.wdl_module.eval()
         labels = np.array([[0]])
         preds = np.array([[0]])
