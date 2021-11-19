@@ -3,23 +3,22 @@ from datetime import datetime
 import numpy as np
 import oneflow as flow
 
-_GLOBAL_LOGGER = None
+# _GLOBAL_LOGGER = None
 
 
-def get_logger(rank, print_ranks):
-    global _GLOBAL_LOGGER
-    if _GLOBAL_LOGGER is None:
-        _GLOBAL_LOGGER = Logger(rank, print_ranks)
+def make_logger(rank, print_ranks):
+    # global _GLOBAL_LOGGER
+    # if _GLOBAL_LOGGER is None:
+    #     _GLOBAL_LOGGER = Logger(rank, print_ranks)
 
-    return _GLOBAL_LOGGER
+    # return _GLOBAL_LOGGER
+    return Logger(rank, print_ranks)
 
 
 class Logger(object):
     def __init__(self, rank, print_ranks):
         self.rank = rank
         self.print_ranks = print_ranks
-        # self.verbose = verbose
-        # self.b = backend
         self.step = 0
         self.m = dict()
 
@@ -127,53 +126,6 @@ class AverageMeter(object):
             return avg.item()
         else:
             return avg
-
-
-class RunningMeter(object):
-    pass
-
-
-class ProgressMeter(object):
-    def __init__(self, total):
-        self.cur = 0
-        self.total = total
-
-    def record(self, cur, total=None):
-        self.cur = cur
-        if total is not None:
-            self.total = total
-
-    def get(self):
-        return self.cur, self.total
-
-
-class TimeMeter(object):
-    def __init__(self, return_timestamp=False):
-        self.return_timestamp = return_timestamp
-        self.n = 0
-        self.ets = None
-        self.bts = None
-        self.reset()
-
-    def reset(self):
-        self.n = 0
-        if self.ets is None:
-            self.bts = time.perf_counter()
-        else:
-            self.bts = self.ets
-        self.ets = None
-
-    def record(self, n):
-        self.n += n
-
-    def get(self):
-        self.ets = time.perf_counter()
-        assert self.ets > self.bts, f"{self.ets} > {self.bts}"
-        throughput = self.n / (self.ets - self.bts)
-        if self.return_timestamp:
-            return throughput, self.ets
-        else:
-            return throughput
 
 
 class LatencyMeter(object):

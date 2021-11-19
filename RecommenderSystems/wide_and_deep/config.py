@@ -30,6 +30,11 @@ def get_args(print_args=True):
         help="save initial model parameters or not.",
     )
     parser.add_argument(
+        "--save_model_after_each_eval",
+        action="store_true",
+        help="save initial model parameters or not.",
+    )
+    parser.add_argument(
         "--dataset_format", type=str, default="ofrecord", help="ofrecord or onerec"
     )
     parser.add_argument("--data_part_num", type=int, default=256)

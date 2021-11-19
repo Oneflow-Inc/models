@@ -22,6 +22,7 @@ class Trainer(object):
         self.args = args
         self.save_path = args.model_save_dir
         self.save_init = args.save_initial_model
+        self.save_model_after_each_eval = args.save_model_after_each_eval
         self.execution_mode = args.execution_mode
         self.max_iter = args.max_iter
         self.loss_print_every_n_iter = args.loss_print_every_n_iter
@@ -75,22 +76,26 @@ class Trainer(object):
 
     def init_logger(self):
         print_ranks = [0]
-        self.logger = log.get_logger(self.rank, print_ranks)
-        self.logger.register_metric("iter", log.IterationMeter(), "iter: {}/{}")
-        self.logger.register_metric("loss", log.AverageMeter(), "loss: {:.16f}", True)
-        self.logger.register_metric("latency", log.LatencyMeter(), "latency(ms): {:.16f}", True)
+        self.train_logger = log.make_logger(self.rank, print_ranks)
+        self.train_logger.register_metric("iter", log.IterationMeter(), "iter: {}/{}")
+        self.train_logger.register_metric("loss", log.AverageMeter(), "loss: {:.16f}", True)
+        self.train_logger.register_metric("latency", log.LatencyMeter(), "latency(ms): {:.16f}", True)
+
+        self.val_logger = log.make_logger(self.rank, print_ranks)
+        self.val_logger.register_metric("iter", log.IterationMeter(), "iter: {}/{}")
+        self.val_logger.register_metric("auc", log.IterationMeter(), "eval_auc: {}")
 
     def meter(
         self,
         loss=None,
         do_print=False,
     ):
-        self.logger.meter("iter", (self.cur_iter, self.max_iter))
+        self.train_logger.meter("iter", (self.cur_iter, self.max_iter))
         if loss is not None:
-            self.logger.meter("loss", loss)
-        self.logger.meter("latency")
+            self.train_logger.meter("loss", loss)
+        self.train_logger.meter("latency")
         if do_print:
-            self.logger.print_metrics()
+            self.train_logger.print_metrics()
 
     def meter_train_iter(self, loss):
         do_print = (
@@ -100,6 +105,13 @@ class Trainer(object):
             loss=loss,
             do_print=do_print,
         )
+
+    def meter_eval(self, auc):
+        self.val_logger.meter("iter", (self.cur_iter, self.max_iter))
+        if auc is not None:
+            self.val_logger.meter("auc", auc)
+        self.val_logger.print_metrics()
+
 
     def load_state_dict(self):
         print(f"Loading model from {self.args.model_load_dir}")
@@ -145,13 +157,10 @@ class Trainer(object):
             self.meter_train_iter(loss)
 
             if self.eval_interval > 0 and (i + 1) % self.eval_interval == 0:
-                self.eval()
+                self.eval(self.save_model_after_each_eval)
+        self.eval(True)
 
-        auc = self.eval()
-        sub_save_dir = f"iter_{self.cur_iter}_val_auc_{auc}"
-        self.save(sub_save_dir)
-
-    def eval(self):
+    def eval(self, save_model=False):
         if self.eval_batchs <= 0:
             return
         self.wdl_module.eval()
@@ -166,10 +175,11 @@ class Trainer(object):
             labels = np.concatenate((labels, label_), axis=0)
             preds = np.concatenate((preds, pred.numpy()), axis=0)
         auc = roc_auc_score(labels[1:], preds[1:])
-        if self.rank == 0:
-            print("iter:", self.cur_iter, "eval_auc:", auc)
+        self.meter_eval(auc)
+        if save_model:
+            sub_save_dir = f"iter_{self.cur_iter}_val_auc_{auc}"
+            self.save(sub_save_dir)
         self.wdl_module.train()
-        return auc
 
     def inference(self):
         (
