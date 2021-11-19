@@ -5,10 +5,9 @@ import oneflow.nn as nn
 import oneflow.nn.functional as F
 from  oneflow.nn import LayerNorm
 
-from .transformer_layers import ParallelTransformerLayer
-from .embedding import VocabParallelEmbedding, PositionalEmbedding
-from .transformer import ParallelTransformerLayer
-from .utils import divide
+from modeling.components import VocabParallelEmbedding, PositionalEmbedding
+from modeling.components import divide, ParallelSelfAttention, ParallelMLP
+
 
 def init_method_normal(std=0.02):
     def init_(tensor):
@@ -26,6 +25,66 @@ def scaled_init_method(sigma, num_layers):
     def init_(tensor):
         return flow.nn.init.normal_(tensor, mean=0.0, std=std)
     return init_
+
+
+class ParallelTransformerLayer(flow.nn.Module):
+    def __init__(self,
+                 hidden_size,
+                 num_attention_heads,
+                 attention_dropout_prob,
+                 output_dropout_prob,
+                 layernorm_epsilon,
+                 init_method,
+                 output_layer_init_method=None,
+                 relative_encoding=False,
+                 performer=False,
+                 attention_scale=1.0):
+        super(ParallelTransformerLayer, self).__init__()
+    
+        if output_layer_init_method is None:
+            output_layer_init_method = init_method
+
+        self.input_layernorm = LayerNorm(hidden_size, eps=layernorm_epsilon)
+
+        self.attention = ParallelSelfAttention(
+            hidden_size,
+            num_attention_heads,
+            attention_dropout_prob,
+            output_dropout_prob,
+            init_method,
+            output_layer_init_method=output_layer_init_method,
+            relative_encoding=relative_encoding,
+            performer=performer,
+            attention_scale=attention_scale)
+
+        self.post_attention_layernorm = LayerNorm(hidden_size,
+                                                  eps=layernorm_epsilon)
+
+        self.mlp = ParallelMLP(
+            hidden_size,
+            output_dropout_prob,
+            init_method,
+            output_layer_init_method=output_layer_init_method)
+
+    def forward(self, hidden_states, ltor_mask, position_embeddings=None, r_w_bias=None, r_r_bias=None, mem=None):
+       
+        layernorm_output = self.input_layernorm(hidden_states)
+        mem = self.input_layernorm(mem) if mem is not None else None
+
+        attention_output = self.attention(layernorm_output, ltor_mask, position_embeddings, r_w_bias, r_r_bias, mem)
+        
+        
+        layernorm_input = hidden_states + attention_output
+        
+        
+        layernorm_output = self.post_attention_layernorm(layernorm_input)
+       
+        mlp_output = self.mlp(layernorm_output)
+       
+        output = layernorm_input + mlp_output
+
+        return output
+
 
 class GPT2ParallelTransformer(flow.nn.Module):
     
@@ -280,6 +339,6 @@ class GLMModel(flow.nn.Module):
             if self.parallel_output:
                 return (logits_parallel, *outputs)
             
-            return (logits_parallel,*outputs)
+            return (logits_parallel, *outputs)
         else:
             return (logits, *outputs)
