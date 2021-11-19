@@ -23,6 +23,3 @@ do
         done
     done
 done
-
-    
-

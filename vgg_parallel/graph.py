@@ -36,14 +36,23 @@ class TrainGraph(flow.nn.Graph):
             self.set_grad_scaler(make_grad_scaler())
         elif args.scale_grad:
             self.set_grad_scaler(make_static_grad_scaler())
-
-        self.config.allow_fuse_add_to_output(True)
-        self.config.allow_fuse_model_update_ops(True)
-
+            
         self.model = model
         self.cross_entropy = cross_entropy
         self.data_loader = data_loader
         self.add_optimizer(optimizer, lr_sch=lr_scheduler)
+
+        self.config.allow_fuse_add_to_output(True)
+        self.config.allow_fuse_model_update_ops(True)
+
+        # Auto parallelism config
+        self.config.enable_auto_parallel(True)
+        self.config.enable_auto_parallel_mainstem_algo(True)
+        self.config.enable_auto_parallel_sbp_collector(True)
+        self.config.set_auto_parallel_computation_cost_ratio(0.25)
+        self.config.set_auto_parallel_wait_time(1.65e7)
+        self.config.set_auto_parallel_transfer_cost(1.65e7)
+        
 
     def build(self):
         image, label = self.data_loader()

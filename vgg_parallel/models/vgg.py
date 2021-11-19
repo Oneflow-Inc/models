@@ -100,14 +100,18 @@ class VGG(nn.Module):
 
         self.classifier = nn.Sequential(
             Linear1D(512 * 7 * 7, 4096, parallel_way[0]),
+            # nn.Linear(512 * 7 * 7, 4096),
             nn.ReLU(True),
             nn.Dropout(),
             Linear1D(4096, 4096, parallel_way[1]),
+            # nn.Linear(4096, 4096),
             nn.ReLU(True),
             nn.Dropout(),
             Linear1D(4096, num_classes, parallel_way[2]),
+            # nn.Linear(4096, num_classes)
         )
-
+        # self.classifier = self.classifier.to_consistent(placement=get_placement(), sbp=flow.sbp.broadcast)
+        
         if init_weights:
             self._initialize_weights()
 
