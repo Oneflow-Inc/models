@@ -175,7 +175,7 @@ class Trainer(object):
             dense_fields,
             wide_sparse_fields,
             deep_sparse_fields,
-        ) = self.train_dataloader()
+        ) = self.val_dataloader()
         labels = labels.to("cuda").to(dtype=flow.float32)
         dense_fields = dense_fields.to("cuda")
         wide_sparse_fields = wide_sparse_fields.to("cuda")
