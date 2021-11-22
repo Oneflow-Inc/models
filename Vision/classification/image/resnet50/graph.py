@@ -40,6 +40,14 @@ class TrainGraph(flow.nn.Graph):
         self.config.allow_fuse_add_to_output(True)
         self.config.allow_fuse_model_update_ops(True)
 
+        # Auto Parallel Configuration
+        self.config.enable_auto_parallel(True)
+        self.config.enable_auto_parallel_mainstem_algo(True)
+        self.config.enable_auto_parallel_sbp_collector(True)
+        self.config.set_auto_parallel_computation_cost_ratio(0.25)
+        self.config.set_auto_parallel_wait_time(1.65e7)
+        self.config.set_auto_parallel_transfer_cost(1.65e7)
+
         self.model = model
         self.cross_entropy = cross_entropy
         self.data_loader = data_loader
