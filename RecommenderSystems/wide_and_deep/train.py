@@ -46,7 +46,7 @@ class Trainer(object):
         self.val_dataloader = make_data_loader(args, "val", self.is_consistent)
         self.wdl_module = make_wide_and_deep_module(args)
         self.init_model()
-        self.opt = flow.optim.AdamW(
+        self.opt = flow.optim.Adam(
             self.wdl_module.parameters(), lr=args.learning_rate
         )
         self.loss = flow.nn.BCELoss(reduction="none").to("cuda")
