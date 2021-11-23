@@ -19,8 +19,7 @@ class WideAndDeepValGraph(flow.nn.Graph):
         wide_sparse_fields = wide_sparse_fields.to("cuda")
         deep_sparse_fields = deep_sparse_fields.to("cuda")
 
-        logits = self.module(dense_fields, wide_sparse_fields, deep_sparse_fields)
-        predicts = flow.sigmoid(logits)
+        predicts = self.module(dense_fields, wide_sparse_fields, deep_sparse_fields)
         return predicts, labels
 
 
