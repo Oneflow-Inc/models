@@ -232,9 +232,10 @@ class ResNet(nn.Module):
             block, 512, layers[3], stride=2, dilate=replace_stride_with_dilation[2]
         )
         if self.channel_last:
-           self.avgpool = nn.LegacyAvgPool2d((7, 7), data_format=self.data_format)
+           self.avgpool = nn.LegacyAvgPool2d((7, 7), stride=(1, 1), data_format=self.data_format)
         else:
-           self.avgpool = nn.AvgPool2d((7, 7))
+           self.avgpool = nn.AvgPool2d((7, 7), stride=(1, 1))
+
         self.fc = nn.Linear(512 * block.expansion, num_classes)
 
         for m in self.modules():
