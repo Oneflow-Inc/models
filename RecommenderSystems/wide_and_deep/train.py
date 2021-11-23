@@ -193,10 +193,9 @@ class Trainer(object):
         wide_sparse_fields = wide_sparse_fields.to("cuda")
         deep_sparse_fields = deep_sparse_fields.to("cuda")
         with flow.no_grad():
-            logits = self.wdl_module(
+            predicts = self.wdl_module(
                 dense_fields, wide_sparse_fields, deep_sparse_fields
             )
-            predicts = flow.sigmoid(logits)
         return predicts, labels
 
     def forward(self):
