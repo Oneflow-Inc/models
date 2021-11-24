@@ -248,6 +248,8 @@ class Trainer(object):
                 loss, pred, label = self.train_eager()
 
             self.cur_iter += 1
+            if self.cur_iter == 31:
+                exit()
 
             loss = tol(loss, self.metric_local)
             if pred is not None and label is not None:

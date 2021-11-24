@@ -12,6 +12,10 @@ echo NCCL_LAUNCH_MODE=$NCCL_LAUNCH_MODE
 export NCCL_DEBUG=INFO
 export ONEFLOW_DEBUG_MODE=True
 export CUDA_VISIABLE_DEVICES=2
+export ONEFLOW_PROFILER_KERNEL_PROFILE_KERNEL_FORWARD_RANGE=True
+
+export CUDNN_LOGINFO_DBG=1
+export CUDNN_LOGDEST_DBG=./perf/cudnn.log
 
 CHECKPOINT_SAVE_PATH="./graph_distributed_fp16_checkpoints"
 if [ ! -d "$CHECKPOINT_SAVE_PATH" ]; then
@@ -24,7 +28,7 @@ OFRECORD_PATH="/dataset/imagenet/ofrecord/"
 OFRECORD_PART_NUM=256
 LEARNING_RATE=1.536
 MOM=0.875
-EPOCH=50
+EPOCH=1
 #TRAIN_BATCH_SIZE=19
 #TRAIN_BATCH_SIZE=192
 TRAIN_BATCH_SIZE=80
@@ -34,6 +38,7 @@ VAL_BATCH_SIZE=5
 # SRC_DIR=/path/to/models/resnet50
 SRC_DIR=$(realpath $(dirname $0)/..)
 
+/usr/local/cuda-11.4/nsight-systems-2021.2.4/bin/nsys profile --stats true --output ./perf/fp16_graph_cudadataload \
 python3 -m oneflow.distributed.launch \
     --nproc_per_node $DEVICE_NUM_PER_NODE \
     --nnodes $NUM_NODES \

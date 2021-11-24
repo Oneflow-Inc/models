@@ -231,10 +231,25 @@ class ResNet(nn.Module):
         self.layer4 = self._make_layer(
             block, 512, layers[3], stride=2, dilate=replace_stride_with_dilation[2]
         )
+
+        # NOTE: The code below is avg pool in oneflow lazy style modle. Its padding is setted to "VALID".
+        # link: https://github.com/Oneflow-Inc/OneFlow-Benchmark/blob/master/Classification/cnns/resnet_model.py#L238
+        # pool5 = flow.nn.avg_pool2d(
+        #     body,
+        #     ksize=7,
+        #     strides=1,
+        #     padding="VALID",
+        #     data_format=builder.data_format,
+        #     name="pool5",
+        # )
+        # The code below used PyTorch style padding. The default pading is (0, 0), which is same as lazy style "VALID".
         if self.channel_last:
-           self.avgpool = nn.LegacyAvgPool2d((7, 7), data_format=self.data_format)
+           self.avgpool = nn.LegacyAvgPool2d((7, 7), stride=(1, 1), data_format=self.data_format)
         else:
-           self.avgpool = nn.AvgPool2d((7, 7))
+           self.avgpool = nn.AvgPool2d((7, 7), stride=(1, 1))
+        # Graph use kernel: (anonymous namespace)::PartialBroadcastGpu, it's percent is 0.0 %.
+        # But lazy use kernel : (anonymous namespace)::BiasAddRowGpu<float, int>, it's percent is 0.0 %.
+        # The difference is not importance at the moment.
         self.fc = nn.Linear(512 * block.expansion, num_classes)
 
         for m in self.modules():
