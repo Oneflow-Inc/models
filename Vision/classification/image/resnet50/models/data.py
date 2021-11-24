@@ -30,7 +30,7 @@ def make_data_loader(args, mode, is_consistent=False, synthetic=False):
             num_classes=args.num_classes,
             placement=placement,
             sbp=sbp,
-            channel_last=args.channels_last,
+            channel_last=args.channel_last,
         )
         return data_loader.to("cuda")
 
