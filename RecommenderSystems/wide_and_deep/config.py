@@ -32,10 +32,20 @@ def get_args(print_args=True):
     parser.add_argument(
         "--save_model_after_each_eval",
         action="store_true",
-        help="save initial model parameters or not.",
+        help="save model after each eval.",
+    )
+    parser.add_argument(
+        "--eval_after_training",
+        action="store_true",
+        help="do eval after_training",
     )
     parser.add_argument(
         "--dataset_format", type=str, default="ofrecord", help="ofrecord or onerec"
+    )
+    parser.add_argument(
+        "--use_synthetic_data",
+        action="store_true",
+        help="use synthetic data",
     )
     parser.add_argument("--data_part_num", type=int, default=256)
     parser.add_argument(

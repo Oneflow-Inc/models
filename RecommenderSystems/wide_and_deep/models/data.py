@@ -3,7 +3,7 @@ import oneflow as flow
 import oneflow.nn as nn
 
 
-def make_data_loader(args, mode, is_consistent=False):
+def make_data_loader(args, mode, is_consistent=False, synthetic=False):
     assert mode in ("train", "val")
 
     total_batch_size = args.batch_size
@@ -17,6 +17,20 @@ def make_data_loader(args, mode, is_consistent=False):
         sbp = flow.sbp.split(0)
         batch_size_per_proc = total_batch_size
     
+    if synthetic:
+        placement = flow.env.all_device_placement("cpu")
+        synthetic_data_loader = SyntheticDataLoader(
+            num_dense_fields=args.num_dense_fields,
+            num_wide_sparse_fields=args.num_wide_sparse_fields,
+            num_deep_sparse_fields=args.num_deep_sparse_fields,
+            batch_size=batch_size_per_proc,
+            total_batch_size=total_batch_size,
+            placement=placement,
+            sbp=sbp,
+        )
+        return synthetic_data_loader
+
+
     ofrecord_data_loader = OFRecordDataLoader(
         data_dir=args.data_dir,
         data_part_num=args.data_part_num,
@@ -89,3 +103,82 @@ class OFRecordDataLoader(nn.Module):
         wide_sparse_fields = self.wide_sparse_fields(reader)
         deep_sparse_fields = self.deep_sparse_fields(reader)
         return labels, dense_fields, wide_sparse_fields, deep_sparse_fields
+
+
+class SyntheticDataLoader(nn.Module):
+    def __init__(
+        self,
+        num_dense_fields: int = 13,
+        num_wide_sparse_fields: int = 2,
+        num_deep_sparse_fields: int = 26,
+        batch_size: int = 1,
+        total_batch_size: int = 1,
+        placement=None,
+        sbp=None,
+    ):
+        super(SyntheticDataLoader, self).__init__()
+        print("use synthetic data")
+        self.batch_size = batch_size
+        self.total_batch_size = total_batch_size
+        self.placement = placement
+        self.sbp = sbp
+
+        self.label_shape = (batch_size, 1)
+        self.dense_fields_shape = (batch_size, num_dense_fields)
+        self.wide_sparse_fields_shape = (batch_size, num_wide_sparse_fields)
+        self.deep_sparse_fields_shape = (batch_size, num_deep_sparse_fields)
+
+        if self.placement is not None and self.sbp is not None:
+            self.labels = flow.randint(
+                    0,
+                    high=2,
+                    size=self.label_shape,
+                    dtype=flow.int32,
+                    placement=self.placement,
+                    sbp=self.sbp,
+            )
+
+            self.dense_fields = flow.randint(
+                    0,
+                    high=256,
+                    size=self.dense_fields_shape,
+                    dtype=flow.float,
+                    placement=self.placement,
+                    sbp=self.sbp,
+            )
+
+            self.wide_sparse_fields = flow.randint(
+                    0,
+                    high=256,
+                    size=self.wide_sparse_fields_shape,
+                    dtype=flow.int32,
+                    placement=self.placement,
+                    sbp=self.sbp,
+            )
+
+            self.deep_sparse_fields = flow.randint(
+                    0,
+                    high=256,
+                    size=self.deep_sparse_fields_shape,
+                    dtype=flow.int32,
+                    placement=self.placement,
+                    sbp=self.sbp,
+            )
+        else:
+            self.labels = flow.randint(
+                0, high=2, size=self.label_shape, dtype=flow.int32, device="cuda"
+            )
+            self.dense_fields = flow.randint(
+                0, high=256, size=self.dense_fields_shape, dtype=flow.float, device="cuda",
+            )
+            self.wide_sparse_fields = flow.randint(
+                0, high=256, size=self.wide_sparse_fields_shape, dtype=flow.int32, device="cuda"
+            )
+            self.deep_sparse_fields = flow.randint(
+                0, high=256, size=self.deep_sparse_fields_shape, dtype=flow.int32, device="cuda",
+            )
+            
+
+    def forward(self):
+        return self.labels, self.dense_fields, self.wide_sparse_fields, self.deep_sparse_fields
+

@@ -47,4 +47,4 @@ class WideAndDeepTrainGraph(flow.nn.Graph):
         loss = self.bce_loss(logits, labels)
         reduce_loss = flow.mean(loss)
         reduce_loss.backward()
-        return logits, labels, reduce_loss
+        return reduce_loss

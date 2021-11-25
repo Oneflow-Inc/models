@@ -23,6 +23,8 @@ class Trainer(object):
         self.save_path = args.model_save_dir
         self.save_init = args.save_initial_model
         self.save_model_after_each_eval = args.save_model_after_each_eval
+        self.eval_after_training = args.eval_after_training
+        self.use_synthetic_data = args.use_synthetic_data
         self.execution_mode = args.execution_mode
         self.max_iter = args.max_iter
         self.loss_print_every_n_iter = args.loss_print_every_n_iter
@@ -42,8 +44,8 @@ class Trainer(object):
         self.eval_interval = args.eval_interval
         self.eval_batchs = args.eval_batchs
         self.init_logger()
-        self.train_dataloader = make_data_loader(args, "train", self.is_consistent)
-        self.val_dataloader = make_data_loader(args, "val", self.is_consistent)
+        self.train_dataloader = make_data_loader(args, "train", self.is_consistent, self.use_synthetic_data)
+        self.val_dataloader = make_data_loader(args, "val", self.is_consistent, self.use_synthetic_data)
         self.wdl_module = make_wide_and_deep_module(args)
         self.init_model()
         self.opt = flow.optim.Adam(
@@ -158,7 +160,8 @@ class Trainer(object):
 
             if self.eval_interval > 0 and self.cur_iter % self.eval_interval == 0:
                 self.eval(self.save_model_after_each_eval)
-        self.eval(True)
+        if self.eval_after_training:
+            self.eval(True)
 
     def eval(self, save_model=False):
         if self.eval_batchs <= 0:
@@ -214,7 +217,7 @@ class Trainer(object):
         )
         loss = self.loss(predicts,labels)
         reduce_loss = flow.mean(loss)
-        return predicts, labels, reduce_loss
+        return reduce_loss
 
     def train_eager(self):
         predicts,labels,loss = self.forward()
@@ -226,9 +229,9 @@ class Trainer(object):
     def train_one_step(self):
         self.wdl_module.train()
         if self.execution_mode == "graph":
-            predicts, labels, train_loss = self.train_graph()
+            train_loss = self.train_graph()
         else:
-            predicts, labels, train_loss = self.train_eager()
+            train_loss = self.train_eager()
         return train_loss
 
 
