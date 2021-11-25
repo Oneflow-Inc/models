@@ -1,8 +1,14 @@
-import oneflow
-import oneflow as flow
-from modeling import GLMModel
 
-if __name__ == "__main__":
+
+import sys
+sys.path.append(".")
+
+
+def test_model():
+    import oneflow
+    import oneflow as flow
+    from modeling import GLMModel
+
     model = GLMModel(num_layers=12,
                      vocab_size=123123,
                      hidden_size=512,
@@ -32,3 +38,21 @@ if __name__ == "__main__":
 
     logits, *mems = model(tokens, position_ids, attention_mask)
     print(logits)
+
+
+def test_dataloader():
+    from args import get_args
+    from data import prepare_tokenizer, make_dataset
+
+    args = get_args()
+    tokenizer = prepare_tokenizer(args)
+    args.data_set_type = "Block"
+    train_data, val_data, test_data = make_dataset(args, tokenizer)
+    train_data_iterator = iter(train_data)
+    for _ in range(args.train_iters):
+        data = next(train_data_iterator)
+        print(data)
+
+
+if __name__ == "__main__":
+    test_dataloader()
