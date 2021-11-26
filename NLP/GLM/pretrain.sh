@@ -27,7 +27,9 @@ gpt_options=" \
        --warmup .05 \
        --num-workers 1 \
        --hidden-dropout 0.1 \
-       # --fp16 \
+       --mode graph \
+       --graph_fp16 \
+       #--debug_loss \
 "
 
 
@@ -45,7 +47,7 @@ run_cmd="python3 -m oneflow.distributed.launch \
     --nnodes $_NUM_NODES \
     --node_rank $_NODE_RANK \
     --master_addr $_MASTER_ADDR \
-    test.py ${gpt_options}"
+    pretrain.py ${gpt_options}"
 
 echo ${run_cmd}
 eval ${run_cmd}
