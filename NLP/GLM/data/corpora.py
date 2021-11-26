@@ -11,7 +11,7 @@ import oneflow as flow
 from .lazy_loader import LazyLoader
 
 def print_rank_0(message):
-    if flow.env.get_rank():
+    if flow.env.get_rank() == 0:
         print(message, flush=True)
 
 

@@ -208,16 +208,6 @@ def get_dataset(path, seq_length, mem_length, shuffle=True, split=None, tokenize
     dataset = corpora.NAMED_CORPORA[name]
     path = dataset.PATH
 
-    print_rank_0(f"Creating lazy loader for dataset {path}")
-    prompt_writer = LazyWriter(path, data_type='prompt', is_array=pre_tokenize)
-    text_writer = LazyWriter(path, data_type='text', is_array=pre_tokenize)
-    writers = {'prompt': prompt_writer, 'text': text_writer}
-    reader = dataset(writers=writers, tokenizer=tokenizer,
-                     tokenize=pre_tokenize)
-    reader.process()
-    prompt_writer.close()
-    text_writer.close()
-
     map_fn = (lambda x: x.tolist()) if pre_tokenize else None
     prompts = LazyLoader(path, data_type='prompt', map_fn=map_fn, mem_map=True,
                          is_array=pre_tokenize, load_memory=no_lazy_loader, half_load=half_lazy_loader)

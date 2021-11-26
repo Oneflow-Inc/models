@@ -155,6 +155,8 @@ def train_step(data_iterator, model, optimizer, lr_scheduler):
 
 if __name__ == "__main__":
     args = get_args()
+    if args.debug_loss:
+        args.hidden_dropout = 0.0
     model, optimizer, lr_scheduler = get_model(args)
     train_data_iterator = get_dataloader(args)
     count = 0
