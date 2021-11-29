@@ -10,7 +10,8 @@ def add_model_config_args(parser):
 
     group = parser.add_argument_group('model', 'model configuration')
 
-    group.add_argument('--transformer-xl', action='store_true', help='use transformer-xl for training')
+    group.add_argument('--transformer-xl', action='store_true',
+                       help='use transformer-xl for training')
     group.add_argument('--pretrained-bert', action='store_true',
                        help='use a pretrained bert-large-uncased model instead'
                             'of initializing from scratch. See '
@@ -109,9 +110,10 @@ def add_training_args(parser):
     group.add_argument('--label-smoothing', type=float, default=0.0)
     group.add_argument('--log-interval', type=int, default=100,
                        help='report interval')
-    group.add_argument('--summary-dir', type=str, default="", help="The directory to store the summary")
+    group.add_argument('--summary-dir', type=str, default="",
+                       help="The directory to store the summary")
     group.add_argument('--seed', type=int, default=1234, help='random seed')
-    
+
     group.add_argument('--reset-position-ids', action='store_true',
                        help='Reset posistion ids after end-of-document token.')
     group.add_argument('--reset-attention-mask', action='store_true',
@@ -130,8 +132,9 @@ def add_training_args(parser):
     group.add_argument('--warmup', type=float, default=0.01,
                        help='percentage of data to warmup on (.01 = 1% of all '
                             'training iters). Default 0.01')
-    group.add_argument('--switch-linear', action='store_true', help="Switch to linear decay for cosine decay")
-    
+    group.add_argument('--switch-linear', action='store_true',
+                       help="Switch to linear decay for cosine decay")
+
     group.add_argument('--save', type=str, default=None,
                        help='Output directory to save checkpoints to.')
     group.add_argument('--new-save-directory', action='store_true')
@@ -159,7 +162,7 @@ def add_training_args(parser):
                        help='Resume the dataloader when resuming training. '
                             'Does not apply to tfrecords dataloader, try resuming'
                             'with a different seed in this case.')
-    
+
     group.add_argument('--distributed-backend', default='nccl',
                        help='which backend to use for distributed training. One of [gloo, nccl]',
                        choices=['nccl', 'gloo'])
@@ -168,9 +171,11 @@ def add_training_args(parser):
 
     group.add_argument('--local_rank', type=int, default=None,
                        help='local rank passed from distributed launcher')
-    
-    group.add_argument('--block-lm', action='store_true', help="whether use the BlockLM pre-training")
-    group.add_argument('--masked-lm', action='store_true', help='whether to use the mlm objective')
+
+    group.add_argument('--block-lm', action='store_true',
+                       help="whether use the BlockLM pre-training")
+    group.add_argument('--masked-lm', action='store_true',
+                       help='whether to use the mlm objective')
     group.add_argument('--bert-prob', type=float, default=0.5)
     group.add_argument('--gpt-infill-prob', type=float, default=0.5)
     group.add_argument('--gpt-min-ratio', type=float, default=0.5)
@@ -179,8 +184,10 @@ def add_training_args(parser):
     group.add_argument('--avg-block-length', type=int, default=3)
     group.add_argument('--short-seq-prob', type=float, default=0.0)
     group.add_argument('--single-span-prob', type=float, default=0.0)
-    group.add_argument('--task-mask', action='store_true', help="Use different mask for generation and blank filling")
-    group.add_argument('--no-shuffle-block', action='store_true', help="not shuffle the blocks when filling the blank")
+    group.add_argument('--task-mask', action='store_true',
+                       help="Use different mask for generation and blank filling")
+    group.add_argument('--no-shuffle-block', action='store_true',
+                       help="not shuffle the blocks when filling the blank")
     group.add_argument('--no-block-position', action='store_true',
                        help='Use (rough) absolute positions instead of block positions')
     group.add_argument('--sentinel-token', action='store_true',
@@ -189,17 +196,24 @@ def add_training_args(parser):
     group.add_argument('--context-mask-ratio', type=float, default=0.0)
     group.add_argument('--random-position', action='store_true',
                        help="Use random start position to cover all the position embeddings")
-    group.add_argument('--debug_loss', action='store_true',
-                       help="debug loss")
+    group.add_argument('--debug_loss', type=bool, default=False,
+                       help="debug loss or not")
+    group.add_argument('--loss_txt_path', type=str, default='None',
+                       help='debug loss txt write path')
+    group.add_argument('--debug_pretrain_model', type=str, default='None',
+                       help='debug pretrain model path')
     group.add_argument('--mode', type=str, default='None',
                        choices=['eager', 'graph'],
                        help='training mode')
+    group.add_argument('--print-iter', type=int, default=10,
+                       help='print thoughout')
     return parser
 
 
 def add_evaluation_args(parser):
 
-    group = parser.add_argument_group('validation', 'validation configurations')
+    group = parser.add_argument_group(
+        'validation', 'validation configurations')
 
     group.add_argument('--eval-batch-size', type=int, default=None,
                        help='Data Loader batch size for evaluation datasets.'
@@ -224,7 +238,7 @@ def add_evaluation_args(parser):
 
 
 def add_text_generate_args(parser):
-    
+
     group = parser.add_argument_group('Text generation', 'configurations')
     group.add_argument("--temperature", type=float, default=1.0)
     group.add_argument("--top_p", type=float, default=0.0)
@@ -256,7 +270,8 @@ def add_data_args(parser):
                        help="""Filename for validation data.""")
     group.add_argument('--test-data', nargs='*', default=None,
                        help="""Filename for testing""")
-    group.add_argument('--data-dir', type=str, default=None, help="The data path to all the data files")
+    group.add_argument('--data-dir', type=str, default=None,
+                       help="The data path to all the data files")
     group.add_argument('--input-data-sizes-file', type=str, default='sizes.txt',
                        help='the filename containing all the shards sizes')
 
@@ -274,7 +289,8 @@ def add_data_args(parser):
     group.add_argument('--no-lazy-loader', action='store_true',
                        help='whether to lazy read the data set')
     group.add_argument('--half-lazy-loader', action='store_true')
-    group.add_argument('--loader-scatter', type=int, default=None, help='Number of scatters to use for dataloaders')
+    group.add_argument('--loader-scatter', type=int, default=None,
+                       help='Number of scatters to use for dataloaders')
     group.add_argument('--loose-json', action='store_true',
                        help='Use loose json (one json-formatted string per '
                             'newline), instead of tight json (data file is one '
@@ -317,13 +333,18 @@ def add_data_args(parser):
                             'Defaults to math.ceil(`--seq-length`*.15/10)*10.'
                             'MUST BE SPECIFIED IF `--use-tfrecords` is True.')
     group.add_argument('--non-sentence-start', type=float, default=0.0)
-    group.add_argument('--sample-one-document', action='store_true', help='only sample one document in one sample')
-    group.add_argument('--load-splits', type=str, default=None, help="The path to load split indices from")
-    group.add_argument('--save-splits', type=str, default=None, help="The path to save split indices to")
-    group.add_argument('--save-test-data', type=str, default=None, help="The path to save the test data")
+    group.add_argument('--sample-one-document', action='store_true',
+                       help='only sample one document in one sample')
+    group.add_argument('--load-splits', type=str, default=None,
+                       help="The path to load split indices from")
+    group.add_argument('--save-splits', type=str, default=None,
+                       help="The path to save split indices to")
+    group.add_argument('--save-test-data', type=str,
+                       default=None, help="The path to save the test data")
     group.add_argument('--multi-task-data', nargs='*', default=None,
                        help="Downsteam task names for multi-task pre-training")
-    group.add_argument('--multi-task-ratio', type=float, default=0.0, help="Ratio for multi-task pre-training")
+    group.add_argument('--multi-task-ratio', type=float,
+                       default=0.0, help="Ratio for multi-task pre-training")
     group.add_argument('--multi-seq-length', type=int, default=None)
     group.add_argument('--multi-batch-size', type=int, default=None)
     return parser
@@ -332,37 +353,48 @@ def add_data_args(parser):
 def add_finetune_config_args(parser):
     group = parser.add_argument_group('finetune', 'finetune configurations')
     group.add_argument('--task', type=str, help='Task name.')
-    group.add_argument('--load-pretrained', type=str, help="Load pretrained model", default=None)
+    group.add_argument('--load-pretrained', type=str,
+                       help="Load pretrained model", default=None)
     group.add_argument('--pool-token', type=str, choices=['start', 'pad', 'cls'],
                        help='The token to pool the sequence representation', default='cls')
-    group.add_argument('--cloze-eval', action='store_true', help='Evaluation dataset with cloze task')
-    group.add_argument('--multi-token', action='store_true', help='Use multi token for cloze evaluation')
-    group.add_argument('--segment-length', type=int, default=0, help="The maximum segment length for cloze evaluation")
+    group.add_argument('--cloze-eval', action='store_true',
+                       help='Evaluation dataset with cloze task')
+    group.add_argument('--multi-token', action='store_true',
+                       help='Use multi token for cloze evaluation')
+    group.add_argument('--segment-length', type=int, default=0,
+                       help="The maximum segment length for cloze evaluation")
     group.add_argument('--loss-func', type=str, choices=["cross_entropy", "hinge", "generative", "mix"],
                        default="cross_entropy")
     group.add_argument('--block-lm-ratio', type=float, default=0.0)
-    group.add_argument('--adapet', action='store_true', help="Use the decoupled cross entropy loss in AdaPET")
+    group.add_argument('--adapet', action='store_true',
+                       help="Use the decoupled cross entropy loss in AdaPET")
     group.add_argument('--pattern-id', type=int, default=0)
     group.add_argument('--fast-decode', action='store_true',
                        help="Fast decode for multi-token cloze. Can only be used without checkpoint activation.")
     group.add_argument('--few-superglue', action='store_true')
-    group.add_argument('--eval-valid', action='store_true', help="Whether evaluate on the valid set")
+    group.add_argument('--eval-valid', action='store_true',
+                       help="Whether evaluate on the valid set")
     group.add_argument('--validation-metric', type=str, default=None)
-    group.add_argument('--unidirectional', action='store_true', help="Use the left to right language model")
+    group.add_argument('--unidirectional', action='store_true',
+                       help="Use the left to right language model")
     group.add_argument('--src-seq-length', type=int, default=None)
     group.add_argument('--tgt-seq-length', type=int, default=None)
     group.add_argument('--adam-beta1', type=float, default=0.9)
     group.add_argument('--adam-beta2', type=float, default=0.999)
     group.add_argument('--adam-eps', type=float, default=1e-8)
-    group.add_argument('--optimizer', type=str, choices=['adam', 'adafactor'], default='adam')
+    group.add_argument('--optimizer', type=str,
+                       choices=['adam', 'adafactor'], default='adam')
     group.add_argument('--wsc-negative', action='store_true')
     group.add_argument('--overwrite', action='store_true')
     group.add_argument('--no-validation', action='store_true')
-   
-    group.add_argument('--continuous-prompt', action='store_true', help="Use continuous prompt for PET")
+
+    group.add_argument('--continuous-prompt', action='store_true',
+                       help="Use continuous prompt for PET")
     group.add_argument('--num-prompt-tokens', type=int, default=0)
-    group.add_argument('--prompt-func', default='lstm', choices=["lstm", "mlp", "none"])
-    group.add_argument('--freeze-transformer', action='store_true', default=False)
+    group.add_argument('--prompt-func', default='lstm',
+                       choices=["lstm", "mlp", "none"])
+    group.add_argument('--freeze-transformer',
+                       action='store_true', default=False)
     group.add_argument('--tune-prefix-layers', type=int, default=None)
     group.add_argument('--prefix-prompt', type=int, default=0)
     group.add_argument('--prompt-init', action='store_true', default=False)
@@ -380,37 +412,37 @@ def get_args():
     parser = add_text_generate_args(parser)
     parser = add_data_args(parser)
     parser = add_finetune_config_args(parser)
-    
+
     args = parser.parse_args()
-    
-    #False
+
+    # False
     if not args.train_data and not args.data_dir:
         print('WARNING: No training data specified')
-    
+
     args.cuda = flow.cuda.is_available()
-    
+
     args.rank = int(os.getenv('RANK', '0'))
     args.world_size = int(os.getenv("WORLD_SIZE", '1'))
 
     args.model_parallel_size = min(args.model_parallel_size, args.world_size)
-    
-    #True
+
+    # True
     if args.rank == 0:
         print('using world size: {} and model-parallel size: {} '.format(
             args.world_size, args.model_parallel_size))
 
     args.dynamic_loss_scale = False
-    #True
+    # True
     if args.loss_scale is None:
         args.dynamic_loss_scale = True
-        #True
+        # True
         if args.rank == 0:
             print(' > using dynamic loss scaling')
-    
-    #False
+
+    # False
     if not args.fp16:
         args.fp32_embedding = False
         args.fp32_tokentypes = False
         args.fp32_layernorm = False
-    
+
     return args

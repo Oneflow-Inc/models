@@ -1,3 +1,4 @@
+import time
 import oneflow as flow
 import oneflow.nn as nn
 from oneflow.nn.parallel import DistributedDataParallel as ddp
@@ -8,7 +9,7 @@ import sys
 sys.path.append(".")
 
 
-def load_torch_model(model, path="/home/chengpeng/data/mo.pt"):
+def load_torch_model(model, path):
     import torch
     torch_params = torch.load(path, map_location='cpu')
     flow_params = {}
@@ -74,7 +75,7 @@ def get_model(args):
 
     if args.debug_loss:
         # load pretrain
-        load_torch_model(model, path="/home/chengpeng/data/mo.pt")
+        load_torch_model(model, path=args.debug_pretrain_model)
         model.eval()
     else:
         model.train()
@@ -149,7 +150,7 @@ def train_step(data_iterator, model, optimizer, lr_scheduler):
         loss.backward()
         optimizer.step()
         lr_scheduler.step()
-        
+
     return loss
 
 
@@ -157,13 +158,42 @@ if __name__ == "__main__":
     args = get_args()
     if args.debug_loss:
         args.hidden_dropout = 0.0
+        loss_txt = open("clean_glm_graph_loss.txt", "w")
+        
     model, optimizer, lr_scheduler = get_model(args)
     train_data_iterator = get_dataloader(args)
+    
+    # warm up 10 iters
+    for _ in range(10):
+        loss = train_step(train_data_iterator, model, optimizer, lr_scheduler)
+    loss.numpy() # sync cuda
+    
     count = 0
-    loss_txt = open("clean_glm_eager_loss.txt", "w")
+    tb = time.time()
+    t0 = time.time()
 
     for _ in range(args.train_iters):
         loss = train_step(train_data_iterator, model, optimizer, lr_scheduler)
+        
         count += 1
-        loss_txt.write(str(loss.item())+"\n")
-        print(count, loss.item())
+        if count % args.print_iter == 0:
+            loss.numpy() # sync cuda
+            t1 = time.time()
+            total_batch_size = flow.env.get_world_size() * \
+                               args.batch_size * \
+                               args.print_iter
+            though_out = total_batch_size / (t1 - t0)
+            t0 = time.time()
+            if flow.env.get_rank() == 0:
+                print(f"iter: {count}, though_out: {though_out}")
+                
+        if args.debug_loss:
+            loss_txt.write(str(loss.item())+"\n")
+
+    te = time.time()
+    total_batch_size = flow.env.get_world_size() * \
+                       args.batch_size * \
+                       args.train_iters
+    avg_though_out = total_batch_size / (te - tb)
+    if flow.env.get_rank() == 0:
+        print(f"avg_though_out: {avg_though_out}, total time: {te - tb}s")

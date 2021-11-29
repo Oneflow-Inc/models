@@ -27,10 +27,13 @@ gpt_options=" \
        --warmup .05 \
        --num-workers 1 \
        --hidden-dropout 0.1 \
-       --mode eager \
-       --graph_fp16 \
-       --debug_loss \
-       --vocab-size 30592
+       --vocab-size 30592 \
+       --print-iter 10 \
+       --mode graph \
+       --debug_loss False \
+       --loss_txt_path 'clean_glm_graph_loss.txt' \
+       --debug_pretrain_model '/home/chengpeng/data/mo.pt' \
+       # --graph_fp16 \
 "
 
 
