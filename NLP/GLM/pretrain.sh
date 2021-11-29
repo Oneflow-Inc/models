@@ -27,9 +27,10 @@ gpt_options=" \
        --warmup .05 \
        --num-workers 1 \
        --hidden-dropout 0.1 \
-       --mode graph \
+       --mode eager \
        --graph_fp16 \
-       #--debug_loss \
+       --debug_loss \
+       --vocab-size 30592
 "
 
 

@@ -160,8 +160,10 @@ if __name__ == "__main__":
     model, optimizer, lr_scheduler = get_model(args)
     train_data_iterator = get_dataloader(args)
     count = 0
+    loss_txt = open("clean_glm_eager_loss.txt", "w")
 
     for _ in range(args.train_iters):
         loss = train_step(train_data_iterator, model, optimizer, lr_scheduler)
         count += 1
+        loss_txt.write(str(loss.item())+"\n")
         print(count, loss.item())
