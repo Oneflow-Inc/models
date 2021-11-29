@@ -158,7 +158,7 @@ if __name__ == "__main__":
     args = get_args()
     if args.debug_loss:
         args.hidden_dropout = 0.0
-        loss_txt = open("clean_glm_graph_loss.txt", "w")
+        loss_txt = open(args.loss_txt_path, "w")
         
     model, optimizer, lr_scheduler = get_model(args)
     train_data_iterator = get_dataloader(args)
