@@ -157,11 +157,11 @@ class OFRecordDataLoader(flow.nn.Module):
             else:
                 image_raw_bytes = self.image_decoder(record)
                 image = self.resize(image_raw_bytes)[0]
+                image = image.to("cuda")
 
             label = self.label_decoder(record)
             flip_code = self.flip()
-            if self.use_gpu_decode:
-                flip_code = flip_code.to("cuda")
+            flip_code = flip_code.to("cuda")
             image = self.crop_mirror_norm(image, flip_code)
         else:
             record = self.ofrecord_reader()
