@@ -43,7 +43,6 @@ class ConsistentWideAndDeep(nn.Module):
         is_graph: bool = False
     ):
         super(ConsistentWideAndDeep, self).__init__()
-        print("init ConsistentWideAndDeep")
         # TODO(binbin): OpKernelState will be reuse in eager mode
         if is_graph:
             wide_embedding_sbp = flow.sbp.split(0)
