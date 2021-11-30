@@ -1,15 +1,23 @@
-
 import math
 import numpy as np
 import torch
 from torch import nn
+
 
 def gelu(x):
     """
     Implementation of the GELU activation function currently in Google BERT repo (identical to OpenAI GPT). Also see
     the Gaussian Error Linear Units paper: https://arxiv.org/abs/1606.08415
     """
-    return 0.5 * x * (1.0 + torch.tanh(math.sqrt(2.0 / math.pi) * (x + 0.044715 * torch.pow(x, 3.0))))
+    return (
+        0.5
+        * x
+        * (
+            1.0
+            + torch.tanh(math.sqrt(2.0 / math.pi) * (x + 0.044715 * torch.pow(x, 3.0)))
+        )
+    )
+
 
 class LayerNorm(nn.Module):
     "Construct a layernorm module."
@@ -29,6 +37,7 @@ class LayerNorm(nn.Module):
         return self.weight * x + self.bias
         # return self.weight * (x - mean) / (std + self.eps) + self.bias
 
+
 class Conv1D(nn.Module):
     """
     1D-convolutional layer as defined by Radford et al. for OpenAI GPT (and also used in GPT-2).
@@ -39,6 +48,7 @@ class Conv1D(nn.Module):
         nf (:obj:`int`): The number of output features.
         nx (:obj:`int`): The number of input features.
     """
+
     def __init__(self, nf, nx):
         super().__init__()
         self.nf = nf
@@ -53,19 +63,20 @@ class Conv1D(nn.Module):
         x = x.view(*size_out)
         return x
 
+
 class GPT2Attention(nn.Module):
     def __init__(self, config):
         super(GPT2Attention, self).__init__()
         max_positions = config.max_position_embeddings
-        
+
         self.register_buffer(
             "bias",
-            torch.tril(torch.ones((max_positions, max_positions), dtype=torch.uint8)).view(
-                1, 1, max_positions, max_positions
-            ),
+            torch.tril(
+                torch.ones((max_positions, max_positions), dtype=torch.uint8)
+            ).view(1, 1, max_positions, max_positions),
         )
         self.register_buffer("masked_bias", torch.tensor(-1e4))
-        
+
         self.embed_dim = config.hidden_size
         self.num_heads = config.num_attention_heads
         assert self.embed_dim % self.num_heads == 0
@@ -86,8 +97,12 @@ class GPT2Attention(nn.Module):
             attn_weights = attn_weights / (float(value.size(-1)) ** 0.5)
 
         query_length, key_length = query.size(-2), key.size(-2)
-        causal_mask = self.bias[:, :, key_length - query_length : key_length, :key_length].bool()
-        attn_weights = torch.where(causal_mask, attn_weights, self.masked_bias.to(attn_weights.dtype))
+        causal_mask = self.bias[
+            :, :, key_length - query_length : key_length, :key_length
+        ].bool()
+        attn_weights = torch.where(
+            causal_mask, attn_weights, self.masked_bias.to(attn_weights.dtype)
+        )
 
         attn_weights = nn.Softmax(dim=-1)(attn_weights)
         attn_weights = self.attn_dropout(attn_weights)
@@ -138,6 +153,7 @@ class GPT2Attention(nn.Module):
         outputs = (attn_output, present, attn_weights)
         return outputs
 
+
 class GPT2MLP(nn.Module):
     def __init__(self, intermediate_size, config):
         super().__init__()
@@ -154,6 +170,7 @@ class GPT2MLP(nn.Module):
         hidden_states = self.dropout(hidden_states)
         return hidden_states
 
+
 class GPT2Block(nn.Module):
     def __init__(self, config):
         super().__init__()
@@ -164,7 +181,7 @@ class GPT2Block(nn.Module):
         self.attn = GPT2Attention(config)
         self.ln_2 = LayerNorm(hidden_size, eps=config.layer_norm_epsilon)
         self.mlp = GPT2MLP(inner_dim, config)
-    
+
     def forward(self, hidden_states, layer_past=None, use_cache=False):
         residual = hidden_states
         hidden_states = self.ln_1(hidden_states)
@@ -179,11 +196,14 @@ class GPT2Block(nn.Module):
         hidden_states = residual + feed_forward_hidden_states
 
         if use_cache:
-            outputs = (hidden_states,) + outputs    # hiddden_states, present, attn_weights
+            outputs = (
+                hidden_states,
+            ) + outputs  # hiddden_states, present, attn_weights
         else:
-            outputs = (hidden_states,) + outputs[1:]    # hiddden_states, attn_weights
+            outputs = (hidden_states,) + outputs[1:]  # hiddden_states, attn_weights
         return outputs
-    
+
+
 class GPT2Model(nn.Module):
     def __init__(self, config):
         super(GPT2Model, self).__init__()
@@ -191,12 +211,23 @@ class GPT2Model(nn.Module):
 
         self.wte = nn.Embedding(config.vocab_size, self.embed_dim)
         self.wpe = nn.Embedding(config.max_position_embeddings, self.embed_dim)
-        
+
         self.drop = nn.Dropout(config.embd_pdrop)
-        self.h = nn.ModuleList([GPT2Block(config) for _ in range(config.num_hidden_layers)])
+        self.h = nn.ModuleList(
+            [GPT2Block(config) for _ in range(config.num_hidden_layers)]
+        )
         self.ln_f = LayerNorm(self.embed_dim, eps=config.layer_norm_epsilon)
-    
-    def forward(self, input_ids, position_ids=None, token_type_ids=None, past_key_values=None, use_cache=False, output_attentions=False, output_hidden_states=False):
+
+    def forward(
+        self,
+        input_ids,
+        position_ids=None,
+        token_type_ids=None,
+        past_key_values=None,
+        use_cache=False,
+        output_attentions=False,
+        output_hidden_states=False,
+    ):
         input_shape = input_ids.size()
         input_ids = input_ids.view(-1, input_ids.size(-1))
         batch_size = input_ids.shape[0]
@@ -205,17 +236,22 @@ class GPT2Model(nn.Module):
             position_ids = position_ids.view(-1, input_shape[-1])
         if token_type_ids is not None:
             token_type_ids = token_type_ids.view(-1, input_shape[-1])
-        
+
         if past_key_values is None:
             past_length = 0
-            past_key_values = tuple([None] *  len(self.h))
+            past_key_values = tuple([None] * len(self.h))
         else:
             past_length = past_key_values[0][0].size(-2)
 
         if position_ids is None:
-            position_ids = torch.arange(past_length, input_shape[-1] + past_length, dtype=torch.long, device=input_ids.device)
+            position_ids = torch.arange(
+                past_length,
+                input_shape[-1] + past_length,
+                dtype=torch.long,
+                device=input_ids.device,
+            )
             position_ids = position_ids.unsqueeze(0).view(-1, input_shape[-1])
-        
+
         inputs_embeds = self.wte(input_ids)
         position_embeds = self.wpe(position_ids)
         hidden_states = inputs_embeds + position_embeds
@@ -223,7 +259,7 @@ class GPT2Model(nn.Module):
         if token_type_ids is not None:
             token_type_embeds = self.wte(token_type_ids)
             hidden_states = hidden_states + token_type_embeds
-        
+
         hidden_states = self.drop(hidden_states)
 
         output_shape = input_shape + (hidden_states.size(-1),)
@@ -239,31 +275,38 @@ class GPT2Model(nn.Module):
             hidden_states = outputs[0]
             if use_cache is True:
                 presents = presents + (outputs[1],)
-            
+
             if output_attentions:
                 all_attentions = all_attentions + (outputs[2 if use_cache else 1],)
-        
+
         hidden_states = self.ln_f(hidden_states)
         hidden_states = hidden_states.view(*output_shape)
         if output_hidden_states:
             all_hidden_states = all_hidden_states + (hidden_states,)
 
-        return tuple(v for v in [hidden_states, presents, all_hidden_states, all_attentions] if v is not None)
+        return tuple(
+            v
+            for v in [hidden_states, presents, all_hidden_states, all_attentions]
+            if v is not None
+        )
+
 
 class LMHead(nn.Module):
     """ Language Model Head for the transformer """
+
     def __init__(self, model, config):
         super(LMHead, self).__init__()
         self.n_embd = config.n_embd
         embed_shape = model.wte.weight.shape
         self.decoder = nn.Linear(embed_shape[1], embed_shape[0], bias=False)
-        self.decoder.weight = model.wte.weight # Tied weights
+        self.decoder.weight = model.wte.weight  # Tied weights
 
     def forward(self, h):
         # Truncated Language modeling logits (we remove the last token)
         h_trunc = h[:, :-1].view(-1, self.n_embd)
         lm_logits = self.decoder(h_trunc)
         return lm_logits
+
 
 class GPT2LMHeadModel(nn.Module):
     def __init__(self, config):
@@ -276,8 +319,18 @@ class GPT2LMHeadModel(nn.Module):
     def tie_weights(self):
         self.lm_head.weight = self.transformer.wte.weight
 
-    def forward(self, input_ids, position_ids=None, token_type_ids=None, labels=None, past_key_values=None, use_cache=False):
-        transformer_outputs = self.transformer(input_ids, position_ids, token_type_ids, past_key_values, use_cache)        
+    def forward(
+        self,
+        input_ids,
+        position_ids=None,
+        token_type_ids=None,
+        labels=None,
+        past_key_values=None,
+        use_cache=False,
+    ):
+        transformer_outputs = self.transformer(
+            input_ids, position_ids, token_type_ids, past_key_values, use_cache
+        )
         hidden_states = transformer_outputs[0]
         lm_logits = self.lm_head(hidden_states)
 
@@ -291,7 +344,6 @@ class GPT2LMHeadModel(nn.Module):
             shift_logits = shift_logits.view(-1, shift_logits.size(-1))
             shift_labels = shift_labels.view(-1)
             loss = loss_fct(shift_logits, shift_labels)
-
 
         output = (lm_logits,) + transformer_outputs[1:]
         if loss is not None:

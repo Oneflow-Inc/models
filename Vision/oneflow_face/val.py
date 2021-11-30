@@ -16,8 +16,7 @@ def main(args):
     backbone = get_model(cfg.network, dropout=0.0, num_features=cfg.embedding_size).to(
         "cuda"
     )
-    val_callback = CallBackVerification(
-        1, 0, cfg.val_targets, cfg.ofrecord_path)
+    val_callback = CallBackVerification(1, 0, cfg.val_targets, cfg.ofrecord_path)
 
     state_dict = flow.load(args.model_path)
 

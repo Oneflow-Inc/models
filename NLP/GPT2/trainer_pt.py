@@ -6,9 +6,11 @@ import torch
 import torch.nn as nn
 from optimization_pt import get_scheduler
 
+
 class AverageMeter(object):
     """Computes and stores the average and current value"""
-    def __init__(self, name, fmt=':f'):
+
+    def __init__(self, name, fmt=":f"):
         self.name = name
         self.fmt = fmt
         self.reset()
@@ -24,9 +26,9 @@ class AverageMeter(object):
         self.sum += val * n
         self.count += n
         self.avg = self.sum / self.count
-    
+
     def __str__(self):
-        fmtstr = '{name} {val' + self.fmt + '} ({avg' + self.fmt + '})'
+        fmtstr = "{name} {val" + self.fmt + "} ({avg" + self.fmt + "})"
         return fmtstr.format(**self.__dict__)
 
 
@@ -65,10 +67,17 @@ class Trainer:
         self.accumulate_gradient_steps = accumulate_gradient_steps
 
         # # Setting the Adam optimizer with hyper-param
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=lr, betas=betas, weight_decay=weight_decay)
-        
+        self.optimizer = torch.optim.Adam(
+            self.model.parameters(), lr=lr, betas=betas, weight_decay=weight_decay
+        )
+
         total_train_steps = len(self.train_dataloader) * self.epoch
-        self.lr_scheduler = get_scheduler('linear', self.optimizer, num_warmup_steps=warmup_steps, num_training_steps=total_train_steps)
+        self.lr_scheduler = get_scheduler(
+            "linear",
+            self.optimizer,
+            num_warmup_steps=warmup_steps,
+            num_training_steps=total_train_steps,
+        )
         print("Total Parameters:", sum([p.nelement() for p in self.model.parameters()]))
 
     def train(self):
@@ -87,7 +96,9 @@ class Trainer:
         losses = AverageMeter("loss")
 
         self.optimizer.zero_grad()
-        data_iter = tqdm.tqdm(data_loader, desc="Training: %0d" % (epoch), total=len(data_loader))
+        data_iter = tqdm.tqdm(
+            data_loader, desc="Training: %0d" % (epoch), total=len(data_loader)
+        )
         for step, batch in enumerate(data_iter):
             inputs, labels = (batch, batch)
             inputs = inputs.cuda()
@@ -104,11 +115,11 @@ class Trainer:
                 self.optimizer.zero_grad()
 
             logging = {
-                'epoch': epoch,
-                'step': step,
-                'avg_loss': losses.avg,
-                'loss': losses.val,
-                'lr': self.lr_scheduler.get_lr()[0]
+                "epoch": epoch,
+                "step": step,
+                "avg_loss": losses.avg,
+                "loss": losses.val,
+                "lr": self.lr_scheduler.get_lr()[0],
             }
             data_iter.set_postfix(logging)
 
@@ -126,20 +137,19 @@ class Trainer:
                 labels = labels.cuda()
                 outputs = self.model(inputs, labels=labels)
             loss = outputs[0]
-            
+
             loss_item = loss.item()
             losses.update(loss_item)
-            
+
             logging = {
-                'epoch': epoch,
-                'step': step,
-                'avg_loss': losses.avg,
-                'loss': losses.val,
+                "epoch": epoch,
+                "step": step,
+                "avg_loss": losses.avg,
+                "loss": losses.val,
             }
             data_iter.set_postfix(logging)
 
         print("Evaluating:%0d, avg_loss:%.4f" % (epoch, losses.avg))
-
 
     def save(self, epoch, file_path="checkpoints/"):
         """

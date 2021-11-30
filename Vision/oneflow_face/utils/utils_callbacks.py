@@ -47,8 +47,7 @@ class CallBackVerification(object):
                 self.ver_list[i], backbone, 10, 10, self.is_consistent
             )
             logging.info(
-                "[%s][%d]XNorm: %f" % (
-                    self.ver_name_list[i], global_step, xnorm)
+                "[%s][%d]XNorm: %f" % (self.ver_name_list[i], global_step, xnorm)
             )
             logging.info(
                 "[%s][%d]Accuracy-Flip: %1.5f+-%1.5f"
@@ -123,10 +122,8 @@ class CallBackLogging(object):
                 time_total = time_now / ((global_step + 1) / self.total_step)
                 time_for_end = time_total - time_now
                 if self.writer is not None:
-                    self.writer.add_scalar(
-                        "time_for_end", time_for_end, global_step)
-                    self.writer.add_scalar(
-                        "learning_rate", learning_rate, global_step)
+                    self.writer.add_scalar("time_for_end", time_for_end, global_step)
+                    self.writer.add_scalar("learning_rate", learning_rate, global_step)
                     self.writer.add_scalar("loss", loss.avg, global_step)
                 if fp16:
                     msg = (
@@ -173,8 +170,7 @@ class CallBackModelCheckpoint(object):
             path_module = os.path.join(self.output, "epoch_%d" % (epoch))
 
             if is_consistent:
-                flow.save(backbone.state_dict(),
-                          path_module, consistent_dst_rank=0)
+                flow.save(backbone.state_dict(), path_module, consistent_dst_rank=0)
             else:
                 if self.rank == 0:
                     flow.save(backbone.state_dict(), path_module)

@@ -16,8 +16,7 @@ class CrossEntropyLoss_sbp(nn.Module):
         super(CrossEntropyLoss_sbp, self).__init__()
 
     def forward(self, logits, label):
-        loss = flow._C.sparse_softmax_cross_entropy(
-            logits, label)
+        loss = flow._C.sparse_softmax_cross_entropy(logits, label)
         loss = flow.mean(loss)
         return loss
 
@@ -39,8 +38,7 @@ class CosFace(nn.Module):
 
     def forward(self, cosine, label):
         index = flow.where(label != -1)[0]
-        m_hot = flow.zeros(index.size()[0], cosine.size()[
-                           1], device=cosine.device)
+        m_hot = flow.zeros(index.size()[0], cosine.size()[1], device=cosine.device)
 
         m_hot = flow.scatter(m_hot, 1, label[index, None], self.m)
         cosine = cosine[index] - m_hot
@@ -57,8 +55,7 @@ class ArcFace(nn.Module):
 
     def forward(self, cosine: flow.Tensor, label):
         index = flow.where(label != -1)[0]
-        m_hot = flow.zeros(index.size()[0], cosine.size()[
-                           1], device=cosine.device)
+        m_hot = flow.zeros(index.size()[0], cosine.size()[1], device=cosine.device)
         m_hot.scatter_(1, label[index, None], self.m)
         cosine.acos_()
         cosine[index] += m_hot
