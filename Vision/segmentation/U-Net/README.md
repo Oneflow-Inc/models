@@ -40,7 +40,7 @@ Choose one of the above.
 
 
 # Trained Models
-Download pretrained model from the following link:
+Download pretrained model from the following link: [https://oneflow-static.oss-cn-beijing.aliyuncs.com/Dataset/Seg/ISBI_Challenge_cell_segmentation/checkpoints.tar.gz](https://oneflow-static.oss-cn-beijing.aliyuncs.com/Dataset/Seg/ISBI_Challenge_cell_segmentation/checkpoints.tar.gz)
 
 
 # Program preparation
