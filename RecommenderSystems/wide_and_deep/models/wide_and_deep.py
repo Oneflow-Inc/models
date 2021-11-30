@@ -4,20 +4,7 @@ import oneflow.nn as nn
 from typing import Any
 
 
-__all__ = ["WideAndDeep", "wide_and_deep", "make_wide_and_deep_module"]
-
-
-class Embedding(nn.Embedding):
-    def __init__(self, vocab_size, embed_size, split_axis=0):
-        # TODO: name and split_axis for weight
-        super(Embedding, self).__init__(vocab_size, embed_size, padding_idx=0)
-        for param in self.parameters():
-            nn.init.uniform_(param, a=-0.05, b=0.05)
-
-    def forward(self, indices):
-        # indices = flow.parallel_cast(indices, distribute=flow.distribute.broadcast())
-        embedding = flow._C.gather(self.weight, indices, axis=0)
-        return embedding.view(-1, embedding.shape[-1] * embedding.shape[-2])
+__all__ = ["make_wide_and_deep_module"]
 
 
 class Dense(nn.Module):
@@ -41,7 +28,84 @@ class Dense(nn.Module):
         return x
 
 
-class WideAndDeep(nn.Module):
+
+class ConsistentWideAndDeep(nn.Module):
+    def __init__(
+        self,
+        wide_vocab_size: int,
+        deep_vocab_size: int,
+        deep_embedding_vec_size: int = 16,
+        num_deep_sparse_fields: int = 26,
+        num_dense_fields: int = 13,
+        hidden_size: int = 1024,
+        hidden_units_num: int = 7,
+        deep_dropout_rate: float = 0.5,
+        is_graph: bool = False
+    ):
+        super(ConsistentWideAndDeep, self).__init__()
+        print("init ConsistentWideAndDeep")
+        # TODO(binbin): OpKernelState will be reuse in eager mode
+        if is_graph:
+            wide_embedding_sbp = flow.sbp.split(0)
+            deep_embedding_sbp = flow.sbp.split(1)
+            split_size = flow.env.get_world_size()
+        else:
+            wide_embedding_sbp = flow.sbp.broadcast
+            deep_embedding_sbp = flow.sbp.broadcast
+            split_size = 1
+
+        self.wide_embedding = nn.Embedding(wide_vocab_size // split_size, 1, padding_idx=0)
+        self.wide_embedding.to_consistent(flow.env.all_device_placement("cuda"), wide_embedding_sbp)
+        self.deep_embedding = nn.Embedding(
+            deep_vocab_size,
+            deep_embedding_vec_size // split_size,
+            padding_idx=0,
+        )
+        self.deep_embedding.to_consistent(flow.env.all_device_placement("cuda"), deep_embedding_sbp)
+        deep_feature_size = (
+            deep_embedding_vec_size * num_deep_sparse_fields
+            + num_dense_fields
+        )
+        self.linear_layers = nn.Sequential(
+            OrderedDict(
+                [
+                    (
+                        f"fc{i}",
+                        Dense(
+                            deep_feature_size if i == 0 else hidden_size,
+                            hidden_size,
+                            deep_dropout_rate,
+                        ),
+                    )
+                    for i in range(hidden_units_num)
+                ]
+            )
+        )
+        self.linear_layers.to_consistent(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
+        self.deep_scores = nn.Linear(hidden_size, 1)
+        self.deep_scores.to_consistent(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
+        self.sigmoid = nn.Sigmoid()
+        self.sigmoid.to_consistent(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
+
+    def forward(
+        self, dense_fields, wide_sparse_fields, deep_sparse_fields
+    ) -> flow.Tensor:
+        wide_sparse_fields = wide_sparse_fields.to_consistent(sbp=flow.sbp.broadcast)
+        wide_embedding = self.wide_embedding(wide_sparse_fields)
+        wide_embedding = wide_embedding.view(-1, wide_embedding.shape[-1] * wide_embedding.shape[-2])
+        wide_scores = flow.sum(wide_embedding, dim=1, keepdim=True)
+        wide_scores = wide_scores.to_consistent(sbp=flow.sbp.split(0), grad_sbp=flow.sbp.broadcast)
+        deep_sparse_fields = deep_sparse_fields.to_consistent(sbp=flow.sbp.broadcast)
+        deep_embedding = self.deep_embedding(deep_sparse_fields)
+        deep_embedding = deep_embedding.to_consistent(sbp=flow.sbp.split(0), grad_sbp=flow.sbp.split(2))
+        deep_embedding = deep_embedding.view(-1, deep_embedding.shape[-1] * deep_embedding.shape[-2])
+        deep_features = flow.cat([deep_embedding, dense_fields], dim=1)
+        deep_features = self.linear_layers(deep_features)
+        deep_scores = self.deep_scores(deep_features)
+        return self.sigmoid(wide_scores + deep_scores)
+
+
+class LocalWideAndDeep(nn.Module):
     def __init__(
         self,
         wide_vocab_size: int,
@@ -53,12 +117,12 @@ class WideAndDeep(nn.Module):
         hidden_units_num: int = 7,
         deep_dropout_rate: float = 0.5,
     ):
-        super(WideAndDeep, self).__init__()
-        self.wide_embedding = Embedding(vocab_size=wide_vocab_size, embed_size=1)
-        self.deep_embedding = Embedding(
-            vocab_size=deep_vocab_size,
-            embed_size=deep_embedding_vec_size,
-            split_axis=1,
+        super(LocalWideAndDeep, self).__init__()
+        self.wide_embedding = nn.Embedding(wide_vocab_size, 1, padding_idx=0)
+        self.deep_embedding = nn.Embedding(
+            deep_vocab_size,
+            deep_embedding_vec_size,
+            padding_idx=0,
         )
         deep_feature_size = (
             deep_embedding_vec_size * num_deep_sparse_fields
@@ -82,39 +146,44 @@ class WideAndDeep(nn.Module):
         self.deep_scores = nn.Linear(hidden_size, 1)
         self.sigmoid = nn.Sigmoid()
 
+
     def forward(
         self, dense_fields, wide_sparse_fields, deep_sparse_fields
     ) -> flow.Tensor:
         wide_embedding = self.wide_embedding(wide_sparse_fields)
+        wide_embedding = wide_embedding.view(-1, wide_embedding.shape[-1] * wide_embedding.shape[-2])
         wide_scores = flow.sum(wide_embedding, dim=1, keepdim=True)
         deep_embedding = self.deep_embedding(deep_sparse_fields)
+        deep_embedding = deep_embedding.view(-1, deep_embedding.shape[-1] * deep_embedding.shape[-2])
         deep_features = flow.cat([deep_embedding, dense_fields], dim=1)
         deep_features = self.linear_layers(deep_features)
         deep_scores = self.deep_scores(deep_features)
         return self.sigmoid(wide_scores + deep_scores)
 
 
-def wide_and_deep(
-    pretrained: bool = False, progress: bool = True, **kwargs: Any
-) -> WideAndDeep:
-    r"""WideAndDeep model architecture from the
-    `"One weird trick..." <https://arxiv.org/abs/1606.07792>`_ paper.
-    Args:
-        pretrained (bool): If True, returns a model pre-trained on WideAndDeep
-        progress (bool): If True, displays a progress bar of the download to stderr
-    """
-    model = WideAndDeep(**kwargs)
-    return model
-
-def make_wide_and_deep_module(args):
-    model = WideAndDeep(
-        wide_vocab_size=args.wide_vocab_size,
-        deep_vocab_size=args.deep_vocab_size,
-        deep_embedding_vec_size=args.deep_embedding_vec_size,
-        num_deep_sparse_fields=args.num_deep_sparse_fields,
-        num_dense_fields=args.num_dense_fields,
-        hidden_size=args.hidden_size,
-        hidden_units_num=args.hidden_units_num,
-        deep_dropout_rate=args.deep_dropout_rate,
-    )
+def make_wide_and_deep_module(args, is_consistent, is_graph):
+    if is_consistent:
+        model = ConsistentWideAndDeep(
+            wide_vocab_size=args.wide_vocab_size,
+            deep_vocab_size=args.deep_vocab_size,
+            deep_embedding_vec_size=args.deep_embedding_vec_size,
+            num_deep_sparse_fields=args.num_deep_sparse_fields,
+            num_dense_fields=args.num_dense_fields,
+            hidden_size=args.hidden_size,
+            hidden_units_num=args.hidden_units_num,
+            deep_dropout_rate=args.deep_dropout_rate,
+            is_graph=is_graph,
+        )
+    else:
+        model = LocalWideAndDeep(
+            wide_vocab_size=args.wide_vocab_size,
+            deep_vocab_size=args.deep_vocab_size,
+            deep_embedding_vec_size=args.deep_embedding_vec_size,
+            num_deep_sparse_fields=args.num_deep_sparse_fields,
+            num_dense_fields=args.num_dense_fields,
+            hidden_size=args.hidden_size,
+            hidden_units_num=args.hidden_units_num,
+            deep_dropout_rate=args.deep_dropout_rate,
+        )
+        model = model.to("cuda")
     return model

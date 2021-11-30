@@ -46,7 +46,7 @@ class Trainer(object):
         self.init_logger()
         self.train_dataloader = make_data_loader(args, "train", self.is_consistent, self.use_synthetic_data)
         self.val_dataloader = make_data_loader(args, "val", self.is_consistent, self.use_synthetic_data)
-        self.wdl_module = make_wide_and_deep_module(args)
+        self.wdl_module = make_wide_and_deep_module(args, self.is_consistent, self.execution_mode == "graph")
         self.init_model()
         self.opt = flow.optim.Adam(
             self.wdl_module.parameters(), lr=args.learning_rate
@@ -62,13 +62,6 @@ class Trainer(object):
 
     def init_model(self):
         args = self.args
-        if self.is_consistent == True:
-            placement = placement = flow.env.all_device_placement("cuda")
-            self.wdl_module = self.wdl_module.to_consistent(
-                placement=placement, sbp=flow.sbp.broadcast
-            )
-        else:
-            self.wdl_module = self.wdl_module.to("cuda")
         if args.model_load_dir != "":
             self.load_state_dict()
         if self.ddp:
@@ -220,11 +213,11 @@ class Trainer(object):
         return reduce_loss
 
     def train_eager(self):
-        predicts,labels,loss = self.forward()
+        loss = self.forward()
         loss.backward()
         self.opt.step()
         self.opt.zero_grad()
-        return predicts,labels,loss
+        return loss
 
     def train_one_step(self):
         self.wdl_module.train()
