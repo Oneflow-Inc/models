@@ -88,7 +88,7 @@ class Bottleneck(nn.Module):
         dilation: int = 1,
         norm_layer: Optional[Callable[..., nn.Module]] = None,
         fuse_bn_relu=False,
-        fuse_bn_add_relu=False
+        fuse_bn_add_relu=False,
     ) -> None:
         super(Bottleneck, self).__init__()
         self.fuse_bn_relu = fuse_bn_relu
@@ -123,7 +123,7 @@ class Bottleneck(nn.Module):
         identity = x
 
         out = self.conv1(x)
-        
+
         if self.fuse_bn_relu:
             out = self.bn1(out, None)
         else:
@@ -165,7 +165,7 @@ class ResNet(nn.Module):
         replace_stride_with_dilation: Optional[List[bool]] = None,
         norm_layer: Optional[Callable[..., nn.Module]] = None,
         fuse_bn_relu=False,
-        fuse_bn_add_relu=False
+        fuse_bn_add_relu=False,
     ) -> None:
         super(ResNet, self).__init__()
         if norm_layer is None:
@@ -258,7 +258,7 @@ class ResNet(nn.Module):
                 previous_dilation,
                 norm_layer,
                 fuse_bn_relu=self.fuse_bn_relu,
-                fuse_bn_add_relu=self.fuse_bn_add_relu
+                fuse_bn_add_relu=self.fuse_bn_add_relu,
             )
         )
         self.inplanes = planes * block.expansion
@@ -272,7 +272,7 @@ class ResNet(nn.Module):
                     dilation=self.dilation,
                     norm_layer=norm_layer,
                     fuse_bn_relu=self.fuse_bn_relu,
-                    fuse_bn_add_relu=self.fuse_bn_add_relu
+                    fuse_bn_add_relu=self.fuse_bn_add_relu,
                 )
             )
 

@@ -28,6 +28,16 @@ def main(args):
     net.eval()
     Test_Data_path = args.Test_Data_path
     tests_path = glob.glob(Test_Data_path + '*.png')
+
+if __name__ == "__main__":
+    device = oneflow.device("cuda" if oneflow.cuda.is_available() else "cpu")
+    net = UNet(n_channels=1, n_classes=1, bilinear=False)
+    net.to(device=device)
+    checkpoint = oneflow.load("./checkpoints")
+    net.load_state_dict(checkpoint["net"])
+    net.eval()
+    Test_Data_path = "test_image/"
+    tests_path = glob.glob(Test_Data_path + "*.png")
     print("begin look")
     for test_path in tests_path:
         save_res_path = args.save_res_path
