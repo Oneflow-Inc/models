@@ -22,7 +22,7 @@ class BertEmbeddings(nn.Module):
         self.token_type_embeddings = nn.Embedding(type_vocab_size, hidden_size)
 
         self.LayerNorm = nn.LayerNorm(hidden_size)
-        self.dropout = nn.Dropout(hidden_dropout_prob)
+        self.dropout = nn.Dropout(hidden_dropout_prob, inplace=True)
         self.register_buffer(
             "position_ids", flow.arange(max_position_embeddings).unsqueeze(0)
         )
@@ -64,7 +64,7 @@ class BertSelfAttention(nn.Module):
         self.key = nn.Linear(hidden_size, self.all_head_size)
         self.value = nn.Linear(hidden_size, self.all_head_size)
 
-        self.dropout = nn.Dropout(attention_probs_dropout_prob)
+        self.dropout = nn.Dropout(attention_probs_dropout_prob, inplace=True)
 
     def transpose_for_scores(self, x):
         x = flow.reshape(
@@ -73,8 +73,7 @@ class BertSelfAttention(nn.Module):
         return x.permute(0, 2, 1, 3)
 
     def forward(self, hidden_states, attention_mask):
-        # hidden_states: [batch_size, seq, hidden_size]
-        hidden_states = flow.reshape(hidden_states, [-1, self.num_attention_heads*self.attention_head_size])
+        # hidden_states: [batch_size * seq, hidden_size]
         
         query_layer = self.transpose_for_scores(self.query(hidden_states))
         key_layer = self.transpose_for_scores(self.key(hidden_states))
@@ -97,7 +96,7 @@ class BertSelfAttention(nn.Module):
         context_layer = context_layer.permute(0, 2, 1, 3)
 
         context_layer = flow.reshape(
-            context_layer, [-1, self.seq_len, self.all_head_size]
+            context_layer, [-1, self.all_head_size]
         )
         return context_layer
 
@@ -107,7 +106,7 @@ class BertSelfOutput(nn.Module):
         super().__init__()
         self.dense = nn.Linear(hidden_size, hidden_size)
         self.LayerNorm = nn.LayerNorm(hidden_size)
-        self.dropout = nn.Dropout(hidden_dropout_prob)
+        self.dropout = nn.Dropout(hidden_dropout_prob, inplace=True)
 
     def forward(self, hidden_states, input_tensor):
         hidden_states = self.dense(hidden_states)
@@ -154,7 +153,7 @@ class BertOutput(nn.Module):
         super().__init__()
         self.dense = nn.Linear(intermediate_size, hidden_size)
         self.LayerNorm = nn.LayerNorm(hidden_size)
-        self.dropout = nn.Dropout(hidden_dropout_prob)
+        self.dropout = nn.Dropout(hidden_dropout_prob, inplace=True)
 
     def forward(self, hidden_states, input_tensor):
         hidden_states = self.dense(hidden_states)
@@ -206,6 +205,8 @@ class BertEncoder(nn.Module):
         attention_prob_dropout_prob,
     ):
         super().__init__()
+        self.hidden_size = hidden_size
+        self.seq_len = seq_len
 
         self.layer = nn.ModuleList(
             [
@@ -223,24 +224,26 @@ class BertEncoder(nn.Module):
         )
 
     def forward(self, hidden_states, attention_mask):
+        hidden_states = hidden_states.reshape([-1, self.hidden_size])
         for layer_module in self.layer:
             hidden_states = layer_module(hidden_states, attention_mask)
+        hidden_states = hidden_states.reshape([-1, self.seq_len, self.hidden_size]) 
         return hidden_states
 
 
 class BertPooler(nn.Module):
     def __init__(self, hidden_size):
         super().__init__()
+        self.hidden_size = hidden_size
+
         self.dense = nn.Linear(hidden_size, hidden_size)
         self.activation = nn.Tanh()
 
     def forward(self, hidden_states):
         """Just "pool" the model by simply taking the [CLS] token corresponding to the first token.
         """
-        hidden_size = hidden_states.shape[-1]
-        # first_token_tensor = flow.slice(hidden_states, [[None, None, None], [0, 1, 1]])
         first_token_tensor = hidden_states[:, 0]
-        first_token_tensor = flow.reshape(first_token_tensor, [-1, hidden_size])
+        first_token_tensor = flow.reshape(first_token_tensor, [-1, self.hidden_size])
         pooled_output = self.dense(first_token_tensor)
         pooled_output = self.activation(pooled_output)
         return pooled_output
@@ -334,6 +337,8 @@ class BertPredictionHeadTransform(nn.Module):
 class BertLMPredictionHead(nn.Module):
     def __init__(self, hidden_size, vocab_size, hidden_act=nn.GELU()):
         super().__init__()
+        self.hidden_size = hidden_size
+
         self.transform = BertPredictionHeadTransform(hidden_size, hidden_act)
 
         # The output weights are the same as the input embeddings, but there is
@@ -345,10 +350,14 @@ class BertLMPredictionHead(nn.Module):
         # Need a link between the two variables so that the bias is correctly resized with `resize_token_embeddings`
         self.decoder.bias = self.output_bias
 
-    def forward(self, sequence_output):
-        sequence_output = self.transform(sequence_output)
-        sequence_output = self.decoder(sequence_output)
-        return sequence_output
+    def forward(self, sequence_output, masked_lm_positions):
+        # Gather masked outputs
+        masked_sequence_output = flow.gather(sequence_output, index=masked_lm_positions.unsqueeze(2).expand(-1, -1, self.hidden_size), dim=1)
+        masked_sequence_output = masked_sequence_output.reshape([-1, self.hidden_size])
+
+        masked_sequence_output = self.transform(masked_sequence_output)
+        masked_sequence_output = self.decoder(masked_sequence_output)
+        return masked_sequence_output
 
 
 class BertPreTrainingHeads(nn.Module):
@@ -357,8 +366,8 @@ class BertPreTrainingHeads(nn.Module):
         self.predictions = BertLMPredictionHead(hidden_size, vocab_size, hidden_act)
         self.seq_relationship = nn.Linear(hidden_size, 2)
 
-    def forward(self, sequence_output, pooled_output):
-        prediction_scores = self.predictions(sequence_output)
+    def forward(self, sequence_output, pooled_output, masked_lm_positions):
+        prediction_scores = self.predictions(sequence_output, masked_lm_positions)
         seq_relationship_scores = self.seq_relationship(pooled_output)
         return prediction_scores, seq_relationship_scores
 
@@ -400,13 +409,13 @@ class BertForPreTraining(nn.Module):
 
         self.init_weights()
 
-    def forward(self, input_ids, token_type_ids, attention_mask):
+    def forward(self, input_ids, token_type_ids, attention_mask, masked_lm_positions):
         sequence_output, pooled_output = self.bert(
             input_ids, token_type_ids, attention_mask
         )
 
         prediction_scores, seq_relationship_scores = self.cls(
-            sequence_output, pooled_output
+            sequence_output, pooled_output, masked_lm_positions
         )
         return prediction_scores, seq_relationship_scores
 
