@@ -59,6 +59,7 @@ Please check our the following **demos** for a quick start
 
 - [FODDet](https://github.com/Oneflow-Inc/models/tree/main/Vision/segmentation/FODDet)
 - [FaceSeg](https://github.com/Oneflow-Inc/models/tree/main/Vision/segmentation/FaceSeg)
+- [U-Net](https://github.com/Oneflow-Inc/models/tree/main/Vision/segmentation/U-Net)
 
 </details>
 

@@ -60,6 +60,7 @@ OneFlow-Models目录下提供了各种经典图形分类、目标检测、图像
 
 - [FODDet](https://github.com/Oneflow-Inc/models/tree/main/Vision/segmentation/FODDet)
 - [FaceSeg](https://github.com/Oneflow-Inc/models/tree/main/Vision/segmentation/FaceSeg)
+- [U-Net](https://github.com/Oneflow-Inc/models/tree/main/Vision/segmentation/U-Net)
 
 </details>
 

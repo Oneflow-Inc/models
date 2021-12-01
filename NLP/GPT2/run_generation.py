@@ -31,19 +31,22 @@ from model import GPT2LMHeadModel
 from tokenizer import build_tokenizer
 
 
-logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
-                    datefmt = '%m/%d/%Y %H:%M:%S',
-                    level = logging.INFO)
+logging.basicConfig(
+    format="%(asctime)s - %(levelname)s - %(name)s -   %(message)s",
+    datefmt="%m/%d/%Y %H:%M:%S",
+    level=logging.INFO,
+)
 logger = logging.getLogger(__name__)
 
 MAX_LENGTH = int(10000)  # Hardcoded max length to avoid infinite loop
+
 
 def set_seed(args):
     np.random.seed(args.seed)
     flow.manual_seed(args.seed)
 
 
-def top_k_top_p_filtering(logits, top_k=0, top_p=0.0, filter_value=-float('Inf')):
+def top_k_top_p_filtering(logits, top_k=0, top_p=0.0, filter_value=-float("Inf")):
     """ Filter a distribution of logits using top-k and/or nucleus (top-p) filtering
         Args:
             logits: logits distribution shape (vocabulary size)
@@ -74,7 +77,16 @@ def top_k_top_p_filtering(logits, top_k=0, top_p=0.0, filter_value=-float('Inf')
     return logits
 
 
-def sample_sequence(model, length, context, num_samples=1, temperature=1, top_k=1, top_p=0.0, device='cuda'):
+def sample_sequence(
+    model,
+    length,
+    context,
+    num_samples=1,
+    temperature=1,
+    top_k=1,
+    top_p=0.0,
+    device="cuda",
+):
     context = flow.tensor(context, dtype=flow.long, device=device)
     context = context.unsqueeze(0).repeat(num_samples, 1)
     generated = context
@@ -84,7 +96,9 @@ def sample_sequence(model, length, context, num_samples=1, temperature=1, top_k=
             outputs = model(generated, past_key_values=past_key_values, use_cache=True)
             logits, past_key_values = outputs[:2]
             next_token_logits = logits[:, -1, :] / temperature
-            filtered_logits = top_k_top_p_filtering(next_token_logits, top_k=top_k, top_p=top_p)
+            filtered_logits = top_k_top_p_filtering(
+                next_token_logits, top_k=top_k, top_p=top_p
+            )
             probs = filtered_logits.softmax(-1)
             next_token = probs.argmax(-1)
             # next_token = flow.multinomial(flow.softmax(filtered_logits, dim=-1), num_samples=1)
@@ -97,21 +111,34 @@ def main():
 
     parser.add_argument("--vocab_file", default="gpt2-vocab.json", type=str)
     parser.add_argument("--merges_file", default="gpt2-merges.txt", type=str)
-    parser.add_argument("--restore_file", default="gpt2_oneflow_model", type=str, help="Path to pre-trained model")
+    parser.add_argument(
+        "--restore_file",
+        default="gpt2_oneflow_model",
+        type=str,
+        help="Path to pre-trained model",
+    )
     parser.add_argument("--prompt", type=str, default="")
     parser.add_argument("--length", type=int, default=20)
     parser.add_argument("--temperature", type=float, default=1.0)
     parser.add_argument("--top_k", type=int, default=1)
     parser.add_argument("--top_p", type=float, default=0.9)
-    parser.add_argument("--no_cuda", action='store_true', help="Avoid using CUDA when available")
-    parser.add_argument('--seed', type=int, default=42, help="random seed for initialization")
+    parser.add_argument(
+        "--no_cuda", action="store_true", help="Avoid using CUDA when available"
+    )
+    parser.add_argument(
+        "--seed", type=int, default=42, help="random seed for initialization"
+    )
     args = parser.parse_args()
 
     args.device = flow.device("cuda" if not args.no_cuda else "cpu")
 
     set_seed(args)
 
-    tokenizer = build_tokenizer(vocab_file=args.vocab_file, merges_file=args.merges_file, tokenizer_type="GPT2BPETokenizer")
+    tokenizer = build_tokenizer(
+        vocab_file=args.vocab_file,
+        merges_file=args.merges_file,
+        tokenizer_type="GPT2BPETokenizer",
+    )
     config = GPT2Config()
     model = GPT2LMHeadModel(config)
     if args.restore_file is not None:
@@ -123,7 +150,9 @@ def main():
     if args.length < 0 and config.max_position_embeddings > 0:
         args.length = config.max_position_embeddings
     elif 0 < config.max_position_embeddings < args.length:
-        args.length = config.max_position_embeddings  # No generation bigger than model size 
+        args.length = (
+            config.max_position_embeddings
+        )  # No generation bigger than model size
     elif args.length < 0:
         args.length = MAX_LENGTH  # avoid infinite loop
 
@@ -140,7 +169,7 @@ def main():
             top_p=args.top_p,
             device=args.device,
         )
-        out = out[0, len(context_tokens):].tolist()
+        out = out[0, len(context_tokens) :].tolist()
         text = tokenizer.detokenize(out)
         print(text)
         if args.prompt:
@@ -148,5 +177,5 @@ def main():
     return text
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
