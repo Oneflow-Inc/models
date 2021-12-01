@@ -240,5 +240,6 @@ def tol(tensor, pure_local=True):
 
 
 if __name__ == "__main__":
+    flow.boxing.nccl.enable_all_to_all(True)
     trainer = Trainer()
     trainer()

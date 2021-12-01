@@ -46,7 +46,7 @@ class ConsistentWideAndDeep(nn.Module):
         # TODO(binbin): OpKernelState will be reuse in eager mode
         if is_graph:
             wide_embedding_sbp = flow.sbp.split(0)
-            deep_embedding_sbp = flow.sbp.split(0)
+            deep_embedding_sbp = flow.sbp.split(1)
             split_size = flow.env.get_world_size()
         else:
             wide_embedding_sbp = flow.sbp.broadcast
@@ -56,8 +56,8 @@ class ConsistentWideAndDeep(nn.Module):
         self.wide_embedding = nn.Embedding(wide_vocab_size // split_size, 1, padding_idx=0)
         self.wide_embedding.to_consistent(flow.env.all_device_placement("cuda"), wide_embedding_sbp)
         self.deep_embedding = nn.Embedding(
-            deep_vocab_size // split_size,
-            deep_embedding_vec_size,
+            deep_vocab_size,
+            deep_embedding_vec_size // split_size,
             padding_idx=0,
         )
         self.deep_embedding.to_consistent(flow.env.all_device_placement("cuda"), deep_embedding_sbp)
