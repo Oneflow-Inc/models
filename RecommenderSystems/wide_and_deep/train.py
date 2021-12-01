@@ -147,7 +147,7 @@ class Trainer(object):
                 loss = flow.comm.all_reduce(loss)
                 loss = loss / self.world_size
 
-            loss = tol(loss, False)
+            loss = tol(loss)
 
             self.meter_train_iter(loss)
 
