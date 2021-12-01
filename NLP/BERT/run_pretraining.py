@@ -149,27 +149,27 @@ def pretrain(graph: nn.Graph, metric_local: bool) -> Dict:
     next_sent_output, next_sent_labels, loss, mlm_loss, nsp_loss = graph()
 
     # to local
-    next_sent_output = ttol(next_sent_output, metric_local)
-    next_sent_labels = ttol(next_sent_labels, metric_local)
+    # next_sent_output = ttol(next_sent_output, metric_local)
+    # next_sent_labels = ttol(next_sent_labels, metric_local)
 
     # next sentence prediction accuracy
-    correct = (
-        next_sent_output.argmax(dim=1)
-        .to(dtype=next_sent_labels.dtype)
-        .eq(next_sent_labels.squeeze(1))
-        .to(dtype=flow.float32)
-        .sum()
-        .numpy()
-        .item()
-    )
-    pred_acc = np.array(correct / next_sent_labels.nelement())
+    # correct = (
+    #     next_sent_output.argmax(dim=1)
+    #     .to(dtype=next_sent_labels.dtype)
+    #     .eq(next_sent_labels.squeeze(1))
+    #     .to(dtype=flow.float32)
+    #     .sum()
+    #     .numpy()
+    #     .item()
+    # )
+    # pred_acc = np.array(correct / next_sent_labels.nelement())
 
     return {
-        "total_loss": tton(loss.mean(), metric_local),
-        "mlm_loss": tton(mlm_loss.mean(), metric_local),
-        "nsp_loss": tton(nsp_loss.mean(), metric_local),
-        "pred_acc": pred_acc,
-    }
+        # "total_loss": tton(loss.mean(), metric_local),
+        # "mlm_loss": tton(mlm_loss.mean(), metric_local),
+        # "nsp_loss": tton(nsp_loss.mean(), metric_local),
+        # "pred_acc": pred_acc,
+    }, loss
 
 
 def validation(
@@ -244,7 +244,7 @@ def main():
         mode="train",
         dataset_size=args.train_dataset_size,
         batch_size=args.train_global_batch_size,
-        data_part_num=args.train_data_part,
+        data_part_num=64,
         seq_length=args.seq_length,
         max_predictions_per_seq=args.max_predictions_per_seq,
         consistent=args.use_consistent,
@@ -255,7 +255,7 @@ def main():
         mode="test",
         dataset_size=1024,
         batch_size=args.val_global_batch_size,
-        data_part_num=4,
+        data_part_num=1,
         seq_length=args.seq_length,
         max_predictions_per_seq=args.max_predictions_per_seq,
         consistent=args.use_consistent,
@@ -277,12 +277,13 @@ def main():
         args.max_position_embeddings,
         args.type_vocab_size,
     )
+    print(bert_model)
 
     # Load the same initial parameters with lazy model.
-    # from utils.compare_lazy_outputs import load_params_from_lazy
+    from utils.compare_lazy_outputs import load_params_from_lazy
     # load_params_from_lazy(
     #     bert_model.state_dict(),
-    #     "../../OneFlow-Benchmark/LanguageModeling/BERT/initial_model",
+    #     "/workspace/OneFlow-Benchmark/LanguageModeling/BERT/initial_model"
     # )
 
     assert id(bert_model.cls.predictions.decoder.weight) == id(
@@ -309,10 +310,11 @@ def main():
         args.weight_decay,
         weight_decay_excludes=["bias", "LayerNorm", "layer_norm"],
         clip_grad_max_norm=1,
-        clip_grad_norm_type=2.0,
+        clip_grad_norm_type=2,
     )
 
-    steps = args.epochs * len(train_data_loader)
+    # steps = args.epochs * len(train_data_loader)
+    steps = 100
     warmup_steps = int(steps * args.warmup_proportion)
 
     lr_scheduler = PolynomialLR(optimizer, steps=steps, end_learning_rate=0.0)
@@ -461,31 +463,46 @@ def main():
             desc="bert pretrain",
             print_steps=args.loss_print_every_n_iters,
             batch_size=args.train_global_batch_size * args.grad_acc_steps,
-            keys=["total_loss", "mlm_loss", "nsp_loss", "pred_acc"],
+            # keys=["total_loss", "mlm_loss", "nsp_loss", "pred_acc"],
+            keys=[]
         )
 
         # Train
         bert_model.train()
 
-        for step in range(len(train_data_loader)):
-            bert_outputs = pretrain(bert_graph, args.metric_local)
+        start = time.time()
+        for step in range(1000):
+            bert_outputs, loss = pretrain(bert_graph, args.metric_local)
 
-            if flow.env.get_rank() == 0:
-                metric.metric_cb(step, epoch=epoch)(bert_outputs)
+            if (step + 1) % args.loss_print_every_n_iters == 0:
+                ttol(loss) # sync
 
-            train_total_losses.append(bert_outputs["total_loss"])
+                end = time.time()
+                throughput = args.loss_print_every_n_iters * args.train_global_batch_size / (end - start)
+                print(f"step: {step}, throughput: {throughput}")
+                
+                start = time.time()
+                
+            # if flow.env.get_rank() == 0:
+            #     metric.metric_cb(step, epoch=epoch)(bert_outputs)
+
+            # train_total_losses.append(bert_outputs["total_loss"])
+    
+    # with open("graph_loss.txt", 'w') as f:
+    #     for loss in train_total_losses:
+    #         f.write(str(loss)+'\n')
 
     # Eval
-    bert_model.eval()
-    val_acc = validation(
-        epoch,
-        len(test_data_loader),
-        bert_eval_graph,
-        args.val_print_every_n_iters,
-        args.metric_local,
-    )
+    # bert_model.eval()
+    # val_acc = validation(
+    #     epoch,
+    #     len(test_data_loader),
+    #     bert_eval_graph,
+    #     args.val_print_every_n_iters,
+    #     args.metric_local,
+    # )
 
-    save_model(bert_model, args.checkpoint_path, epoch, val_acc, args.use_consistent)
+    # save_model(bert_model, args.checkpoint_path, epoch, val_acc, args.use_consistent)
 
 
 if __name__ == "__main__":

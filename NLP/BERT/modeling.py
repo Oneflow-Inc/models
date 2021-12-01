@@ -33,10 +33,7 @@ class BertEmbeddings(nn.Module):
         input_embeds = self.word_embeddings(input_ids)
 
         if position_ids is None:
-            # position_ids = self.position_ids[:, : self.seq_length]
-            position_ids = flow.slice(
-                self.position_ids, [[None, None, None], [0, self.seq_length, 1]]
-            )
+            position_ids = self.position_ids[:, : self.seq_length]
         position_embeds = self.position_embeddings(position_ids)
 
         token_type_embeds = self.token_type_embeddings(token_type_ids)
@@ -76,11 +73,15 @@ class BertSelfAttention(nn.Module):
         return x.permute(0, 2, 1, 3)
 
     def forward(self, hidden_states, attention_mask):
+        # hidden_states: [batch_size, seq, hidden_size]
+        hidden_states = flow.reshape(hidden_states, [-1, self.num_attention_heads*self.attention_head_size])
+        
         query_layer = self.transpose_for_scores(self.query(hidden_states))
         key_layer = self.transpose_for_scores(self.key(hidden_states))
         value_layer = self.transpose_for_scores(self.value(hidden_states))
 
-        attention_scores = flow.matmul(query_layer, key_layer.transpose(-2, -1))
+        # attention_scores = flow.matmul(query_layer, key_layer.transpose(-2, -1))
+        attention_scores = flow.matmul(query_layer, key_layer, transpose_b=True)
         attention_scores = attention_scores / math.sqrt(self.attention_head_size)
 
         attention_scores = attention_scores + attention_mask
@@ -93,8 +94,8 @@ class BertSelfAttention(nn.Module):
         attention_probs = self.dropout(attention_probs)
 
         context_layer = flow.matmul(attention_probs, value_layer)
-
         context_layer = context_layer.permute(0, 2, 1, 3)
+
         context_layer = flow.reshape(
             context_layer, [-1, self.seq_len, self.all_head_size]
         )

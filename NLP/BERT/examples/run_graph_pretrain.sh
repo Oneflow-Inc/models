@@ -1,16 +1,17 @@
 #!/bin/bash
 
-_DEVICE_NUM_PER_NODE=4
+_DEVICE_NUM_PER_NODE=1
 _MASTER_ADDR=127.0.0.1
 _NUM_NODES=1
 _NODE_RANK=0
 
 _LR=0.02
-_BATCH_SIZE_PER_GPU=16
+_BATCH_SIZE_PER_GPU=32
 train_data_dir=/dataset/bert/of_wiki_seq_len_128
 LOGFILE=./bert_graph_pretrain.log
 
-export PYTHONUNBUFFERED=1
+export CUDA_VISIBLE_DEVICES=3
+# export PYTHONUNBUFFERED=1
 python3 -m oneflow.distributed.launch \
     --nproc_per_node $_DEVICE_NUM_PER_NODE \
     --nnodes $_NUM_NODES \
@@ -30,6 +31,8 @@ python3 -m oneflow.distributed.launch \
     --train-batch-size $_BATCH_SIZE_PER_GPU \
     --lr $_LR \
     --use_consistent \
-    --use_fp16 \
-    --grad-acc-steps 4 \
-    2>&1 | tee ${LOGFILE}
+    --grad-acc-steps 1 
+
+    # 2>&1 | tee ${LOGFILE}
+
+    # --use_fp16 \
