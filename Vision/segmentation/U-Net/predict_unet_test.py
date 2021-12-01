@@ -10,24 +10,29 @@ import argparse
 def _parse_args():
     parser = argparse.ArgumentParser("Flags for test U-Net")
     parser.add_argument(
-        "--checkpoint", type=str, default='./checkpoints', help="checkpoint"
+        "--checkpoint", type=str, default="./checkpoints", help="checkpoint"
     )
-    parser.add_argument("--Test_Data_path", type=str,
-                        default='test_image/', help="Test_Data_path")
-    parser.add_argument("--save_res_path", type=str,
-                        default="./predict_image/test.png", help="save_res_path")
+    parser.add_argument(
+        "--Test_Data_path", type=str, default="test_image/", help="Test_Data_path"
+    )
+    parser.add_argument(
+        "--save_res_path",
+        type=str,
+        default="./predict_image/test.png",
+        help="save_res_path",
+    )
     return parser.parse_args()
 
 
 def main(args):
-    device = oneflow.device('cuda' if oneflow.cuda.is_available() else 'cpu')
+    device = oneflow.device("cuda" if oneflow.cuda.is_available() else "cpu")
     net = UNet(n_channels=1, n_classes=1, bilinear=False)
     net.to(device=device)
     checkpoint = oneflow.load(args.checkpoint)
-    net.load_state_dict(checkpoint['net'])
+    net.load_state_dict(checkpoint["net"])
     net.eval()
     Test_Data_path = args.Test_Data_path
-    tests_path = glob.glob(Test_Data_path + '*.png')
+    tests_path = glob.glob(Test_Data_path + "*.png")
     print("begin look")
     for test_path in tests_path:
         save_res_path = args.save_res_path
@@ -47,6 +52,6 @@ def main(args):
         cv2.imwrite(save_res_path, pred)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     args = _parse_args()
     main(args)
