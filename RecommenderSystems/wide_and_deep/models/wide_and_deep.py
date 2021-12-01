@@ -96,7 +96,7 @@ class ConsistentWideAndDeep(nn.Module):
         wide_scores = wide_scores.to_consistent(sbp=flow.sbp.split(0), grad_sbp=flow.sbp.broadcast)
         deep_sparse_fields = deep_sparse_fields.to_consistent(sbp=flow.sbp.broadcast)
         deep_embedding = self.deep_embedding(deep_sparse_fields)
-        deep_embedding = deep_embedding.to_consistent(sbp=flow.sbp.split(0), grad_sbp=flow.sbp.broadcast)
+        deep_embedding = deep_embedding.to_consistent(sbp=flow.sbp.split(0), grad_sbp=flow.sbp.split(2))
         deep_embedding = deep_embedding.view(-1, deep_embedding.shape[-1] * deep_embedding.shape[-2])
         deep_features = flow.cat([deep_embedding, dense_fields], dim=1)
         deep_features = self.linear_layers(deep_features)
