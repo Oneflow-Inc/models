@@ -1,3 +1,9 @@
+"""
+Creates a U-Net Model as defined in:
+U-Net: Convolutional Networks for Biomedical Image Segmentation
+https://arxiv.org/abs/1505.04597
+Modified from https://github.com/milesial/Pytorch-UNet
+"""
 import oneflow as flow
 import oneflow.nn as nn
 import oneflow.nn.functional as F
