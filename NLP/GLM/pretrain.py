@@ -160,6 +160,11 @@ if __name__ == "__main__":
         args.hidden_dropout = 0.0
         loss_txt = open(args.loss_txt_path, "w")
         
+    if args.mode == "graph":
+            flow.boxing.nccl.set_fusion_threshold_mbytes(16)
+            flow.boxing.nccl.set_fusion_max_ops_num(24)
+            # flow.boxing.nccl.enable_use_compute_stream(True)
+
     model, optimizer, lr_scheduler = get_model(args)
     train_data_iterator = get_dataloader(args)
     

@@ -5,6 +5,15 @@ import os
 import oneflow as flow
 import json
 
+def str2bool(v):
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
 
 def add_model_config_args(parser):
 
@@ -196,7 +205,7 @@ def add_training_args(parser):
     group.add_argument('--context-mask-ratio', type=float, default=0.0)
     group.add_argument('--random-position', action='store_true',
                        help="Use random start position to cover all the position embeddings")
-    group.add_argument('--debug_loss', type=bool, default=False,
+    group.add_argument('--debug_loss', type=str2bool, default=False,
                        help="debug loss or not")
     group.add_argument('--loss_txt_path', type=str, default='None',
                        help='debug loss txt write path')
