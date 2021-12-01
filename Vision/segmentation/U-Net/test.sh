@@ -6,4 +6,13 @@ if [ ! -d "$OFRECORD_PATH" ]; then
     tar xvf predict_image.tar.gz
 fi
 
-python3 predict_unet_test.py
+
+CHECKPOINT='./checkpoints'
+TEST_DATA_PATH='test_image/'
+SAVE_RES_PATH="./predict_image/test.png"
+
+
+python3 predict_unet_test.py \
+    --checkpoint $CHECKPOINT \
+    --Test_Data_path $TEST_DATA_PATH \
+    --save_res_path $SAVE_RES_PATH \

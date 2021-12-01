@@ -1,12 +1,4 @@
-#from tensorboardX import SummaryWriter
 import matplotlib.pyplot as plt
-
-
-# writer = SummaryWriter(comment='_Unet')
-# for i in range(10):
-#     writer.add_scalar('var', i**2, global_step=i)
-#
-# writer.close()
 
 
 def plot_picture(filename):

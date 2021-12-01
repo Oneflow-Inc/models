@@ -103,8 +103,3 @@ class UNet(nn.Module):
         x = self.up4(x, x1)
         logits = self.outc(x)
         return logits
-
-
-if __name__ == '__main__':
-    net = UNet(n_channels=3, n_classes=2, bilinear=False)
-    print(net)
