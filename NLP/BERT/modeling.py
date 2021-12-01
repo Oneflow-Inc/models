@@ -17,26 +17,41 @@ class BertEmbeddings(nn.Module):
         seq_length,
     ):
         super().__init__()
-        self.word_embeddings = nn.Embedding(vocab_size, hidden_size)
-        self.position_embeddings = nn.Embedding(max_position_embeddings, hidden_size)
-        self.token_type_embeddings = nn.Embedding(type_vocab_size, hidden_size)
+        self.word_embeddings = nn.Parameter(flow.empty((vocab_size, hidden_size), dtype=flow.float32))
+        self.position_embeddings = nn.Parameter(flow.empty((max_position_embeddings, hidden_size), dtype=flow.float32))
+        self.tokentype_embeddings = nn.Parameter(flow.empty((type_vocab_size, hidden_size), dtype=flow.float32))
+        
+        flow.nn.init.normal_(self.word_embeddings)
+        flow.nn.init.normal_(self.position_embeddings)
+        flow.nn.init.normal_(self.tokentype_embeddings)
 
         self.LayerNorm = nn.LayerNorm(hidden_size)
         self.dropout = nn.Dropout(hidden_dropout_prob, inplace=True)
         self.register_buffer(
-            "position_ids", flow.arange(max_position_embeddings).unsqueeze(0)
+            "position_ids", flow.arange(seq_length).unsqueeze(0)
         )
         self.seq_length = seq_length
 
     def forward(self, input_ids, token_type_ids, position_ids=None):
 
-        input_embeds = self.word_embeddings(input_ids)
+        if False:
+            word_embeddings = flow._C.amp_white_identity(self.word_embeddings)
+            position_embeddings = flow._C.amp_white_identity(self.position_embeddings)
+            tokentype_embeddings = flow._C.amp_white_identity(self.tokentype_embeddings)
+
+        else:
+            word_embeddings = self.word_embeddings
+            position_embeddings = self.position_embeddings
+            tokentype_embeddings = self.tokentype_embeddings
+
+        input_embeds = flow._C.gather(word_embeddings, input_ids, axis=0)
 
         if position_ids is None:
-            position_ids = self.position_ids[:, : self.seq_length]
-        position_embeds = self.position_embeddings(position_ids)
+            position_ids = self.position_ids
+        
+        position_embeds = flow._C.gather(position_embeddings, position_ids, axis=0)
 
-        token_type_embeds = self.token_type_embeddings(token_type_ids)
+        token_type_embeds = flow._C.gather(tokentype_embeddings, token_type_ids, axis=0)
 
         embeddings = input_embeds + token_type_embeds + position_embeds
         embeddings = self.LayerNorm(embeddings)
@@ -452,4 +467,4 @@ class BertForPreTraining(nn.Module):
         """
         Tie the weights between the input embeddings and the output embeddings.
         """
-        output_embeddings.weight = input_embeddings.weight
+        output_embeddings.weight = input_embeddings

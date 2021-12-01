@@ -287,7 +287,7 @@ def main():
     # )
 
     assert id(bert_model.cls.predictions.decoder.weight) == id(
-        bert_model.bert.embeddings.word_embeddings.weight
+        bert_model.bert.embeddings.word_embeddings
     )
 
     ns_criterion = nn.CrossEntropyLoss(reduction="mean")
@@ -461,21 +461,14 @@ def main():
         # Train
         bert_model.train()
 
-        start = time.time()
         for step in range(steps):
             bert_outputs, loss = pretrain(bert_graph, args.metric_local)
 
             if (step + 1) % args.loss_print_every_n_iters == 0:
                 tton(loss) # sync
 
-                end = time.time()
-                throughput = args.loss_print_every_n_iters * args.train_global_batch_size / (end - start)
-                print(f"step: {step}, throughput: {throughput}")
-                
-                start = time.time()
-                
-            # if flow.env.get_rank() == 0:
-            #     metric.metric_cb(step, epoch=epoch)(bert_outputs)
+            if flow.env.get_rank() == 0:
+                metric.metric_cb(step, epoch=epoch)(bert_outputs)
 
             # train_total_losses.append(bert_outputs["total_loss"])
     
