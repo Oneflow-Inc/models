@@ -59,6 +59,7 @@ Please check our the following **demos** for a quick start
 
 - [FODDet](https://github.com/Oneflow-Inc/models/tree/main/Vision/segmentation/FODDet)
 - [FaceSeg](https://github.com/Oneflow-Inc/models/tree/main/Vision/segmentation/FaceSeg)
+- [U-Net](https://github.com/Oneflow-Inc/models/tree/main/Vision/segmentation/U-Net)
 
 </details>
 
@@ -111,6 +112,7 @@ Please check our the following **demos** for a quick start
 - [CycleGAN-VC2](https://github.com/Oneflow-Inc/models/tree/main/Audio/CycleGAN-VC2)
 - [MaskCycleGAN-VC](https://github.com/Oneflow-Inc/models/tree/main/Audio/MaskCycleGAN-VC)
 - [StarGAN-VC](https://github.com/Oneflow-Inc/models/tree/main/Audio/StarGAN-VC)
+- [Adaptive_Voice_Conversion](https://github.com/Oneflow-Inc/models/tree/main/Audio/Adaptive_Voice_Conversion)
 </details>
 
 <details>

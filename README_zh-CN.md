@@ -60,6 +60,7 @@ OneFlow-Models目录下提供了各种经典图形分类、目标检测、图像
 
 - [FODDet](https://github.com/Oneflow-Inc/models/tree/main/Vision/segmentation/FODDet)
 - [FaceSeg](https://github.com/Oneflow-Inc/models/tree/main/Vision/segmentation/FaceSeg)
+- [U-Net](https://github.com/Oneflow-Inc/models/tree/main/Vision/segmentation/U-Net)
 
 </details>
 
@@ -112,6 +113,7 @@ OneFlow-Models目录下提供了各种经典图形分类、目标检测、图像
 - [CycleGAN-VC2](https://github.com/Oneflow-Inc/models/tree/main/Audio/CycleGAN-VC2)
 - [MaskCycleGAN-VC](https://github.com/Oneflow-Inc/models/tree/main/Audio/MaskCycleGAN-VC)
 - [StarGAN-VC](https://github.com/Oneflow-Inc/models/tree/main/Audio/StarGAN-VC)
+- [Adaptive_Voice_Conversion](https://github.com/Oneflow-Inc/models/tree/main/Audio/Adaptive_Voice_Conversion)
 </details>
 
 <details>

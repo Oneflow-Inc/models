@@ -39,6 +39,7 @@ class TrainGraph(flow.nn.Graph):
 
         self.config.allow_fuse_add_to_output(True)
         self.config.allow_fuse_model_update_ops(True)
+        self.config.enable_cudnn_conv_heuristic_search_algo(False)
 
         self.model = model
         self.cross_entropy = cross_entropy
