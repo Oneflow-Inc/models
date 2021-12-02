@@ -205,7 +205,7 @@ def get_model_list(dirname, key):
 
 def get_config(config):
     with open(config, 'r') as stream:
-        return yaml.load(stream)
+        return yaml.load(stream, yaml.FullLoader)
 
 class Timer:
     def __init__(self, msg):
