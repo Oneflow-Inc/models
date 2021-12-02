@@ -15,21 +15,27 @@ class BertEmbeddings(nn.Module):
         hidden_size,
         hidden_dropout_prob,
         seq_length,
+        initializer_range,
     ):
         super().__init__()
-        self.word_embeddings = nn.Parameter(flow.empty((vocab_size, hidden_size), dtype=flow.float32))
-        self.position_embeddings = nn.Parameter(flow.empty((max_position_embeddings, hidden_size), dtype=flow.float32))
-        self.tokentype_embeddings = nn.Parameter(flow.empty((type_vocab_size, hidden_size), dtype=flow.float32))
-        
-        flow.nn.init.normal_(self.word_embeddings)
-        flow.nn.init.normal_(self.position_embeddings)
-        flow.nn.init.normal_(self.tokentype_embeddings)
+        self.word_embeddings = nn.Parameter(
+            flow.empty((vocab_size, hidden_size), dtype=flow.float32)
+        )
+        self.position_embeddings = nn.Parameter(
+            flow.empty((max_position_embeddings, hidden_size), dtype=flow.float32)
+        )
+        self.tokentype_embeddings = nn.Parameter(
+            flow.empty((type_vocab_size, hidden_size), dtype=flow.float32)
+        )
+
+        # module.weight.data.normal_(mean=0.0, std=self.initializer_range)
+        flow.nn.init.normal_(self.word_embeddings, mean=0, std=initializer_range)
+        flow.nn.init.normal_(self.position_embeddings, mean=0, std=initializer_range)
+        flow.nn.init.normal_(self.tokentype_embeddings, mean=0, std=initializer_range)
 
         self.LayerNorm = nn.LayerNorm(hidden_size)
         self.dropout = nn.Dropout(hidden_dropout_prob, inplace=True)
-        self.register_buffer(
-            "position_ids", flow.arange(seq_length).unsqueeze(0)
-        )
+        self.register_buffer("position_ids", flow.arange(seq_length).unsqueeze(0))
         self.seq_length = seq_length
 
     def forward(self, input_ids, token_type_ids, position_ids=None):
@@ -48,7 +54,7 @@ class BertEmbeddings(nn.Module):
 
         if position_ids is None:
             position_ids = self.position_ids
-        
+
         position_embeds = flow._C.gather(position_embeddings, position_ids, axis=0)
 
         token_type_embeds = flow._C.gather(tokentype_embeddings, token_type_ids, axis=0)
@@ -89,7 +95,7 @@ class BertSelfAttention(nn.Module):
 
     def forward(self, hidden_states, attention_mask):
         # hidden_states: [batch_size * seq, hidden_size]
-        
+
         query_layer = self.transpose_for_scores(self.query(hidden_states))
         key_layer = self.transpose_for_scores(self.key(hidden_states))
         value_layer = self.transpose_for_scores(self.value(hidden_states))
@@ -110,9 +116,7 @@ class BertSelfAttention(nn.Module):
         context_layer = flow.matmul(attention_probs, value_layer)
         context_layer = context_layer.permute(0, 2, 1, 3)
 
-        context_layer = flow.reshape(
-            context_layer, [-1, self.all_head_size]
-        )
+        context_layer = flow.reshape(context_layer, [-1, self.all_head_size])
         return context_layer
 
 
@@ -242,7 +246,7 @@ class BertEncoder(nn.Module):
         hidden_states = hidden_states.reshape([-1, self.hidden_size])
         for layer_module in self.layer:
             hidden_states = layer_module(hidden_states, attention_mask)
-        hidden_states = hidden_states.reshape([-1, self.seq_len, self.hidden_size]) 
+        hidden_states = hidden_states.reshape([-1, self.seq_len, self.hidden_size])
         return hidden_states
 
 
@@ -278,6 +282,7 @@ class BertModel(nn.Module):
         attention_probs_dropout_prob=0.1,
         max_position_embeddings=512,
         type_vocab_size=16,
+        initializer_range=0.02,
     ):
         super().__init__()
 
@@ -288,6 +293,7 @@ class BertModel(nn.Module):
             hidden_size,
             hidden_dropout_prob,
             seq_length,
+            initializer_range,
         )
         self.encoder = BertEncoder(
             num_hidden_layers,
@@ -367,7 +373,11 @@ class BertLMPredictionHead(nn.Module):
 
     def forward(self, sequence_output, masked_lm_positions):
         # Gather masked outputs
-        masked_sequence_output = flow.gather(sequence_output, index=masked_lm_positions.unsqueeze(2).expand(-1, -1, self.hidden_size), dim=1)
+        masked_sequence_output = flow.gather(
+            sequence_output,
+            index=masked_lm_positions.unsqueeze(2).expand(-1, -1, self.hidden_size),
+            dim=1,
+        )
         masked_sequence_output = masked_sequence_output.reshape([-1, self.hidden_size])
 
         masked_sequence_output = self.transform(masked_sequence_output)
@@ -418,6 +428,7 @@ class BertForPreTraining(nn.Module):
             attention_probs_dropout_prob,
             max_position_embeddings,
             type_vocab_size,
+            initializer_range,
         )
 
         self.cls = BertPreTrainingHeads(hidden_size, vocab_size)

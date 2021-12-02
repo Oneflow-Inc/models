@@ -164,12 +164,15 @@ def pretrain(graph: nn.Graph, metric_local: bool) -> Dict:
     # )
     # pred_acc = np.array(correct / next_sent_labels.nelement())
 
-    return {
-        # "total_loss": tton(loss.mean(), metric_local),
-        # "mlm_loss": tton(mlm_loss.mean(), metric_local),
-        # "nsp_loss": tton(nsp_loss.mean(), metric_local),
-        # "pred_acc": pred_acc,
-    }, loss
+    return (
+        {
+            "total_loss": tton(loss.mean(), metric_local),
+            "mlm_loss": tton(mlm_loss.mean(), metric_local),
+            "nsp_loss": tton(nsp_loss.mean(), metric_local),
+            # "pred_acc": pred_acc,
+        },
+        loss,
+    )
 
 
 def validation(
@@ -281,6 +284,7 @@ def main():
 
     # Load the same initial parameters with lazy model.
     from utils.compare_lazy_outputs import load_params_from_lazy
+
     # load_params_from_lazy(
     #     bert_model.state_dict(),
     #     "/workspace/OneFlow-Benchmark/LanguageModeling/BERT/initial_model"
@@ -324,10 +328,7 @@ def main():
     )
 
     def get_masked_lm_loss(
-        logit,
-        masked_lm_labels,
-        label_weights,
-        max_predictions_per_seq,
+        logit, masked_lm_labels, label_weights, max_predictions_per_seq,
     ):
 
         label_id = flow.reshape(masked_lm_labels, [-1])
@@ -397,7 +398,7 @@ def main():
             )
 
             masked_lm_loss = self.masked_lm_criterion(
-                prediction_scores, masked_lm_ids, masked_lm_weights
+                prediction_scores, masked_lm_ids, masked_lm_weights,
             )
 
             total_loss = masked_lm_loss + next_sentence_loss
@@ -454,8 +455,7 @@ def main():
             desc="bert pretrain",
             print_steps=args.loss_print_every_n_iters,
             batch_size=args.train_global_batch_size * args.grad_acc_steps,
-            # keys=["total_loss", "mlm_loss", "nsp_loss", "pred_acc"],
-            keys=[]
+            keys=["total_loss", "mlm_loss", "nsp_loss"],
         )
 
         # Train
@@ -464,14 +464,14 @@ def main():
         for step in range(steps):
             bert_outputs, loss = pretrain(bert_graph, args.metric_local)
 
-            if (step + 1) % args.loss_print_every_n_iters == 0:
-                tton(loss) # sync
+            # if (step + 1) % args.loss_print_every_n_iters == 0:
+            #     tton(loss) # sync
 
             if flow.env.get_rank() == 0:
                 metric.metric_cb(step, epoch=epoch)(bert_outputs)
 
             # train_total_losses.append(bert_outputs["total_loss"])
-    
+
     # with open("graph_loss.txt", 'w') as f:
     #     for loss in train_total_losses:
     #         f.write(str(loss)+'\n')
