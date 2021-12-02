@@ -9,6 +9,7 @@ from data import ImageFilelist
 import flowvision.utils as vutils
 import yaml
 import time
+from network.nets import Vgg16
 
 
 def get_all_data_loaders(conf):
@@ -165,18 +166,8 @@ def weights_init(init_type='gaussian'):
 
 def load_vgg16(model_dir):
     """ Use the model from https://github.com/abhiskk/fast-neural-style/blob/master/neural_style/utils.py """
-    if not os.path.exists(model_dir):
-        os.mkdir(model_dir)
-    if not os.path.exists(os.path.join(model_dir, 'vgg16.weight')):
-        if not os.path.exists(os.path.join(model_dir, 'vgg16.t7')):
-            os.system('wget https://www.dropbox.com/s/76l3rt4kyi3s8x7/vgg16.t7?dl=1 -O ' + os.path.join(model_dir, 'vgg16.t7'))
-        vgglua = load_lua(os.path.join(model_dir, 'vgg16.t7'))
-        vgg = Vgg16()
-        for (src, dst) in zip(vgglua.parameters()[0], vgg.parameters()):
-            dst.data[:] = src
-        torch.save(vgg.state_dict(), os.path.join(model_dir, 'vgg16.weight'))
     vgg = Vgg16()
-    vgg.load_state_dict(torch.load(os.path.join(model_dir, 'vgg16.weight')))
+    vgg.load_state_dict(flow.load(os.path.join(model_dir, 'vgg16.weight')))
     return vgg
 
 def vgg_preprocess(batch):
