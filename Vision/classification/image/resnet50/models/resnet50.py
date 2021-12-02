@@ -247,9 +247,6 @@ class ResNet(nn.Module):
            self.avgpool = nn.LegacyAvgPool2d((7, 7), stride=(1, 1), data_format=self.data_format)
         else:
            self.avgpool = nn.AvgPool2d((7, 7), stride=(1, 1))
-        # Graph use kernel: (anonymous namespace)::PartialBroadcastGpu, it's percent is 0.0 %.
-        # But lazy use kernel : (anonymous namespace)::BiasAddRowGpu<float, int>, it's percent is 0.0 %.
-        # The difference is not importance at the moment.
         self.fc = nn.Linear(512 * block.expansion, num_classes)
 
         for m in self.modules():

@@ -39,6 +39,12 @@ class TrainGraph(flow.nn.Graph):
 
         self.config.allow_fuse_add_to_output(True)
         self.config.allow_fuse_model_update_ops(True)
+        self.config.enable_cudnn_conv_heuristic_search_algo(False)
+        self.world_size = flow.env.get_world_size()
+        if self.world_size / args.num_devices_per_node > 1:
+            self.config.enable_cudnn_conv_heuristic_search_algo(True)
+        self.config.proto.set_prune_parallel_cast_ops(True)
+        self.config.proto.set_enable_inplace(True)
 
         self.model = model
         self.cross_entropy = cross_entropy
