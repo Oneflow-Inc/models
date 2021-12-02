@@ -3,15 +3,14 @@ Copyright (C) 2018 NVIDIA Corporation.  All rights reserved.
 Licensed under the CC BY-NC-SA 4.0 license (https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode).
 """
 from __future__ import print_function
-from utils import get_config, pytorch03_to_pytorch04
+from util import get_config
 from trainer import MUNIT_Trainer, UNIT_Trainer
 import argparse
-from torch.autograd import Variable
-import torchvision.utils as vutils
+import flowvision.utils as vutils
 import sys
-import torch
+import oneflow as flow
 import os
-from torchvision import transforms
+from flowvision import transforms
 from PIL import Image
 
 parser = argparse.ArgumentParser()
@@ -31,8 +30,8 @@ opts = parser.parse_args()
 
 
 
-torch.manual_seed(opts.seed)
-torch.cuda.manual_seed(opts.seed)
+flow.manual_seed(opts.seed)
+# flow.cuda.manual_seed(opts.seed)
 if not os.path.exists(opts.output_folder):
     os.makedirs(opts.output_folder)
 
@@ -50,14 +49,10 @@ elif opts.trainer == 'UNIT':
 else:
     sys.exit("Only support MUNIT|UNIT")
 
-try:
-    state_dict = torch.load(opts.checkpoint)
-    trainer.gen_a.load_state_dict(state_dict['a'])
-    trainer.gen_b.load_state_dict(state_dict['b'])
-except:
-    state_dict = pytorch03_to_pytorch04(torch.load(opts.checkpoint))
-    trainer.gen_a.load_state_dict(state_dict['a'])
-    trainer.gen_b.load_state_dict(state_dict['b'])
+
+state_dict = flow.load(opts.checkpoint)
+trainer.gen_a.load_state_dict(state_dict['a'])
+trainer.gen_b.load_state_dict(state_dict['b'])
 
 trainer.cuda()
 trainer.eval()
@@ -73,18 +68,18 @@ else:
     else:
         new_size = config['new_size_b']
 
-with torch.no_grad():
+with flow.no_grad():
     transform = transforms.Compose([transforms.Resize(new_size),
                                     transforms.ToTensor(),
                                     transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
-    image = Variable(transform(Image.open(opts.input).convert('RGB')).unsqueeze(0).cuda())
-    style_image = Variable(transform(Image.open(opts.style).convert('RGB')).unsqueeze(0).cuda()) if opts.style != '' else None
+    image = transform(Image.open(opts.input).convert('RGB')).unsqueeze(0).cuda()
+    style_image = transform(Image.open(opts.style).convert('RGB')).unsqueeze(0).cuda() if opts.style != '' else None
 
     # Start testing
     content, _ = encode(image)
 
     if opts.trainer == 'MUNIT':
-        style_rand = Variable(torch.randn(opts.num_style, style_dim, 1, 1).cuda())
+        style_rand = flow.randn(opts.num_style, style_dim, 1, 1).cuda()
         if opts.style != '':
             _, style = style_encode(style_image)
         else:
@@ -106,4 +101,3 @@ with torch.no_grad():
     if not opts.output_only:
         # also save input images
         vutils.save_image(image.data, os.path.join(opts.output_folder, 'input.jpg'), padding=0, normalize=True)
-
