@@ -31,14 +31,15 @@ MOM=0.875
 EPOCH=1
 #TRAIN_BATCH_SIZE=19
 #TRAIN_BATCH_SIZE=192
-TRAIN_BATCH_SIZE=80
+#TRAIN_BATCH_SIZE=80
+TRAIN_BATCH_SIZE=512
 VAL_BATCH_SIZE=5
 #VAL_BATCH_SIZE=50
 
 # SRC_DIR=/path/to/models/resnet50
 SRC_DIR=$(realpath $(dirname $0)/..)
 
-/usr/local/cuda-11.4/nsight-systems-2021.2.4/bin/nsys profile --stats true --output ./perf/fp16_graph_cudadataload \
+/usr/local/cuda-11.4/nsight-systems-2021.2.4/bin/nsys profile --stats true --output ./perf/fp16_graph_cpudataload \
 python3 -m oneflow.distributed.launch \
     --nproc_per_node $DEVICE_NUM_PER_NODE \
     --nnodes $NUM_NODES \
@@ -54,11 +55,12 @@ python3 -m oneflow.distributed.launch \
         --num-epochs $EPOCH \
         --train-batch-size $TRAIN_BATCH_SIZE \
         --val-batch-size $VAL_BATCH_SIZE \
+        --print-interval 10 \
         --graph \
         --use-fp16 \
         --metric-local True \
         --metric-train-acc True \
         --fuse-bn-relu \
         --fuse-bn-add-relu \
-        --use-gpu-decode \
         --channel-last \
+#        --use-gpu-decode \
