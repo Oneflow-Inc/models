@@ -175,7 +175,7 @@ def vgg_preprocess(batch):
     (r, g, b) = flow.chunk(batch, 3, dim = 1)
     batch = flow.cat((b, g, r), dim = 1) # convert RGB to BGR
     batch = (batch + 1) * 255 * 0.5 # [-1, 1] -> [0, 255]
-    mean = tensortype(batch.data.size()).cuda()
+    mean = tensortype(*batch.data.size()).cuda()
     mean[:, 0, :, :] = 103.939
     mean[:, 1, :, :] = 116.779
     mean[:, 2, :, :] = 123.680
@@ -213,4 +213,5 @@ def write_loss(iterations, trainer, train_writer):
     members = [attr for attr in dir(trainer) \
                if not callable(getattr(trainer, attr)) and not attr.startswith("__") and ('loss' in attr or 'grad' in attr or 'nwd' in attr)]
     for m in members:
-        train_writer.add_scalar(m, getattr(trainer, m), iterations + 1)
+        x = getattr(trainer, m).numpy()
+        train_writer.add_scalar(m, x, iterations + 1)
