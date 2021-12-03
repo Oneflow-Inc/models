@@ -13,7 +13,11 @@ def make_data_loader(args, mode, is_consistent=False, synthetic=False):
     sbp = None
 
     if is_consistent:
-        placement = flow.env.all_device_placement("cpu")
+        num_dataloader_thread_per_gpu = 2
+        placement = flow.placement(
+            "cpu",
+            {node_id:range(flow.env.get_world_size() // flow.env.get_node_size() * num_dataloader_thread_per_gpu) for node_id in range(flow.env.get_node_size())}
+        )
         sbp = flow.sbp.split(0)
         batch_size_per_proc = total_batch_size
     
@@ -166,16 +170,16 @@ class SyntheticDataLoader(nn.Module):
             )
         else:
             self.labels = flow.randint(
-                0, high=2, size=self.label_shape, dtype=flow.int32, device="cuda"
+                0, high=2, size=self.label_shape, dtype=flow.int32, device="cpu"
             )
             self.dense_fields = flow.randint(
-                0, high=256, size=self.dense_fields_shape, dtype=flow.float, device="cuda",
+                0, high=256, size=self.dense_fields_shape, dtype=flow.float, device="cpu",
             )
             self.wide_sparse_fields = flow.randint(
-                0, high=256, size=self.wide_sparse_fields_shape, dtype=flow.int32, device="cuda"
+                0, high=256, size=self.wide_sparse_fields_shape, dtype=flow.int32, device="cpu"
             )
             self.deep_sparse_fields = flow.randint(
-                0, high=256, size=self.deep_sparse_fields_shape, dtype=flow.int32, device="cuda",
+                0, high=256, size=self.deep_sparse_fields_shape, dtype=flow.int32, device="cpu",
             )
             
 
