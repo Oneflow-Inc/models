@@ -180,6 +180,22 @@ class UNIT_Trainer(nn.Module):
         encoding_loss = flow.mean(mu_2)
         return encoding_loss
 
+    def sample(self, x_a, x_b):
+        self.eval()
+        x_a_recon, x_b_recon, x_ba, x_ab = [], [], [], []
+        for i in range(x_a.size(0)):
+            h_a, _ = self.gen_a.encode(x_a[i].unsqueeze(0))
+            h_b, _ = self.gen_b.encode(x_b[i].unsqueeze(0))
+            x_a_recon.append(self.gen_a.decode(h_a))
+            x_b_recon.append(self.gen_b.decode(h_b))
+            x_ba.append(self.gen_a.decode(h_b))
+            x_ab.append(self.gen_b.decode(h_a))
+        x_a_recon, x_b_recon = flow.cat(x_a_recon), flow.cat(x_b_recon)
+        x_ba = flow.cat(x_ba)
+        x_ab = flow.cat(x_ab)
+        self.train()
+        return x_a, x_a_recon, x_ab, x_b, x_b_recon, x_ba
+
     def compute_vgg_loss(self, vgg, img, target):
         img_vgg = vgg_preprocess(img)
         target_vgg = vgg_preprocess(target)

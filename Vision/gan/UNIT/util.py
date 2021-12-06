@@ -215,3 +215,9 @@ def write_loss(iterations, trainer, train_writer):
     for m in members:
         x = getattr(trainer, m).numpy()
         train_writer.add_scalar(m, x, iterations + 1)
+
+import oneflow as flow
+import numpy as np
+x = flow.tensor(np.random.randn(1, 1, 16, 16)*10, dtype=flow.float32)
+flow.mean((x-0)**2)
+flow.mean((x.cuda()-0)**2)

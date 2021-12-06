@@ -51,4 +51,4 @@ new_size: 256                             # first resize the shortest image side
 crop_image_height: 256                      # random crop image of this height
 crop_image_width: 256                       # random crop image of this width
 
-data_root: ./datasets/gta2city/     # dataset folder location
+data_root: /home/kaijie/Documents/datasets/gan/image2image/custom     # dataset folder location
