@@ -15,7 +15,6 @@ from graph import WideAndDeepValGraph, WideAndDeepTrainGraph
 import warnings
 import utils.logger as log
 
-
 class Trainer(object):
     def __init__(self):
         args = get_args()
@@ -73,8 +72,8 @@ class Trainer(object):
         print_ranks = [0]
         self.train_logger = log.make_logger(self.rank, print_ranks)
         self.train_logger.register_metric("iter", log.IterationMeter(), "iter: {}/{}")
-        self.train_logger.register_metric("loss", log.AverageMeter(), "loss: {:.16f}", True)
         self.train_logger.register_metric("latency", log.LatencyMeter(), "latency(ms): {:.16f}", True)
+        self.train_logger.register_metric("loss", log.AverageMeter(), "loss: {:.16f}", True)
 
         self.val_logger = log.make_logger(self.rank, print_ranks)
         self.val_logger.register_metric("iter", log.IterationMeter(), "iter: {}/{}")
@@ -86,9 +85,9 @@ class Trainer(object):
         do_print=False,
     ):
         self.train_logger.meter("iter", (self.cur_iter, self.max_iter))
+        self.train_logger.meter("latency")
         if loss is not None:
             self.train_logger.meter("loss", loss)
-        self.train_logger.meter("latency")
         if do_print:
             self.train_logger.print_metrics()
 

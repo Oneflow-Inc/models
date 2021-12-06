@@ -2,6 +2,7 @@ import time
 from datetime import datetime
 import numpy as np
 import oneflow as flow
+import time
 
 # _GLOBAL_LOGGER = None
 
@@ -108,6 +109,10 @@ class AverageMeter(object):
 
         if self.sum is None:
             self.sum = _zeros_by_val(val)
+        
+        if isinstance(val, flow.Tensor):
+            # time.sleep(0.1)
+            val = val.numpy().item()
 
         if n == 1:
             self.sum += val

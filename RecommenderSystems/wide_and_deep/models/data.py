@@ -13,11 +13,7 @@ def make_data_loader(args, mode, is_consistent=False, synthetic=False):
     sbp = None
 
     if is_consistent:
-        num_dataloader_thread_per_gpu = 2
-        placement = flow.placement(
-            "cpu",
-            {node_id:range(flow.env.get_world_size() // flow.env.get_node_size() * num_dataloader_thread_per_gpu) for node_id in range(flow.env.get_node_size())}
-        )
+        placement = flow.env.all_device_placement("cpu")
         sbp = flow.sbp.split(0)
         batch_size_per_proc = total_batch_size
     
