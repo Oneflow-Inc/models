@@ -142,20 +142,20 @@ class OneRecDataLoader(nn.Module):
         assert mode in ("train", "val")
         self.batch_size = batch_size
         self.total_batch_size = total_batch_size
+        self.num_dense_fields = num_dense_fields
+        self.num_wide_sparse_fields = num_wide_sparse_fields
+        self.num_deep_sparse_fields = num_deep_sparse_fields
         self.mode = mode
         self.placement = placement
         self.sbp = sbp
         self.shuffle = shuffle
         self.onerec_files = glob.glob(os.path.join(data_dir, mode, '*.onerec'))
 
-    def _blob_decoder(self, bn, shape, dtype=flow.int32):
-        if self.placement is not None:
-            return nn.onerec_decoder(self.reader, bn, shape=shape, dtype=dtype).to_consistent(placement=self.placement, sbp=self.sbp)
-        else:
-            return nn.onerec_decoder(self.reader, bn, shape=shape, dtype=dtype)
+    def _blob_decoder(self, reader, bn, shape, dtype=flow.int32):
+        return flow.decode_onerec(reader, bn, shape=shape, dtype=dtype)
 
     def forward(self):
-        reader = flow.decode_onerec(
+        reader = flow.read_onerec(
             self.onerec_files,
             batch_size=self.batch_size,
             random_shuffle=self.shuffle,
@@ -163,11 +163,13 @@ class OneRecDataLoader(nn.Module):
             shuffle_mode="batch",
             shuffle_buffer_size=64,
             shuffle_after_epoch=self.shuffle,
+            placement = self.placement,
+            sbp = self.sbp,
         )
         labels = self._blob_decoder(reader, "labels", (1,))
-        dense_fields = self._blob_decoder(reader, "dense_fields", (num_dense_fields,), flow.float)
-        wide_sparse_fields = self._blob_decoder(reader, "wide_sparse_fields", (num_wide_sparse_fields,))
-        deep_sparse_fields = self._blob_decoder(reader, "deep_sparse_fields", (num_deep_sparse_fields,))
+        dense_fields = self._blob_decoder(reader, "dense_fields", (self.num_dense_fields,), flow.float)
+        wide_sparse_fields = self._blob_decoder(reader, "wide_sparse_fields", (self.num_wide_sparse_fields,))
+        deep_sparse_fields = self._blob_decoder(reader, "deep_sparse_fields", (self.num_deep_sparse_fields,))
         return labels, dense_fields, wide_sparse_fields, deep_sparse_fields
 
 
