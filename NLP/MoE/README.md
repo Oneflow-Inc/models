@@ -16,7 +16,7 @@ This repository contains the Oneflow re-implementation of the sparsely-gated MoE
 model = ...
 
 from fmoe.megatron import fmoefy
-model = fmoefy(model, num_experts=<number of experts per worker>)
+model = fmoefy(model, num_experts)
 
 train(model, ...)
 
