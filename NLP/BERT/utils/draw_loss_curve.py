@@ -24,16 +24,16 @@ def draw_result(
 if __name__ == "__main__":
     # with open("./temp/bert_graph_loss.txt", "r") as f:
     # eager_total_loss = [float(line) for line in f.readlines()]
-    with open("./loss_txt/bert_graph_sgd_loss.txt", "r") as f:
+    with open("./graph_loss.txt", "r") as f:
         graph_total_loss = [float(line) for line in f.readlines()]
     with open(
-        "../../OneFlow-Benchmark/LanguageModeling/BERT/loss_info_sgd.txt", "r"
+        "/workspace/OneFlow-Benchmark/LanguageModeling/BERT/lazy_loss.txt", "r"
     ) as f:
         lazy_total_loss = [float(line) for line in f.readlines()]
 
     draw_result(
         "loss_txt",
-        "lazy_graph_sgd_loss",
+        "new_graph_lazy_loss",
         "steps",
         "loss",
         {

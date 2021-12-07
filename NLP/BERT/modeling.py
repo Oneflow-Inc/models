@@ -356,7 +356,7 @@ class BertPredictionHeadTransform(nn.Module):
 
 
 class BertLMPredictionHead(nn.Module):
-    def __init__(self, hidden_size, vocab_size, hidden_act=nn.GELU()):
+    def __init__(self, hidden_size, hidden_act=nn.GELU()):
         super().__init__()
         self.hidden_size = hidden_size
 
@@ -364,12 +364,12 @@ class BertLMPredictionHead(nn.Module):
 
         # The output weights are the same as the input embeddings, but there is
         # an output-only bias for each token.
-        self.decoder = nn.Linear(hidden_size, vocab_size, bias=False)
+        # self.decoder = nn.Linear(hidden_size, vocab_size, bias=False)
 
-        self.output_bias = nn.Parameter(flow.zeros(vocab_size))
+        # self.output_bias = nn.Parameter(flow.zeros(vocab_size))
 
         # Need a link between the two variables so that the bias is correctly resized with `resize_token_embeddings`
-        self.decoder.bias = self.output_bias
+        # self.decoder.bias = self.output_bias
 
     def forward(self, sequence_output, masked_lm_positions):
         # Gather masked outputs
@@ -381,14 +381,14 @@ class BertLMPredictionHead(nn.Module):
         masked_sequence_output = masked_sequence_output.reshape([-1, self.hidden_size])
 
         masked_sequence_output = self.transform(masked_sequence_output)
-        masked_sequence_output = self.decoder(masked_sequence_output)
+        # masked_sequence_output = self.decoder(masked_sequence_output)
         return masked_sequence_output
 
 
 class BertPreTrainingHeads(nn.Module):
-    def __init__(self, hidden_size, vocab_size, hidden_act=nn.GELU()):
+    def __init__(self, hidden_size, hidden_act=nn.GELU()):
         super().__init__()
-        self.predictions = BertLMPredictionHead(hidden_size, vocab_size, hidden_act)
+        self.predictions = BertLMPredictionHead(hidden_size, hidden_act)
         self.seq_relationship = nn.Linear(hidden_size, 2)
 
     def forward(self, sequence_output, pooled_output, masked_lm_positions):
@@ -431,7 +431,8 @@ class BertForPreTraining(nn.Module):
             initializer_range,
         )
 
-        self.cls = BertPreTrainingHeads(hidden_size, vocab_size)
+        self.cls = BertPreTrainingHeads(hidden_size)
+        self.output_bias = nn.Parameter(flow.zeros(vocab_size))
 
         self.init_weights()
 
@@ -443,6 +444,11 @@ class BertForPreTraining(nn.Module):
         prediction_scores, seq_relationship_scores = self.cls(
             sequence_output, pooled_output, masked_lm_positions
         )
+        prediction_scores = flow.matmul(
+            prediction_scores, self.bert.get_input_embeddings(), transpose_b=True
+        )
+        prediction_scores += self.output_bias
+
         return prediction_scores, seq_relationship_scores
 
     def get_output_embeddings(self):
@@ -454,9 +460,9 @@ class BertForPreTraining(nn.Module):
     def init_weights(self):
         self.apply(self._init_weights)
 
-        self.clone_weights(
-            self.get_output_embeddings(), self.bert.get_input_embeddings()
-        )
+        # self.clone_weights(
+        #     self.get_output_embeddings(), self.bert.get_input_embeddings()
+        # )
 
     def _init_weights(self, module):
         """Initialize the weights"""

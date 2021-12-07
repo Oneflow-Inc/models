@@ -51,7 +51,11 @@ def load_params_from_lazy(eager_state_dict, lazy_model_path):
     # load regular weights
     for lazy_name, lazy_weight in lazy_state_dict.items():
         # skip momentum and momentum^2 for optimizer
-        if lazy_name.endswith("-v") or lazy_name.endswith("-m"):
+        if (
+            lazy_name.endswith("-v")
+            or lazy_name.endswith("-m")
+            or lazy_name.endswith("max_v")
+        ):
             continue
         eager_name = change_name_from_lazy_to_eager(lazy_name)
         if eager_name not in all_eager_names_list:
@@ -66,7 +70,7 @@ def load_params_from_lazy(eager_state_dict, lazy_model_path):
                 or ("key.weight" in eager_name)
             ):
                 lazy_weight = flow.tensor(lazy_weight.numpy().transpose())
-            eager_state_dict[eager_name].data.copy_(lazy_weight)
+            eager_state_dict[eager_name].data.copy_(lazy_weight.squeeze(0))
 
     # load embedding
     eager_state_dict["bert.embeddings.word_embeddings.weight"].data.copy_(

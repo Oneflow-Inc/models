@@ -47,7 +47,7 @@ def build_optimizer(
     ]
 
     if optim_name == "adamw":
-        return flow.optim.AdamW(all_params, eps=1e-6, do_bias_correction=False)
+        return flow.optim.AdamW(all_params, do_bias_correction=False)
     elif optim_name == "lamb":
         return LAMB(all_params)
 

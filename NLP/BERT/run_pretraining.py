@@ -239,9 +239,11 @@ def main():
     else:
         device = "cpu"
 
-    print("Device is: ", device)
+    if flow.env.get_rank() == 0:
+        print("Device is: ", device)
 
-    print("Creating Dataloader")
+    if flow.env.get_rank() == 0:
+        print("Creating Dataloader")
     train_data_loader = OfRecordDataLoader(
         ofrecord_dir=args.ofrecord_path,
         mode="train",
@@ -264,7 +266,8 @@ def main():
         consistent=args.use_consistent,
     )
 
-    print("Building BERT Model")
+    if flow.env.get_rank() == 0:
+        print("Building BERT Model")
     hidden_size = 64 * args.num_attention_heads
     intermediate_size = 4 * hidden_size
     bert_model = BertForPreTraining(
@@ -280,7 +283,8 @@ def main():
         args.max_position_embeddings,
         args.type_vocab_size,
     )
-    print(bert_model)
+    if flow.env.get_rank() == 0:
+        print(bert_model)
 
     # Load the same initial parameters with lazy model.
     from utils.compare_lazy_outputs import load_params_from_lazy
@@ -289,10 +293,6 @@ def main():
     #     bert_model.state_dict(),
     #     "/workspace/OneFlow-Benchmark/LanguageModeling/BERT/initial_model"
     # )
-
-    assert id(bert_model.cls.predictions.decoder.weight) == id(
-        bert_model.bert.embeddings.word_embeddings
-    )
 
     ns_criterion = nn.CrossEntropyLoss(reduction="mean")
     mlm_criterion = nn.CrossEntropyLoss(reduction="none")
