@@ -53,7 +53,7 @@ class MsImageDis(nn.Module):
 
         for it, (out0, out1) in enumerate(zip(outs0, outs1)):
             if self.gan_type == 'lsgan':
-                loss += flow.mean((out0 - 0)**2) + flow.mean((out1 - 1)**2)
+                loss += flow.mean(out0.square()) + flow.mean(out1.square())
             elif self.gan_type == 'nsgan':
                 all0 = flow.zeros_like(out0.data.cuda(), requires_grad=False)
                 all1 = flow.ones_like(out1.data.cuda(), requires_grad=False)
@@ -69,7 +69,7 @@ class MsImageDis(nn.Module):
         loss = 0
         for it, (out0) in enumerate(outs0):
             if self.gan_type == 'lsgan':
-                loss += flow.mean((out0 - 1)**2) # LSGAN
+                loss += flow.mean(out0.square()) # LSGAN
             elif self.gan_type == 'nsgan':
                 all1 = flow.ones_like(out0.data.cuda(), requires_grad=False)
                 loss += flow.mean(F.binary_cross_entropy(F.sigmoid(out0), all1))

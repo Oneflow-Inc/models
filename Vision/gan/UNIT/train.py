@@ -15,12 +15,14 @@ import os
 import sys
 import tensorboardX
 import shutil
-
+# import multiprocessing as mp
+#
+# mp.set_start_method("spawn")
 parser = argparse.ArgumentParser()
 parser.add_argument('--config', type=str, default='configs/edges2handbags_folder.yaml', help='Path to the config file.')
 parser.add_argument('--output_path', type=str, default='.', help="outputs path")
 parser.add_argument("--resume", action="store_true")
-parser.add_argument('--trainer', type=str, default='MUNIT', help="MUNIT|UNIT")
+parser.add_argument('--trainer', type=str, default='UNIT', help="MUNIT|UNIT")
 opts = parser.parse_args()
 
 cudnn.benchmark = True

@@ -176,8 +176,7 @@ class UNIT_Trainer(nn.Module):
         # sd_2 = torch.pow(sd, 2)
         # encoding_loss = (mu_2 + sd_2 - torch.log(sd_2)).sum() / mu_2.size(0)
         # return encoding_loss
-        mu_2 = flow.pow(mu, 2)
-        encoding_loss = flow.mean(mu_2)
+        encoding_loss = flow.mean(mu.square())
         return encoding_loss
 
     def sample(self, x_a, x_b):
@@ -201,7 +200,7 @@ class UNIT_Trainer(nn.Module):
         target_vgg = vgg_preprocess(target)
         img_fea = vgg(img_vgg)
         target_fea = vgg(target_vgg)
-        return flow.mean((self.instancenorm(img_fea) - self.instancenorm(target_fea)) ** 2)
+        return flow.mean((self.instancenorm(img_fea) - self.instancenorm(target_fea)).square())
 
     def update_learning_rate(self):
         if self.dis_scheduler is not None:
