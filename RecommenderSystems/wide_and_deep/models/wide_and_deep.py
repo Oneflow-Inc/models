@@ -28,6 +28,12 @@ class Dense(nn.Module):
         return x
 
 
+class Embedding(nn.Embedding):
+    def __init__(self, vocab_size, embed_size0):
+        super(Embedding, self).__init__(vocab_size, embed_size, padding_idx=0)
+        for param in self.parameters():
+            nn.init.uniform_(param, a=-0.05, b=0.05)
+
 
 class ConsistentWideAndDeep(nn.Module):
     def __init__(
@@ -53,13 +59,9 @@ class ConsistentWideAndDeep(nn.Module):
             deep_embedding_sbp = flow.sbp.broadcast
             split_size = 1
 
-        self.wide_embedding = nn.Embedding(wide_vocab_size // split_size, 1, padding_idx=0)
+        self.wide_embedding = Embedding(wide_vocab_size // split_size, 1)
         self.wide_embedding.to_consistent(flow.env.all_device_placement("cuda"), wide_embedding_sbp)
-        self.deep_embedding = nn.Embedding(
-            deep_vocab_size,
-            deep_embedding_vec_size // split_size,
-            padding_idx=0,
-        )
+        self.deep_embedding = Embedding(deep_vocab_size, deep_embedding_vec_size // split_size)
         self.deep_embedding.to_consistent(flow.env.all_device_placement("cuda"), deep_embedding_sbp)
         deep_feature_size = (
             deep_embedding_vec_size * num_deep_sparse_fields
@@ -117,12 +119,8 @@ class LocalWideAndDeep(nn.Module):
         deep_dropout_rate: float = 0.5,
     ):
         super(LocalWideAndDeep, self).__init__()
-        self.wide_embedding = nn.Embedding(wide_vocab_size, 1, padding_idx=0)
-        self.deep_embedding = nn.Embedding(
-            deep_vocab_size,
-            deep_embedding_vec_size,
-            padding_idx=0,
-        )
+        self.wide_embedding = Embedding(wide_vocab_size, 1,)
+        self.deep_embedding = Embedding(deep_vocab_size, deep_embedding_vec_size)
         deep_feature_size = (
             deep_embedding_vec_size * num_deep_sparse_fields
             + num_dense_fields
