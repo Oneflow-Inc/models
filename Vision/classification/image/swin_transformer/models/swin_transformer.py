@@ -36,7 +36,7 @@ class DropPath(nn.Module):
         self.drop_prob = drop_prob
 
     def forward(self, x):
-        return drop_path(x, self.drop_prob)
+        return drop_path(x, self.drop_prob, self.training)
 
 
 def window_partition(x, window_size):
