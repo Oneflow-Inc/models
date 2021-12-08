@@ -29,7 +29,7 @@ class Dense(nn.Module):
 
 
 class Embedding(nn.Embedding):
-    def __init__(self, vocab_size, embed_size0):
+    def __init__(self, vocab_size, embed_size):
         super(Embedding, self).__init__(vocab_size, embed_size, padding_idx=0)
         for param in self.parameters():
             nn.init.uniform_(param, a=-0.05, b=0.05)
