@@ -14,11 +14,7 @@ def make_data_loader(args, mode, is_consistent=False, data_format="ofrecord"):
     sbp = None
 
     if is_consistent:
-        num_dataloader_thread_per_gpu = 1
-        placement = flow.placement(
-            "cpu",
-            {node_id:range(flow.env.get_world_size() // flow.env.get_node_size() * num_dataloader_thread_per_gpu) for node_id in range(flow.env.get_node_size())}
-        )
+        placement = flow.env.all_device_placement("cpu")
         sbp = flow.sbp.split(0)
         batch_size_per_proc = total_batch_size
     
@@ -53,7 +49,6 @@ def make_data_loader(args, mode, is_consistent=False, data_format="ofrecord"):
         )
         return onerec_data_loader
     elif data_format == "synthetic":
-        placement = flow.env.all_device_placement("cpu")
         synthetic_data_loader = SyntheticDataLoader(
             num_dense_fields=args.num_dense_fields,
             num_wide_sparse_fields=args.num_wide_sparse_fields,
