@@ -15,8 +15,7 @@
 |-- train_consistent_graph.sh              #Shell script for starting training in graph mode
 |-- train_ddp.sh              #Shell script for starting training in ddp mode
 |-- __init__.py
-|-- README.md                   #Documentation
-└── util.py                     #Some utility methods are defined
+└── README.md                   #Documentation
 ```
 ## Arguments description
 |Argument Name|Argument Explanation|Default Value|
