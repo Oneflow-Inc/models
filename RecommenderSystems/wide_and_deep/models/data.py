@@ -62,7 +62,7 @@ def make_data_loader(args, mode, is_consistent=False, data_format="ofrecord"):
         )
         return synthetic_data_loader
     else:
-        raise ValueError("data format must be one of ofrecord, onerec orsynthetic")
+        raise ValueError("data format must be one of ofrecord, onerec or synthetic")
 
 
 class OFRecordDataLoader(nn.Module):

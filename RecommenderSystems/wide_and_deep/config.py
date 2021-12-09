@@ -41,12 +41,7 @@ def get_args(print_args=True):
         help="do eval after_training",
     )
     parser.add_argument(
-        "--dataset_format", type=str, default="ofrecord", help="ofrecord or onerec"
-    )
-    parser.add_argument(
-        "--use_synthetic_data",
-        action="store_true",
-        help="use synthetic data",
+        "--dataset_format", type=str, default="ofrecord", help="ofrecord, onerec or synthetic"
     )
     parser.add_argument("--data_part_num", type=int, default=256)
     parser.add_argument(
@@ -90,8 +85,6 @@ def get_args(print_args=True):
 
     if print_args and flow.env.get_rank() == 0:
         _print_args(args)
-    if args.use_synthetic_data:
-        args.dataset_format = "synthetic"
     return args
 
 
