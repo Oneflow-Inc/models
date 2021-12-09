@@ -3,15 +3,18 @@ MASTER_ADDR=127.0.0.1
 NUM_NODES=1
 NODE_RANK=0
 DATA_DIR=/dataset/wdl_ofrecord/ofrecord
-EMBD_SIZE=2322444
-BATHSIZE=1024
+EMBD_SIZE=5000000
+BATHSIZE=65536
 
 export ONEFLOW_KERNEL_ENABLE_CUDA_GRAPH=1
 export ONEFLOW_THREAD_ENABLE_LOCAL_MESSAGE_QUEUE=1
 export ONEFLOW_KERNEL_DISABLE_BLOB_ACCESS_CHECKER=1
 export ONEFLOW_ACTOR_ENABLE_LIGHT_ACTOR=1
 export ONEFLOW_STREAM_REUSE_CUDA_EVENT=1
+export ONEFLOW_DEBUG_MODE=1
 
+ONEFLOW_PROFILER_KERNEL_PROFILE_KERNEL_FORWARD_RANGE=True \
+nsys profile --stats=true --force-overwrite=true --output='opt_bs_'$BATHSIZE'multi_wld_'$DEVICE_NUM_PER_NODE'_gpu' \
 python3 -m oneflow.distributed.launch \
     --nproc_per_node $DEVICE_NUM_PER_NODE \
     --nnodes $NUM_NODES \
@@ -21,10 +24,10 @@ python3 -m oneflow.distributed.launch \
     --learning_rate 0.001 \
     --batch_size $BATHSIZE \
     --data_dir $DATA_DIR \
-    --loss_print_every_n_iter 100 \
+    --loss_print_every_n_iter 10 \
     --eval_interval 0 \
     --deep_dropout_rate 0.5 \
-    --max_iter 310 \
+    --max_iter 31 \
     --hidden_units_num 2 \
     --hidden_size 1024 \
     --wide_vocab_size $EMBD_SIZE \
