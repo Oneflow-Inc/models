@@ -16,6 +16,7 @@ limitations under the License.
 import argparse
 import oneflow as flow
 
+
 def get_args(print_args=True):
     def str_list(x):
         return x.split(",")

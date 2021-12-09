@@ -9,7 +9,6 @@
     |-- data.py         #Read data
 |-- utils
     |-- logger.py     #Loger info
-    |-- util.py         #Some utility methods are defined
 |-- config.py                   #Argument configuration
 |-- train.py              #Python script for train mode
 |-- train_consistent_eager.sh              #Shell script for starting training in eager mode
