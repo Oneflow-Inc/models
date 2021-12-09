@@ -142,11 +142,6 @@ class Trainer(object):
             self.cur_iter += 1
             loss = self.train_one_step()
 
-            if self.ddp:
-                # In ddp mode, the loss needs to be averaged
-                loss = flow.comm.all_reduce(loss)
-                loss = loss / self.world_size
-
             loss = tol(loss)
 
             self.meter_train_iter(loss)
@@ -208,7 +203,7 @@ class Trainer(object):
         predicts = self.wdl_module(
             dense_fields, wide_sparse_fields, deep_sparse_fields
         )
-        loss = self.loss(predicts,labels)
+        loss = self.loss(predicts, labels)
         reduce_loss = flow.mean(loss)
         return reduce_loss
 

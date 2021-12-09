@@ -4,6 +4,8 @@ import oneflow.nn as nn
 import glob
 
 
+__all__ = ["make_data_loader"]
+
 def make_data_loader(args, mode, is_consistent=False, data_format="ofrecord"):
     assert mode in ("train", "val")
 

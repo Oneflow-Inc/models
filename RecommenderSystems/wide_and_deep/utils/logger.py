@@ -3,15 +3,10 @@ from datetime import datetime
 import numpy as np
 import oneflow as flow
 
-# _GLOBAL_LOGGER = None
 
+__all__ = ["make_logger"]
 
 def make_logger(rank, print_ranks):
-    # global _GLOBAL_LOGGER
-    # if _GLOBAL_LOGGER is None:
-    #     _GLOBAL_LOGGER = Logger(rank, print_ranks)
-
-    # return _GLOBAL_LOGGER
     return Logger(rank, print_ranks)
 
 
