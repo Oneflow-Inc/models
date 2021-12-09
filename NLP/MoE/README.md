@@ -13,10 +13,8 @@ This repository contains the Oneflow re-implementation of the sparsely-gated MoE
 
 ```python
 
-model = ...
-
-from fmoe.megatron import fmoefy
-model = fmoefy(model, num_experts)
+# k indicates the top-k switching
+model = MoE(expert_network, input_size, output_size, num_experts, noisy_gating, k)
 
 
 ```
