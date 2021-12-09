@@ -18,8 +18,6 @@ model = ...
 from fmoe.megatron import fmoefy
 model = fmoefy(model, num_experts)
 
-train(model, ...)
-
 
 ```
 
