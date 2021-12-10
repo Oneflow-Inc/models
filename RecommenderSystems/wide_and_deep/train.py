@@ -51,14 +51,22 @@ class Trainer(object):
         self.opt = flow.optim.Adam(
             self.wdl_module.parameters(), lr=args.learning_rate
         )
+
         self.loss = flow.nn.BCELoss(reduction="none").to("cuda")
         if self.execution_mode == "graph":
+            sparse_parameters = list(self.wdl_module.wide_embedding.parameters()) + \
+                                list(self.wdl_module.deep_embedding.parameters())
+            sparse_opt = flow.optim.Adam(
+               sparse_parameters, lr=args.learning_rate
+            )            
             self.eval_graph = WideAndDeepValGraph(
                 self.wdl_module, self.val_dataloader
             )
             self.train_graph = WideAndDeepTrainGraph(
-                self.wdl_module, self.train_dataloader, self.loss, self.opt
+                self.wdl_module, self.train_dataloader, self.loss, self.opt, sparse_opt
             )
+
+
 
     def init_model(self):
         args = self.args
