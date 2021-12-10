@@ -169,8 +169,9 @@ if __name__ == "__main__":
     train_data_iterator = get_dataloader(args)
     
     # warm up 10 iters
-    for _ in range(10):
-        loss = train_step(train_data_iterator, model, optimizer, lr_scheduler)
+    if not args.debug_loss:
+        for _ in range(10):
+            loss = train_step(train_data_iterator, model, optimizer, lr_scheduler)
     loss.numpy() # sync cuda
     
     count = 0
