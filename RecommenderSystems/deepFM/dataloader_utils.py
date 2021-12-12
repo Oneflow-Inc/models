@@ -48,23 +48,21 @@ class OFRecordDataLoader(nn.Module):
         self.dense_fields = _blob_decoder(
             "dense_fields", (FLAGS.num_dense_fields,), flow.float
         )
-        # self.wide_sparse_fields = _blob_decoder(
-        #     "wide_sparse_fields", (FLAGS.num_wide_sparse_fields,)
-        # )
+        # print(self.dense_fields.shape)
+        self.wide_sparse_fields = _blob_decoder(
+            "wide_sparse_fields", (FLAGS.num_wide_sparse_fields,)
+        )
         self.deep_sparse_fields = _blob_decoder(
             "deep_sparse_fields", (FLAGS.num_deep_sparse_fields,)
         )
-        self.cate_fea_nuniqs=[10,22,7,6,7,7,3,9,3,5,6,7,7,8,5,7,10,14,4,4,7,3,9,8,11,5]
 
     def forward(self):
         reader = self.reader()
         labels = self.labels(reader)
         dense_fields = self.dense_fields(reader)
-        # wide_sparse_fields = self.wide_sparse_fields(reader)
+        wide_sparse_fields = self.wide_sparse_fields(reader)
         deep_sparse_fields = self.deep_sparse_fields(reader)
-        cate_fea_nuniqs=self.cate_fea_nuniqs(reader)
-        return labels, dense_fields, deep_sparse_fields
-        # return labels, dense_fields, wide_sparse_fields, deep_sparse_fields
+        return labels, dense_fields, wide_sparse_fields, deep_sparse_fields
         # return flow.identity_n([labels, dense_fields, wide_sparse_fields, deep_sparse_fields])
 
 
@@ -77,8 +75,7 @@ if __name__ == "__main__":
         FLAGS, data_root="/dataset/wdl_ofrecord/ofrecord"
     )  # , mode='val')
     for i in range(10):
-        labels, dense_fields, deep_sparse_fields = dataloader()
-        # labels, dense_fields, wide_sparse_fields, deep_sparse_fields = dataloader()
+        labels, dense_fields, wide_sparse_fields, deep_sparse_fields = dataloader()
     #     print("iter ", i)
     #     print("labels.shape =", labels.shape)
     #     print("dense_fields.shape =", dense_fields.shape)

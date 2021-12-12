@@ -40,7 +40,7 @@ def get_args(print_args=True):
     parser.add_argument(
         "--data_dir", type=str, default="/dataset/wdl_ofrecord/ofrecord"
     )
-    parser.add_argument("--print_interval", type=int, default=1000)
+    parser.add_argument("--print_interval", type=int, default=50)
     parser.add_argument("--eval_batchs", type=int, default=20)
     parser.add_argument("--batch_size", type=int, default=16384)
     parser.add_argument("--learning_rate", type=float, default=1e-3)
@@ -48,14 +48,12 @@ def get_args(print_args=True):
     parser.add_argument("--deep_vocab_size", type=int, default=1603616)
     parser.add_argument("--hf_wide_vocab_size", type=int, default=800000)
     parser.add_argument("--hf_deep_vocab_size", type=int, default=800000)
-    # parser.add_argument("--deep_embedding_vec_size", type=int, default=16)
-    parser.add_argument("--emb_size", type=int, default=16)
-    # parser.add_argument("--deep_dropout_rate", type=float, default=0.5)
-    parser.add_argument("--dropout_rate", type=float, default=0.5)
+    parser.add_argument("--deep_embedding_vec_size", type=int, default=16)
+    parser.add_argument("--deep_dropout_rate", type=float, default=0.5)
     parser.add_argument("--num_dense_fields", type=int, default=13)
     parser.add_argument("--num_wide_sparse_fields", type=int, default=2)
     parser.add_argument("--num_deep_sparse_fields", type=int, default=26)
-    parser.add_argument("--max_iter", type=int, default=30000)
+    parser.add_argument("--max_iter", type=int, default=1000)
     parser.add_argument("--gpu_num_per_node", type=int, default=8)
     parser.add_argument(
         "--num_nodes", type=int, default=1, help="node/machine number for training"
@@ -71,7 +69,6 @@ def get_args(print_args=True):
     )
     parser.add_argument("--hidden_units_num", type=int, default=7)
     parser.add_argument("--hidden_size", type=int, default=1024)
-    parser.add_argument("--cate_fea_nuniqs", type=list, default=[10,22,7,6,7,7,3,9,3,5,6,7,7,8,5,7,10,14,4,4,7,3,9,8,11,5])
 
     FLAGS = parser.parse_args()
     if print_args:

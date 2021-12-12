@@ -70,7 +70,7 @@ if __name__ == "__main__":
         opt.step()
         opt.zero_grad()
         if (i + 1) % args.print_interval == 0:
-            print(dense_fields.shape)
+            # print(dense_fields.shape)
             l = sum(losses) / len(losses)
             losses = []
             print(f"iter {i + 1} train_loss {l} time {time.time()}")

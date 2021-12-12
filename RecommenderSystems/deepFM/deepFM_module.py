@@ -47,9 +47,9 @@ class Dense(nn.Module):
         return x
 
 
-class WideAndDeep(nn.Module):
+class deepFM(nn.Module):
     def __init__(self, FLAGS) -> None:
-        super(WideAndDeep, self).__init__()
+        super(deepFM, self).__init__()
         self.fm_1st_sparse_embedding = Embedding(vocab_size=FLAGS.wide_vocab_size, embed_size=1)
         self.fm_1st_scores = nn.Linear(FLAGS.num_deep_sparse_fields + FLAGS.num_dense_fields, 1)
 
@@ -117,16 +117,16 @@ class WideAndDeep(nn.Module):
         return self.sigmoid(fm_1st_scores + fm_2nd_scores + deep_scores)
 
 
-def wide_and_deep(
+def deeFM_func(
         pretrained: bool = False, progress: bool = True, **kwargs: Any
-) -> WideAndDeep:
+) -> deepFM:
     r"""WideAndDeep model architecture from the
     `"One weird trick..." <https://arxiv.org/abs/1606.07792>`_ paper.
     Args:
         pretrained (bool): If True, returns a model pre-trained on WideAndDeep
         progress (bool): If True, displays a progress bar of the download to stderr
      """
-    model = WideAndDeep(**kwargs)
+    model = deepFM(**kwargs)
     return model
 
 
