@@ -99,6 +99,8 @@ Please check our the following **demos** for a quick start
 - [Transformer](https://github.com/Oneflow-Inc/models/tree/main/NLP/Transformer)
 - [Bert](https://github.com/Oneflow-Inc/models/tree/main/NLP/bert-oneflow)
 - [CPT](https://github.com/Oneflow-Inc/models/tree/main/NLP/CPT)
+- [MoE](https://github.com/Oneflow-Inc/models/tree/main/NLP/MoE)
+
 </details>
 
 <details>
