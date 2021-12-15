@@ -46,23 +46,13 @@ class ConsistentWideAndDeep(nn.Module):
         hidden_size: int = 1024,
         hidden_units_num: int = 7,
         deep_dropout_rate: float = 0.5,
-        is_graph: bool = False
     ):
         super(ConsistentWideAndDeep, self).__init__()
-        # TODO(binbin): OpKernelState will be reuse in eager mode
-        if is_graph:
-            wide_embedding_sbp = flow.sbp.split(0)
-            deep_embedding_sbp = flow.sbp.split(1)
-            split_size = flow.env.get_world_size()
-        else:
-            wide_embedding_sbp = flow.sbp.broadcast
-            deep_embedding_sbp = flow.sbp.broadcast
-            split_size = 1
 
-        self.wide_embedding = Embedding(wide_vocab_size // split_size, 1)
-        self.wide_embedding.to_consistent(flow.env.all_device_placement("cuda"), wide_embedding_sbp)
-        self.deep_embedding = Embedding(deep_vocab_size, deep_embedding_vec_size // split_size)
-        self.deep_embedding.to_consistent(flow.env.all_device_placement("cuda"), deep_embedding_sbp)
+        self.wide_embedding = Embedding(wide_vocab_size // flow.env.get_world_size(), 1)
+        self.wide_embedding.to_consistent(flow.env.all_device_placement("cuda"), flow.sbp.split(0))
+        self.deep_embedding = Embedding(deep_vocab_size, deep_embedding_vec_size // flow.env.get_world_size())
+        self.deep_embedding.to_consistent(flow.env.all_device_placement("cuda"), flow.sbp.split(1))
         deep_feature_size = (
             deep_embedding_vec_size * num_deep_sparse_fields
             + num_dense_fields
@@ -158,7 +148,7 @@ class LocalWideAndDeep(nn.Module):
         return self.sigmoid(wide_scores + deep_scores)
 
 
-def make_wide_and_deep_module(args, is_consistent, is_graph):
+def make_wide_and_deep_module(args, is_consistent):
     if is_consistent:
         model = ConsistentWideAndDeep(
             wide_vocab_size=args.wide_vocab_size,
@@ -169,7 +159,6 @@ def make_wide_and_deep_module(args, is_consistent, is_graph):
             hidden_size=args.hidden_size,
             hidden_units_num=args.hidden_units_num,
             deep_dropout_rate=args.deep_dropout_rate,
-            is_graph=is_graph,
         )
     else:
         model = LocalWideAndDeep(
