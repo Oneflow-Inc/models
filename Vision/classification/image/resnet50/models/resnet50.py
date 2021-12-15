@@ -123,6 +123,9 @@ class Bottleneck(nn.Module):
 
     def forward(self, x: Tensor) -> Tensor:
         identity = x
+        if self.downsample is not None:
+            identity = self.downsample(x)
+
 
         out = self.conv1(x)
         
@@ -141,9 +144,6 @@ class Bottleneck(nn.Module):
             out = self.relu(out)
 
         out = self.conv3(out)
-
-        if self.downsample is not None:
-            identity = self.downsample(x)
 
         if self.fuse_bn_add_relu:
             out = self.bn3(out, identity)
