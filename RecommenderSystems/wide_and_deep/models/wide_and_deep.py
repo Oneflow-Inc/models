@@ -46,13 +46,17 @@ class ConsistentWideAndDeep(nn.Module):
         hidden_size: int = 1024,
         hidden_units_num: int = 7,
         deep_dropout_rate: float = 0.5,
+        to_consistent: bool = False,
     ):
         super(ConsistentWideAndDeep, self).__init__()
+        self.to_consistent = to_consistent
 
         self.wide_embedding = Embedding(wide_vocab_size // flow.env.get_world_size(), 1)
-        self.wide_embedding.to_consistent(flow.env.all_device_placement("cuda"), flow.sbp.split(0))
+        if self.to_consistent:
+            self.wide_embedding.to_consistent(flow.env.all_device_placement("cuda"), flow.sbp.split(0))
         self.deep_embedding = Embedding(deep_vocab_size, deep_embedding_vec_size // flow.env.get_world_size())
-        self.deep_embedding.to_consistent(flow.env.all_device_placement("cuda"), flow.sbp.split(1))
+        if self.to_consistent:
+            self.deep_embedding.to_consistent(flow.env.all_device_placement("cuda"), flow.sbp.split(1))
         deep_feature_size = (
             deep_embedding_vec_size * num_deep_sparse_fields
             + num_dense_fields
@@ -72,23 +76,29 @@ class ConsistentWideAndDeep(nn.Module):
                 ]
             )
         )
-        self.linear_layers.to_consistent(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
+        if self.to_consistent:
+            self.linear_layers.to_consistent(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
         self.deep_scores = nn.Linear(hidden_size, 1)
-        self.deep_scores.to_consistent(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
+        if self.to_consistent:
+            self.deep_scores.to_consistent(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
         self.sigmoid = nn.Sigmoid()
-        self.sigmoid.to_consistent(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
+        if self.to_consistent:
+            self.sigmoid.to_consistent(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
 
     def forward(
         self, dense_fields, wide_sparse_fields, deep_sparse_fields
     ) -> flow.Tensor:
-        wide_sparse_fields = wide_sparse_fields.to_consistent(sbp=flow.sbp.broadcast)
+        if self.to_consistent:
+            wide_sparse_fields = wide_sparse_fields.to_consistent(sbp=flow.sbp.broadcast)
         wide_embedding = self.wide_embedding(wide_sparse_fields)
         wide_embedding = wide_embedding.view(-1, wide_embedding.shape[-1] * wide_embedding.shape[-2])
         wide_scores = flow.sum(wide_embedding, dim=1, keepdim=True)
-        wide_scores = wide_scores.to_consistent(sbp=flow.sbp.split(0), grad_sbp=flow.sbp.broadcast)
-        deep_sparse_fields = deep_sparse_fields.to_consistent(sbp=flow.sbp.broadcast)
+        if self.to_consistent:
+            wide_scores = wide_scores.to_consistent(sbp=flow.sbp.split(0), grad_sbp=flow.sbp.broadcast)
+            deep_sparse_fields = deep_sparse_fields.to_consistent(sbp=flow.sbp.broadcast)
         deep_embedding = self.deep_embedding(deep_sparse_fields)
-        deep_embedding = deep_embedding.to_consistent(sbp=flow.sbp.split(0), grad_sbp=flow.sbp.split(2))
+        if self.to_consistent:
+            deep_embedding = deep_embedding.to_consistent(sbp=flow.sbp.split(0), grad_sbp=flow.sbp.split(2))
         deep_embedding = deep_embedding.view(-1, deep_embedding.shape[-1] * deep_embedding.shape[-2])
         deep_features = flow.cat([deep_embedding, dense_fields], dim=1)
         deep_features = self.linear_layers(deep_features)
@@ -159,6 +169,7 @@ def make_wide_and_deep_module(args, is_consistent):
             hidden_size=args.hidden_size,
             hidden_units_num=args.hidden_units_num,
             deep_dropout_rate=args.deep_dropout_rate,
+            to_consistent=args.to_consistent,
         )
     else:
         model = LocalWideAndDeep(

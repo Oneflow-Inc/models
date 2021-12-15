@@ -49,7 +49,7 @@ def get_args(print_args=True):
     )
     parser.add_argument('--data_part_name_suffix_length', type=int, default=-1)
     parser.add_argument('--eval_batchs', type=int, default=20)
-    parser.add_argument('--eval_interval', type=int, default=1000)    
+    parser.add_argument('--eval_interval', type=int, default=1000)
     parser.add_argument("--batch_size", type=int, default=16384)
     parser.add_argument("--batch_size_per_proc", type=int, default=None)
     parser.add_argument("--learning_rate", type=float, default=1e-3)
@@ -72,6 +72,9 @@ def get_args(print_args=True):
     )
     parser.add_argument(
         "--test_name", type=str, default="noname_test"
+    )
+    parser.add_argument(
+        "--to_consistent", action="store_true", help="enable to_consistent or not"
     )
 
     args = parser.parse_args()
