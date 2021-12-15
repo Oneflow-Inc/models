@@ -6,14 +6,12 @@ DATA_DIR=/dataset/wdl_ofrecord/ofrecord
 EMBD_SIZE=2322444
 BATHSIZE=2048
 
-SRC_DIR=$(realpath $(dirname $0))
-
 python3 -m oneflow.distributed.launch \
     --nproc_per_node $DEVICE_NUM_PER_NODE \
     --nnodes $NUM_NODES \
     --node_rank $NODE_RANK \
     --master_addr $MASTER_ADDR \
-  $SRC_DIR/train.py \
+  train.py \
     --learning_rate 0.001 \
     --batch_size $BATHSIZE \
     --data_dir $DATA_DIR \
