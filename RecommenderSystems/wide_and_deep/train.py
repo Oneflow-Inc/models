@@ -46,7 +46,7 @@ class Trainer(object):
         self.init_logger()
         self.train_dataloader = make_data_loader(args, "train", self.is_consistent, self.dataset_format)
         self.val_dataloader = make_data_loader(args, "val", self.is_consistent, self.dataset_format)
-        self.wdl_module = make_wide_and_deep_module(args, self.is_consistent, self.execution_mode == "graph")
+        self.wdl_module = make_wide_and_deep_module(args, self.is_consistent)
         self.init_model()
         self.opt = flow.optim.Adam(
             self.wdl_module.parameters(), lr=args.learning_rate
