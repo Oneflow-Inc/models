@@ -27,4 +27,5 @@ python3 -m oneflow.distributed.launch \
     --data_part_name_suffix_length 5 \
     --execution_mode 'graph' \
     --to_consistent \
+    --dataset_format synthetic \
     --test_name 'train_eager_graph_'$DEVICE_NUM_PER_NODE'gpu'
