@@ -1,0 +1,22 @@
+set -aux
+
+BATCH_SIZE=32
+EPOCH=20
+LEARNING_RATE=1e-5
+PRETRAIN_DIR="./flow_roberta-base/weights"
+KWARGS_PATH="./flow_roberta-base/parameters.json"
+SAVE_DIR="./pretrain_model_SST-2"
+TASK="SST-2"
+
+if [ ! -d "SAVE_DIR" ]; then
+    mkdir $SAVE_DIR
+fi
+
+python3 train_SST.py \
+    --batch_size $BATCH_SIZE \
+    --n_epochs $EPOCH \
+    --lr $LEARNING_RATE \
+    --pretrain_dir $PRETRAIN_DIR\
+    --kwargs_path $KWARGS_PATH\
+    --model_save_dir $SAVE_DIR\
+    --task $TASK
