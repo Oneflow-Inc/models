@@ -1060,7 +1060,7 @@ def init_weights(module):
     elif isinstance(module, nn.LayerNorm):
         module.bias.data.fill_(0.0)
         module.weight.data.fill_(1.0)
-    elif isinstance(module, LayerNorm):
-        module.b_2.data.fill_(0.0)
-        module.a_2.data.fill_(1.0)
+    # elif isinstance(module, LayerNorm):
+    #     module.b_2.data.fill_(0.0)
+    #     module.a_2.data.fill_(1.0)
 
