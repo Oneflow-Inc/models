@@ -18,11 +18,13 @@ import oneflow as flow
 
 
 def get_args(print_args=True):
-    def str_list(x):
-        return x.split(",")
+    def int_list(x):
+        return list(map(int, x.split(",")))
 
     parser = argparse.ArgumentParser()
 
+    parser.add_argument("--bottom_mlp", type=int_list, default="512,256,128")
+    parser.add_argument("--top_mlp", type=int_list, default="1024,1024,512,256")
     parser.add_argument("--model_load_dir", type=str, default="")
     parser.add_argument("--model_save_dir", type=str, default="./checkpoint")
     parser.add_argument(

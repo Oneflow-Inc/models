@@ -1,5 +1,6 @@
 from collections import OrderedDict
 import oneflow as flow
+from oneflow.framework.tensor import _xor
 import oneflow.nn as nn
 from typing import Any
 
@@ -8,14 +9,11 @@ __all__ = ["make_dlrm_module"]
 
 
 class Dense(nn.Module):
-    def __init__(
-        self, in_features: int, out_features: int, dropout_rate: float = 0.5
-    ) -> None:
+    def __init__(self, in_features: int, out_features: int) -> None:
         super(Dense, self).__init__()
         self.features = nn.Sequential(
             nn.Linear(in_features, out_features),
             nn.ReLU(inplace=True),
-            nn.Dropout(p=dropout_rate),
         )
         for name, param in self.named_parameters():
             if name.endswith("weight"):
@@ -26,6 +24,24 @@ class Dense(nn.Module):
     def forward(self, x: flow.Tensor) -> flow.Tensor:
         x = self.features(x)
         return x
+
+
+class MLP(nn.Module):
+    def __init__(self, in_features: int, hidden_units) -> None:
+        super(MLP, self).__init__()
+        self.linear_layers = nn.Sequential(
+            OrderedDict(
+                [
+                    (
+                        f"fc{i}",
+                        Dense(in_features if i == 0 else hidden_units[i-1], h)
+                    )
+                    for i, h in enumerate(hidden_units)
+                ]
+            )
+        )
+    def forward(self, x:flow.Tensor) -> flow.Tensor:
+        return self.linear_layers(x)
 
 
 class Embedding(nn.Embedding):
@@ -42,46 +58,33 @@ class ConsistentDLRM(nn.Module):
         embedding_vec_size: int = 16,
         num_sparse_fields: int = 26,
         num_dense_fields: int = 13,
-        hidden_size: int = 1024,
-        hidden_units_num: int = 7,
-        dropout_rate: float = 0.5,
+        bottom_mlp = [],
+        top_mlp = [],
     ):
         super(ConsistentDLRM, self).__init__()
+        self.bottom_mlp = MLP(num_dense_fields, bottom_mlp)
+        self.bottom_mlp.to_consistent(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
 
         self.embedding = Embedding(vocab_size, embedding_vec_size // flow.env.get_world_size())
         self.embedding.to_consistent(flow.env.all_device_placement("cuda"), flow.sbp.split(1))
-        feature_size = (
-            embedding_vec_size * num_sparse_fields
-            + num_dense_fields
-        )
-        self.linear_layers = nn.Sequential(
-            OrderedDict(
-                [
-                    (
-                        f"fc{i}",
-                        Dense(
-                            feature_size if i == 0 else hidden_size,
-                            hidden_size,
-                            dropout_rate,
-                        ),
-                    )
-                    for i in range(hidden_units_num)
-                ]
-            )
-        )
-        self.linear_layers.to_consistent(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
-        self.scores = nn.Linear(hidden_size, 1)
+        feature_size = embedding_vec_size * num_sparse_fields + bottom_mlp[-1]
+        self.top_mlp = MLP(feature_size, top_mlp)
+        self.top_mlp.to_consistent(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
+        self.scores = nn.Linear(top_mlp[-1], 1)
         self.scores.to_consistent(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
         self.sigmoid = nn.Sigmoid()
         self.sigmoid.to_consistent(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
 
     def forward(self, dense_fields, sparse_fields) -> flow.Tensor:
+        dense_fields = dense_fields.to_consistent(sbp=flow.sbp.broadcast)
+        dense_fields = self.bottom_mlp(dense_fields)
+
         sparse_fields = sparse_fields.to_consistent(sbp=flow.sbp.broadcast)
         embedding = self.embedding(sparse_fields)
         embedding = embedding.to_consistent(sbp=flow.sbp.split(0), grad_sbp=flow.sbp.split(2))
         embedding = embedding.view(-1, embedding.shape[-1] * embedding.shape[-2])
         features = flow.cat([embedding, dense_fields], dim=1)
-        features = self.linear_layers(features)
+        features = self.top_mlp(features)
         scores = self.scores(features)
         return self.sigmoid(scores)
 
@@ -93,39 +96,24 @@ class LocalDLRM(nn.Module):
         embedding_vec_size: int = 16,
         num_sparse_fields: int = 26,
         num_dense_fields: int = 13,
-        hidden_size: int = 1024,
-        hidden_units_num: int = 7,
-        dropout_rate: float = 0.5,
+        bottom_mlp = [],
+        top_mlp = [],
     ):
         super(LocalDLRM, self).__init__()
+        self.bottom_mlp = MLP(num_dense_fields, bottom_mlp)
         self.embedding = Embedding(vocab_size, embedding_vec_size)
-        feature_size = (
-            embedding_vec_size * num_sparse_fields + num_dense_fields
-        )
-        self.linear_layers = nn.Sequential(
-            OrderedDict(
-                [
-                    (
-                        f"fc{i}",
-                        Dense(
-                            feature_size if i == 0 else hidden_size,
-                            hidden_size,
-                            dropout_rate,
-                        ),
-                    )
-                    for i in range(hidden_units_num)
-                ]
-            )
-        )
-        self.scores = nn.Linear(hidden_size, 1)
+        feature_size = embedding_vec_size * num_sparse_fields + bottom_mlp[-1]
+        self.top_mlp = MLP(feature_size, top_mlp)
+        self.scores = nn.Linear(top_mlp[-1], 1)
         self.sigmoid = nn.Sigmoid()
 
 
     def forward(self, dense_fields, sparse_fields) -> flow.Tensor:
+        dense_fields = self.bottom_mlp(dense_fields)
         embedding = self.embedding(sparse_fields)
         embedding = embedding.view(-1, embedding.shape[-1] * embedding.shape[-2])
         features = flow.cat([embedding, dense_fields], dim=1)
-        features = self.linear_layers(features)
+        features = self.top_mlp(features)
         scores = self.scores(features)
         return self.sigmoid(scores)
 
@@ -137,9 +125,8 @@ def make_dlrm_module(args, is_consistent):
             embedding_vec_size=args.embedding_vec_size,
             num_sparse_fields=args.num_sparse_fields,
             num_dense_fields=args.num_dense_fields,
-            hidden_size=args.hidden_size,
-            hidden_units_num=args.hidden_units_num,
-            dropout_rate=args.dropout_rate,
+            bottom_mlp=args.bottom_mlp,
+            top_mlp=args.top_mlp,
         )
     else:
         model = LocalDLRM(
@@ -147,9 +134,8 @@ def make_dlrm_module(args, is_consistent):
             embedding_vec_size=args.embedding_vec_size,
             num_sparse_fields=args.num_sparse_fields,
             num_dense_fields=args.num_dense_fields,
-            hidden_size=args.hidden_size,
-            hidden_units_num=args.hidden_units_num,
-            dropout_rate=args.dropout_rate,
+            bottom_mlp=args.bottom_mlp,
+            top_mlp=args.top_mlp,
         )
         model = model.to("cuda")
     return model
