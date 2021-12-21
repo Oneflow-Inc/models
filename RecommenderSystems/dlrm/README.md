@@ -5,7 +5,7 @@
 ```
 .
 |-- models
-    |-- wide_and_deep.py     #Wide&Deep model structure
+    |-- dlrm.py     #dlrm model structure
     |-- data.py         #Read data
 |-- utils
     |-- logger.py     #Loger info
