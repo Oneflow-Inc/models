@@ -1,4 +1,4 @@
-DEVICE_NUM_PER_NODE=1
+DEVICE_NUM_PER_NODE=2
 MASTER_ADDR=127.0.0.1
 NUM_NODES=1
 NODE_RANK=0
@@ -18,7 +18,7 @@ python3 -m oneflow.distributed.launch \
     --loss_print_every_n_iter 100 \
     --eval_interval 0 \
     --dropout_rate 0.5 \
-    --max_iter 310 \
+    --max_iter 1100 \
     --hidden_units_num 7 \
     --hidden_size 1024 \
     --vocab_size $EMBD_SIZE \

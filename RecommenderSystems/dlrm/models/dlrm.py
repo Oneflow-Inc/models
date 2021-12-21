@@ -38,23 +38,20 @@ class Embedding(nn.Embedding):
 class ConsistentDLRM(nn.Module):
     def __init__(
         self,
-        wide_vocab_size: int,
-        deep_vocab_size: int,
-        deep_embedding_vec_size: int = 16,
-        num_deep_sparse_fields: int = 26,
+        vocab_size: int,
+        embedding_vec_size: int = 16,
+        num_sparse_fields: int = 26,
         num_dense_fields: int = 13,
         hidden_size: int = 1024,
         hidden_units_num: int = 7,
-        deep_dropout_rate: float = 0.5,
+        dropout_rate: float = 0.5,
     ):
         super(ConsistentDLRM, self).__init__()
 
-        self.wide_embedding = Embedding(wide_vocab_size // flow.env.get_world_size(), 1)
-        self.wide_embedding.to_consistent(flow.env.all_device_placement("cuda"), flow.sbp.split(0))
-        self.deep_embedding = Embedding(deep_vocab_size, deep_embedding_vec_size // flow.env.get_world_size())
-        self.deep_embedding.to_consistent(flow.env.all_device_placement("cuda"), flow.sbp.split(1))
-        deep_feature_size = (
-            deep_embedding_vec_size * num_deep_sparse_fields
+        self.embedding = Embedding(vocab_size, embedding_vec_size // flow.env.get_world_size())
+        self.embedding.to_consistent(flow.env.all_device_placement("cuda"), flow.sbp.split(1))
+        feature_size = (
+            embedding_vec_size * num_sparse_fields
             + num_dense_fields
         )
         self.linear_layers = nn.Sequential(
@@ -63,9 +60,9 @@ class ConsistentDLRM(nn.Module):
                     (
                         f"fc{i}",
                         Dense(
-                            deep_feature_size if i == 0 else hidden_size,
+                            feature_size if i == 0 else hidden_size,
                             hidden_size,
-                            deep_dropout_rate,
+                            dropout_rate,
                         ),
                     )
                     for i in range(hidden_units_num)
@@ -73,27 +70,20 @@ class ConsistentDLRM(nn.Module):
             )
         )
         self.linear_layers.to_consistent(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
-        self.deep_scores = nn.Linear(hidden_size, 1)
-        self.deep_scores.to_consistent(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
+        self.scores = nn.Linear(hidden_size, 1)
+        self.scores.to_consistent(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
         self.sigmoid = nn.Sigmoid()
         self.sigmoid.to_consistent(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
 
-    def forward(
-        self, dense_fields, wide_sparse_fields, deep_sparse_fields
-    ) -> flow.Tensor:
-        wide_sparse_fields = wide_sparse_fields.to_consistent(sbp=flow.sbp.broadcast)
-        wide_embedding = self.wide_embedding(wide_sparse_fields)
-        wide_embedding = wide_embedding.view(-1, wide_embedding.shape[-1] * wide_embedding.shape[-2])
-        wide_scores = flow.sum(wide_embedding, dim=1, keepdim=True)
-        wide_scores = wide_scores.to_consistent(sbp=flow.sbp.split(0), grad_sbp=flow.sbp.broadcast)
-        deep_sparse_fields = deep_sparse_fields.to_consistent(sbp=flow.sbp.broadcast)
-        deep_embedding = self.deep_embedding(deep_sparse_fields)
-        deep_embedding = deep_embedding.to_consistent(sbp=flow.sbp.split(0), grad_sbp=flow.sbp.split(2))
-        deep_embedding = deep_embedding.view(-1, deep_embedding.shape[-1] * deep_embedding.shape[-2])
-        deep_features = flow.cat([deep_embedding, dense_fields], dim=1)
-        deep_features = self.linear_layers(deep_features)
-        deep_scores = self.deep_scores(deep_features)
-        return self.sigmoid(wide_scores + deep_scores)
+    def forward(self, dense_fields, sparse_fields) -> flow.Tensor:
+        sparse_fields = sparse_fields.to_consistent(sbp=flow.sbp.broadcast)
+        embedding = self.embedding(sparse_fields)
+        embedding = embedding.to_consistent(sbp=flow.sbp.split(0), grad_sbp=flow.sbp.split(2))
+        embedding = embedding.view(-1, embedding.shape[-1] * embedding.shape[-2])
+        features = flow.cat([embedding, dense_fields], dim=1)
+        features = self.linear_layers(features)
+        scores = self.scores(features)
+        return self.sigmoid(scores)
 
 
 class LocalDLRM(nn.Module):

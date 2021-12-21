@@ -54,7 +54,7 @@ def get_args(print_args=True):
     parser.add_argument("--batch_size_per_proc", type=int, default=None)
     parser.add_argument("--learning_rate", type=float, default=1e-3)
     parser.add_argument("--vocab_size", type=int, default=1603616)
-    parser.add_argument("--embedding_vec_size", type=int, default=16)
+    parser.add_argument("--embedding_vec_size", type=int, default=128)
     parser.add_argument("--dropout_rate", type=float, default=0.5)
     parser.add_argument("--num_dense_fields", type=int, default=13)
     parser.add_argument("--max_iter", type=int, default=30000)
