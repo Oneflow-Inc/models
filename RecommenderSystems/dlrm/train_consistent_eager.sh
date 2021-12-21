@@ -16,7 +16,7 @@ python3 -m oneflow.distributed.launch \
     --batch_size $BATHSIZE \
     --data_dir $DATA_DIR \
     --loss_print_every_n_iter 100 \
-    --eval_interval 0 \
+    --eval_interval 100 \
     --dropout_rate 0.5 \
     --max_iter 1100 \
     --hidden_units_num 7 \

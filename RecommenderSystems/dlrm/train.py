@@ -46,16 +46,16 @@ class Trainer(object):
         self.init_logger()
         self.train_dataloader = make_data_loader(args, "train", self.is_consistent, self.dataset_format)
         self.val_dataloader = make_data_loader(args, "val", self.is_consistent, self.dataset_format)
-        self.wdl_module = make_dlrm_module(args, self.is_consistent)
+        self.dlrm_module = make_dlrm_module(args, self.is_consistent)
         self.init_model()
         self.opt = flow.optim.Adam(
-            self.wdl_module.parameters(), lr=args.learning_rate
+            self.dlrm_module.parameters(), lr=args.learning_rate
         )
 
         self.loss = flow.nn.BCELoss(reduction="none").to("cuda")
         if self.execution_mode == "graph":
             params, sparse_params = [], []
-            for name, param in self.wdl_module.named_parameters():
+            for name, param in self.dlrm_module.named_parameters():
                 sparse_params.append(param) if "embedding" in name else params.append(param)
 
             self.opt = flow.optim.Adam(params, lr=args.learning_rate)
@@ -63,10 +63,10 @@ class Trainer(object):
             sparse_opt = flow.optim.utils.SparseOptimizer(sparse_opt)
 
             self.eval_graph = DLRMValGraph(
-                self.wdl_module, self.val_dataloader
+                self.dlrm_module, self.val_dataloader
             )
             self.train_graph = DLRMTrainGraph(
-                self.wdl_module, self.train_dataloader, self.loss, self.opt, sparse_opt
+                self.dlrm_module, self.train_dataloader, self.loss, self.opt, sparse_opt
             )
 
     def init_model(self):
@@ -74,7 +74,7 @@ class Trainer(object):
         if args.model_load_dir != "":
             self.load_state_dict()
         if self.ddp:
-            self.wdl_module = DDP(self.wdl_module)
+            self.dlrm_module = DDP(self.dlrm_module)
         if self.save_init and args.model_save_dir != "":
             self.save(os.path.join(args.model_save_dir, "initial_checkpoint"))
 
@@ -125,7 +125,7 @@ class Trainer(object):
             state_dict = flow.load(self.args.model_load_dir)
         else:
             return
-        self.wdl_module.load_state_dict(state_dict)
+        self.dlrm_module.load_state_dict(state_dict)
 
     def save(self, subdir):
         if self.save_path is None or self.save_path == '':
@@ -133,7 +133,7 @@ class Trainer(object):
         save_path = os.path.join(self.save_path, subdir)
         if self.rank == 0:
             print(f"Saving model to {save_path}")
-        state_dict = self.wdl_module.state_dict()
+        state_dict = self.dlrm_module.state_dict()
         if self.is_consistent:
             flow.save(state_dict, save_path, consistent_dst_rank=0)
         elif self.rank == 0:
@@ -146,7 +146,7 @@ class Trainer(object):
 
     def train(self):
         losses = []
-        self.wdl_module.train()
+        self.dlrm_module.train()
         for _ in range(self.max_iter):
             self.cur_iter += 1
             loss = self.train_one_step()
@@ -163,7 +163,7 @@ class Trainer(object):
     def eval(self, save_model=False):
         if self.eval_batchs <= 0:
             return
-        self.wdl_module.eval()
+        self.dlrm_module.eval()
         labels = np.array([[0]])
         preds = np.array([[0]])
         for _ in range(self.eval_batchs):
@@ -179,7 +179,7 @@ class Trainer(object):
         if save_model:
             sub_save_dir = f"iter_{self.cur_iter}_val_auc_{auc}"
             self.save(sub_save_dir)
-        self.wdl_module.train()
+        self.dlrm_module.train()
 
     def inference(self):
         (
@@ -191,7 +191,7 @@ class Trainer(object):
         dense_fields = dense_fields.to("cuda")
         sparse_fields = sparse_fields.to("cuda")
         with flow.no_grad():
-            predicts = self.wdl_module(
+            predicts = self.dlrm_module(
                 dense_fields, sparse_fields
             )
         return predicts, labels
@@ -205,7 +205,7 @@ class Trainer(object):
         labels = labels.to("cuda").to(dtype=flow.float32)
         dense_fields = dense_fields.to("cuda")
         sparse_fields = sparse_fields.to("cuda")
-        predicts = self.wdl_module(
+        predicts = self.dlrm_module(
             dense_fields, sparse_fields
         )
         loss = self.loss(predicts, labels)
@@ -220,7 +220,7 @@ class Trainer(object):
         return loss
 
     def train_one_step(self):
-        self.wdl_module.train()
+        self.dlrm_module.train()
         if self.execution_mode == "graph":
             train_loss = self.train_graph()
         else:
