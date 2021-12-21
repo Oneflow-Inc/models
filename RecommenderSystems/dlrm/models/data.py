@@ -21,7 +21,6 @@ def make_data_loader(args, mode, is_consistent=False, data_format="ofrecord"):
         batch_size_per_proc = total_batch_size
     
     if data_format == "ofrecord":
-        assert 0, "not supported yet"
         ofrecord_data_loader = OFRecordDataLoader(
             data_dir=args.data_dir,
             data_part_num=args.data_part_num,
@@ -37,7 +36,6 @@ def make_data_loader(args, mode, is_consistent=False, data_format="ofrecord"):
         )
         return ofrecord_data_loader
     elif data_format == "onerec":
-        assert 0, "not supported yet"
         onerec_data_loader = OneRecDataLoader(
             data_dir=args.data_dir,
             num_dense_fields=args.num_dense_fields,
@@ -104,7 +102,7 @@ class OFRecordDataLoader(nn.Module):
             "dense_fields", (num_dense_fields,), flow.float
         )
         self.sparse_fields = _blob_decoder(
-            "sparse_fields", (num_sparse_fields,)
+            "deep_sparse_fields", (num_sparse_fields,)
         )
 
     def forward(self):
@@ -157,7 +155,7 @@ class OneRecDataLoader(nn.Module):
         )
         labels = self._blob_decoder(reader, "labels", (1,))
         dense_fields = self._blob_decoder(reader, "dense_fields", (self.num_dense_fields,), flow.float)
-        sparse_fields = self._blob_decoder(reader, "sparse_fields", (self.num_sparse_fields,))
+        sparse_fields = self._blob_decoder(reader, "deep_sparse_fields", (self.num_sparse_fields,))
         return labels, dense_fields, sparse_fields
 
 
