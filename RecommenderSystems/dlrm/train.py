@@ -11,7 +11,7 @@ from config import get_args
 from models.data import make_data_loader
 from models.dlrm import make_dlrm_module
 from oneflow.nn.parallel import DistributedDataParallel as DDP
-from graph import WideAndDeepValGraph, WideAndDeepTrainGraph
+from graph import DLRMValGraph, DLRMTrainGraph
 import warnings
 import utils.logger as log
 
@@ -62,10 +62,10 @@ class Trainer(object):
             sparse_opt = flow.optim.Adam(sparse_params, lr=args.learning_rate)
             sparse_opt = flow.optim.utils.SparseOptimizer(sparse_opt)
 
-            self.eval_graph = WideAndDeepValGraph(
+            self.eval_graph = DLRMValGraph(
                 self.wdl_module, self.val_dataloader
             )
-            self.train_graph = WideAndDeepTrainGraph(
+            self.train_graph = DLRMTrainGraph(
                 self.wdl_module, self.train_dataloader, self.loss, self.opt, sparse_opt
             )
 
@@ -185,16 +185,14 @@ class Trainer(object):
         (
             labels,
             dense_fields,
-            wide_sparse_fields,
-            deep_sparse_fields,
+            sparse_fields,
         ) = self.val_dataloader()
         labels = labels.to("cuda").to(dtype=flow.float32)
         dense_fields = dense_fields.to("cuda")
-        wide_sparse_fields = wide_sparse_fields.to("cuda")
-        deep_sparse_fields = deep_sparse_fields.to("cuda")
+        sparse_fields = sparse_fields.to("cuda")
         with flow.no_grad():
             predicts = self.wdl_module(
-                dense_fields, wide_sparse_fields, deep_sparse_fields
+                dense_fields, sparse_fields
             )
         return predicts, labels
 
@@ -202,15 +200,13 @@ class Trainer(object):
         (
             labels,
             dense_fields,
-            wide_sparse_fields,
-            deep_sparse_fields,
+            sparse_fields,
         ) = self.train_dataloader()
         labels = labels.to("cuda").to(dtype=flow.float32)
         dense_fields = dense_fields.to("cuda")
-        wide_sparse_fields = wide_sparse_fields.to("cuda")
-        deep_sparse_fields = deep_sparse_fields.to("cuda")
+        sparse_fields = sparse_fields.to("cuda")
         predicts = self.wdl_module(
-            dense_fields, wide_sparse_fields, deep_sparse_fields
+            dense_fields, sparse_fields
         )
         loss = self.loss(predicts, labels)
         reduce_loss = flow.mean(loss)
