@@ -22,13 +22,12 @@ class DLRMValGraph(flow.nn.Graph):
 
 
 class DLRMTrainGraph(flow.nn.Graph):
-    def __init__(self, wdl_module, dataloader, bce_loss, optimizer, sparse_opt):
+    def __init__(self, wdl_module, dataloader, bce_loss, optimizer):
         super(DLRMTrainGraph, self).__init__()
         self.module = wdl_module
         self.dataloader = dataloader
         self.bce_loss = bce_loss
         self.add_optimizer(optimizer)
-        self.add_optimizer(sparse_opt)
 
     def build(self):
         (

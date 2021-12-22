@@ -54,19 +54,11 @@ class Trainer(object):
 
         self.loss = flow.nn.BCELoss(reduction="none").to("cuda")
         if self.execution_mode == "graph":
-            params, sparse_params = [], []
-            for name, param in self.dlrm_module.named_parameters():
-                sparse_params.append(param) if "embedding" in name else params.append(param)
-
-            self.opt = flow.optim.Adam(params, lr=args.learning_rate)
-            sparse_opt = flow.optim.Adam(sparse_params, lr=args.learning_rate)
-            sparse_opt = flow.optim.utils.SparseOptimizer(sparse_opt)
-
             self.eval_graph = DLRMValGraph(
                 self.dlrm_module, self.val_dataloader
             )
             self.train_graph = DLRMTrainGraph(
-                self.dlrm_module, self.train_dataloader, self.loss, self.opt, sparse_opt
+                self.dlrm_module, self.train_dataloader, self.loss, self.opt
             )
 
     def init_model(self):
