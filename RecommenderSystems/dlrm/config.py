@@ -25,6 +25,10 @@ def get_args(print_args=True):
 
     parser.add_argument("--bottom_mlp", type=int_list, default="512,256,128")
     parser.add_argument("--top_mlp", type=int_list, default="1024,1024,512,256")
+    parser.add_argument("--interaction_type", type=str, default="cat", help="dot, cat")
+    parser.add_argument(
+        "--interaction_itself", action="store_true", help="interaction itself or not"
+    )
     parser.add_argument("--model_load_dir", type=str, default="")
     parser.add_argument("--model_save_dir", type=str, default="./checkpoint")
     parser.add_argument(
@@ -62,8 +66,6 @@ def get_args(print_args=True):
     parser.add_argument("--max_iter", type=int, default=30000)
     parser.add_argument("--loss_print_every_n_iter", type=int, default=100)
     parser.add_argument("--num_sparse_fields", type=int, default=26)
-    parser.add_argument("--hidden_units_num", type=int, default=7)
-    parser.add_argument("--hidden_size", type=int, default=1024)
     parser.add_argument(
         "--ddp", action="store_true", help="Run model in distributed data parallel mode"
     )
