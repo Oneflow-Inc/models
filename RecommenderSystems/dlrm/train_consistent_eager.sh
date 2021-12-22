@@ -1,4 +1,4 @@
-DEVICE_NUM_PER_NODE=2
+DEVICE_NUM_PER_NODE=1
 MASTER_ADDR=127.0.0.1
 NUM_NODES=1
 NODE_RANK=0
@@ -12,6 +12,7 @@ python3 -m oneflow.distributed.launch \
     --node_rank $NODE_RANK \
     --master_addr $MASTER_ADDR \
     train.py \
+    --interaction_type dot \
     --learning_rate 0.001 \
     --batch_size $BATHSIZE \
     --data_dir $DATA_DIR \
