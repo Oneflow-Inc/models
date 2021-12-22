@@ -197,9 +197,7 @@ class Trainer(object):
         labels = labels.to("cuda").to(dtype=flow.float32)
         dense_fields = dense_fields.to("cuda")
         sparse_fields = sparse_fields.to("cuda")
-        predicts = self.dlrm_module(
-            dense_fields, sparse_fields
-        )
+        predicts = self.dlrm_module(dense_fields, sparse_fields)
         loss = self.loss(predicts, labels)
         reduce_loss = flow.mean(loss)
         return reduce_loss
