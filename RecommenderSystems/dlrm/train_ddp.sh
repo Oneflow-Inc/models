@@ -15,12 +15,10 @@ python3 -m oneflow.distributed.launch \
     --learning_rate 0.001 \
     --batch_size $BATHSIZE \
     --data_dir $DATA_DIR \
-    --loss_print_every_n_iter 100 \
-    --eval_interval 0 \
+    --loss_print_every_n_iter 10 \
+    --eval_interval 10 \
     --dropout_rate 0.5 \
-    --max_iter 310 \
-    --hidden_units_num 7 \
-    --hidden_size 1024 \
+    --max_iter 110 \
     --vocab_size $EMBD_SIZE \
     --data_part_num 256 \
     --data_part_name_suffix_length 5 \
