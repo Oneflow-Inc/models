@@ -4,6 +4,8 @@ from oneflow.framework.tensor import _xor
 import oneflow.nn as nn
 from typing import Any
 
+import numpy as np
+
 
 __all__ = ["make_dlrm_module"]
 
@@ -45,18 +47,46 @@ class MLP(nn.Module):
 
 
 class Interaction(nn.Module):
-    def __init__(self, interaction_type='dot', interaction_itself=False):
+    def __init__(self, interaction_type='dot', interaction_itself=False, num_sparse_fields=26):
         super(Interaction, self).__init__()
         self.interaction_type = interaction_type
         self.interaction_itself = interaction_itself
+        self.num_sparse_fields = num_sparse_fields
 
+        # slice
+        offset = 1 if self.interaction_itself else 0
+        self.li = flow.tensor([i for i in range(27) for j in range(i + offset)])
+        self.lj = flow.tensor([j for i in range(27) for j in range(i + offset)])
+
+        # offset = 0 if self.interaction_itself else -1
+        # self.idx = np.tril_indices(num_sparse_fields + 1, k=offset)
+
+        # gather_nd not ready
         # offset = 1 if self.interaction_itself else 0
-        # self.li = flow.tensor([i for i in range(27) for j in range(i + offset)])
-        # self.lj = flow.tensor([j for i in range(27) for j in range(i + offset)])
+        # n = num_sparse_fields + 1
+        # self.idx = flow.tensor([[i for i in range(n) for j in range(i + offset)], [j for i in range(n) for j in range(i + offset)]])
 
     def forward(self, x:flow.Tensor, ly:flow.Tensor) -> flow.Tensor:
         # x - dense fields, ly = embedding
-        if self.interaction_type == 'dot':
+        if self.interaction_type == 'cat':
+            R = flow.cat([x, ly], dim=1)
+        elif self.interaction_type == 'dot': # slice
+            (batch_size, d) = x.shape
+            T = flow.cat([x, ly], dim=1).view((batch_size, -1, d))
+            # perform a dot product
+            Z = flow.bmm(T, flow.transpose(T, 1, 2))
+            Zflat = Z[:, self.li, self.lj]
+            # concatenate dense features and interactions
+            R = flow.cat([x, Zflat], dim=1)        
+        elif self.interaction_type == 'dot0': # gather_nd not ready
+            (batch_size, d) = x.shape
+            T = flow.cat([x, ly], dim=1).view((batch_size, -1, d))
+            # perform a dot product
+            Z = flow.bmm(T, flow.transpose(T, 1, 2))
+            Zflat = flow.gather_nd(Z, self.idx)
+            # concatenate dense features and interactions
+            R = flow.cat([x, Zflat], dim=1)
+        elif self.interaction_type == 'dot1': # ok for eager
             (batch_size, d) = x.shape
             T = flow.cat([x, ly], dim=1).view((batch_size, -1, d))
             # perform a dot product
@@ -66,25 +96,22 @@ class Interaction(nn.Module):
             li = flow.tensor([i for i in range(ni) for j in range(i + offset)])
             lj = flow.tensor([j for i in range(nj) for j in range(i + offset)])
             Zflat = Z[:, li, lj]
-            # Zflat = Z[:, self.li, self.lj]
             # concatenate dense features and interactions
-            R = flow.cat([x, Zflat], dim=1)
-        elif self.interaction_type == 'cat':
-            R = flow.cat([x, ly], dim=1)
+            R = flow.cat([x, Zflat], dim=1)        
         else:
             assert 0, 'dot or cat'
         return R
 
-    def output_feature_size(self, num_sparse_fields, embedding_vec_size, dense_feature_size):
+    def output_feature_size(self, embedding_vec_size, dense_feature_size):
         if self.interaction_type == 'dot':
             # assert 0, 'dot is not supported yet'
             assert embedding_vec_size == dense_feature_size, "Embedding vector size must equle to dense feature size"
-            n_cols = num_sparse_fields + 1
+            n_cols = self.num_sparse_fields + 1
             if self.interaction_itself:
                 n_cols += 1
             return dense_feature_size + sum(range(n_cols))
         elif self.interaction_type == 'cat':
-            return embedding_vec_size * num_sparse_fields + dense_feature_size
+            return embedding_vec_size * self.num_sparse_fields + dense_feature_size
         else:
             assert 0, 'dot or cat'
 
@@ -127,14 +154,14 @@ class ConsistentDLRM(nn.Module):
         self.bottom_mlp = MLP(num_dense_fields, bottom_mlp)
         self.bottom_mlp.to_consistent(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
 
-        self.embedding = Embedding(vocab_size, embedding_vec_size // flow.env.get_world_size())
+        self.embedding = Embedding(vocab_size // flow.env.get_world_size(), embedding_vec_size)
         self.embedding.to_consistent(flow.env.all_device_placement("cuda"), flow.sbp.split(0))
-        self.interaction = Interaction(interaction_type, interaction_itself)
+       
+        self.interaction = Interaction(interaction_type, interaction_itself, num_sparse_fields)
         self.interaction.to_consistent(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
-        # self.interaction.li.to_consistent(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
-        # self.interaction.lj.to_consistent(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
-        feature_size = self.interaction.output_feature_size(num_sparse_fields, embedding_vec_size,
-                                                            bottom_mlp[-1])
+        self.interaction.li.to_consistent(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
+        self.interaction.lj.to_consistent(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
+        feature_size = self.interaction.output_feature_size(embedding_vec_size, bottom_mlp[-1])
         self.top_mlp = MLP(feature_size, top_mlp)
         self.top_mlp.to_consistent(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
         self.scores = nn.Linear(top_mlp[-1], 1)
@@ -171,9 +198,8 @@ class LocalDLRM(nn.Module):
         super(LocalDLRM, self).__init__()
         self.bottom_mlp = MLP(num_dense_fields, bottom_mlp)
         self.embedding = Embedding(vocab_size, embedding_vec_size)
-        self.interaction = Interaction(interaction_type, interaction_itself)
-        feature_size = self.interaction.output_feature_size(num_sparse_fields, embedding_vec_size,
-                                                            bottom_mlp[-1])        
+        self.interaction = Interaction(interaction_type, interaction_itself, num_sparse_fields)
+        feature_size = self.interaction.output_feature_size(embedding_vec_size, bottom_mlp[-1])        
         self.top_mlp = MLP(feature_size, top_mlp)
         self.scores = nn.Linear(top_mlp[-1], 1)
         self.sigmoid = nn.Sigmoid()
