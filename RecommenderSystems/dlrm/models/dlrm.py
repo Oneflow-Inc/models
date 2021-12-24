@@ -110,14 +110,14 @@ class Interaction(nn.Module):
             assert 0, 'dot or cat'
 
 
-# class Embedding(nn.Embedding):
-#     def __init__(self, vocab_size, embed_size):
-#         super(Embedding, self).__init__(vocab_size, embed_size, padding_idx=0)
-#         for param in self.parameters():
-#             nn.init.uniform_(param, a=-0.05, b=0.05)
+class Embedding(nn.Embedding):
+    def __init__(self, vocab_size, embed_size):
+        super(Embedding, self).__init__(vocab_size, embed_size, padding_idx=0)
+        for param in self.parameters():
+            nn.init.uniform_(param, a=-0.05, b=0.05)
 
 
-class Embedding(nn.OneEmbeddingLookup):
+class OneEmbedding(nn.OneEmbeddingLookup):
     def __init__(self, vocab_size, embed_size):
         options = {
             "name": "my_embedding",
@@ -130,7 +130,13 @@ class Embedding(nn.OneEmbeddingLookup):
             "optimizer": "invalid",
             "backend": "invalid",
         }
-        super(Embedding, self).__init__(options)
+        super(OneEmbedding, self).__init__(options)
+
+
+embd_dict = {
+    'OneEmbedding': OneEmbedding,
+    'Embedding': Embedding,
+}
 
 class ConsistentDLRM(nn.Module):
     def __init__(
@@ -143,12 +149,13 @@ class ConsistentDLRM(nn.Module):
         top_mlp = [],
         interaction_type = 'dot',
         interaction_itself = False,
+        embedding_type = "OneEmbedding",
     ):
         super(ConsistentDLRM, self).__init__()
         self.bottom_mlp = MLP(num_dense_fields, bottom_mlp)
         self.bottom_mlp.to_consistent(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
 
-        self.embedding = Embedding(vocab_size // flow.env.get_world_size(), embedding_vec_size)
+        self.embedding = embd_dict[embedding_type](vocab_size // flow.env.get_world_size(), embedding_vec_size)
         self.embedding.to_consistent(flow.env.all_device_placement("cuda"), flow.sbp.split(0))
        
         self.interaction = Interaction(interaction_type, interaction_itself, num_sparse_fields)
@@ -164,6 +171,7 @@ class ConsistentDLRM(nn.Module):
 
     def forward(self, dense_fields, sparse_fields) -> flow.Tensor:
         dense_fields = dense_fields.to_consistent(sbp=flow.sbp.split(0))
+        dense_fields = flow.log(flow.cast(dense_fields, flow.float) + 1.0)
         dense_fields = self.bottom_mlp(dense_fields)
 
         sparse_fields = sparse_fields.to_consistent(sbp=flow.sbp.split(0))
@@ -199,6 +207,7 @@ class LocalDLRM(nn.Module):
 
 
     def forward(self, dense_fields, sparse_fields) -> flow.Tensor:
+        dense_fields = flow.log(flow.cast(dense_fields, flow.float) + 1.0)
         dense_fields = self.bottom_mlp(dense_fields)
         sparse_fields = flow.cast(sparse_fields, flow.int64)
         embedding = self.embedding(sparse_fields)
@@ -221,6 +230,7 @@ def make_dlrm_module(args, is_consistent):
             top_mlp=args.top_mlp,
             interaction_type = args.interaction_type,
             interaction_itself = args.interaction_itself,
+            embedding_type = args.embedding_type,
         )
     else:
         model = LocalDLRM(
@@ -232,6 +242,7 @@ def make_dlrm_module(args, is_consistent):
             top_mlp=args.top_mlp,
             interaction_type = args.interaction_type,
             interaction_itself = args.interaction_itself,
+            embedding_type = args.embedding_type,
         )
         model = model.to("cuda")
     return model

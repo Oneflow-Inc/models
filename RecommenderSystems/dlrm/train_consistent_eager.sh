@@ -4,8 +4,8 @@ MASTER_ADDR=127.0.0.1
 NUM_NODES=1
 NODE_RANK=0
 DATA_DIR=/dataset/wdl_ofrecord/ofrecord
-EMBD_SIZE=2322444
-BATHSIZE=2048
+EMBD_SIZE=3762578 # 33762578
+BATHSIZE=32
 
 python3 -m oneflow.distributed.launch \
     --nproc_per_node $DEVICE_NUM_PER_NODE \
@@ -14,6 +14,7 @@ python3 -m oneflow.distributed.launch \
     --master_addr $MASTER_ADDR \
     train.py \
     --interaction_type dot \
+    --embedding_type Embedding \
     --learning_rate 0.001 \
     --batch_size $BATHSIZE \
     --data_dir $DATA_DIR \
