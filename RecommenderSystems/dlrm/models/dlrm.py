@@ -55,17 +55,8 @@ class Interaction(nn.Module):
 
         # slice
         offset = 1 if self.interaction_itself else 0
-        self.li = flow.tensor([i for i in range(27) for j in range(i + offset)])
-        self.lj = flow.tensor([j for i in range(27) for j in range(i + offset)])
-
-        # offset = 0 if self.interaction_itself else -1
-        # self.idx = np.tril_indices(num_sparse_fields + 1, k=offset)
-
-        # gather_nd not ready
-        # offset = 1 if self.interaction_itself else 0
-        # n = num_sparse_fields + 1
-        # self.idx = flow.tensor([[i for i in range(n) for j in range(i + offset)], [j for i in range(n) for j in range(i + offset)]])
-
+        self.indices = flow.tensor([i * 27 + j for i in range(27) for j in range(i + offset)])
+        
     def forward(self, x:flow.Tensor, ly:flow.Tensor) -> flow.Tensor:
         # x - dense fields, ly = embedding
         if self.interaction_type == 'cat':
@@ -75,17 +66,9 @@ class Interaction(nn.Module):
             T = flow.cat([x, ly], dim=1).view((batch_size, -1, d))
             # perform a dot product
             Z = flow.bmm(T, flow.transpose(T, 1, 2))
-            Zflat = Z[:, self.li, self.lj]
-            # concatenate dense features and interactions
-            R = flow.cat([x, Zflat], dim=1)        
-        elif self.interaction_type == 'dot0': # gather_nd not ready
-            (batch_size, d) = x.shape
-            T = flow.cat([x, ly], dim=1).view((batch_size, -1, d))
-            # perform a dot product
-            Z = flow.bmm(T, flow.transpose(T, 1, 2))
-            Zflat = flow.gather_nd(Z, self.idx)
-            # concatenate dense features and interactions
-            R = flow.cat([x, Zflat], dim=1)
+            Zflat = Z.flatten(1).transpose(1, 0)[self.indices]
+            # Zflat = Zflat[self.indices]
+            R = flow.cat([x, Zflat.transpose(1, 0)], dim=1)        
         elif self.interaction_type == 'dot1': # ok for eager
             (batch_size, d) = x.shape
             T = flow.cat([x, ly], dim=1).view((batch_size, -1, d))
@@ -116,27 +99,27 @@ class Interaction(nn.Module):
             assert 0, 'dot or cat'
 
 
-class Embedding(nn.Embedding):
-    def __init__(self, vocab_size, embed_size):
-        super(Embedding, self).__init__(vocab_size, embed_size, padding_idx=0)
-        for param in self.parameters():
-            nn.init.uniform_(param, a=-0.05, b=0.05)
-
-
-# class Embedding(nn.OneEmbeddingLookup):
+# class Embedding(nn.Embedding):
 #     def __init__(self, vocab_size, embed_size):
-#         options = {
-#             "name": "my_embedding",
-#             # Can't change the embedding_size 128 because the kv store value_length has been set to 128
-#             "embedding_size": 128,
-#             "dtype": flow.float,
-#             "encoder": "invalid",
-#             "partitioning": "invalid",
-#             "initializer": "invalid",
-#             "optimizer": "invalid",
-#             "backend": "invalid",
-#         }
-#         super(Embedding, self).__init__(options)
+#         super(Embedding, self).__init__(vocab_size, embed_size, padding_idx=0)
+#         for param in self.parameters():
+#             nn.init.uniform_(param, a=-0.05, b=0.05)
+
+
+class Embedding(nn.OneEmbeddingLookup):
+    def __init__(self, vocab_size, embed_size):
+        options = {
+            "name": "my_embedding",
+            # Can't change the embedding_size 128 because the kv store value_length has been set to 128
+            "embedding_size": 128,
+            "dtype": flow.float,
+            "encoder": "invalid",
+            "partitioning": "invalid",
+            "initializer": "invalid",
+            "optimizer": "invalid",
+            "backend": "invalid",
+        }
+        super(Embedding, self).__init__(options)
 
 class ConsistentDLRM(nn.Module):
     def __init__(
@@ -159,8 +142,7 @@ class ConsistentDLRM(nn.Module):
        
         self.interaction = Interaction(interaction_type, interaction_itself, num_sparse_fields)
         self.interaction.to_consistent(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
-        self.interaction.li.to_consistent(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
-        self.interaction.lj.to_consistent(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
+        self.interaction.indices = self.interaction.indices.to_consistent(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
         feature_size = self.interaction.output_feature_size(embedding_vec_size, bottom_mlp[-1])
         self.top_mlp = MLP(feature_size, top_mlp)
         self.top_mlp.to_consistent(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)

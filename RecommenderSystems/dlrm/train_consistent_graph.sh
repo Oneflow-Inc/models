@@ -1,3 +1,4 @@
+rm core.*
 DEVICE_NUM_PER_NODE=1
 MASTER_ADDR=127.0.0.1
 NUM_NODES=1
@@ -17,7 +18,7 @@ python3 -m oneflow.distributed.launch \
     --batch_size $BATHSIZE \
     --data_dir $DATA_DIR \
     --loss_print_every_n_iter 10 \
-    --eval_interval 10 \
+    --eval_interval 10000 \
     --dropout_rate 0.5 \
     --max_iter 110 \
     --vocab_size $EMBD_SIZE \
