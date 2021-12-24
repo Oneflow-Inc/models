@@ -99,7 +99,7 @@ class OFRecordDataLoader(nn.Module):
 
         self.labels = _blob_decoder("labels", (1,))
         self.dense_fields = _blob_decoder(
-            "dense_fields", (num_dense_fields,), flow.float
+            "dense_fields", (num_dense_fields,), flow.int32
         )
         self.sparse_fields = _blob_decoder(
             "deep_sparse_fields", (num_sparse_fields,)
