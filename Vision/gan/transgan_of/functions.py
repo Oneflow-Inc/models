@@ -8,6 +8,8 @@ import logging
 import operator
 import os
 from copy import deepcopy
+import re
+from typing import Union
 
 import numpy as np
 import oneflow as flow
@@ -44,12 +46,20 @@ def compute_gradient_penalty(D, real_samples, fake_samples, phi):
     gradients = flow.autograd.grad(
         outputs=d_interpolates,
         inputs=interpolates,
+        out_grads=fake,
         create_graph=True,
         retain_graph=True,
     )[0]
     gradients = gradients.reshape(gradients.size(0), -1)
     gradient_penalty = ((gradients.norm(2, dim=1) - phi) ** 2).mean()
     return gradient_penalty
+
+def compute_gradient_penalty2(D, real_samlples, fake_samples, phi):
+    #https://www.zhihu.com/question/52602529/answer/158727900
+    a = D(real_samlples)-D(fake_samples)
+    b = (real_samlples - fake_samples).square().mean(1).mean(1).mean(1).reshape(-1, 1)
+    c = a/b
+    return (c-1).mean()
 
 
 def train(args, gen_net: nn.Module, dis_net: nn.Module, gen_optimizer, dis_optimizer, gen_avg_param, train_loader,
@@ -117,10 +127,11 @@ def train(args, gen_net: nn.Module, dis_net: nn.Module, gen_optimizer, dis_optim
             d_loss = -flow.mean(real_validity) + flow.mean(fake_validity) + gradient_penalty * 10 / (
                     args.phi ** 2)
         elif args.loss == 'wgangp-eps':
-            gradient_penalty = compute_gradient_penalty(dis_net, real_imgs, fake_imgs.detach(), args.phi)
+            # gradient_penalty = compute_gradient_penalty(dis_net, real_imgs, fake_imgs.detach(), args.phi)
+            gradient_penalty = compute_gradient_penalty2(dis_net, real_imgs, fake_imgs.detach(), args.phi)
             d_loss = -flow.mean(real_validity) + flow.mean(fake_validity) + gradient_penalty * 10 / (
                     args.phi ** 2)
-            d_loss += (flow.mean(real_validity) ** 2) * 1e-3
+            d_loss += (flow.mean(real_validity).square()) * 1e-3
         else:
             raise NotImplementedError(args.loss)
         d_loss = d_loss / float(args.accumulated_times)

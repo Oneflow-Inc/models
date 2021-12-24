@@ -6,11 +6,12 @@ import cfg
 import model_search
 import datasets
 from functions import train, validate, save_samples, LinearLrDecay, load_params, copy_params, cur_stages
+from util.util import set_log_dir, create_logger
 import oneflow as flow
 import os
 import numpy as np
 import oneflow.nn as nn
-# from tensorboardX import SummaryWriter
+from tensorboardX import SummaryWriter
 from tqdm import tqdm
 from copy import deepcopy
 import random
@@ -136,10 +137,9 @@ def main_worker(gpu, ngpus_per_node, args):
         # create new log dir
         assert args.exp_name
         if args.rank == 0:
-            # args.path_helper = set_log_dir('logs', args.exp_name)
-            # logger = create_logger(args.path_helper['log_path'])
-            # writer = SummaryWriter(args.path_helper['log_path'])
-            pass
+            args.path_helper = set_log_dir('logs', args.exp_name)
+            logger = create_logger(args.path_helper['log_path'])
+            writer = SummaryWriter(args.path_helper['log_path'])
 
     # if args.rank == 0:
     #     logger.info(args)
