@@ -73,6 +73,9 @@ def get_args(print_args=True):
         "--execution_mode", type=str, default="eager", help="graph or eager"
     )
     parser.add_argument(
+        "--embedding_type", type=str, default="OneEmbedding", help="OneEmbedding or Embedding"
+    )
+    parser.add_argument(
         "--test_name", type=str, default="noname_test"
     )
 
