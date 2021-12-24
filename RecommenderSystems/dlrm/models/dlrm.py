@@ -55,9 +55,12 @@ class Interaction(nn.Module):
 
         # slice
         offset = 1 if self.interaction_itself else 0
-        # self.indices = flow.tensor([i * 27 + j for i in range(27) for j in range(i + offset)])
-        self.li = flow.tensor([i for i in range(27) for j in range(i + offset)])
-        self.lj = flow.tensor([j for i in range(27) for j in range(i + offset)])
+        # indices = flow.tensor([i * 27 + j for i in range(27) for j in range(i + offset)])
+        # self.register_buffer("indices", indices)
+        li = flow.tensor([i for i in range(27) for j in range(i + offset)])
+        lj = flow.tensor([j for i in range(27) for j in range(i + offset)])
+        self.register_buffer("li", li)
+        self.register_buffer("lj", lj)
         
     def forward(self, x:flow.Tensor, ly:flow.Tensor) -> flow.Tensor:
         # x - dense fields, ly = embedding
@@ -150,9 +153,7 @@ class ConsistentDLRM(nn.Module):
        
         self.interaction = Interaction(interaction_type, interaction_itself, num_sparse_fields)
         self.interaction.to_consistent(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
-        # self.interaction.indices = self.interaction.indices.to_consistent(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
-        self.interaction.li = self.interaction.li.to_consistent(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
-        self.interaction.lj = self.interaction.lj.to_consistent(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
+
         feature_size = self.interaction.output_feature_size(embedding_vec_size, bottom_mlp[-1])
         self.top_mlp = MLP(feature_size, top_mlp)
         self.top_mlp.to_consistent(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
