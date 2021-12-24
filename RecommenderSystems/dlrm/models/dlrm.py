@@ -66,8 +66,14 @@ class Interaction(nn.Module):
             T = flow.cat([x, ly], dim=1).view((batch_size, -1, d))
             # perform a dot product
             Z = flow.bmm(T, flow.transpose(T, 1, 2))
+            Zflat = Z.flatten(1)[:, self.indices]
+            R = flow.cat([x, Zflat], dim=1)
+        elif self.interaction_type == 'dot0': # OK for train only
+            (batch_size, d) = x.shape
+            T = flow.cat([x, ly], dim=1).view((batch_size, -1, d))
+            # perform a dot product
+            Z = flow.bmm(T, flow.transpose(T, 1, 2))
             Zflat = Z.flatten(1).transpose(1, 0)[self.indices]
-            # Zflat = Zflat[self.indices]
             R = flow.cat([x, Zflat.transpose(1, 0)], dim=1)        
         elif self.interaction_type == 'dot1': # ok for eager
             (batch_size, d) = x.shape
