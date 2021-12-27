@@ -200,7 +200,7 @@ class ResNet(nn.Module):
         else:
             channel_size = 3
         if self.channel_last:
-            os.environ["ONEFLOW_ENABLE_HNWC"] = '1'
+            os.environ["ONEFLOW_ENABLE_NHWC"] = '1'
         self.conv1 = nn.Conv2d(
             channel_size, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False)
         print(">>>>>> ", self.conv1.__repr__())
@@ -299,6 +299,8 @@ class ResNet(nn.Module):
 
     def _forward_impl(self, x: Tensor) -> Tensor:
         print("image shape ", x.shape)
+        print(f"pad {self.pad_input}")
+        print(f"cha {self.channel_last}")
         if self.pad_input:
             if self.channel_last:
                 # NHWC
@@ -306,8 +308,10 @@ class ResNet(nn.Module):
             else:
                 # NCHW
                 paddings = (0, 0, 0, 0, 0, 1)
+            print(f"padding {paddings}")
+            print("image shape ", x.shape)
             x = flow._C.pad(x, pad=paddings, mode="constant", value=0)
-        print("x shape after padding ", x.shape)
+            print("x shape after padding ", x.shape)
         x = self.conv1(x)
         print("x shape after conv1 ", x.shape)
         if self.fuse_bn_relu:

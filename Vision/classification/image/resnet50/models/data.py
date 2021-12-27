@@ -93,7 +93,7 @@ class OFRecordDataLoader(flow.nn.Module):
         )
 
         if channel_last:
-            os.environ["ONEFLOW_ENABLE_HNWC"] = '1'
+            os.environ["ONEFLOW_ENABLE_NHWC"] = '1'
         color_space = "RGB"
         image_height = 224
         image_width = 224
