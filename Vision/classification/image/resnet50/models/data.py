@@ -92,7 +92,8 @@ class OFRecordDataLoader(flow.nn.Module):
             "class/label", shape=tuple(), dtype=flow.int32
         )
 
-        output_layout = "NHWC" if channel_last else "NCHW"
+        if channel_last:
+            os.environ["ONEFLOW_ENABLE_HNWC"] = '1'
         color_space = "RGB"
         image_height = 224
         image_width = 224
@@ -119,7 +120,6 @@ class OFRecordDataLoader(flow.nn.Module):
             )
             self.crop_mirror_norm = flow.nn.CropMirrorNormalize(
                 color_space=color_space,
-                output_layout=output_layout,
                 mean=rgb_mean,
                 std=rgb_std,
                 output_dtype=flow.float,
@@ -135,7 +135,6 @@ class OFRecordDataLoader(flow.nn.Module):
             )
             self.crop_mirror_norm = flow.nn.CropMirrorNormalize(
                 color_space=color_space,
-                output_layout=output_layout,
                 crop_h=image_height,
                 crop_w=image_width,
                 crop_pos_y=0.5,

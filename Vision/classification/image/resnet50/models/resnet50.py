@@ -1,3 +1,5 @@
+import os
+
 import oneflow as flow
 import oneflow.nn as nn
 from oneflow import Tensor
@@ -5,8 +7,7 @@ from typing import Type, Any, Callable, Union, List, Optional
 
 
 def conv3x3(
-    in_planes: int, out_planes: int, stride: int = 1, groups: int = 1, dilation: int = 1, data_format: str = "NCHW"
-) -> nn.Conv2d:
+    in_planes: int, out_planes: int, stride: int = 1, groups: int = 1, dilation: int = 1) -> nn.Conv2d:
     """3x3 convolution with padding"""
     return nn.Conv2d(
         in_planes,
@@ -17,13 +18,12 @@ def conv3x3(
         groups=groups,
         bias=False,
         dilation=dilation,
-        data_format=data_format,
     )
 
 
-def conv1x1(in_planes: int, out_planes: int, stride: int = 1, data_format: str = "NCHW") -> nn.Conv2d:
+def conv1x1(in_planes: int, out_planes: int, stride: int = 1) -> nn.Conv2d:
     """1x1 convolution"""
-    return nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride, bias=False, data_format=data_format)
+    return nn.Conv2d(in_planes, out_planes, kernel_size=1, stride=stride, bias=False)
 
 
 class BasicBlock(nn.Module):
@@ -90,7 +90,6 @@ class Bottleneck(nn.Module):
         norm_layer: Optional[Callable[..., nn.Module]] = None,
         fuse_bn_relu=False,
         fuse_bn_add_relu=False,
-        data_format="NCHW",
     ) -> None:
         super(Bottleneck, self).__init__()
         self.fuse_bn_relu = fuse_bn_relu
@@ -99,23 +98,23 @@ class Bottleneck(nn.Module):
             norm_layer = nn.BatchNorm2d
         width = int(planes * (base_width / 64.0)) * groups
         # Both self.conv2 and self.downsample layers downsample the input when stride != 1
-        self.conv1 = conv1x1(inplanes, width, data_format=data_format)
+        self.conv1 = conv1x1(inplanes, width)
 
         if self.fuse_bn_relu:
-            self.bn1 = nn.FusedBatchNorm2d(width, data_format=data_format)
-            self.bn2 = nn.FusedBatchNorm2d(width, data_format=data_format)
+            self.bn1 = nn.FusedBatchNorm2d(width)
+            self.bn2 = nn.FusedBatchNorm2d(width)
         else:
-            self.bn1 = norm_layer(width, data_format=data_format)
-            self.bn2 = norm_layer(width, data_format=data_format)
+            self.bn1 = norm_layer(width)
+            self.bn2 = norm_layer(width)
             self.relu = nn.ReLU()
 
-        self.conv2 = conv3x3(width, width, stride, groups, dilation, data_format=data_format)
-        self.conv3 = conv1x1(width, planes * self.expansion, data_format=data_format)
+        self.conv2 = conv3x3(width, width, stride, groups, dilation)
+        self.conv3 = conv1x1(width, planes * self.expansion)
 
         if self.fuse_bn_add_relu:
-            self.bn3 = nn.FusedBatchNorm2d(planes * self.expansion, data_format=data_format)
+            self.bn3 = nn.FusedBatchNorm2d(planes * self.expansion)
         else:
-            self.bn3 = norm_layer(planes * self.expansion, data_format=data_format)
+            self.bn3 = norm_layer(planes * self.expansion)
             self.relu = nn.ReLU()
 
         self.downsample = downsample
@@ -201,26 +200,20 @@ class ResNet(nn.Module):
         else:
             channel_size = 3
         if self.channel_last:
-            self.data_format = "NHWC"
-        else:
-            self.data_format = "NCHW"
+            os.environ["ONEFLOW_ENABLE_HNWC"] = '1'
         self.conv1 = nn.Conv2d(
-            channel_size, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False, data_format=self.data_format
-        )
+            channel_size, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False)
         print(">>>>>> ", self.conv1.__repr__())
         print(">>>>>> ", self.conv1.weight._meta_repr())
 
         if self.fuse_bn_relu:
-            self.bn1 = nn.FusedBatchNorm2d(self.inplanes, data_format=self.data_format)
+            self.bn1 = nn.FusedBatchNorm2d(self.inplanes)
         else:
-            self.bn1 = self._norm_layer(self.inplanes, data_format=self.data_format)
+            self.bn1 = self._norm_layer(self.inplanes)
             self.relu = nn.ReLU()
         print(">>>>>> ", self.bn1.__repr__())
         print(">>>>>> ", self.bn1.running_mean._meta_repr())
-        if self.channel_last:
-            self.maxpool = nn.LegacyMaxPool2d(kernel_size=3, stride=2, padding=1, data_format=self.data_format)
-        else:
-            self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
         self.layer1 = self._make_layer(block, 64, layers[0])
         self.layer2 = self._make_layer(
             block, 128, layers[1], stride=2, dilate=replace_stride_with_dilation[0]
@@ -231,16 +224,13 @@ class ResNet(nn.Module):
         self.layer4 = self._make_layer(
             block, 512, layers[3], stride=2, dilate=replace_stride_with_dilation[2]
         )
-        if self.channel_last:
-           self.avgpool = nn.LegacyAvgPool2d((7, 7), stride=(1, 1), data_format=self.data_format)
-        else:
-           self.avgpool = nn.AvgPool2d((7, 7), stride=(1, 1))
+        self.avgpool = nn.AvgPool2d((7, 7), stride=(1, 1))
 
         self.fc = nn.Linear(512 * block.expansion, num_classes)
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
-                nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu", data_format=self.data_format)
+                nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
             elif isinstance(m, nn.BatchNorm2d):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
@@ -271,8 +261,8 @@ class ResNet(nn.Module):
             stride = 1
         if stride != 1 or self.inplanes != planes * block.expansion:
             downsample = nn.Sequential(
-                conv1x1(self.inplanes, planes * block.expansion, stride, data_format=self.data_format),
-                norm_layer(planes * block.expansion, data_format=self.data_format),
+                conv1x1(self.inplanes, planes * block.expansion, stride),
+                norm_layer(planes * block.expansion),
             )
 
         layers = []
@@ -288,7 +278,6 @@ class ResNet(nn.Module):
                 norm_layer,
                 fuse_bn_relu=self.fuse_bn_relu,
                 fuse_bn_add_relu=self.fuse_bn_add_relu,
-                data_format=self.data_format,
             )
         )
         self.inplanes = planes * block.expansion
@@ -303,7 +292,6 @@ class ResNet(nn.Module):
                     norm_layer=norm_layer,
                     fuse_bn_relu=self.fuse_bn_relu,
                     fuse_bn_add_relu=self.fuse_bn_add_relu,
-                    data_format=self.data_format,
                 )
             )
 
