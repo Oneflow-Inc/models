@@ -1,0 +1,1 @@
+python3 inference.py -a sr_24000_mel_norm/attr.pkl -c config.yaml -m vctk_model/iteration500000.pth.tar -s VCTK-Corpus/wav48/p237/p237_008.wav -t VCTK-Corpus/wav48/p292/p292_028.wav -o oneflow_avc/wav_vc_237.wav
