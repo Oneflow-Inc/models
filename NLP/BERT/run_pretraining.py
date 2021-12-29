@@ -323,20 +323,11 @@ def main():
 
     def get_masked_lm_loss(
         logit,
-        masked_lm_positions,
         masked_lm_labels,
         label_weights,
         max_predictions_per_seq,
     ):
 
-        # gather valid position indices
-        logit = flow.gather(
-            logit,
-            index=masked_lm_positions.unsqueeze(2).expand(-1, -1, args.vocab_size),
-            dim=1,
-        )
-
-        logit = flow.reshape(logit, [-1, args.vocab_size])
         label_id = flow.reshape(masked_lm_labels, [-1])
 
         # The `positions` tensor might be zero-padded (if the sequence is too
@@ -395,7 +386,7 @@ def main():
 
             # 1. forward the next_sentence_prediction and masked_lm model
             prediction_scores, seq_relationship_scores = self.bert(
-                input_ids, segment_ids, input_mask
+                input_ids, segment_ids, input_mask, masked_lm_positions
             )
 
             # 2-1. loss of is_next classification result
@@ -404,7 +395,7 @@ def main():
             )
 
             masked_lm_loss = self.masked_lm_criterion(
-                prediction_scores, masked_lm_positions, masked_lm_ids, masked_lm_weights
+                prediction_scores, masked_lm_ids, masked_lm_weights
             )
 
             total_loss = masked_lm_loss + next_sentence_loss
