@@ -24,16 +24,16 @@ def _parse_args():
         "--load_checkpoint", type=str, default="", help="load checkpoint"
     )
     parser.add_argument(
-        "--ofrecord_path", type=str, default="/data/imagenet/ofrecord/", help="dataset path"
+        "--ofrecord_path", type=str, default="./ofrecord/", help="dataset path"
     )
     # training hyper-parameters
     parser.add_argument(
         "--learning_rate", type=float, default=0.001, help="learning rate"
     )
     parser.add_argument("--mom", type=float, default=0.9, help="momentum")
-    parser.add_argument("--epochs", type=int, default=100, help="training epochs")
+    parser.add_argument("--epochs", type=int, default=10, help="training epochs")
     parser.add_argument(
-        "--train_batch_size", type=int, default=128, help="train batch size"
+        "--train_batch_size", type=int, default=16, help="train batch size"
     )
     parser.add_argument("--val_batch_size", type=int, default=32, help="val batch size")
     parser.add_argument(
@@ -52,7 +52,6 @@ def setup(args):
         mode="train",
         dataset_size=9469,
         batch_size=args.train_batch_size,
-        train_shuffle=False,
     )
 
     val_data_loader = OFRecordDataLoader(
@@ -61,11 +60,9 @@ def setup(args):
         dataset_size=3925,
         batch_size=args.val_batch_size,
     )
-    return train_data_loader, val_data_loader  
 
-def setup(args):
     criterion = flow.nn.CrossEntropyLoss()
-    
+
     # model setup
     eager_model = alexnet()
     graph_model = alexnet()
@@ -149,87 +146,29 @@ class Trainer(object):
         self.eager_val_total_time = 0.0
 
         self.args = args
-    
-    def graph_train(self, train_data_loader, val_data_loader, model, criterion, optimizer):
-        all_samples = len(val_data_loader) * self.args.val_batch_size
-        print_interval = self.args.print_interval
 
-        class ModelTrainGraph(flow.nn.Graph):
-            def __init__(self):
-                super().__init__()
-                self.graph_model = model
-                self.criterion = criterion
-                self.add_optimizer("sgd", optimizer)
-            
-            def build(self, image, label):
-                logits = self.graph_model(image)
-                loss = self.criterion(logits, label)
-                loss.backward()
-                return loss
-    
-        class ModelEvalGraph(flow.nn.Graph):
-            def __init__(self):
-                super().__init__()
-                self.graph_model = model
-            
-            def build(self, image):
-                with flow.no_grad():
-                    logits = self.graph_model(image)
-                    predictions = logits.softmax()
-                return predictions
-    
-        model_train_graph = ModelTrainGraph()
-        model_eval_graph = ModelEvalGraph()
-        # train
-        for epoch in range(self.args.epochs):
-            model.train()
-            start_training_time = time.time()
-            for b in range(len(train_data_loader)):
-                image, label = train_data_loader()
+    def compare_eager_graph(self, compare_dic):
 
-                # oneflow graph train
-                iter_start_time = time.time()
-                image = image.to("cuda")
-                label = label.to("cuda")
-                loss = model_train_graph(image, label)
-                iter_end_time = time.time()
-                if b % print_interval == 0:
-                    l = loss.numpy()
-                    iter_time = iter_end_time - iter_start_time
-                    print(
-                        "epoch {} train iter {} oneflow loss {}, train time : {}".format(
-                            epoch, b, l, iter_time
-                        )
-                    )
-                    self.graph_losses.append(l)
-                    self.graph_train_step_time_list.append(iter_time)
-
-            end_training_time = time.time()
-            self.graph_train_epoch_time_list.append(end_training_time - start_training_time)
-            print("epoch %d train done, start validation" % epoch)
-
-            # validate
-            model.eval()
-            correct = 0.0
-            eval_start_time = time.time()
-            for b in tqdm(range(len(val_data_loader))):
-                image, label = val_data_loader()
-                image = image.to("cuda")
-                predictions = model_eval_graph(image)
-                preds = predictions.numpy()
-                clsidxs = np.argmax(preds, axis=1)
+        train_data_loader = compare_dic["train_dataloader"]
+        val_data_loader = compare_dic["val_dataloader"]
+        eager_model, eager_optimizer, criterion = compare_dic["eager"]
+        graph_model, model_train_graph, model_eval_graph = compare_dic["graph"]
 
         all_samples = len(val_data_loader) * self.args.val_batch_size
         print_interval = self.args.print_interval
 
-        # train
+        print("start training")
         for epoch in range(self.args.epochs):
             # train
             eager_model.train()
             graph_model.train()
             start_training_time = time.time()
+            total_graph_iter_time, total_eager_iter_time = 0, 0
+
             for b in range(len(train_data_loader)):
                 image, label = train_data_loader()
+                image = image.to("cuda")
+                label = label.to("cuda")
 
                 # oneflow graph train
                 graph_iter_start_time = time.time()
@@ -259,8 +198,8 @@ class Trainer(object):
                 if b % print_interval == 0:
                     gl, el = graph_loss.numpy(), eager_loss.numpy()
                     print(
-                        "epoch {} train iter {} oneflow loss {}, train time : {}".format(
-                            epoch, b, l, iter_time
+                        "epoch {} train iter {} ; graph loss {} eager loss {};  graph train time: {}  eager train time {}".format(
+                            epoch, b, gl, el, graph_iter_time, eager_iter_time
                         )
                     )
                     self.graph_losses.append(gl)
@@ -278,22 +217,37 @@ class Trainer(object):
             print("epoch %d train done, start validation" % epoch)
 
             # validate
-            model.eval()
-            correct = 0.0
+            eager_model.eval()
+            graph_model.eval()
+            graph_correct, eager_correct = 0.0, 0.0
             eval_start_time = time.time()
+            total_graph_infer_time, total_eager_infer_time = 0, 0
             for b in tqdm(range(len(val_data_loader))):
                 image, label = val_data_loader()
                 image = image.to("cuda")
+
+                # graph val
+                graph_infer_time = time.time()
+                predictions = model_eval_graph(image)
+                graph_preds = predictions.numpy()
+                graph_clsidxs = np.argmax(graph_preds, axis=1)
+                total_graph_infer_time += time.time() - graph_infer_time
+
+                # eager val
+                eager_infer_time = time.time()
                 with flow.no_grad():
-                    logits = model(image)
+                    logits = eager_model(image)
                     predictions = logits.softmax()
-                preds = predictions.numpy()
-                clsidxs = np.argmax(preds, axis=1)
+                eager_preds = predictions.numpy()
+                eager_clsidxs = np.argmax(eager_preds, axis=1)
+                total_eager_infer_time += time.time() - eager_infer_time
 
                 label_nd = label.numpy()
                 for i in range(self.args.val_batch_size):
-                    if clsidxs[i] == label_nd[i]:
-                        correct += 1
+                    if graph_clsidxs[i] == label_nd[i]:
+                        graph_correct += 1
+                    if eager_clsidxs[i] == label_nd[i]:
+                        eager_correct += 1
             eval_end_time = time.time()
             self.graph_eval_epoch_time_list.append(
                 eval_end_time - eval_start_time - total_eager_infer_time
@@ -473,44 +427,6 @@ def calc_corr(a, b):
 
 def time_compare(a, b):
     return np.divide(a, b).mean()
-
-def save_report(trainer):
-    print("***** Save Report *****")
-    # folder setup
-    report_path = os.path.join(args.results)
-    os.makedirs(report_path, exist_ok=True)
-    
-    # calculate absolute loss difference
-    abs_loss_diff = abs(np.array(trainer.eager_losses) - np.array(trainer.graph_losses))
-
-    # calculate losses linear correlation
-    loss_corr = calc_corr(trainer.eager_losses, trainer.graph_losses)
-
-    # calculate accuracy linear correlation
-    acc_corr = calc_corr(trainer.eager_acc, trainer.graph_acc)
-
-    # training time compare
-    train_time_compare = time_compare(trainer.graph_train_epoch_time_list, trainer.eager_train_epoch_time_list)
-
-    # validate time compare
-    val_time_compare = time_compare(trainer.graph_eval_epoch_time_list, trainer.eager_eval_epoch_time_list)
-
-    # save report
-    save_path = os.path.join(report_path, 'check_report.txt')
-    writer = open(save_path, "w")
-    writer.write("Check Report\n")
-    writer.write("Model: Alexnet\n")
-    writer.write("Check Results Between Eager Model and Graph Model\n")
-    writer.write("=================================================\n")
-    writer.write("Loss Correlation: %.4f\n\n" % loss_corr)
-    writer.write("Max Loss Difference: %.4f\n" % abs_loss_diff.max())
-    writer.write("Min Loss Difference: %.4f\n" % abs_loss_diff.min())
-    writer.write("Loss Difference Range: (%.4f, %.4f)\n\n" % (abs_loss_diff.min(), abs_loss_diff.max()))
-    writer.write("Accuracy Correlation: %.4f\n\n" % acc_corr)
-    writer.write("Train Time Compare: %.4f (Eager) : %.4f (Graph)\n\n" % (1.0, train_time_compare))
-    writer.write("Val Time Compare: %.4f (Eager) : %.4f (Graph)" % (1.0, val_time_compare))
-    writer.close()
-    print("Report saved to: ", save_path)
 
 
 if __name__ == "__main__":
