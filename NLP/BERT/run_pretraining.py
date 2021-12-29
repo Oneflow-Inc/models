@@ -293,7 +293,7 @@ def main():
     mlm_criterion = nn.CrossEntropyLoss(reduction="none")
 
     if args.use_consistent:
-        placement = flow.placement("cuda", {0: range(flow.env.get_world_size())})
+        placement = flow.env.all_device_placement("cuda")
         bert_model = bert_model.to_consistent(
             placement=placement, sbp=flow.sbp.broadcast
         )
