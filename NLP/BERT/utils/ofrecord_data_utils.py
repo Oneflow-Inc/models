@@ -30,7 +30,7 @@ class OfRecordDataLoader(nn.Module):
                 self.placement = flow.env.all_device_placement("cuda")
                 self.sbp = flow.sbp.split(0)
 
-        self.ofrecord_reader = nn.OfrecordReader(
+        self.ofrecord_reader = nn.OFRecordReader(
             ofrecord_dir,
             batch_size=batch_size,
             data_part_num=data_part_num,
