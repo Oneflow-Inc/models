@@ -126,6 +126,7 @@ class Bottleneck(nn.Module):
             # Note self.downsample execute before  self.conv1 has better performance
             # when open allow_fuse_add_to_output optimizatioin in nn.Graph.
             # Reference: https://github.com/Oneflow-Inc/OneTeam/issues/840#issuecomment-994903466
+            # Reference: https://github.com/NVIDIA/cudnn-frontend/issues/21
             identity = self.downsample(x)
 
         out = self.conv1(x)
