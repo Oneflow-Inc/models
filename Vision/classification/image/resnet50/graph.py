@@ -39,6 +39,9 @@ class TrainGraph(flow.nn.Graph):
 
         self.config.allow_fuse_add_to_output(True)
         self.config.allow_fuse_model_update_ops(True)
+
+        # Disable cudnn_conv_heuristic_search_algo will open dry-run.
+        # Dry-run is better with single device, but has no effect with multiple device.
         self.config.enable_cudnn_conv_heuristic_search_algo(False)
         self.world_size = flow.env.get_world_size()
         if self.world_size / args.num_devices_per_node > 1:
