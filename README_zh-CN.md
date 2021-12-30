@@ -60,6 +60,7 @@ OneFlow-Models目录下提供了各种经典图形分类、目标检测、图像
 
 - [FODDet](https://github.com/Oneflow-Inc/models/tree/main/Vision/segmentation/FODDet)
 - [FaceSeg](https://github.com/Oneflow-Inc/models/tree/main/Vision/segmentation/FaceSeg)
+- [U-Net](https://github.com/Oneflow-Inc/models/tree/main/Vision/segmentation/U-Net)
 
 </details>
 
@@ -99,6 +100,7 @@ OneFlow-Models目录下提供了各种经典图形分类、目标检测、图像
 - [Transformer](https://github.com/Oneflow-Inc/models/tree/main/NLP/Transformer)
 - [Bert](https://github.com/Oneflow-Inc/models/tree/main/NLP/bert-oneflow)
 - [CPT](https://github.com/Oneflow-Inc/models/tree/main/NLP/CPT)
+- [MoE](https://github.com/Oneflow-Inc/models/tree/main/NLP/MoE)
 </details>
 
 <details>

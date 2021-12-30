@@ -127,7 +127,7 @@ class Bottleneck(nn.Module):
 
 
         out = self.conv1(x)
-        
+
         if self.fuse_bn_relu:
             out = self.bn1(out, None)
         else:
@@ -203,16 +203,12 @@ class ResNet(nn.Module):
             os.environ["ONEFLOW_ENABLE_NHWC"] = '1'
         self.conv1 = nn.Conv2d(
             channel_size, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False)
-        print(">>>>>> ", self.conv1.__repr__())
-        print(">>>>>> ", self.conv1.weight._meta_repr())
 
         if self.fuse_bn_relu:
             self.bn1 = nn.FusedBatchNorm2d(self.inplanes)
         else:
             self.bn1 = self._norm_layer(self.inplanes)
             self.relu = nn.ReLU()
-        print(">>>>>> ", self.bn1.__repr__())
-        print(">>>>>> ", self.bn1.running_mean._meta_repr())
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
         self.layer1 = self._make_layer(block, 64, layers[0])
         self.layer2 = self._make_layer(
@@ -298,9 +294,6 @@ class ResNet(nn.Module):
         return nn.Sequential(*layers)
 
     def _forward_impl(self, x: Tensor) -> Tensor:
-        print("image shape ", x.shape)
-        print(f"pad {self.pad_input}")
-        print(f"cha {self.channel_last}")
         if self.pad_input:
             if self.channel_last:
                 # NHWC
@@ -308,36 +301,23 @@ class ResNet(nn.Module):
             else:
                 # NCHW
                 paddings = (0, 0, 0, 0, 0, 1)
-            print(f"padding {paddings}")
-            print("image shape ", x.shape)
             x = flow._C.pad(x, pad=paddings, mode="constant", value=0)
-            print("x shape after padding ", x.shape)
         x = self.conv1(x)
-        print("x shape after conv1 ", x.shape)
         if self.fuse_bn_relu:
             x = self.bn1(x, None)
         else:
             x = self.bn1(x)
             x = self.relu(x)
-        print("x shape after bn1", x.shape)
         x = self.maxpool(x)
-        print("x shape after maxpool ", x.shape)
 
         x = self.layer1(x)
-        print("x shape after layer1 ", x.shape)
         x = self.layer2(x)
-        print("x shape after layer2 ", x.shape)
         x = self.layer3(x)
-        print("x shape after layer3 ", x.shape)
         x = self.layer4(x)
-        print("x shape after layer4 ", x.shape)
 
         x = self.avgpool(x)
-        print("x shape after avgpool ", x.shape)
         x = flow.flatten(x, 1)
-        print("x shape after flatten ", x.shape)
         x = self.fc(x)
-        print("x shape after fc ", x.shape)
 
         return x
 

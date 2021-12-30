@@ -29,7 +29,7 @@ def parse_args(ignore_unknown_args=False):
     parser.add_argument(
         "--save",
         type=str,
-        default="./checkpoints",
+        default=None,
         dest="save_path",
         help="root dir of saving checkpoint",
     )
