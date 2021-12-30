@@ -59,6 +59,7 @@ Please check our the following **demos** for a quick start
 
 - [FODDet](https://github.com/Oneflow-Inc/models/tree/main/Vision/segmentation/FODDet)
 - [FaceSeg](https://github.com/Oneflow-Inc/models/tree/main/Vision/segmentation/FaceSeg)
+- [U-Net](https://github.com/Oneflow-Inc/models/tree/main/Vision/segmentation/U-Net)
 
 </details>
 
@@ -99,6 +100,8 @@ Please check our the following **demos** for a quick start
 - [Bert](https://github.com/Oneflow-Inc/models/tree/main/NLP/bert-oneflow)
 - [CPT](https://github.com/Oneflow-Inc/models/tree/main/NLP/CPT)
 - [Roberta](https://github.com/Oneflow-Inc/models/tree/main/NLP/roberta)
+- [MoE](https://github.com/Oneflow-Inc/models/tree/main/NLP/MoE)
+
 </details>
 
 <details>
