@@ -46,10 +46,12 @@ class Trainer(object):
         if self.use_fp16 and self.num_nodes * self.num_devices_per_node > 1:
             flow.boxing.nccl.enable_use_buffer_to_fuse_all_reduce(False)
 
-        self.model = resnet50(zero_init_residual=self.zero_init_residual,
-                            fuse_bn_relu=self.fuse_bn_relu,
-                            fuse_bn_add_relu=self.fuse_bn_add_relu,
-                            channel_last=self.channel_last)
+        self.model = resnet50(
+            zero_init_residual=self.zero_init_residual,
+            fuse_bn_relu=self.fuse_bn_relu,
+            fuse_bn_add_relu=self.fuse_bn_add_relu,
+            channel_last=self.channel_last
+        )
         self.init_model()
         self.cross_entropy = make_cross_entropy(args)
 
@@ -73,9 +75,7 @@ class Trainer(object):
                 self.lr_scheduler,
                 return_pred_and_label=self.metric_train_acc,
             )
-            self.train_graph.debug()
             self.eval_graph = make_eval_graph(self.model, self.val_data_loader)
-            self.eval_graph.debug()
 
         if self.gpu_stat_file is not None:
             self.gpu_stat = CudaUtilMemStat(
