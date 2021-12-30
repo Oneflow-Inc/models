@@ -3,9 +3,9 @@ import oneflow as flow
 from oneflow.framework.tensor import _xor
 import oneflow.nn as nn
 from typing import Any
-
+from lr_scheduler import PolynomialLR
 import numpy as np
-
+import os
 
 __all__ = ["make_dlrm_module"]
 
@@ -19,9 +19,16 @@ class Dense(nn.Module):
         )
         for name, param in self.named_parameters():
             if name.endswith("weight"):
-                nn.init.xavier_uniform_(param)
+                m = param.shape[0]
+                n = param.shape[1]
+                mean = 0.0
+                std_dev = np.sqrt(2 / (m + n))
+                nn.init.normal_(param, mean, std_dev)
             elif name.endswith("bias"):
-                nn.init.zeros_(param)
+                m = param.shape[0]
+                mean = 0.0
+                std_dev = np.sqrt(1 / m)
+                nn.init.normal_(param, mean, std_dev)
 
     def forward(self, x: flow.Tensor) -> flow.Tensor:
         x = self.features(x)
@@ -246,3 +253,15 @@ def make_dlrm_module(args, is_consistent):
         )
         model = model.to("cuda")
     return model
+
+def make_lr_scheduler(args, optimizer):
+    warmup_batches = 2750
+    decay_batches = 27772
+
+    os.environ['DECAY_START'] = '49315'
+    lr_scheduler = PolynomialLR(optimizer, steps=decay_batches, end_learning_rate=0.0, power=2.0)
+
+    lr_scheduler = flow.optim.lr_scheduler.WarmUpLR(
+        lr_scheduler, warmup_factor=0, warmup_iters=warmup_batches, warmup_method="linear"
+    )
+    return lr_scheduler

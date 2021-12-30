@@ -21,9 +21,13 @@ def make_data_loader(args, mode, is_consistent=False, data_format="ofrecord"):
         batch_size_per_proc = total_batch_size
     
     if data_format == "ofrecord":
+        if mode == "val":
+            data_part_num = 256
+        else:
+            data_part_num = args.data_part_num
         ofrecord_data_loader = OFRecordDataLoader(
             data_dir=args.data_dir,
-            data_part_num=args.data_part_num,
+            data_part_num=data_part_num,
             part_name_suffix_length=args.data_part_name_suffix_length,
             num_dense_fields=args.num_dense_fields,
             num_sparse_fields=args.num_sparse_fields,
@@ -49,6 +53,7 @@ def make_data_loader(args, mode, is_consistent=False, data_format="ofrecord"):
         )
         return onerec_data_loader
     elif data_format == "synthetic":
+        print("synthetic")
         synthetic_data_loader = SyntheticDataLoader(
             num_dense_fields=args.num_dense_fields,
             num_sparse_fields=args.num_sparse_fields,
@@ -201,7 +206,7 @@ class SyntheticDataLoader(nn.Module):
 
             self.sparse_fields = flow.randint(
                     0,
-                    high=256,
+                    high=150000,
                     size=self.sparse_fields_shape,
                     dtype=flow.int32,
                     placement=self.placement,
@@ -215,7 +220,7 @@ class SyntheticDataLoader(nn.Module):
                 0, high=256, size=self.dense_fields_shape, dtype=flow.float, device="cpu",
             )
             self.sparse_fields = flow.randint(
-                0, high=256, size=self.sparse_fields_shape, dtype=flow.int32, device="cpu",
+                0, high=150000, size=self.sparse_fields_shape, dtype=flow.int32, device="cpu",
             )
             
 

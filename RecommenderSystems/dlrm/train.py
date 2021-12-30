@@ -9,7 +9,7 @@ from sklearn.metrics import roc_auc_score
 import oneflow as flow
 from config import get_args
 from models.data import make_data_loader
-from models.dlrm import make_dlrm_module
+from models.dlrm import make_dlrm_module,make_lr_scheduler
 from oneflow.nn.parallel import DistributedDataParallel as DDP
 from graph import DLRMValGraph, DLRMTrainGraph
 import warnings
@@ -48,17 +48,24 @@ class Trainer(object):
         self.val_dataloader = make_data_loader(args, "val", self.is_consistent, self.dataset_format)
         self.dlrm_module = make_dlrm_module(args, self.is_consistent)
         self.init_model()
-        self.opt = flow.optim.Adam(
+        self.opt = flow.optim.SGD(
             self.dlrm_module.parameters(), lr=args.learning_rate
         )
+        self.lr_scheduler = make_lr_scheduler(args, self.opt)
 
+        self.grad_scaler = flow.amp.GradScaler(
+            init_scale=100,
+            growth_factor=2.0,
+            backoff_factor=0.5,
+            growth_interval=2000,
+        )
         self.loss = flow.nn.BCELoss(reduction="none").to("cuda")
         if self.execution_mode == "graph":
             self.eval_graph = DLRMValGraph(
                 self.dlrm_module, self.val_dataloader
             )
             self.train_graph = DLRMTrainGraph(
-                self.dlrm_module, self.train_dataloader, self.loss, self.opt
+                self.dlrm_module, self.train_dataloader, self.loss, self.opt, self.lr_scheduler, self.grad_scaler
             )
 
     def init_model(self):
