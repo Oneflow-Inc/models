@@ -28,24 +28,24 @@ def flow_cov(m, rowvar=False):
     if m.dim() < 2:
         m = m.view(1, -1)
     if not rowvar and m.size(0) != 1:
-        m = m.t()
+        m = m.transpose(-1, -2)
     # m = m.type(torch.double)  # uncomment this line if desired
     fact = 1.0 / (m.size(1) - 1)
     m -= flow.mean(m, dim=1, keepdim=True)
-    mt = m.t()  # if complex: mt = m.t().conj()
+    mt = m.transpose(-1, -2)  # if complex: mt = m.t().conj()
     return fact * m.matmul(mt).squeeze()
 
 # Pytorch implementation of matrix sqrt, from Tsung-Yu Lin, and Subhransu Maji
 # https://github.com/msubhransu/matrix-sqrt
 def sqrt_newton_schulz(A, numIters, dtype=None):
     if dtype is None:
-        dtype = A.type()
+        dtype = A.dtype
     batchSize = A.shape[0]
     dim = A.shape[1]
     normA = A.mul(A).sum(dim=1).sum(dim=1).sqrt()
     Y = A.div(normA.view(batchSize, 1, 1).expand_as(A)).to("cuda:0")
-    I = flow.eye(dim, dim).view(1, dim, dim).repeat(batchSize, 1, 1).type(dtype).to("cuda:0")
-    Z = flow.eye(dim, dim).view(1, dim, dim).repeat(batchSize, 1, 1).type(dtype).to("cuda:0")
+    I = flow.eye(dim, dim, dtype=dtype).view(1, dim, dim).repeat(batchSize, 1, 1).to("cuda:0")
+    Z = flow.eye(dim, dim, dtype=dtype).view(1, dim, dim).repeat(batchSize, 1, 1).to("cuda:0")
     for i in range(numIters):
         T = 0.5 * (3.0 * I - Z.bmm(Y))
         Y = Y.bmm(T)
@@ -82,7 +82,7 @@ def get_activations(args, gen_net, model, batch_size=50, dims=2048,
         # normalize
         pred_arr = []
         for i in tqdm(range(n_batches)):
-            z = flow.tensor(np.random.normal(0, 1, (batch_size, args.latent_dim)), dtype=flow.float32)
+            z = flow.tensor(np.random.normal(0, 1, (batch_size, args.latent_dim)), dtype=flow.float32).cuda()
             gen_imgs = gen_net(z, 200)
             
             if verbose:
@@ -135,9 +135,9 @@ def torch_calculate_frechet_distance(mu1, sigma1, mu2, sigma2, eps=1e-6):
 
     diff = mu1 - mu2
     # Run 50 itrs of newton-schulz to get the matrix sqrt of sigma1 dot sigma2
-    covmean = sqrt_newton_schulz(sigma1.mm(sigma2).unsqueeze(0), 50).squeeze()
-    out = (diff.dot(diff) + flow.trace(sigma1) + flow.trace(sigma2)
-           - 2 * flow.trace(covmean))
+    covmean = sqrt_newton_schulz(flow.matmul(sigma1, sigma2).unsqueeze(0), 50).squeeze()
+    out = ((diff*diff).sum() + flow.tensor(np.trace(sigma1.numpy())).to("cuda:0") + flow.tensor(np.trace(sigma2.numpy())).to("cuda:0")
+           - 2 * flow.tensor(np.trace(covmean.numpy())).to("cuda:0"))
     return out
 
 
@@ -227,7 +227,7 @@ def get_fid(args, fid_stat, epoch, gen_net, num_img, gen_batch_size, val_batch_s
     if writer_dict:
         writer = writer_dict['writer']
         global_steps = writer_dict['valid_global_steps']
-        writer.add_scalar('FID_score', fid_score, global_steps)
+        writer.add_scalar('FID_score', fid_score.numpy(), global_steps)
         writer_dict['valid_global_steps'] = global_steps + 1
 
     return fid_score

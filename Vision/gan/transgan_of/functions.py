@@ -15,8 +15,10 @@ import numpy as np
 import oneflow as flow
 import oneflow.nn as nn
 from flowvision.utils import make_grid, save_image
+from oneflow.nn import image
 from tqdm import tqdm
-# from utils.torch_fid_score import get_fid
+from util.of_fid_score import get_fid
+# from util.inception import get_inception_score
 
 
 logger = logging.getLogger(__name__)
@@ -54,10 +56,14 @@ def compute_gradient_penalty(D, real_samples, fake_samples, phi):
     gradient_penalty = ((gradients.norm(2, dim=1) - phi) ** 2).mean()
     return gradient_penalty
 
-def compute_gradient_penalty2(D, real_samlples, fake_samples, phi):
+def compute_gradient_penalty2(D, real_samples, fake_samples, phi):
     #https://www.zhihu.com/question/52602529/answer/158727900
-    a = D(real_samlples)-D(fake_samples)
-    b = (real_samlples - fake_samples).square().mean(1).mean(1).mean(1).reshape(-1, 1)
+    alpha1 = flow.tensor(np.random.random((real_samples.size(0), 1, 1, 1)), dtype=flow.float32).cuda()
+    alpha2 = flow.tensor(np.random.random((real_samples.size(0), 1, 1, 1)), dtype=flow.float32).cuda()
+    interpolates1 = (alpha1 * real_samples + ((1 - alpha1) * fake_samples)).requires_grad_(True)
+    interpolates2 = (alpha2 * real_samples + ((1 - alpha2) * fake_samples)).requires_grad_(True)
+    a = D(interpolates1)-D(interpolates2)
+    b = (interpolates1 - interpolates2).reshape(interpolates1.size(0), -1).norm(2, dim=1, keepdim=True)
     c = a/b
     return (c-1).mean()
 
@@ -80,11 +86,9 @@ def train(args, gen_net: nn.Module, dis_net: nn.Module, gen_optimizer, dis_optim
         # ---------------------
         #  Train Discriminator
         # ---------------------
-
         real_validity = dis_net(real_imgs)
         fake_imgs = gen_net(z, epoch).detach()
         assert fake_imgs.size() == real_imgs.size(), f"fake_imgs.size(): {fake_imgs.size()} real_imgs.size(): {real_imgs.size()}"
-
         fake_validity = dis_net(fake_imgs)
         # cal loss
         if args.loss == 'hinge':
@@ -129,8 +133,7 @@ def train(args, gen_net: nn.Module, dis_net: nn.Module, gen_optimizer, dis_optim
         elif args.loss == 'wgangp-eps':
             # gradient_penalty = compute_gradient_penalty(dis_net, real_imgs, fake_imgs.detach(), args.phi)
             gradient_penalty = compute_gradient_penalty2(dis_net, real_imgs, fake_imgs.detach(), args.phi)
-            d_loss = -flow.mean(real_validity) + flow.mean(fake_validity) + gradient_penalty * 10 / (
-                    args.phi ** 2)
+            d_loss = -flow.mean(real_validity) + flow.mean(fake_validity) + gradient_penalty * 10 / (args.phi ** 2)
             d_loss += (flow.mean(real_validity).square()) * 1e-3
         else:
             raise NotImplementedError(args.loss)
@@ -228,6 +231,7 @@ def train(args, gen_net: nn.Module, dis_net: nn.Module, gen_optimizer, dis_optim
             del g_loss
             del d_loss
         writer_dict['train_global_steps'] = global_steps + 1
+        
 
 def get_is(args, gen_net: nn.Module, num_img):
     """
@@ -249,9 +253,7 @@ def get_is(args, gen_net: nn.Module, num_img):
 
     # get inception score
     logger.info('calculate Inception score...')
-    # mean, std = get_inception_score(img_list)
-    print("need get inception score")
-    mean = 1
+    mean, std = get_inception_score(img_list)
     return mean
 
 
@@ -267,21 +269,16 @@ def validate(args, fixed_z, fid_stat, epoch, gen_net: nn.Module, writer_dict, cl
     else:
         mean, std = 0, 0
     print(f"Inception score: {mean}") if args.rank == 0 else 0
-    #     mean, std = 0, 0
-    # get fid score
     print('=> calculate fid score') if args.rank == 0 else 0
-    # if args.rank == 0:
-    #     fid_score = get_fid(args, fid_stat, epoch, gen_net, args.num_eval_imgs, args.gen_batch_size,
-    #                         args.eval_batch_size, writer_dict=writer_dict, cls_idx=None)
-    # else:
-    #     fid_score = 10000
-    fid_score = 10000
-    # print(f"FID score: {fid_score}") if args.rank == 0 else 0
-    print("Need FID score")
+    if args.rank == 0:
+        fid_score = get_fid(args, fid_stat, epoch, gen_net, args.num_eval_imgs, args.gen_batch_size, args.eval_batch_size, writer_dict=writer_dict, cls_idx=None)
+    else:
+        fid_score = 10000
+    print(f"FID score: {fid_score}") if args.rank == 0 else 0
     if args.rank == 0:
         writer.add_scalar('Inception_score/mean', mean, global_steps)
         writer.add_scalar('Inception_score/std', std, global_steps)
-        writer.add_scalar('FID_score', fid_score, global_steps)
+        writer.add_scalar('FID_score', fid_score.numpy(), global_steps)
         writer_dict['valid_global_steps'] = global_steps + 1
 
     return mean, fid_score
@@ -368,7 +365,9 @@ def load_params(model, new_param, args, mode="gpu"):
     if mode == "cpu":
         for p, new_p in zip(model.parameters(), new_param):
             cpu_p = deepcopy(new_p)
-            p.data.copy_(cpu_p.cuda().to(f"cuda:{args.gpu}"))
+            cup_p_cuda = cpu_p.cuda()
+            p.data.copy_(cup_p_cuda)
+            p.cuda()
             del cpu_p
     else:
         for p, new_p in zip(model.parameters(), new_param):
