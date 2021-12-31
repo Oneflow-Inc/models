@@ -3,10 +3,7 @@ import math
 import numpy as np
 
 
-BuildOptimizer = {
-    'adam': flow.optim.Adam,
-    'sgd': flow.optim.SGD
-}
+BuildOptimizer = {"adam": flow.optim.Adam, "sgd": flow.optim.SGD}
 
 
 class BaseScheduler(object):
@@ -32,7 +29,7 @@ class BaseScheduler(object):
     def set_lr(self, lr=None):
         new_lr = self.lr if lr is None else lr
         for param_group in self.optimizer.param_groups:
-            param_group['lr'] = new_lr
+            param_group["lr"] = new_lr
 
     def initial_lr(self):
         if self.stepwise:
@@ -71,7 +68,6 @@ def get_linear_lr(i, start, end, start_lr, end_lr):
     return float(np.where(i < start, start_lr, np.where(i > end, end_lr, lr)))
 
 
-
 class LinearStepScheduler(BaseScheduler):
     def __init__(self, optimizer, final_step, start_lr, final_lr):
 
@@ -86,7 +82,7 @@ class LinearStepScheduler(BaseScheduler):
 
 class LinearEpochScheduler(BaseScheduler):
     def __init__(self, optimizer, final_epoch, start_lr, final_lr):
-        
+
         self.final_epoch = final_epoch
         self.start_lr = start_lr
         self.final_lr = final_lr
@@ -105,18 +101,20 @@ class ExponentialScheduler(BaseScheduler):
         super(ExponentialScheduler, self).__init__(optimizer, stepwise=True)
 
     def get_step_lr(self, step):
-        linear_lr = get_linear_lr(step, 0, self.final_step, self.start_lr, self.final_lr)
+        linear_lr = get_linear_lr(
+            step, 0, self.final_step, self.start_lr, self.final_lr
+        )
         return math.exp(linear_lr)
 
 
-class  StepwiseExponentialScheduler(BaseScheduler):
+class StepwiseExponentialScheduler(BaseScheduler):
     def __init__(self, optimizer, init_lr, decay_factor, min_lr=1e-6):
-        
+
         self.init_lr = init_lr
         self.decay_factor = decay_factor
         self.min_lr = min_lr
         self.lr = self.init_lr
-        super( StepwiseExponentialScheduler, self).__init__(optimizer, stepwise=True)
+        super(StepwiseExponentialScheduler, self).__init__(optimizer, stepwise=True)
 
     def get_step_lr(self, step):
         return max(math.pow(self.lr, self.decay_factor), self.min_lr)
@@ -124,18 +122,24 @@ class  StepwiseExponentialScheduler(BaseScheduler):
 
 class TransformerScheduler(BaseScheduler):
     def __init__(self, optimizer, model_size, warmup_steps, factor=1.0):
-        
+
         self.model_size = model_size
         self.warmup_steps = warmup_steps
         self.factor = factor
-        super(TransformerScheduler, self).__init__(optimizer, stepwise=True)  
+        super(TransformerScheduler, self).__init__(optimizer, stepwise=True)
 
     def get_step_lr(self, step):
-        return self.factor * self.model_size ** (-0.5) * min(step ** (-0.5), step * self.warmup_steps ** (-1.5))
+        return (
+            self.factor
+            * self.model_size ** (-0.5)
+            * min(step ** (-0.5), step * self.warmup_steps ** (-1.5))
+        )
 
 
 class LinearWarmUpAndExpDecayScheduler(BaseScheduler):
-    def __init__(self, optimizer, warmup_steps, decay_start, peak_lr, final_lr, decay_factor):
+    def __init__(
+        self, optimizer, warmup_steps, decay_start, peak_lr, final_lr, decay_factor
+    ):
 
         self.warmup_steps = warmup_steps
         self.decay_start = decay_start
@@ -145,29 +149,31 @@ class LinearWarmUpAndExpDecayScheduler(BaseScheduler):
 
         assert self.decay_start > self.warmup_steps and self.decay_factor < 1.0
         super(LinearWarmUpAndExpDecayScheduler, self).__init__(optimizer, stepwise=True)
-    
+
     def get_step_lr(self, step):
 
-        return float(np.where(
-            step < self.warmup_steps,
-            get_linear_lr(step, 0, self.warmup_steps, 0.0, self.peak_lr),
+        return float(
             np.where(
-                step > self.decay_start,
-                max(self.get_expdecay_lr(step), self.final_lr),
-                self.peak_lr
+                step < self.warmup_steps,
+                get_linear_lr(step, 0, self.warmup_steps, 0.0, self.peak_lr),
+                np.where(
+                    step > self.decay_start,
+                    max(self.get_expdecay_lr(step), self.final_lr),
+                    self.peak_lr,
+                ),
             )
-        ))
-    
+        )
+
     def get_expdecay_lr(self, step):
         return math.pow(self.lr, self.decay_factor)
 
 
 BuildScheduler = {
-    'constant': ConstantValueScheduler,
-    'step-linear': LinearStepScheduler,
-    'epoch-linear': LinearEpochScheduler,
-    'exp': ExponentialScheduler,
-    'step-exp': StepwiseExponentialScheduler,
-    'transformer': TransformerScheduler,
-    'linear-warmup-exp-decay': LinearWarmUpAndExpDecayScheduler
+    "constant": ConstantValueScheduler,
+    "step-linear": LinearStepScheduler,
+    "epoch-linear": LinearEpochScheduler,
+    "exp": ExponentialScheduler,
+    "step-exp": StepwiseExponentialScheduler,
+    "transformer": TransformerScheduler,
+    "linear-warmup-exp-decay": LinearWarmUpAndExpDecayScheduler,
 }

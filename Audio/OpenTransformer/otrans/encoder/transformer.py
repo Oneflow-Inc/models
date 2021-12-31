@@ -3,24 +3,42 @@ import oneflow as flow
 import oneflow.nn as nn
 from otrans.module.pos import PositionalEncoding
 from otrans.module.ffn import PositionwiseFeedForward
-from otrans.module.attention import MultiHeadedSelfAttention, MultiHeadedSelfAttentionWithRelPos
+from otrans.module.attention import (
+    MultiHeadedSelfAttention,
+    MultiHeadedSelfAttentionWithRelPos,
+)
 
 
 logger = logging.getLogger(__name__)
 
 
 class TransformerEncoderLayer(nn.Module):
-    def __init__(self, n_heads, d_model, d_ff, slf_attn_dropout, ffn_dropout, residual_dropout,
-                 normalize_before=False, concat_after=False, relative_positional=False, activation='relu'):
+    def __init__(
+        self,
+        n_heads,
+        d_model,
+        d_ff,
+        slf_attn_dropout,
+        ffn_dropout,
+        residual_dropout,
+        normalize_before=False,
+        concat_after=False,
+        relative_positional=False,
+        activation="relu",
+    ):
         super(TransformerEncoderLayer, self).__init__()
 
         self.relative_positional = relative_positional
 
         if self.relative_positional:
-            self.slf_attn = MultiHeadedSelfAttentionWithRelPos(n_heads, d_model, slf_attn_dropout)
+            self.slf_attn = MultiHeadedSelfAttentionWithRelPos(
+                n_heads, d_model, slf_attn_dropout
+            )
         else:
             self.slf_attn = MultiHeadedSelfAttention(n_heads, d_model, slf_attn_dropout)
-        self.feed_forward = PositionwiseFeedForward(d_model, d_ff, ffn_dropout, activation)
+        self.feed_forward = PositionwiseFeedForward(
+            d_model, d_ff, ffn_dropout, activation
+        )
 
         self.norm1 = nn.LayerNorm(d_model)
         self.norm2 = nn.LayerNorm(d_model)
@@ -43,7 +61,7 @@ class TransformerEncoderLayer(nn.Module):
             slf_attn_out, slf_attn_weights = self.slf_attn(x, mask, pos)
         else:
             slf_attn_out, slf_attn_weights = self.slf_attn(x, mask)
-    
+
         if self.concat_after:
             x = residual + self.concat_linear(flow.cat([x, slf_attn_out], dim=-1))
         else:
@@ -58,16 +76,20 @@ class TransformerEncoderLayer(nn.Module):
         if not self.normalize_before:
             x = self.norm2(x)
 
-        return x, {'slf_attn_weights': slf_attn_weights}
+        return x, {"slf_attn_weights": slf_attn_weights}
 
     def inference(self, x, mask, pos=None, cache=None):
         if self.normalize_before:
             x = self.norm1(x)
         residual = x
         if self.relative_positional:
-            slf_attn_out, slf_attn_weights, new_cache = self.slf_attn.inference(x, mask, cache, pos)
+            slf_attn_out, slf_attn_weights, new_cache = self.slf_attn.inference(
+                x, mask, cache, pos
+            )
         else:
-            slf_attn_out, slf_attn_weights, new_cache = self.slf_attn.inference(x, mask, cache)
+            slf_attn_out, slf_attn_weights, new_cache = self.slf_attn.inference(
+                x, mask, cache
+            )
 
         if self.concat_after:
             x = residual + self.concat_linear(flow.cat([x, slf_attn_out], dim=-1))
@@ -83,13 +105,25 @@ class TransformerEncoderLayer(nn.Module):
         if not self.normalize_before:
             x = self.norm2(x)
 
-        return x, new_cache, {'slf_attn_weights': slf_attn_weights}
+        return x, new_cache, {"slf_attn_weights": slf_attn_weights}
 
 
 class TransformerEncoder(nn.Module):
-    def __init__(self, d_model=256, n_heads=4, d_ff=2048, n_blocks=6, pos_dropout=0.0, 
-                 slf_attn_dropout=0.0, ffn_dropout=0.0, residual_dropout=0.1, normalize_before=False,
-                 concat_after=False, relative_positional=False, activation='relu'):
+    def __init__(
+        self,
+        d_model=256,
+        n_heads=4,
+        d_ff=2048,
+        n_blocks=6,
+        pos_dropout=0.0,
+        slf_attn_dropout=0.0,
+        ffn_dropout=0.0,
+        residual_dropout=0.1,
+        normalize_before=False,
+        concat_after=False,
+        relative_positional=False,
+        activation="relu",
+    ):
         super(TransformerEncoder, self).__init__()
 
         self.normalize_before = normalize_before
@@ -97,12 +131,23 @@ class TransformerEncoder(nn.Module):
 
         self.pos_emb = PositionalEncoding(d_model, pos_dropout)
 
-        self.blocks = nn.ModuleList([
-            TransformerEncoderLayer(
-                n_heads, d_model, d_ff, slf_attn_dropout, ffn_dropout,
-                residual_dropout=residual_dropout, normalize_before=normalize_before,
-                concat_after=concat_after, relative_positional=relative_positional, activation=activation) for _ in range(n_blocks)
-        ])
+        self.blocks = nn.ModuleList(
+            [
+                TransformerEncoderLayer(
+                    n_heads,
+                    d_model,
+                    d_ff,
+                    slf_attn_dropout,
+                    ffn_dropout,
+                    residual_dropout=residual_dropout,
+                    normalize_before=normalize_before,
+                    concat_after=concat_after,
+                    relative_positional=relative_positional,
+                    activation=activation,
+                )
+                for _ in range(n_blocks)
+            ]
+        )
 
         if self.normalize_before:
             self.norm = nn.LayerNorm(d_model)
@@ -111,15 +156,17 @@ class TransformerEncoder(nn.Module):
         if self.relative_positional:
             enc_output = inputs
 
-            position = flow.arange(-(inputs.size(1)-1), inputs.size(1), device=inputs.device).reshape(1, -1)
+            position = flow.arange(
+                -(inputs.size(1) - 1), inputs.size(1), device=inputs.device
+            ).reshape(1, -1)
             pos = self.pos_emb._embedding_from_positions(position)
-        else:  
+        else:
             enc_output, pos = self.pos_emb(inputs)
 
         attn_weights = {}
         for i, block in enumerate(self.blocks):
             enc_output, attn_weight = block(enc_output, mask.unsqueeze(1), pos)
-            attn_weights['enc_block_%d' % i] = attn_weight
+            attn_weights["enc_block_%d" % i] = attn_weight
 
         if self.normalize_before:
             enc_output = self.norm(enc_output)

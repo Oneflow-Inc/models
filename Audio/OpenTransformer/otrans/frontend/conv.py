@@ -6,12 +6,22 @@ from otrans.frontend.base import BaseFrontEnd
 
 
 def cal_width_dim_2d(input_dim, kernel_size, stride, padding=1):
-    return math.floor((input_dim + 2 * padding - kernel_size)/stride + 1)
+    return math.floor((input_dim + 2 * padding - kernel_size) / stride + 1)
 
 
 class Conv2dLayer(nn.Module):
-    def __init__(self, input_size, in_channel, out_channel, kernel_size, stride,
-                 dropout=0.1, batch_norm=False, residual=False, act_func_type='relu'):
+    def __init__(
+        self,
+        input_size,
+        in_channel,
+        out_channel,
+        kernel_size,
+        stride,
+        dropout=0.1,
+        batch_norm=False,
+        residual=False,
+        act_func_type="relu",
+    ):
         super(Conv2dLayer, self).__init__()
 
         self.input_size = input_size
@@ -21,7 +31,12 @@ class Conv2dLayer(nn.Module):
         self.batch_norm = batch_norm
         self.kernel_size = kernel_size
         self.stride = stride
-        self.padding = (0, kernel_size // 2 if isinstance(self.kernel_size, int) else kernel_size[1] // 2)
+        self.padding = (
+            0,
+            kernel_size // 2
+            if isinstance(self.kernel_size, int)
+            else kernel_size[1] // 2,
+        )
 
         self.residual = residual
 
@@ -32,12 +47,17 @@ class Conv2dLayer(nn.Module):
             out_channels=out_channel,
             kernel_size=self.kernel_size,
             stride=self.stride,
-            padding=self.padding)
+            padding=self.padding,
+        )
 
-        self.output_size = cal_width_dim_2d(input_size,
-            self.kernel_size if isinstance(self.kernel_size, int) else self.kernel_size[1],
+        self.output_size = cal_width_dim_2d(
+            input_size,
+            self.kernel_size
+            if isinstance(self.kernel_size, int)
+            else self.kernel_size[1],
             self.stride if isinstance(self.stride, int) else self.stride[1],
-            padding=self.padding if isinstance(self.padding, int) else self.padding[1])
+            padding=self.padding if isinstance(self.padding, int) else self.padding[1],
+        )
 
         if self.batch_norm:
             self.norm = nn.BatchNorm2d(out_channel)
@@ -75,15 +95,29 @@ class Conv2dLayer(nn.Module):
     def return_output_mask(self, mask, t):
         # conv1
         stride = self.stride if isinstance(self.stride, int) else self.stride[0]
-        kernel_size = self.kernel_size if isinstance(self.kernel_size, int) else self.kernel_size[0]
-        mask = mask[:, math.floor(kernel_size / 2)::stride][:,:t]
+        kernel_size = (
+            self.kernel_size
+            if isinstance(self.kernel_size, int)
+            else self.kernel_size[0]
+        )
+        mask = mask[:, math.floor(kernel_size / 2) :: stride][:, :t]
         return mask
 
 
 class ConvFrontEnd(BaseFrontEnd):
-    def __init__(self, input_size, output_size, in_channel=1, mid_channel=32,
-                 out_channel=128, kernel_size=[[3,3],[3,3]], stride=[2, 2],
-                 dropout=0.0, act_func_type='relu', front_end_layer_norm=False):
+    def __init__(
+        self,
+        input_size,
+        output_size,
+        in_channel=1,
+        mid_channel=32,
+        out_channel=128,
+        kernel_size=[[3, 3], [3, 3]],
+        stride=[2, 2],
+        dropout=0.0,
+        act_func_type="relu",
+        front_end_layer_norm=False,
+    ):
         super(ConvFrontEnd, self).__init__()
 
         self.kernel_size = kernel_size
@@ -105,7 +139,8 @@ class ConvFrontEnd(BaseFrontEnd):
             dropout=dropout,
             batch_norm=False,
             residual=False,
-            act_func_type=act_func_type)
+            act_func_type=act_func_type,
+        )
 
         self.conv2 = Conv2dLayer(
             self.conv1.output_size,
@@ -116,7 +151,7 @@ class ConvFrontEnd(BaseFrontEnd):
             dropout=dropout,
             batch_norm=False,
             residual=False,
-            act_func_type=act_func_type
+            act_func_type=act_func_type,
         )
 
         self.conv_output_size = self.conv2.output_size * self.conv2.out_channel
@@ -133,11 +168,11 @@ class ConvFrontEnd(BaseFrontEnd):
         :return:
         
         """
-        
+
         x = x.unsqueeze(1)
         x, mask = self.conv1(x, mask)
         x, mask = self.conv2(x, mask)
-        
+
         b, c, t, f = x.size()
         x = x.transpose(1, 2).reshape(b, t, c * f)
         x = self.output_layer(x)

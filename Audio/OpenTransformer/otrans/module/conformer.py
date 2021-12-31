@@ -3,7 +3,6 @@ import oneflow.nn as nn
 import oneflow.nn.functional as F
 
 
-
 class ConformerConvolutionModule(nn.Module):
     def __init__(self, channels, kernel_size, bias=True, dropout=0.0):
         super(ConformerConvolutionModule, self).__init__()
@@ -19,7 +18,7 @@ class ConformerConvolutionModule(nn.Module):
             stride=1,
             padding=(kernel_size - 1) // 2,
             groups=channels,
-            bias=bias
+            bias=bias,
         )
 
         self.batch_norm = nn.BatchNorm1d(channels)
@@ -47,6 +46,6 @@ class ConformerConvolutionModule(nn.Module):
         x = x.transpose(1, 2)
 
         x = self.pointwise_conv2(x)
-        x = flow.masked_fill(x,mask==0, 0.0)
+        x = flow.masked_fill(x, mask == 0, 0.0)
 
         return x

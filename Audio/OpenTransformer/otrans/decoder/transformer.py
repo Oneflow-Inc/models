@@ -4,7 +4,11 @@ import oneflow.nn as nn
 import oneflow.nn.functional as F
 from otrans.module.pos import PositionalEncoding
 from otrans.module.ffn import PositionwiseFeedForward
-from otrans.module.attention import MultiHeadedSelfAttention, MultiHeadedCrossAttention, MultiHeadedSelfAttentionWithRelPos
+from otrans.module.attention import (
+    MultiHeadedSelfAttention,
+    MultiHeadedCrossAttention,
+    MultiHeadedSelfAttentionWithRelPos,
+)
 from otrans.data import PAD
 from otrans.decoder.utils import get_transformer_decoder_mask
 
@@ -12,18 +16,37 @@ logger = logging.getLogger(__name__)
 
 
 class TransformerDecoderLayer(nn.Module):
-    def __init__(self, n_heads, d_model, d_ff, memory_dim, slf_attn_dropout=0.0, src_attn_dropout=0.0, ffn_dropout=0.0, residual_dropout=0.1,
-                 normalize_before=False, concat_after=False, relative_positional=False, activation='relu'):
+    def __init__(
+        self,
+        n_heads,
+        d_model,
+        d_ff,
+        memory_dim,
+        slf_attn_dropout=0.0,
+        src_attn_dropout=0.0,
+        ffn_dropout=0.0,
+        residual_dropout=0.1,
+        normalize_before=False,
+        concat_after=False,
+        relative_positional=False,
+        activation="relu",
+    ):
         super(TransformerDecoderLayer, self).__init__()
 
         self.relative_positional = relative_positional
 
         if self.relative_positional:
-            self.slf_attn = MultiHeadedSelfAttentionWithRelPos(n_heads, d_model, slf_attn_dropout)
+            self.slf_attn = MultiHeadedSelfAttentionWithRelPos(
+                n_heads, d_model, slf_attn_dropout
+            )
         else:
             self.slf_attn = MultiHeadedSelfAttention(n_heads, d_model, slf_attn_dropout)
-        self.src_attn = MultiHeadedCrossAttention(n_heads, d_model, memory_dim, src_attn_dropout)
-        self.feed_forward = PositionwiseFeedForward(d_model, d_ff, ffn_dropout, activation)
+        self.src_attn = MultiHeadedCrossAttention(
+            n_heads, d_model, memory_dim, src_attn_dropout
+        )
+        self.feed_forward = PositionwiseFeedForward(
+            d_model, d_ff, ffn_dropout, activation
+        )
 
         self.norm1 = nn.LayerNorm(d_model)
         self.norm2 = nn.LayerNorm(d_model)
@@ -83,17 +106,35 @@ class TransformerDecoderLayer(nn.Module):
         if not self.normalize_before:
             x = self.norm3(x)
 
-        return x, {'slf_attn_weights': slf_attn_weights, 'src_attn_weights': src_attn_weights}
+        return (
+            x,
+            {
+                "slf_attn_weights": slf_attn_weights,
+                "src_attn_weights": src_attn_weights,
+            },
+        )
 
-    def inference(self, x, xmask, memory, memory_mask=None, pos=None, cache={'slf': None, 'src': None}):
+    def inference(
+        self,
+        x,
+        xmask,
+        memory,
+        memory_mask=None,
+        pos=None,
+        cache={"slf": None, "src": None},
+    ):
 
         if self.normalize_before:
             x = self.norm1(x)
         residual = x
         if self.relative_positional:
-            slf_attn_out, slf_attn_weight, slf_cache = self.slf_attn.inference(x, xmask, pos, cache=['slf'])
+            slf_attn_out, slf_attn_weight, slf_cache = self.slf_attn.inference(
+                x, xmask, pos, cache=["slf"]
+            )
         else:
-            slf_attn_out, slf_attn_weight, slf_cache = self.slf_attn.inference(x, xmask, cache=['slf'])
+            slf_attn_out, slf_attn_weight, slf_cache = self.slf_attn.inference(
+                x, xmask, cache=["slf"]
+            )
         if self.concat_after:
             x = residual + self.concat_linear1(flow.cat([x, slf_attn_out], dim=-1))
         else:
@@ -104,7 +145,9 @@ class TransformerDecoderLayer(nn.Module):
         if self.normalize_before:
             x = self.norm2(x)
         residual = x
-        src_attn_out, src_attn_weight, src_cache = self.src_attn.inference(x, memory, memory_mask, cache['src'])
+        src_attn_out, src_attn_weight, src_cache = self.src_attn.inference(
+            x, memory, memory_mask, cache["src"]
+        )
         if self.concat_after:
             x = residual + self.concat_linear2(flow.cat([x, src_attn_out], dim=-1))
         else:
@@ -119,15 +162,35 @@ class TransformerDecoderLayer(nn.Module):
         if not self.normalize_before:
             x = self.norm3(x)
 
-        return x, {'slf_attn_weight': slf_attn_weight, 'src_attn_weight': src_attn_weight}, {'slf': slf_cache, 'src': src_cache}
+        return (
+            x,
+            {"slf_attn_weight": slf_attn_weight, "src_attn_weight": src_attn_weight},
+            {"slf": slf_cache, "src": src_cache},
+        )
 
 
 class TransformerDecoder(nn.Module):
-    def __init__(self, vocab_size, d_model=256, n_heads=4, d_ff=2048, memory_dim=256, n_blocks=6, pos_dropout=0.0, slf_attn_dropout=0.0, src_attn_dropout=0.0, ffn_dropout=0.0,
-                 residual_dropout=0.1, activation='relu', normalize_before=True, concat_after=False, share_embedding=False):
+    def __init__(
+        self,
+        vocab_size,
+        d_model=256,
+        n_heads=4,
+        d_ff=2048,
+        memory_dim=256,
+        n_blocks=6,
+        pos_dropout=0.0,
+        slf_attn_dropout=0.0,
+        src_attn_dropout=0.0,
+        ffn_dropout=0.0,
+        residual_dropout=0.1,
+        activation="relu",
+        normalize_before=True,
+        concat_after=False,
+        share_embedding=False,
+    ):
         super(TransformerDecoder, self).__init__()
 
-        self.decoder_type = 'transformer'
+        self.decoder_type = "transformer"
         self.normalize_before = normalize_before
         self.relative_positional = False
 
@@ -137,12 +200,25 @@ class TransformerDecoder(nn.Module):
 
         self.pos_emb = PositionalEncoding(d_model, pos_dropout)
 
-        self.blocks = nn.ModuleList([
-            TransformerDecoderLayer(
-                n_heads, d_model, d_ff, memory_dim, slf_attn_dropout, src_attn_dropout,
-                ffn_dropout, residual_dropout, normalize_before=normalize_before, concat_after=concat_after,
-                relative_positional=False, activation=activation) for _ in range(n_blocks)
-        ])
+        self.blocks = nn.ModuleList(
+            [
+                TransformerDecoderLayer(
+                    n_heads,
+                    d_model,
+                    d_ff,
+                    memory_dim,
+                    slf_attn_dropout,
+                    src_attn_dropout,
+                    ffn_dropout,
+                    residual_dropout,
+                    normalize_before=normalize_before,
+                    concat_after=concat_after,
+                    relative_positional=False,
+                    activation=activation,
+                )
+                for _ in range(n_blocks)
+            ]
+        )
 
         if self.normalize_before:
             self.after_norm = nn.LayerNorm(d_model)
@@ -152,24 +228,28 @@ class TransformerDecoder(nn.Module):
         if share_embedding:
             assert self.embedding.weight.size() == self.output_layer.weight.size()
             self.output_layer.weight = self.embedding.weight
-            logger.info('Tie the weights between the embedding and output layer.')
+            logger.info("Tie the weights between the embedding and output layer.")
 
     def forward(self, targets, memory, memory_mask):
 
         dec_output = self.embedding(targets)
         if self.relative_positional:
- 
-            position = flow.arange(-(dec_output.size(1)-1), dec_output.size(1), device=dec_output.device).reshape(1, -1)
+
+            position = flow.arange(
+                -(dec_output.size(1) - 1), dec_output.size(1), device=dec_output.device
+            ).reshape(1, -1)
             pos = self.pos_emb._embedding_from_positions(position)
-        else:  
+        else:
             dec_output, pos = self.pos_emb(dec_output)
 
         dec_mask = get_transformer_decoder_mask(targets)
 
         attn_weights = {}
         for i, block in enumerate(self.blocks):
-            dec_output, attn_weight = block(dec_output, dec_mask, memory, memory_mask.unsqueeze(1), pos)
-            attn_weights['dec_block_%d' % i] = attn_weight
+            dec_output, attn_weight = block(
+                dec_output, dec_mask, memory, memory_mask.unsqueeze(1), pos
+            )
+            attn_weights["dec_block_%d" % i] = attn_weight
 
         if self.normalize_before:
             dec_output = self.after_norm(dec_output)
@@ -180,11 +260,9 @@ class TransformerDecoder(nn.Module):
 
     def inference(self, preds, memory, memory_mask=None, cache=None):
 
-        assert preds.dim() == 2 
-        logits, attn_weights = self.forward(preds,  memory, memory_mask)
+        assert preds.dim() == 2
+        logits, attn_weights = self.forward(preds, memory, memory_mask)
         logsoftmax = nn.LogSoftmax(dim=-1)
         log_probs = logsoftmax(logits[:, -1, :])
 
         return log_probs, cache, attn_weights
-
-

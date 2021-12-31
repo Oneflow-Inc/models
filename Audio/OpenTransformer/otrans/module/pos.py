@@ -5,6 +5,7 @@ import oneflow.nn as nn
 
 class PositionalEncoding(nn.Module):
     """Positional encoding."""
+
     def __init__(self, emb_dim, scale_learnable=False, dropout=0.0):
         """Initialize class.
 
@@ -31,7 +32,10 @@ class PositionalEncoding(nn.Module):
         """
         batch_size, time_step = position.size()
         posemb = flow.zeros(batch_size, time_step, self.emb_dim, device=position.device)
-        div_term = flow.exp(flow.arange(0, self.emb_dim, 2, device=position.device, dtype=flow.float32) * -(math.log(10000.0) / self.emb_dim))
+        div_term = flow.exp(
+            flow.arange(0, self.emb_dim, 2, device=position.device, dtype=flow.float32)
+            * -(math.log(10000.0) / self.emb_dim)
+        )
         posemb[:, :, 0::2] = flow.sin(position.float().unsqueeze(-1) * div_term)
         posemb[:, :, 1::2] = flow.cos(position.float().unsqueeze(-1) * div_term)
         return posemb
@@ -43,7 +47,7 @@ class PositionalEncoding(nn.Module):
         Returns:
             torch.Tensor: Encoded tensor. Its shape is (batch, time, ...)
         """
-        pos = flow.arange(0, x.size(1), device=x.device).reshape(1, -1) # [1, t]
+        pos = flow.arange(0, x.size(1), device=x.device).reshape(1, -1)  # [1, t]
         posemb = self._embedding_from_positions(pos)  # [1, t, emb_dim]
         if self.scale_learnable:
             x = x + self.alpha * posemb

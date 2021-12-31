@@ -5,34 +5,51 @@ from otrans.recognize.base import Recognizer
 
 
 class CTCRecognizer(Recognizer):
-
-    def __init__(self, model, lm=None, lm_weight=0.1, ngram_lm=None, beam_width=5,
-                 idx2unit=None, ngpu=1, mode='greedy', alpha=0.1, beta=0.0):
+    def __init__(
+        self,
+        model,
+        lm=None,
+        lm_weight=0.1,
+        ngram_lm=None,
+        beam_width=5,
+        idx2unit=None,
+        ngpu=1,
+        mode="greedy",
+        alpha=0.1,
+        beta=0.0,
+    ):
         super().__init__(model, idx2unit, lm, lm_weight, ngpu)
-        
+
         self.beam_width = beam_width
         self.mode = mode
 
-        if self.mode == 'beam':
+        if self.mode == "beam":
             import ctcdecode_edited as ctcdecode
+
             # import ctcdecode
             vocab_list = [self.idx2unit[i] for i in range(len(idx2unit))]
             self.ctcdecoder = ctcdecode.CTCBeamDecoder(
-                vocab_list, beam_width=self.beam_width,
-                blank_id=BLK, model_path=ngram_lm, alpha=alpha, beta=beta,
-                log_probs_input=True, num_processes=10)
+                vocab_list,
+                beam_width=self.beam_width,
+                blank_id=BLK,
+                model_path=ngram_lm,
+                alpha=alpha,
+                beta=beta,
+                log_probs_input=True,
+                num_processes=10,
+            )
 
     def recognize(self, inputs, inputs_length):
 
-        if self.mode == 'greedy':
+        if self.mode == "greedy":
             results = self.recognize_greedy(inputs, inputs_length)
-        elif self.mode == 'beam':
+        elif self.mode == "beam":
             results = self.recognize_beam(inputs, inputs_length)
         else:
             raise ValueError
 
         return self.translate(results)
-        
+
     def recognize_greedy(self, inputs, inputs_length):
 
         log_probs, length = self.model.inference(inputs, inputs_length)
@@ -59,7 +76,9 @@ class CTCRecognizer(Recognizer):
 
         log_probs, length = self.model.inference(inputs, inputs_length)
 
-        beam_results, beam_scores, _, out_seq_len = self.ctcdecoder.decode(log_probs.cpu(), seq_lens=length.cpu())
+        beam_results, beam_scores, _, out_seq_len = self.ctcdecoder.decode(
+            log_probs.cpu(), seq_lens=length.cpu()
+        )
 
         best_results = beam_results[:, 0]
         batch_length = out_seq_len[:, 0]
@@ -71,5 +90,3 @@ class CTCRecognizer(Recognizer):
             results.append(tokens)
 
         return results
-
-

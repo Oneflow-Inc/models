@@ -16,10 +16,14 @@ def select_tensor_based_index(tensor, index):
     indices = base_index + index
 
     if tensor.dim() == 2:
-        select_tensor = flow.index_select(tensor.reshape(batch_size * tensor_len), 0, indices.long())
+        select_tensor = flow.index_select(
+            tensor.reshape(batch_size * tensor_len), 0, indices.long()
+        )
     else:
         assert tensor.dim() == 3
-        select_tensor = flow.index_select(tensor.reshape(batch_size * tensor_len, tensor.size(-1)), 0, indices.long())
+        select_tensor = flow.index_select(
+            tensor.reshape(batch_size * tensor_len, tensor.size(-1)), 0, indices.long()
+        )
 
     return select_tensor
 
@@ -37,8 +41,10 @@ def select_chunk_states_and_mask_based_index(tensor, tensor_mask, index):
     base_index = flow.arange(b, device=tensor.device) * c
     indices = base_index + index
 
-    select_tensor =flow.index_select(tensor.reshape(b * c, t, v), 0, indices.long())
-    select_tensor_mask = flow.index_select(tensor_mask.reshape(b * c, 1, t), 0, indices.long())
+    select_tensor = flow.index_select(tensor.reshape(b * c, t, v), 0, indices.long())
+    select_tensor_mask = flow.index_select(
+        tensor_mask.reshape(b * c, 1, t), 0, indices.long()
+    )
 
     return select_tensor, select_tensor_mask
 
@@ -64,7 +70,11 @@ def fill_tensor_based_index(tensor, index, value, blank=BLK):
 def select_hidden(tensor, indices, beam_width):
     n_layers, _, hidden_size = tensor.size()
     tensor = tensor.transpose(0, 1)
-    tensor = tensor.unsqueeze(1).repeat([1, beam_width, 1, 1]).reshape(-1, n_layers, hidden_size)
+    tensor = (
+        tensor.unsqueeze(1)
+        .repeat([1, beam_width, 1, 1])
+        .reshape(-1, n_layers, hidden_size)
+    )
     new_tensor = flow.index_select(tensor, dim=0, index=indices)
     new_tensor = new_tensor.transpose(0, 1).contiguous()
     return new_tensor

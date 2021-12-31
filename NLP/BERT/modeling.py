@@ -74,7 +74,7 @@ class BertSelfAttention(nn.Module):
 
     def forward(self, hidden_states, attention_mask):
         # hidden_states: [batch_size * seq, hidden_size]
-        
+
         query_layer = self.transpose_for_scores(self.query(hidden_states))
         key_layer = self.transpose_for_scores(self.key(hidden_states))
         value_layer = self.transpose_for_scores(self.value(hidden_states))
@@ -94,9 +94,7 @@ class BertSelfAttention(nn.Module):
         context_layer = flow.matmul(attention_probs, value_layer)
         context_layer = context_layer.permute(0, 2, 1, 3)
 
-        context_layer = flow.reshape(
-            context_layer, [-1, self.all_head_size]
-        )
+        context_layer = flow.reshape(context_layer, [-1, self.all_head_size])
         return context_layer
 
 
@@ -226,7 +224,7 @@ class BertEncoder(nn.Module):
         hidden_states = hidden_states.reshape([-1, self.hidden_size])
         for layer_module in self.layer:
             hidden_states = layer_module(hidden_states, attention_mask)
-        hidden_states = hidden_states.reshape([-1, self.seq_len, self.hidden_size]) 
+        hidden_states = hidden_states.reshape([-1, self.seq_len, self.hidden_size])
         return hidden_states
 
 
@@ -351,7 +349,11 @@ class BertLMPredictionHead(nn.Module):
 
     def forward(self, sequence_output, masked_lm_positions):
         # Gather masked outputs
-        masked_sequence_output = flow.gather(sequence_output, index=masked_lm_positions.unsqueeze(2).expand(-1, -1, self.hidden_size), dim=1)
+        masked_sequence_output = flow.gather(
+            sequence_output,
+            index=masked_lm_positions.unsqueeze(2).expand(-1, -1, self.hidden_size),
+            dim=1,
+        )
         masked_sequence_output = masked_sequence_output.reshape([-1, self.hidden_size])
 
         masked_sequence_output = self.transform(masked_sequence_output)

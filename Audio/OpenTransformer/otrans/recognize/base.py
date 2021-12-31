@@ -2,19 +2,21 @@ import oneflow as flow
 from otrans.data import EOS, PAD
 
 
-class Recognizer():
+class Recognizer:
     def __init__(self, model, idx2unit=None, lm=None, lm_weight=None, ngpu=1):
 
         self.ngpu = ngpu
 
         self.model = model
         self.model.eval()
-        if self.ngpu > 0 : self.model.cuda()
+        if self.ngpu > 0:
+            self.model.cuda()
 
         self.lm = lm
         if self.lm is not None:
             self.lm.eval()
-            if self.ngpu > 0: self.lm.eval()
+            if self.ngpu > 0:
+                self.lm.eval()
 
         self.idx2unit = idx2unit
 
@@ -29,7 +31,7 @@ class Recognizer():
             preds: [batch_size, lens]
             hidde: [time_step, batch_size, hidden_size] or ([time_step, batch_size, hidden_size], [time_step, batch_size, hidden_size])
         """
-        if self.lm.model_type == 'transformer_lm':
+        if self.lm.model_type == "transformer_lm":
             log_probs = self.lm.predict(preds, last_frame=True)
         else:
             preds = preds[:, -1].unsqueeze(-1)
@@ -42,7 +44,7 @@ class Recognizer():
             preds: [batch_size, lens]
             hidde: [time_step, batch_size, hidden_size] or ([time_step, batch_size, hidden_size], [time_step, batch_size, hidden_size])
         """
-        if self.lm.model_type == 'transformer_lm':
+        if self.lm.model_type == "transformer_lm":
             log_probs = self.lm.predict(preds, last_frame=False)
             log_probs = select_tensor_based_index(log_probs, index)
         else:
@@ -54,7 +56,7 @@ class Recognizer():
         # preds [beam_size, lens]
         # preds_len [beam_size]
 
-        if self.lm.model_type == 'transformer_lm':
+        if self.lm.model_type == "transformer_lm":
             log_probs = self.lm.predict(preds, last_frame=False)
         else:
             log_probs = []
@@ -77,16 +79,16 @@ class Recognizer():
             score = flow.index_select(log_probs[b].reshape(-1), dim=-1, index=index)
 
             label_len = min(int(pred_lens[b]), score.size(0))
-            score[label_len-1:] = 0
+            score[label_len - 1 :] = 0
             rescores.append(flow.sum(score) / label_len)
 
-        rescores = flow.tensor(rescores,dtype=flow.float32)
+        rescores = flow.tensor(rescores, dtype=flow.float32)
         _, indices = flow.sort(rescores, dim=-1, descending=True)
 
-        sorted_preds = preds[indices] 
+        sorted_preds = preds[indices]
         sorted_length = pred_lens[indices]
 
-        return sorted_preds, sorted_length          
+        return sorted_preds, sorted_length
 
     def translate(self, seqs):
         results = []
@@ -98,7 +100,7 @@ class Recognizer():
                 if int(i) == PAD:
                     continue
                 pred.append(self.idx2unit[int(i)])
-            results.append(' '.join(pred))
+            results.append(" ".join(pred))
         return results
 
     def nbest_translate(self, nbest_preds):
@@ -114,7 +116,7 @@ class Recognizer():
                     if token == EOS:
                         break
                     pred.append(self.idx2unit[token])
-                nbest_list.append(' '.join(pred))
+                nbest_list.append(" ".join(pred))
             results.append(nbest_list)
         return results
 
@@ -133,9 +135,13 @@ def select_tensor_based_index(tensor, index):
     indices = base_index + index
 
     if tensor.dim() == 2:
-        select_tensor = flow.index_select(tensor.reshape(batch_size * tensor_len), 0, indices.long())
+        select_tensor = flow.index_select(
+            tensor.reshape(batch_size * tensor_len), 0, indices.long()
+        )
     else:
         assert tensor.dim() == 3
-        select_tensor = flow.index_select(tensor.reshape(batch_size * tensor_len, tensor.size(-1)), 0, indices.long())
+        select_tensor = flow.index_select(
+            tensor.reshape(batch_size * tensor_len, tensor.size(-1)), 0, indices.long()
+        )
 
     return select_tensor

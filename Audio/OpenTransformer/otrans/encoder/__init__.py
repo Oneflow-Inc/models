@@ -3,6 +3,6 @@ from otrans.encoder.conformer import ConformerEncoder
 
 
 BuildEncoder = {
-    'transformer': TransformerEncoder,
-    'conformer': ConformerEncoder,
+    "transformer": TransformerEncoder,
+    "conformer": ConformerEncoder,
 }

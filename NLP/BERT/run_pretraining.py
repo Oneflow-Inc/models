@@ -322,10 +322,7 @@ def main():
     )
 
     def get_masked_lm_loss(
-        logit,
-        masked_lm_labels,
-        label_weights,
-        max_predictions_per_seq,
+        logit, masked_lm_labels, label_weights, max_predictions_per_seq,
     ):
 
         label_id = flow.reshape(masked_lm_labels, [-1])

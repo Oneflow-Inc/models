@@ -13,7 +13,7 @@ class MeanLoss(object):
             self.losses = self.losses[1:]
 
         self.losses.append(loss)
-        assert len(self.losses) <= self.num, 'Please only keep the 100 latest losses!'
+        assert len(self.losses) <= self.num, "Please only keep the 100 latest losses!"
 
     def tensor2numpy(self, tensor):
         return tensor.cpu().numpy()
@@ -31,7 +31,7 @@ def init_logger(log_file=None):
     console_handler.setFormatter(log_format)
     logger.handlers = [console_handler]
 
-    if log_file and log_file != '':
+    if log_file and log_file != "":
         file_handler = logging.FileHandler(log_file)
         file_handler.setFormatter(log_format)
         logger.addHandler(file_handler)
@@ -41,6 +41,7 @@ def init_logger(log_file=None):
 
 class AverageMeter(object):
     """Computes and stores the average and current value"""
+
     def __init__(self):
         self.reset()
 
@@ -82,17 +83,17 @@ class AuxiliaryLossAverageMeter(object):
         else:
             infos = []
             for key in self.aux_loss.keys():
-                infos.append('%s: %.3f' % (key, self.aux_loss[key].avg))
-            return ", "+ ", ".join(infos)
+                infos.append("%s: %.3f" % (key, self.aux_loss[key].avg))
+            return ", " + ", ".join(infos)
 
 
 def dict_to_print(dict_info):
 
     strings = ""
     for key, value in dict_info.items():
-        strings+= '%s: %.3f ' % (key, value)
+        strings += "%s: %.3f " % (key, value)
 
-    return strings 
+    return strings
 
 
 class Summary(object):
@@ -111,5 +112,5 @@ def map_to_cuda(tensor_dict):
     cuda_tensor_dict = {}
     for key, value in tensor_dict.items():
         cuda_tensor_dict[key] = value.cuda()
-    
+
     return cuda_tensor_dict

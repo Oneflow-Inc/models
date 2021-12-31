@@ -6,7 +6,7 @@ from otrans.frontend.base import BaseFrontEnd
 
 
 BuildFrontEnd = {
-    'concat': ConcatFeatureFrontEnd,
-    'concat-with-linear': ConcatWithLinearFrontEnd,
-    'conv': ConvFrontEnd
+    "concat": ConcatFeatureFrontEnd,
+    "concat-with-linear": ConcatWithLinearFrontEnd,
+    "conv": ConvFrontEnd,
 }

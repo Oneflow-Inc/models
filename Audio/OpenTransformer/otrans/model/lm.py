@@ -35,41 +35,43 @@ class RecurrentLanguageModel(BaseLM):
     def __init__(self, params):
         super(RecurrentLanguageModel, self).__init__(params)
 
-        self.model_type = 'recurrent_lm'
-        self.vocab_size = params['vocab_size']
-        self.share_embedding = params['share_embedding']
-        self.smoothing = params['smoothing']
-        self.num_layers = params['num_layers']
-        self.hidden_size = params['hidden_size']
+        self.model_type = "recurrent_lm"
+        self.vocab_size = params["vocab_size"]
+        self.share_embedding = params["share_embedding"]
+        self.smoothing = params["smoothing"]
+        self.num_layers = params["num_layers"]
+        self.hidden_size = params["hidden_size"]
 
-        self.embedding = nn.Embedding(params['vocab_size'], params['hidden_size'])
-        self.rnn = nn.LSTM(input_size=params['hidden_size'],
-                           hidden_size=params['hidden_size'],
-                           num_layers=params['num_layers'],
-                           batch_first=True,
-                           dropout=params['dropout'],
-                           bidirectional=False)
+        self.embedding = nn.Embedding(params["vocab_size"], params["hidden_size"])
+        self.rnn = nn.LSTM(
+            input_size=params["hidden_size"],
+            hidden_size=params["hidden_size"],
+            num_layers=params["num_layers"],
+            batch_first=True,
+            dropout=params["dropout"],
+            bidirectional=False,
+        )
 
-        self.output_project = nn.Linear(
-            params['hidden_size'], params['vocab_size'])
+        self.output_project = nn.Linear(params["hidden_size"], params["vocab_size"])
 
         if self.share_embedding:
             assert self.embedding.weight.size() == self.output_project.weight.size()
             self.output_project.weight = self.embedding.weight
 
-        self.crit = LabelSmoothingLoss(size=self.vocab_size, smoothing=self.smoothing, 
-                                       padding_idx=PAD)
+        self.crit = LabelSmoothingLoss(
+            size=self.vocab_size, smoothing=self.smoothing, padding_idx=PAD
+        )
 
     def forward(self, inputs, targets):
 
-        emb_inputs = self.embedding(inputs['inputs'])
+        emb_inputs = self.embedding(inputs["inputs"])
 
         self.rnn.flatten_parameters()
         outputs, _ = self.rnn(emb_inputs)
 
         logits = self.output_project(outputs)
 
-        loss = self.crit(logits, targets['targets'])
+        loss = self.crit(logits, targets["targets"])
         return loss, None
 
     def predict(self, pred, hidden=None):
@@ -82,9 +84,8 @@ class RecurrentLanguageModel(BaseLM):
         return log_probs, hidden
 
     def save_checkpoint(self, params, name):
-        flow.save(params, os.path.join(name, 'params.tar'))
-        flow.save(self.state_dict(),
-                  os.path.join(name, 'model.pt'))
+        flow.save(params, os.path.join(name, "params.tar"))
+        flow.save(self.state_dict(), os.path.join(name, "model.pt"))
 
     def init_hidden_states(self, batch_size, device):
         return flow.zeros([self.num_layers, batch_size, self.hidden_size]).to(device)
@@ -94,38 +95,49 @@ class TransformerLanguageModel(BaseLM):
     def __init__(self, params):
         super(TransformerLanguageModel, self).__init__(params)
 
-        self.model_type = 'transformer_lm'
+        self.model_type = "transformer_lm"
         self.normalize_before = False
-        self.smoothing = params['smoothing']
-        self.vocab_size = params['vocab_size']
-        self.num_blocks = params['num_blocks']
+        self.smoothing = params["smoothing"]
+        self.vocab_size = params["vocab_size"]
+        self.num_blocks = params["num_blocks"]
 
-        self.embedding = nn.Embedding(self.vocab_size, params['d_model'])
-        self.pos_embedding = PositionalEncoding(params['d_model'], 0.0)
+        self.embedding = nn.Embedding(self.vocab_size, params["d_model"])
+        self.pos_embedding = PositionalEncoding(params["d_model"], 0.0)
 
-        self.blocks = nn.ModuleList([
-            TransformerEncoderLayer(
-                params['n_heads'], params['d_model'], params['d_ff'],
-                slf_attn_dropout=0.0, ffn_dropout=0.0,
-                residual_dropout=params['residual_dropout'],
-                normalize_before=False, concat_after=False, activation='glu') for _ in range(self.num_blocks)
-        ])
+        self.blocks = nn.ModuleList(
+            [
+                TransformerEncoderLayer(
+                    params["n_heads"],
+                    params["d_model"],
+                    params["d_ff"],
+                    slf_attn_dropout=0.0,
+                    ffn_dropout=0.0,
+                    residual_dropout=params["residual_dropout"],
+                    normalize_before=False,
+                    concat_after=False,
+                    activation="glu",
+                )
+                for _ in range(self.num_blocks)
+            ]
+        )
 
         if self.normalize_before:
-            self.after_norm = nn.LayerNorm(params['d_model'])
+            self.after_norm = nn.LayerNorm(params["d_model"])
 
-        self.output_project = nn.Linear(params['d_model'], self.vocab_size)
+        self.output_project = nn.Linear(params["d_model"], self.vocab_size)
 
-        if params['share_embedding']:
+        if params["share_embedding"]:
             self.output_project.weight = self.embedding.weight
-            print('Share the weight of embedding to the output project layer!')
+            print("Share the weight of embedding to the output project layer!")
 
-        self.crit = LabelSmoothingLoss(size=self.vocab_size, smoothing=self.smoothing, padding_idx=PAD)
+        self.crit = LabelSmoothingLoss(
+            size=self.vocab_size, smoothing=self.smoothing, padding_idx=PAD
+        )
 
     def forward(self, inputs, targets):
 
-        dec_output = self.embedding(inputs['inputs'])
-        dec_mask = get_seq_mask(inputs['inputs'])
+        dec_output = self.embedding(inputs["inputs"])
+        dec_mask = get_seq_mask(inputs["inputs"])
         dec_output, _ = self.pos_embedding(dec_output)
 
         for _, block in enumerate(self.blocks):
@@ -135,7 +147,7 @@ class TransformerLanguageModel(BaseLM):
             dec_output = self.after_norm(dec_output)
 
         logits = self.output_project(dec_output)
-        loss = self.crit(logits, targets['targets'])
+        loss = self.crit(logits, targets["targets"])
 
         return loss, None
 
@@ -162,6 +174,5 @@ class TransformerLanguageModel(BaseLM):
         return log_probs
 
     def save_checkpoint(self, params, name):
-        flow.save(params, os.path.join(name, 'params.tar'))
-        flow.save(self.state_dict(),
-                  os.path.join(name, 'model.pt'))
+        flow.save(params, os.path.join(name, "params.tar"))
+        flow.save(self.state_dict(), os.path.join(name, "model.pt"))

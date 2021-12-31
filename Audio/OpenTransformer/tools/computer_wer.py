@@ -8,14 +8,14 @@ total_words = 0
 total_false = 0
 
 target_dict = {}
-with open(tgt_file, 'r', encoding='utf-8') as tf:
+with open(tgt_file, "r", encoding="utf-8") as tf:
     for line in tf:
         parts = line.strip().split()
         idx = parts[0]
         words = parts[1:]
         target_dict[idx] = words
 
-with open(dec_file, 'r', encoding='utf-8') as df:
+with open(dec_file, "r", encoding="utf-8") as df:
     for line in df:
         parts = line.strip().split()
         idx = parts[0]
@@ -25,6 +25,4 @@ with open(dec_file, 'r', encoding='utf-8') as df:
         diff = editdistance.eval(ref_words, words)
         total_false += diff
 
-print('The WER/CER is %.2f' % 100 * total_false / total_words)
-
-
+print("The WER/CER is %.2f" % 100 * total_false / total_words)

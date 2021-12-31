@@ -17,7 +17,9 @@ class ConcatFeatureFrontEnd(BaseFrontEnd):
         self.nframes = self.left_frames + self.right_frames + 1
         self.output_size = self.nframes * input_size
 
-        self.window = nn.Unfold(kernel_size=(self.nframes, self.input_size), stride=self.stride, padding=0)
+        self.window = nn.Unfold(
+            kernel_size=(self.nframes, self.input_size), stride=self.stride, padding=0
+        )
 
     def forward(self, x, mask):
 
@@ -32,15 +34,23 @@ class ConcatFeatureFrontEnd(BaseFrontEnd):
         with flow.no_grad():
             x = self.window(x.unsqueeze(1))
             x = x.transpose(1, 2)
-            
-        mask = mask[:, self.left_frames::self.stride]
+
+        mask = mask[:, self.left_frames :: self.stride]
         assert mask.size(1) == x.size(1)
 
         return x, mask
-        
+
 
 class ConcatWithLinearFrontEnd(ConcatFeatureFrontEnd):
-    def __init__(self, input_size, output_size, left_frames, right_frames, frame_rate=30, dropout=0.0):
+    def __init__(
+        self,
+        input_size,
+        output_size,
+        left_frames,
+        right_frames,
+        frame_rate=30,
+        dropout=0.0,
+    ):
         super().__init__(input_size, left_frames, right_frames, frame_rate)
 
         self.linear = nn.Linear(self.output_size, output_size)

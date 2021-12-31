@@ -26,15 +26,15 @@ class BasedAttention(nn.Module):
         assert values.dim() == scores.dim()
 
         if mask is not None:
-            scores=flow.masked_fill(scores,mask==0, -float('inf'))
-        
+            scores = flow.masked_fill(scores, mask == 0, -float("inf"))
+
         weights = flow.softmax(scores, dim=-1)
         context = flow.matmul(weights, values)
 
         if context.dim() == 4:
             b, n, t, v = context.size()
             context = context.transpose(1, 2).reshape(b, t, n * v)
-        
+
         if self.enable_output_proj:
             context = self.output_proj(context)
 
@@ -43,14 +43,18 @@ class BasedAttention(nn.Module):
 
 class MultiHeadedSelfAttention(BasedAttention):
     def __init__(self, n_heads, d_model, dropout_rate=0.0, share_qvk_proj=False):
-        super(MultiHeadedSelfAttention, self).__init__(d_model, d_model, enable_output_proj=True, dropout=dropout_rate)
+        super(MultiHeadedSelfAttention, self).__init__(
+            d_model, d_model, enable_output_proj=True, dropout=dropout_rate
+        )
 
         self.d_model = d_model
         self.share_qvk_proj = share_qvk_proj
         self.nheads = n_heads
         self.d_k = d_model // n_heads
 
-        self.qvk_proj = nn.Linear(d_model, d_model if self.share_qvk_proj else d_model * 3)
+        self.qvk_proj = nn.Linear(
+            d_model, d_model if self.share_qvk_proj else d_model * 3
+        )
 
     def forward(self, x, mask):
         """Compute 'Scaled Dot Product Attention'
@@ -71,10 +75,12 @@ class MultiHeadedSelfAttention(BasedAttention):
         query = query.reshape(batch_size, -1, self.nheads, self.d_k).transpose(1, 2)
         key = key.reshape(batch_size, -1, self.nheads, self.d_k).transpose(1, 2)
         value = value.reshape(batch_size, -1, self.nheads, self.d_k).transpose(1, 2)
-        
+
         scores = flow.matmul(query, key.transpose(2, 3)) / math.sqrt(self.d_k)
 
-        context, attn_weights = self.compute_context(value, scores, mask.unsqueeze(1) if mask is not None else None)
+        context, attn_weights = self.compute_context(
+            value, scores, mask.unsqueeze(1) if mask is not None else None
+        )
 
         return context, attn_weights
 
@@ -85,23 +91,29 @@ class MultiHeadedSelfAttention(BasedAttention):
         if self.share_qvk_proj:
             query = key = value = x
         else:
-            query, key, value =flow.split(x, self.d_model, dim=-1)
+            query, key, value = flow.split(x, self.d_model, dim=-1)
 
         batch_size = x.size(0)
         query = query.reshape(batch_size, -1, self.nheads, self.d_k).transpose(1, 2)
         key = key.reshape(batch_size, -1, self.nheads, self.d_k).transpose(1, 2)
         value = value.reshape(batch_size, -1, self.nheads, self.d_k).transpose(1, 2)
-        
+
         scores = flow.matmul(query, key.transpose(2, 3)) / math.sqrt(self.d_k)
 
-        context, attn_weights = self.compute_context(value, scores, mask.unsqueeze(1) if mask is not None else None)
+        context, attn_weights = self.compute_context(
+            value, scores, mask.unsqueeze(1) if mask is not None else None
+        )
 
         return context, attn_weights, cache
 
 
 class MultiHeadedCrossAttention(BasedAttention):
-    def __init__(self, n_heads, d_model, memory_dim, dropout_rate=0.0, share_vk_proj=False):
-        super(MultiHeadedCrossAttention, self).__init__(d_model, d_model, enable_output_proj=True, dropout=dropout_rate)
+    def __init__(
+        self, n_heads, d_model, memory_dim, dropout_rate=0.0, share_vk_proj=False
+    ):
+        super(MultiHeadedCrossAttention, self).__init__(
+            d_model, d_model, enable_output_proj=True, dropout=dropout_rate
+        )
 
         self.d_model = d_model
         self.share_vk_proj = share_vk_proj
@@ -109,7 +121,9 @@ class MultiHeadedCrossAttention(BasedAttention):
         self.d_k = d_model // n_heads
 
         self.q_proj = nn.Linear(d_model, d_model)
-        self.vk_proj = nn.Linear(memory_dim, d_model if self.share_vk_proj else d_model * 2)
+        self.vk_proj = nn.Linear(
+            memory_dim, d_model if self.share_vk_proj else d_model * 2
+        )
 
     def forward(self, query, memory, memory_mask):
         """Compute 'Scaled Dot Product Attention'
@@ -132,10 +146,12 @@ class MultiHeadedCrossAttention(BasedAttention):
         query = query.reshape(batch_size, -1, self.nheads, self.d_k).transpose(1, 2)
         key = key.reshape(batch_size, -1, self.nheads, self.d_k).transpose(1, 2)
         value = value.reshape(batch_size, -1, self.nheads, self.d_k).transpose(1, 2)
-        
+
         scores = flow.matmul(query, key.transpose(2, 3)) / math.sqrt(self.d_k)
 
-        context, attn_weights = self.compute_context(value, scores, memory_mask.unsqueeze(1))
+        context, attn_weights = self.compute_context(
+            value, scores, memory_mask.unsqueeze(1)
+        )
 
         return context, attn_weights
 
@@ -160,16 +176,27 @@ class MultiHeadedCrossAttention(BasedAttention):
         query = query.reshape(batch_size, -1, self.nheads, self.d_k).transpose(1, 2)
         key = key.reshape(batch_size, -1, self.nheads, self.d_k).transpose(1, 2)
         value = value.reshape(batch_size, -1, self.nheads, self.d_k).transpose(1, 2)
-        
+
         scores = flow.matmul(query, key.transpose(2, 3)) / math.sqrt(self.d_k)
 
-        context, attn_weights = self.compute_context(value, scores, memory_mask.unsqueeze(1))
+        context, attn_weights = self.compute_context(
+            value, scores, memory_mask.unsqueeze(1)
+        )
         return context, attn_weights, cache
 
 
 class MultiHeadedSelfAttentionWithRelPos(BasedAttention):
-    def __init__(self, n_heads, d_model, dropout_rate=0.0, skip_term_b=False, share_qvk_proj=False):
-        super(MultiHeadedSelfAttentionWithRelPos, self).__init__(n_heads, d_model, dropout_rate, share_qvk_proj)
+    def __init__(
+        self,
+        n_heads,
+        d_model,
+        dropout_rate=0.0,
+        skip_term_b=False,
+        share_qvk_proj=False,
+    ):
+        super(MultiHeadedSelfAttentionWithRelPos, self).__init__(
+            n_heads, d_model, dropout_rate, share_qvk_proj
+        )
 
         self.d_model = d_model
         self.share_qvk_proj = share_qvk_proj
@@ -177,7 +204,9 @@ class MultiHeadedSelfAttentionWithRelPos(BasedAttention):
         self.nheads = n_heads
         self.d_k = d_model // n_heads
 
-        self.qvk_proj = nn.Linear(d_model, d_model if self.share_qvk_proj else d_model * 3)
+        self.qvk_proj = nn.Linear(
+            d_model, d_model if self.share_qvk_proj else d_model * 3
+        )
 
         self.pos_proj = nn.Linear(d_model, d_model, bias=False)
 
@@ -193,14 +222,17 @@ class MultiHeadedSelfAttentionWithRelPos(BasedAttention):
             torch.Tensor: Output tensor.
         """
         B, _, N, _ = content.size()
-        S= abs_pos.size(2)
+        S = abs_pos.size(2)
         T = (S + 1) // 2
 
         if not self.skip_term_b:
-            matrix_bd = flow.matmul(content.transpose(1, 2), abs_pos.transpose(-2, -1).repeat(B,1,1,1))
+            matrix_bd = flow.matmul(
+                content.transpose(1, 2), abs_pos.transpose(-2, -1).repeat(B, 1, 1, 1)
+            )
         else:
-            matrix_bd = flow.matmul(content.transpose(
-                1, 2), abs_pos.transpose(-2, -1).repeat(B, 1, 1, 1))
+            matrix_bd = flow.matmul(
+                content.transpose(1, 2), abs_pos.transpose(-2, -1).repeat(B, 1, 1, 1)
+            )
 
         rel_pos = flow.arange(0, T, dtype=flow.long, device=matrix_bd.device)
         rel_pos = (rel_pos[None] - rel_pos[:, None]).reshape(1, 1, T, T) + (T - 1)
@@ -227,16 +259,22 @@ class MultiHeadedSelfAttentionWithRelPos(BasedAttention):
         value = value.reshape(batch_size, -1, self.nheads, self.d_k).transpose(1, 2)
 
         bpos = pos.size(0)
-        pos = self.pos_proj(pos).reshape(bpos, -1, self.nheads, self.d_k).transpose(1, 2)
+        pos = (
+            self.pos_proj(pos).reshape(bpos, -1, self.nheads, self.d_k).transpose(1, 2)
+        )
 
         query_with_bias_u = query + self.posu
         query_with_bias_u = query_with_bias_u.transpose(1, 2)
         matrix_ac = flow.matmul(query_with_bias_u, key.transpose(-2, -1))
 
-        matrix_bd = self._RelPosBias(query + self.posv if not self.skip_term_b else self.posv, pos)
+        matrix_bd = self._RelPosBias(
+            query + self.posv if not self.skip_term_b else self.posv, pos
+        )
 
         scores = (matrix_ac + matrix_bd) / math.sqrt(self.d_k)
-        context, attn_weights = self.compute_context(value, scores, mask.unsqueeze(1) if mask is not None else None)
+        context, attn_weights = self.compute_context(
+            value, scores, mask.unsqueeze(1) if mask is not None else None
+        )
 
         return context, attn_weights
 
