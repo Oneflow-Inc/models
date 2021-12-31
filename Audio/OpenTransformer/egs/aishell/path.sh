@@ -1,0 +1,1 @@
+KALDI_ROOT='~/kaldi'
