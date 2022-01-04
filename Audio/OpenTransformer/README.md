@@ -53,7 +53,7 @@ bash eval.sh
 
 
 ## Experiments
-Our Model can achieve a CER of 7.5% without CMVN, any external LM and joint-CTC training on [AISHELL-1](http://www.openslr.org/33/). The pretrained model can be obatained from [Speech_Transformer_Model](https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/audio/OpenTransfomer.zip).
+Our Model can achieve a CER of 7.5% without CMVN, any external LM and joint-CTC training on [AISHELL-1](http://www.openslr.org/33/).
 
 
 
