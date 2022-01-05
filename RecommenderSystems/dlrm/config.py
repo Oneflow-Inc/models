@@ -30,7 +30,6 @@ def get_args(print_args=True):
         "--interaction_itself", action="store_true", help="interaction itself or not"
     )
     parser.add_argument("--model_load_dir", type=str, default="")
-    parser.add_argument("--model_type", type=str, default="pickle", help='pickle, npy')
     parser.add_argument("--model_save_dir", type=str, default="./checkpoint")
     parser.add_argument(
         "--save_initial_model",
