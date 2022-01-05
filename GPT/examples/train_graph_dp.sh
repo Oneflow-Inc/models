@@ -4,14 +4,25 @@ export PYTHONUNBUFFERED=1
 echo PYTHONUNBUFFERED=$PYTHONUNBUFFERED
 export ONEFLOW_DEBUG_MODE=True
 
-DATASET=/dataset/gpt/gpt_sample_dataset_text_document
+model=${1:-gpt2-small}
+
+DATASET=/home/zhaoluyang/Oneflow/of_gpt/gpt_sample_dataset_text_document
 SEQ_LEN=1024
-LAYER_NUM=12
-HIDDEN_SIZE=768
-HEAD_NUM=12
+
+if  [ ${model} = "gpt2-small" ];then
+    echo "network : gpt2-small"
+    LAYER_NUM=12
+    HEAD_NUM=12
+    HIDDEN_SIZE=768
+elif  [ ${model} = "gpt2-medium" ];then
+    echo "network : gpt2-medium"
+	LAYER_NUM=24
+    HEAD_NUM=16
+    HIDDEN_SIZE=1024
+fi
 
 MICRO_BATCH_SIZE=8
-GLOBAL_BATCH_SIZE=16
+GLOBAL_BATCH_SIZE=64
 TENSOR_MODEL_PARALLEL_SIZE=1
 PIPELINE_MODEL_PARALLEL_SIZE=1
 
@@ -21,7 +32,7 @@ LOG_INTERVAL=1
 
 SRC_DIR=$(realpath $(dirname "$0")/..)
 
-DEVICE_NUM_PER_NODE=2
+DEVICE_NUM_PER_NODE=8
 MASTER_ADDR=127.0.0.1
 NUM_NODES=1
 NODE_RANK=0
@@ -61,4 +72,6 @@ $SRC_DIR/oneflow_gpt/train.py \
     --graph \
     --train-iters $TRAIN_ITER \
     --log-interval $LOG_INTERVAL \
-    # --zero_stage_1 \
+    --zero_stage_1 \
+    --zero_stage_2 \
+    --zero_stage_3 \

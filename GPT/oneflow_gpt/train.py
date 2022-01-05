@@ -73,7 +73,7 @@ class Trainer(object):
             # snapshot.step()
             # iteration = snapshot.iter
             iteration += 1
-            print(f"[{self.rank}] iteration: {iteration}")
+            # print(f"[{self.rank}] iteration: {iteration}")
 
             self.logger.meter("samples", self.args.global_batch_size)
             self.logger.meter("loss", loss)
@@ -142,10 +142,12 @@ class GPTGraph(flow.nn.Graph):
         if args.zero_stage_1:
             print("zero stage 1 optimization")
             self.config.set_zero_redundancy_optimizer_mode("distributed_split")
+
         if args.zero_stage_2:
             print("zero stage 2 optimization")
             self.config.set_zero_redundancy_optimizer_mode("distributed_split")
             flow.boxing.nccl.enable_use_compute_stream(True)
+
         if args.zero_stage_3:
             print("zero stage 3 optimization")
             self.config.set_zero_redundancy_optimizer_mode("distributed_split")
