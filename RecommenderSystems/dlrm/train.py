@@ -118,7 +118,7 @@ class Trainer(object):
             state_dict = flow.load(self.args.model_load_dir)
         else:
             return
-        self.dlrm_module.load_state_dict(state_dict)
+        self.dlrm_module.load_state_dict(state_dict, strict=False)
 
     def save(self, subdir):
         if self.save_path is None or self.save_path == '':
