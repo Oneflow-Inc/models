@@ -11,6 +11,8 @@ def make_data_loader(args, mode, is_consistent=False, data_format="ofrecord"):
 
     total_batch_size = args.batch_size
     batch_size_per_proc = args.batch_size_per_proc
+    eval_total_batch_size = args.eval_batch_size
+    eval_batch_size_per_proc = args.eval_batch_size_per_proc
 
     placement = None
     sbp = None
@@ -19,6 +21,7 @@ def make_data_loader(args, mode, is_consistent=False, data_format="ofrecord"):
         placement = flow.env.all_device_placement("cpu")
         sbp = flow.sbp.split(0)
         batch_size_per_proc = total_batch_size
+        eval_batch_size_per_proc = eval_total_batch_size
     
     if data_format == "ofrecord":
         ofrecord_data_loader = OFRecordDataLoader(
@@ -27,10 +30,10 @@ def make_data_loader(args, mode, is_consistent=False, data_format="ofrecord"):
             part_name_suffix_length=args.data_part_name_suffix_length,
             num_dense_fields=args.num_dense_fields,
             num_sparse_fields=args.num_sparse_fields,
-            batch_size=batch_size_per_proc,
-            total_batch_size=total_batch_size,
+            batch_size=batch_size_per_proc if mode=='train' else eval_batch_size_per_proc,
+            total_batch_size=total_batch_size if mode=='train' else eval_total_batch_size,
             mode=mode,
-            shuffle=True,
+            shuffle=(mode=='train'),
             placement=placement,
             sbp=sbp,
         )
@@ -40,10 +43,10 @@ def make_data_loader(args, mode, is_consistent=False, data_format="ofrecord"):
             data_dir=args.data_dir,
             num_dense_fields=args.num_dense_fields,
             num_sparse_fields=args.num_sparse_fields,
-            batch_size=batch_size_per_proc,
-            total_batch_size=total_batch_size,
+            batch_size=batch_size_per_proc if mode=='train' else eval_batch_size_per_proc,
+            total_batch_size=total_batch_size if mode=='train' else eval_total_batch_size,
             mode=mode,
-            shuffle=True,
+            shuffle=(mode=='train'),
             placement=placement,
             sbp=sbp,
         )
@@ -52,8 +55,8 @@ def make_data_loader(args, mode, is_consistent=False, data_format="ofrecord"):
         synthetic_data_loader = SyntheticDataLoader(
             num_dense_fields=args.num_dense_fields,
             num_sparse_fields=args.num_sparse_fields,
-            batch_size=batch_size_per_proc,
-            total_batch_size=total_batch_size,
+            batch_size=batch_size_per_proc if mode=='train' else eval_batch_size_per_proc,
+            total_batch_size=total_batch_size if mode=='train' else eval_total_batch_size,
             placement=placement,
             sbp=sbp,
         )

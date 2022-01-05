@@ -195,6 +195,7 @@ class LocalDLRM(nn.Module):
         top_mlp = [],
         interaction_type = 'dot',
         interaction_itself = False,
+        embedding_type = "Embedding",
     ):
         super(LocalDLRM, self).__init__()
         self.bottom_mlp = MLP(num_dense_fields, bottom_mlp)
