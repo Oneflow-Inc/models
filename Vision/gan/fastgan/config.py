@@ -16,8 +16,7 @@ _C.DATA = CN()
 _C.DATA.BATCH_SIZE = 128
 _C.DATA.DATA_PATH = ''
 _C.DATA.DATASET = 'imagenet'
-_C.DATA.IMAGE_SIZE = 1024
-
+# _C.DATA.IMAGE_SIZE = 1024
 
 
 # -----------------------------------------------------------------------------
@@ -29,10 +28,14 @@ _C.TRAIN.iter = 50000
 _C.TRAIN.start_iter = 0
 _C.TRAIN.nlr = 0.0002
 _C.TRAIN.nbeta1 = 0.5
+_C.TRAIN.nbeta2 = 0.999
 _C.TRAIN.save = ''
 _C.TRAIN.load = ''
 _C.TRAIN.dataloader_workers = 8
 _C.TRAIN.save_interval = 100
+_C.TRAIN.im_size = 1024
+_C.TRAIN.cpkt = ''
+_C.TRAIN.multi_gpu = ''
 
 # -----------------------------------------------------------------------------
 # Generator settings
