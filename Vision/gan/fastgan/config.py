@@ -36,6 +36,8 @@ _C.TRAIN.save_interval = 100
 _C.TRAIN.im_size = 1024
 _C.TRAIN.cpkt = ''
 _C.TRAIN.multi_gpu = ''
+_C.TRAIN.save_interval = ''
+_C.TRAIN.saved_image_folder = ''
 
 # -----------------------------------------------------------------------------
 # Generator settings
