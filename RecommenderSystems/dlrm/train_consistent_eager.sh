@@ -34,7 +34,6 @@ python3 -m oneflow.distributed.launch \
     --eval_interval 100 \
     --eval_batchs $eval_batchs \
     --eval_batch_size $eval_batch_size \
-    --dropout_rate 0.5 \
     --max_iter 10000 \
     --vocab_size $EMBD_SIZE \
     --data_part_num 256 \

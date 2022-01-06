@@ -1,5 +1,5 @@
 rm core.*
-DEVICE_NUM_PER_NODE=1
+DEVICE_NUM_PER_NODE=2
 MASTER_ADDR=127.0.0.1
 NUM_NODES=1
 NODE_RANK=0
@@ -34,13 +34,12 @@ python3 -m oneflow.distributed.launch \
     --eval_interval 100 \
     --eval_batchs $eval_batchs \
     --eval_batch_size $eval_batch_size \
-    --dropout_rate 0.5 \
     --max_iter 10000 \
     --vocab_size $EMBD_SIZE \
     --data_part_num 256 \
     --data_part_name_suffix_length 5 \
     --execution_mode 'graph' \
+    --model_load_dir /tank/model_zoo/dlrm_baseline_params_emb$emb_size \
     --test_name 'train_graph_conisitent_'$DEVICE_NUM_PER_NODE'gpu'
-    # --model_load_dir /tank/model_zoo/dlrm_baseline_params_emb$emb_size \
     # --dataset_format torch \
     # --model_load_dir /tank/xiexuan/dlrm/initial_parameters \
