@@ -10,7 +10,10 @@ BATHSIZE=65536
 export GLOG_minloglevel=2
 export CACHE_MEMORY_BUDGET_MB=16384 #8192
 ulimit -SHn 131072
+export emb_size=128
 
+eval_batch_size=327432
+eval_batchs=$(( 3274330 / eval_batch_size ))
 #export KEY_VALUE_STORE="cuda_in_memory"
 #export NUM_KEYS=100000 #225000000 #209715200 #134217728
 #export NUM_DEVICE_KEYS=1000 #25000000
@@ -30,19 +33,23 @@ python3 -m oneflow.distributed.launch \
     --nnodes $NUM_NODES \
     --node_rank $NODE_RANK \
     --master_addr $MASTER_ADDR \
-  train.py \
+    train.py \
     --interaction_type dot \
     --embedding_type OneEmbedding \
+    --bottom_mlp 512,256,$emb_size \
+    --top_mlp 1024,1024,512,256 \
+    --embedding_vec_size $emb_size \
     --learning_rate 24 \
     --batch_size $BATHSIZE \
     --data_dir $DATA_DIR \
-    --loss_print_every_n_iter 1 \
+    --loss_print_every_n_iter 100 \
     --eval_interval 1000 \
-    --dropout_rate 0.5 \
     --max_iter 60000 \
     --vocab_size $EMBD_SIZE \
     --data_part_num 5888 \
     --data_part_name_suffix_length 5 \
     --execution_mode 'graph' \
-    --test_name 'train_eager_graph_'$DEVICE_NUM_PER_NODE'gpu' | tee 'train_eager_graph_'$DEVICE_NUM_PER_NODE'gpu'.log
-    #--dataset_format 'synthetic' \
+    --model_load_dir /tank/model_zoo/dlrm_baseline_params_emb$emb_size \
+    --test_name 'train_graph_conisitent_'$DEVICE_NUM_PER_NODE'gpu'
+    # --dataset_format torch \
+    # --model_load_dir /tank/xiexuan/dlrm/initial_parameters \

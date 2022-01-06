@@ -19,16 +19,9 @@ class Dense(nn.Module):
         )
         for name, param in self.named_parameters():
             if name.endswith("weight"):
-                m = param.shape[0]
-                n = param.shape[1]
-                mean = 0.0
-                std_dev = np.sqrt(2 / (m + n))
-                nn.init.normal_(param, mean, std_dev)
+                nn.init.normal_(param, 0.0, np.sqrt(2 / (in_features + out_features)))
             elif name.endswith("bias"):
-                m = param.shape[0]
-                mean = 0.0
-                std_dev = np.sqrt(1 / m)
-                nn.init.normal_(param, mean, std_dev)
+                nn.init.normal_(param, 0.0, np.sqrt(1 / out_features))
 
     def forward(self, x: flow.Tensor) -> flow.Tensor:
         x = self.features(x)
@@ -122,7 +115,8 @@ class Embedding(nn.Embedding):
         super(Embedding, self).__init__(vocab_size, embed_size, padding_idx=0)
         for param in self.parameters():
             nn.init.uniform_(param, a=-0.05, b=0.05)
-
+            # W = np.load('/tank/model_zoo/dlrm_baseline_params_emb16/embedding_weight.npy')
+            # param.data = flow.tensor(W, requires_grad=True)
 
 class OneEmbedding(nn.OneEmbeddingLookup):
     def __init__(self, vocab_size, embed_size):
@@ -146,51 +140,6 @@ embd_dict = {
     'Embedding': Embedding,
 }
 
-class ConsistentDLRM(nn.Module):
-    def __init__(
-        self,
-        vocab_size: int,
-        embedding_vec_size: int = 16,
-        num_sparse_fields: int = 26,
-        num_dense_fields: int = 13,
-        bottom_mlp = [],
-        top_mlp = [],
-        interaction_type = 'dot',
-        interaction_itself = False,
-        embedding_type = "OneEmbedding",
-    ):
-        super(ConsistentDLRM, self).__init__()
-        self.bottom_mlp = MLP(num_dense_fields, bottom_mlp)
-        self.bottom_mlp.to_consistent(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
-
-        self.embedding = embd_dict[embedding_type](vocab_size // flow.env.get_world_size(), embedding_vec_size)
-        self.embedding.to_consistent(flow.env.all_device_placement("cuda"), flow.sbp.split(0))
-       
-        self.interaction = Interaction(interaction_type, interaction_itself, num_sparse_fields)
-        self.interaction.to_consistent(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
-
-        feature_size = self.interaction.output_feature_size(embedding_vec_size, bottom_mlp[-1])
-        self.top_mlp = MLP(feature_size, top_mlp)
-        self.top_mlp.to_consistent(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
-        self.scores = nn.Linear(top_mlp[-1], 1)
-        self.scores.to_consistent(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
-        self.sigmoid = nn.Sigmoid()
-        self.sigmoid.to_consistent(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
-
-    def forward(self, dense_fields, sparse_fields) -> flow.Tensor:
-        dense_fields = dense_fields.to_consistent(sbp=flow.sbp.split(0))
-        dense_fields = flow.log(flow.cast(dense_fields, flow.float) + 1.0)
-        dense_fields = self.bottom_mlp(dense_fields)
-
-        sparse_fields = sparse_fields.to_consistent(sbp=flow.sbp.split(0))
-        sparse_fields = flow.cast(sparse_fields, flow.int64)
-        embedding = self.embedding(sparse_fields)
-        embedding = embedding.view(-1, embedding.shape[-1] * embedding.shape[-2])
-        features = self.interaction(dense_fields, embedding)
-        features = self.top_mlp(features)
-        scores = self.scores(features)
-        return self.sigmoid(scores)
-
 
 class LocalDLRM(nn.Module):
     def __init__(
@@ -203,6 +152,7 @@ class LocalDLRM(nn.Module):
         top_mlp = [],
         interaction_type = 'dot',
         interaction_itself = False,
+        embedding_type = "Embedding",
     ):
         super(LocalDLRM, self).__init__()
         self.bottom_mlp = MLP(num_dense_fields, bottom_mlp)
@@ -214,7 +164,7 @@ class LocalDLRM(nn.Module):
         self.sigmoid = nn.Sigmoid()
 
 
-    def forward(self, dense_fields, sparse_fields) -> flow.Tensor:
+    def _forward(self, dense_fields, sparse_fields) -> flow.Tensor:
         dense_fields = flow.log(flow.cast(dense_fields, flow.float) + 1.0)
         dense_fields = self.bottom_mlp(dense_fields)
         sparse_fields = flow.cast(sparse_fields, flow.int64)
@@ -225,6 +175,41 @@ class LocalDLRM(nn.Module):
         features = self.top_mlp(features)
         scores = self.scores(features)
         return self.sigmoid(scores)
+
+    def forward(self, dense_fields, sparse_fields) -> flow.Tensor:
+        return self._forward(dense_fields, sparse_fields)
+
+
+class ConsistentDLRM(LocalDLRM):
+    def __init__(
+        self,
+        vocab_size: int,
+        embedding_vec_size: int = 16,
+        num_sparse_fields: int = 26,
+        num_dense_fields: int = 13,
+        bottom_mlp = [],
+        top_mlp = [],
+        interaction_type = 'dot',
+        interaction_itself = False,
+        embedding_type = "OneEmbedding",
+    ):
+        super(ConsistentDLRM, self).__init__(vocab_size, embedding_vec_size, num_sparse_fields, 
+                                             num_dense_fields, bottom_mlp, top_mlp, 
+                                             interaction_type, interaction_itself, embedding_type)
+
+    def to_consistent(self):
+        self.bottom_mlp.to_consistent(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
+        self.embedding.to_consistent(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
+        self.interaction.to_consistent(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
+        self.top_mlp.to_consistent(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
+        self.scores.to_consistent(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
+        self.sigmoid.to_consistent(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
+
+    def forward(self, dense_fields, sparse_fields) -> flow.Tensor:
+        dense_fields = dense_fields.to_consistent(sbp=flow.sbp.split(0))
+        sparse_fields = sparse_fields.to_consistent(sbp=flow.sbp.split(0))
+        return self._forward(dense_fields, sparse_fields)
+
 
 
 def make_dlrm_module(args, is_consistent):

@@ -6,7 +6,7 @@ NODE_RANK=0
 # DATA_DIR=/dataset/wdl_ofrecord/ofrecord
 DATA_DIR=/data/xiexuan/criteo1t_ofrecord_shuffle_per_day/
 EMBD_SIZE=33762578
-BATHSIZE=65536
+BATHSIZE=55296
 export GLOG_minloglevel=2
 export CACHE_MEMORY_BUDGET_MB=16384 #8192
 ulimit -SHn 131072
@@ -16,11 +16,7 @@ ulimit -SHn 131072
 #export NUM_DEVICE_KEYS=1000 #25000000
 
 export KEY_VALUE_STORE="block_based"
-export BLOCK_BASED_PATH="/NVME0/guoran/rocks"
-rm /NVME0/guoran/rocks0/*
-rm /NVME0/guoran/rocks1/*
-rm /NVME0/guoran/rocks2/*
-rm /NVME0/guoran/rocks3/*
+export BLOCK_BASED_PATH="/NVME0/guoran/rocks" #"init_model"
 export LD_PRELOAD=/lib/x86_64-linux-gnu/libtcmalloc.so.4:
 
 #/usr/local/cuda-11.4/bin/nsys profile --stat=true \
@@ -36,10 +32,9 @@ python3 -m oneflow.distributed.launch \
     --learning_rate 24 \
     --batch_size $BATHSIZE \
     --data_dir $DATA_DIR \
-    --loss_print_every_n_iter 1 \
+    --loss_print_every_n_iter 100 \
     --eval_interval 1000 \
-    --dropout_rate 0.5 \
-    --max_iter 60000 \
+    --max_iter 75868 \
     --vocab_size $EMBD_SIZE \
     --data_part_num 5888 \
     --data_part_name_suffix_length 5 \

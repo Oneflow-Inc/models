@@ -55,13 +55,14 @@ def get_args(print_args=True):
     )
     parser.add_argument('--data_part_name_suffix_length', type=int, default=-1)
     parser.add_argument('--eval_batchs', type=int, default=20)
+    parser.add_argument('--eval_batch_size', type=int, default=512)
+    parser.add_argument("--eval_batch_size_per_proc", type=int, default=None)
     parser.add_argument('--eval_interval', type=int, default=1000)    
     parser.add_argument("--batch_size", type=int, default=16384)
     parser.add_argument("--batch_size_per_proc", type=int, default=None)
     parser.add_argument("--learning_rate", type=float, default=1e-3)
     parser.add_argument("--vocab_size", type=int, default=1603616)
     parser.add_argument("--embedding_vec_size", type=int, default=128)
-    parser.add_argument("--dropout_rate", type=float, default=0.5)
     parser.add_argument("--num_dense_fields", type=int, default=13)
     parser.add_argument("--max_iter", type=int, default=30000)
     parser.add_argument("--loss_print_every_n_iter", type=int, default=100)
@@ -85,8 +86,18 @@ def get_args(print_args=True):
     if args.batch_size_per_proc is None:
         assert args.batch_size % world_size == 0
         args.batch_size_per_proc = args.batch_size // world_size
+    elif args.batch_size is None:
+        args.batch_size = args.batch_size_per_proc * world_size
     else:
         assert args.batch_size % args.batch_size_per_proc == 0
+
+    if args.eval_batch_size_per_proc is None:
+        assert args.eval_batch_size % world_size == 0
+        args.eval_batch_size_per_proc = args.eval_batch_size // world_size
+    elif args.eval_batch_size is None:
+        args.eval_batch_size = args.eval_batch_size_per_proc * world_size
+    else:
+        assert args.eval_batch_size % args.eval_batch_size_per_proc == 0
 
     if print_args and flow.env.get_rank() == 0:
         _print_args(args)

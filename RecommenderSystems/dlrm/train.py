@@ -48,6 +48,9 @@ class Trainer(object):
         self.val_dataloader = make_data_loader(args, "val", self.is_consistent, self.dataset_format)
         self.dlrm_module = make_dlrm_module(args, self.is_consistent)
         self.init_model()
+        if self.is_consistent:
+            self.dlrm_module.to_consistent()
+        # self.opt = flow.optim.Adam(
         self.opt = flow.optim.SGD(
             self.dlrm_module.parameters(), lr=args.learning_rate
         )
@@ -153,7 +156,7 @@ class Trainer(object):
             state_dict = flow.load(self.args.model_load_dir)
         else:
             return
-        self.dlrm_module.load_state_dict(state_dict)
+        self.dlrm_module.load_state_dict(state_dict), strict=False)
 
 
 
