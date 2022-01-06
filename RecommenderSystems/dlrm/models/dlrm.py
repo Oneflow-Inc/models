@@ -126,10 +126,11 @@ class Embedding(nn.Embedding):
 
 class OneEmbedding(nn.OneEmbeddingLookup):
     def __init__(self, vocab_size, embed_size):
+        print("embed_size", embed_size)
         options = {
             "name": "my_embedding",
             # Can't change the embedding_size 128 because the kv store value_length has been set to 128
-            "embedding_size": 128,
+            "embedding_size": embed_size,
             "dtype": flow.float,
             "encoder": "invalid",
             "partitioning": "invalid",
