@@ -1,5 +1,5 @@
 rm core.*
-DEVICE_NUM_PER_NODE=1
+DEVICE_NUM_PER_NODE=2
 MASTER_ADDR=127.0.0.1
 NUM_NODES=1
 NODE_RANK=0
@@ -12,9 +12,9 @@ emb_size=16
 # test: 3274330
 # val: 3274328
 # train: 39291958
-eval_batch_size=327433
+eval_batch_size=327432
 eval_batchs=$(( 3274330 / eval_batch_size ))
-export CUDA_VISIBLE_DEVICES=1
+# export CUDA_VISIBLE_DEVICES=1
 export ONEFLOW_DEBUG_MODE=True
 python3 -m oneflow.distributed.launch \
     --nproc_per_node $DEVICE_NUM_PER_NODE \
@@ -40,7 +40,7 @@ python3 -m oneflow.distributed.launch \
     --data_part_num 256 \
     --data_part_name_suffix_length 5 \
     --execution_mode 'eager' \
-    --model_load_dir /tank/model_zoo/dlrm_baseline_params_emb$emb_size \
     --test_name 'train_eager_conisitent_'$DEVICE_NUM_PER_NODE'gpu'
+    # --model_load_dir /tank/model_zoo/dlrm_baseline_params_emb$emb_size \
     # --dataset_format torch \
     # --model_load_dir /tank/xiexuan/dlrm/initial_parameters \
