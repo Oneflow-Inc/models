@@ -118,6 +118,35 @@ class Trainer(object):
 
     def load_state_dict(self):
         print(f"Loading model from {self.args.model_load_dir}")
+        state_dict = {
+            'bottom_mlp.linear_layers.fc0.features.0.bias': 'bot_l.0.bias.npy',
+            'bottom_mlp.linear_layers.fc0.features.0.weight': 'bot_l.0.weight.npy',
+            'bottom_mlp.linear_layers.fc1.features.0.bias': 'bot_l.2.bias.npy',
+            'bottom_mlp.linear_layers.fc1.features.0.weight': 'bot_l.2.weight.npy',
+            'bottom_mlp.linear_layers.fc2.features.0.bias': 'bot_l.4.bias.npy',
+            'bottom_mlp.linear_layers.fc2.features.0.weight': 'bot_l.4.weight.npy',
+            'embedding.weight': 'embedding_weight.npy',
+            'top_mlp.linear_layers.fc0.features.0.bias': 'top_l.0.bias.npy',
+            'top_mlp.linear_layers.fc0.features.0.weight': 'top_l.0.weight.npy',
+            'top_mlp.linear_layers.fc1.features.0.bias': 'top_l.2.bias.npy',
+            'top_mlp.linear_layers.fc1.features.0.weight': 'top_l.2.weight.npy',
+            'top_mlp.linear_layers.fc2.features.0.bias': 'top_l.4.bias.npy',
+            'top_mlp.linear_layers.fc2.features.0.weight': 'top_l.4.weight.npy',
+            'top_mlp.linear_layers.fc3.features.0.bias': 'top_l.6.bias.npy',
+            'top_mlp.linear_layers.fc3.features.0.weight': 'top_l.6.weight.npy',
+            'scores.bias': 'top_l.8.bias.npy',
+            'scores.weight': 'top_l.8.weight.npy',
+        }
+        for name, param in self.dlrm_module.named_parameters():
+            path = os.path.join(self.args.model_load_dir, state_dict[name])
+            W = np.load(path)
+            print(name, param.shape, W.shape)
+            #if eager
+            #param.data = flow.tensor(W, requires_grad=True).to('cuda')
+            #if graph:
+            param.data = flow.tensor(W, requires_grad=True).to('cuda').to_consistent(placement = flow.placement("cuda", {0: 0}), sbp=flow.sbp.broadcast)
+        # exit()
+        return
         if self.is_consistent:
             state_dict = flow.load(self.args.model_load_dir, consistent_src_rank=0)
         elif self.rank == 0:
@@ -125,6 +154,8 @@ class Trainer(object):
         else:
             return
         self.dlrm_module.load_state_dict(state_dict)
+
+
 
     def save(self, subdir):
         if self.save_path is None or self.save_path == '':
