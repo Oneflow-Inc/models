@@ -4,7 +4,8 @@ MASTER_ADDR=127.0.0.1
 NUM_NODES=1
 NODE_RANK=0
 # DATA_DIR=/dataset/wdl_ofrecord/ofrecord
-DATA_DIR=/tank/dataset/criteo_kaggle/dlrm_ofrecord
+dataset_format=ofrecord
+DATA_DIR=/tank/dataset/criteo_kaggle/dlrm_$dataset_format
 EMBD_SIZE=33762577 # 33762578
 BATHSIZE=32
 
@@ -23,6 +24,7 @@ python3 -m oneflow.distributed.launch \
     --master_addr $MASTER_ADDR \
     train.py \
     --interaction_type dot \
+    --dataset_format $dataset_format \
     --embedding_type Embedding \
     --bottom_mlp 512,256,$emb_size \
     --top_mlp 1024,1024,512,256 \

@@ -99,24 +99,24 @@ class Embedding(nn.Embedding):
             # W = np.load('/tank/model_zoo/dlrm_baseline_params_emb16/embedding_weight.npy')
             # param.data = flow.tensor(W, requires_grad=True)
 
-class OneEmbedding(nn.OneEmbeddingLookup):
-    def __init__(self, vocab_size, embed_size):
-        options = {
-            "name": "my_embedding",
-            # Can't change the embedding_size 128 because the kv store value_length has been set to 128
-            "embedding_size": 128,
-            "dtype": flow.float,
-            "encoder": "invalid",
-            "partitioning": "invalid",
-            "initializer": "invalid",
-            "optimizer": "invalid",
-            "backend": "invalid",
-        }
-        super(OneEmbedding, self).__init__(options)
+# class OneEmbedding(nn.OneEmbeddingLookup):
+#     def __init__(self, vocab_size, embed_size):
+#         options = {
+#             "name": "my_embedding",
+#             # Can't change the embedding_size 128 because the kv store value_length has been set to 128
+#             "embedding_size": 128,
+#             "dtype": flow.float,
+#             "encoder": "invalid",
+#             "partitioning": "invalid",
+#             "initializer": "invalid",
+#             "optimizer": "invalid",
+#             "backend": "invalid",
+#         }
+#         super(OneEmbedding, self).__init__(options)
 
 
 embd_dict = {
-    'OneEmbedding': OneEmbedding,
+    # 'OneEmbedding': OneEmbedding,
     'Embedding': Embedding,
 }
 
@@ -145,15 +145,21 @@ class DLRMModule(nn.Module):
 
 
     def forward(self, dense_fields, sparse_fields) -> flow.Tensor:
+        print(dense_fields)
         dense_fields = flow.log(flow.cast(dense_fields, flow.float) + 1.0)
         dense_fields = self.bottom_mlp(dense_fields)
+        print(dense_fields)
         sparse_fields = flow.cast(sparse_fields, flow.int64)
         embedding = self.embedding(sparse_fields)
+        print(embedding)
         embedding = embedding.view(-1, embedding.shape[-1] * embedding.shape[-2])
         # features = flow.cat([embedding, dense_fields], dim=1)
         features = self.interaction(dense_fields, embedding)
+        print(features)
         features = self.top_mlp(features)
+        print(features)
         scores = self.scores(features)
+        print(scores)
         return self.sigmoid(scores)
 
 

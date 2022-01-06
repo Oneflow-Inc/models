@@ -23,7 +23,20 @@ def make_data_loader(args, mode, is_consistent=False, data_format="ofrecord"):
         batch_size_per_proc = total_batch_size
         eval_batch_size_per_proc = eval_total_batch_size
     
-    if data_format == "ofrecord":
+    if data_format == "parquet":
+        ofrecord_data_loader = ParquetDataLoader(
+            data_dir=args.data_dir,
+            num_dense_fields=args.num_dense_fields,
+            num_sparse_fields=args.num_sparse_fields,
+            batch_size=batch_size_per_proc if mode=='train' else eval_batch_size_per_proc,
+            total_batch_size=total_batch_size if mode=='train' else eval_total_batch_size,
+            mode=mode,
+            shuffle=(mode=='train'),
+            placement=placement,
+            sbp=sbp,
+        )
+        return ofrecord_data_loader
+    elif data_format == "ofrecord":
         ofrecord_data_loader = OFRecordDataLoader(
             data_dir=args.data_dir,
             data_part_num=args.data_part_num,
@@ -113,6 +126,7 @@ class OFRecordDataLoader(nn.Module):
         labels = self.labels(reader)
         dense_fields = self.dense_fields(reader)
         sparse_fields = self.sparse_fields(reader)
+        print(dense_fields)
         return labels, dense_fields, sparse_fields
 
 
@@ -225,3 +239,46 @@ class SyntheticDataLoader(nn.Module):
     def forward(self):
         return self.labels, self.dense_fields, self.sparse_fields
 
+
+class ParquetDataLoader(nn.Module):
+    def __init__(
+        self,
+        data_dir: str = "/dataset/wdl_parquet",
+        num_dense_fields: int = 13,
+        num_sparse_fields: int = 26,
+        batch_size: int = 1,
+        total_batch_size: int = 1,
+        mode: str = "train",
+        shuffle: bool = True,
+        placement=None,
+        sbp=None,
+    ):
+        super(ParquetDataLoader, self).__init__()
+        assert mode in ("train", "val")
+        self.batch_size = batch_size
+        self.total_batch_size = total_batch_size
+        self.mode = mode
+        schema = [
+            {"col_name": "labels", "shape": (), "dtype": flow.double},
+            {"col_id": 1, "shape": (num_dense_fields,), "dtype": flow.double},
+            {"col_id": 0, "shape": (num_sparse_fields,), "dtype": flow.int32},
+            # {"col_id": 3, "shape": (2,), "dtype": flow.int32},
+        ]
+        self.reader = nn.ParquetReader(
+            os.path.join(data_dir, mode),
+            schema=schema,
+            batch_size=batch_size,
+            shuffle=shuffle,
+            placement=placement,
+            sbp=sbp,
+        )
+
+    def forward(self):
+        columns = self.reader()
+        print(columns)
+        return columns
+
+
+if __name__ == "__main__":
+    m = ParquetDataLoader("/tank/dataset/criteo_kaggle/dlrm_parquet", batch_size=32, total_batch_size=32)
+    b = m()
