@@ -104,7 +104,7 @@ class OneEmbedding(nn.OneEmbeddingLookup):
         options = {
             "name": "my_embedding",
             # Can't change the embedding_size 128 because the kv store value_length has been set to 128
-            "embedding_size": 128,
+            "embedding_size": embed_size,
             "dtype": flow.float,
             "encoder": "invalid",
             "partitioning": "invalid",
