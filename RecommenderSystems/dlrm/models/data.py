@@ -34,19 +34,16 @@ def make_data_loader(args, mode, is_consistent=False, data_format="ofrecord"):
         sbp=sbp,
     )
     if data_format == "ofrecord":
-        ofrecord_data_loader = OFRecordDataLoader(
+        return OFRecordDataLoader(
             data_dir=args.data_dir,
             data_part_num=args.data_part_num,
             part_name_suffix_length=args.data_part_name_suffix_length,
             **kps
         )
-        return ofrecord_data_loader
     elif data_format == "onerec":
-        onerec_data_loader = OneRecDataLoader(data_dir=args.data_dir, **kps)
-        return onerec_data_loader
+        return OneRecDataLoader(data_dir=args.data_dir, **kps)
     elif data_format == "synthetic":
-        synthetic_data_loader = SyntheticDataLoader(**kps)
-        return synthetic_data_loader
+        return SyntheticDataLoader(**kps)
     else:
         raise ValueError("data format must be one of ofrecord, onerec or synthetic")
 
