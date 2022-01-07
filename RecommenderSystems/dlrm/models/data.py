@@ -126,7 +126,6 @@ class OFRecordDataLoader(nn.Module):
         labels = self.labels(reader)
         dense_fields = self.dense_fields(reader)
         sparse_fields = self.sparse_fields(reader)
-        print(dense_fields)
         return labels, dense_fields, sparse_fields
 
 
@@ -259,9 +258,9 @@ class ParquetDataLoader(nn.Module):
         self.total_batch_size = total_batch_size
         self.mode = mode
         schema = [
-            {"col_name": "labels", "shape": (), "dtype": flow.double},
+            {"col_name": "labels", "shape": (1,), "dtype": flow.double},
             {"col_id": 1, "shape": (num_dense_fields,), "dtype": flow.double},
-            {"col_id": 0, "shape": (num_sparse_fields,), "dtype": flow.int32},
+            {"col_id": 2, "shape": (num_sparse_fields,), "dtype": flow.int32},
             # {"col_id": 3, "shape": (2,), "dtype": flow.int32},
         ]
         self.reader = nn.ParquetReader(
@@ -274,11 +273,11 @@ class ParquetDataLoader(nn.Module):
         )
 
     def forward(self):
-        columns = self.reader()
-        print(columns)
-        return columns
+        labels, dense_fields, sparse_fields = self.reader()
+        return labels, dense_fields, sparse_fields
 
 
 if __name__ == "__main__":
     m = ParquetDataLoader("/tank/dataset/criteo_kaggle/dlrm_parquet", batch_size=32, total_batch_size=32)
-    b = m()
+    labels, dense_fields, sparse_fields = m()
+    print(labels.shape)
