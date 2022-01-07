@@ -23,56 +23,31 @@ def make_data_loader(args, mode, is_consistent=False, data_format="ofrecord"):
         batch_size_per_proc = total_batch_size
         eval_batch_size_per_proc = eval_total_batch_size
     
+    kps = dict(
+        num_dense_fields=args.num_dense_fields,
+        num_sparse_fields=args.num_sparse_fields,
+        batch_size=batch_size_per_proc if mode=='train' else eval_batch_size_per_proc,
+        total_batch_size=total_batch_size if mode=='train' else eval_total_batch_size,
+        mode=mode,
+        shuffle=(mode=='train'),   
+        placement=placement,
+        sbp=sbp,
+    )
     if data_format == "parquet":
-        ofrecord_data_loader = ParquetDataLoader(
-            data_dir=args.data_dir,
-            num_dense_fields=args.num_dense_fields,
-            num_sparse_fields=args.num_sparse_fields,
-            batch_size=batch_size_per_proc if mode=='train' else eval_batch_size_per_proc,
-            total_batch_size=total_batch_size if mode=='train' else eval_total_batch_size,
-            mode=mode,
-            shuffle=(mode=='train'),
-            placement=placement,
-            sbp=sbp,
-        )
-        return ofrecord_data_loader
+        return ParquetDataLoader(data_dir=args.data_dir, **kps)
     elif data_format == "ofrecord":
         ofrecord_data_loader = OFRecordDataLoader(
             data_dir=args.data_dir,
             data_part_num=args.data_part_num,
             part_name_suffix_length=args.data_part_name_suffix_length,
-            num_dense_fields=args.num_dense_fields,
-            num_sparse_fields=args.num_sparse_fields,
-            batch_size=batch_size_per_proc if mode=='train' else eval_batch_size_per_proc,
-            total_batch_size=total_batch_size if mode=='train' else eval_total_batch_size,
-            mode=mode,
-            shuffle=(mode=='train'),
-            placement=placement,
-            sbp=sbp,
+            **kps
         )
         return ofrecord_data_loader
     elif data_format == "onerec":
-        onerec_data_loader = OneRecDataLoader(
-            data_dir=args.data_dir,
-            num_dense_fields=args.num_dense_fields,
-            num_sparse_fields=args.num_sparse_fields,
-            batch_size=batch_size_per_proc if mode=='train' else eval_batch_size_per_proc,
-            total_batch_size=total_batch_size if mode=='train' else eval_total_batch_size,
-            mode=mode,
-            shuffle=(mode=='train'),
-            placement=placement,
-            sbp=sbp,
-        )
+        onerec_data_loader = OneRecDataLoader(data_dir=args.data_dir, **kps)
         return onerec_data_loader
     elif data_format == "synthetic":
-        synthetic_data_loader = SyntheticDataLoader(
-            num_dense_fields=args.num_dense_fields,
-            num_sparse_fields=args.num_sparse_fields,
-            batch_size=batch_size_per_proc if mode=='train' else eval_batch_size_per_proc,
-            total_batch_size=total_batch_size if mode=='train' else eval_total_batch_size,
-            placement=placement,
-            sbp=sbp,
-        )
+        synthetic_data_loader = SyntheticDataLoader(**kps)
         return synthetic_data_loader
     else:
         raise ValueError("data format must be one of ofrecord, onerec or synthetic")
@@ -182,6 +157,8 @@ class SyntheticDataLoader(nn.Module):
         num_sparse_fields: int = 26,
         batch_size: int = 1,
         total_batch_size: int = 1,
+        mode: str = "train",
+        shuffle: bool = True,    
         placement=None,
         sbp=None,
     ):
@@ -237,7 +214,6 @@ class SyntheticDataLoader(nn.Module):
 
     def forward(self):
         return self.labels, self.dense_fields, self.sparse_fields
-
 
 class ParquetDataLoader(nn.Module):
     def __init__(
