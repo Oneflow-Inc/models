@@ -235,8 +235,10 @@ class ParquetDataLoader(nn.Module):
         self.mode = mode
         schema = [
             {"col_name": "labels", "shape": (1,), "dtype": flow.double},
-            {"col_id": 1, "shape": (num_dense_fields,), "dtype": flow.double},
-            {"col_id": 2, "shape": (num_sparse_fields,), "dtype": flow.int32},
+            {"col_name": 'dense_fields', "shape": (num_dense_fields,), "dtype": flow.double},
+            {"col_name": 'deep_sparse_fields', "shape": (num_sparse_fields,), "dtype": flow.int32},
+            # {"col_id": 1, "shape": (num_dense_fields,), "dtype": flow.double},
+            # {"col_id": 2, "shape": (num_sparse_fields,), "dtype": flow.int32},
             # {"col_id": 3, "shape": (2,), "dtype": flow.int32},
         ]
         self.reader = nn.ParquetReader(
@@ -250,6 +252,7 @@ class ParquetDataLoader(nn.Module):
 
     def forward(self):
         labels, dense_fields, sparse_fields = self.reader()
+        labels = flow.cast(labels, flow.float)
         return labels, dense_fields, sparse_fields
 
 
