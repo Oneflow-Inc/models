@@ -10,13 +10,15 @@ BATHSIZE=55296
 export GLOG_minloglevel=2
 export CACHE_MEMORY_BUDGET_MB=16384 #8192
 ulimit -SHn 131072
+eval_batch_size=32744
+eval_batchs=$(( 3274330 / eval_batch_size ))
 
 #export KEY_VALUE_STORE="cuda_in_memory"
 #export NUM_KEYS=100000 #225000000 #209715200 #134217728
 #export NUM_DEVICE_KEYS=1000 #25000000
 
 export KEY_VALUE_STORE="block_based"
-export BLOCK_BASED_PATH="/NVME0/guoran/rocks" #"init_model"
+export BLOCK_BASED_PATH="init_model"
 export LD_PRELOAD=/lib/x86_64-linux-gnu/libtcmalloc.so.4:
 
 #/usr/local/cuda-11.4/bin/nsys profile --stat=true \
@@ -34,6 +36,8 @@ python3 -m oneflow.distributed.launch \
     --data_dir $DATA_DIR \
     --loss_print_every_n_iter 100 \
     --eval_interval 1000 \
+    --eval_batchs $eval_batchs \
+    --eval_batch_size $eval_batch_size \
     --max_iter 75868 \
     --vocab_size $EMBD_SIZE \
     --data_part_num 5888 \

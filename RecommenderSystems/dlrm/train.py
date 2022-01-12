@@ -59,7 +59,7 @@ class Trainer(object):
         self.lr_scheduler = make_lr_scheduler(args, self.opt)
 
         self.grad_scaler = flow.amp.GradScaler(
-            init_scale=100,
+            init_scale=1073741824,
             growth_factor=2.0,
             backoff_factor=0.5,
             growth_interval=2000,
