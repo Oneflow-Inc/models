@@ -37,7 +37,6 @@ class Trainer(object):
         self.grad_scaler = make_grad_scaler(self.args)
 
         if self.args.graph:
-            flow.boxing.nccl.enable_use_compute_stream(True)
 
             self.train_graph = GPTGraph(
                 self.model,
@@ -63,6 +62,10 @@ class Trainer(object):
         while iteration < self.args.train_iters:
             if self.args.graph:
                 loss = self.train_graph()
+                if iteration ==1:
+                    print("==========", self.train_graph._optimization_conf_proto)
+                
+                
             else:
                 raise NotImplementedError
                 # loss = self.train_eager()
@@ -127,7 +130,11 @@ class GPTGraph(flow.nn.Graph):
                 self.set_grad_scaler(grad_scaler)
 
         args = get_args()
-        self.set_activation_checkpointing()
+        if args.checkpoint_activations:
+            print("activation_checkpointing on")
+            self.set_activation_checkpointing()
+        else:
+            print("activation_checkpointing off")
         self.set_pipeline_stage_id()
         self.config.set_gradient_accumulation_steps(args.num_accumulation_steps)
 

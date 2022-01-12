@@ -6,7 +6,7 @@ export ONEFLOW_DEBUG_MODE=True
 
 model=${1:-gpt2-small}
 
-DATASET=/home/zhaoluyang/Oneflow/of_gpt/gpt_sample_dataset_text_document
+DATASET=/dataset/of_gpt/gpt_sample_dataset_text_document
 SEQ_LEN=1024
 
 if  [ ${model} = "gpt2-small" ];then
@@ -55,7 +55,6 @@ $SRC_DIR/oneflow_gpt/train.py \
     --global-batch-size $GLOBAL_BATCH_SIZE \
     --tensor-model-parallel-size $TENSOR_MODEL_PARALLEL_SIZE \
     --pipeline-model-parallel-size $PIPELINE_MODEL_PARALLEL_SIZE \
-    --checkpoint-activations \
     --num-gpus-per-node $DEVICE_NUM_PER_NODE \
     --num-nodes $NUM_NODES \
     --optimizer adamw \
@@ -72,6 +71,7 @@ $SRC_DIR/oneflow_gpt/train.py \
     --graph \
     --train-iters $TRAIN_ITER \
     --log-interval $LOG_INTERVAL \
+    --checkpoint-activations \
     --zero_stage_1 \
-    --zero_stage_2 \
-    --zero_stage_3 \
+
+# optinal: zero_stage_1 zero_stage_2 zero_stage_3
