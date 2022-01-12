@@ -44,27 +44,29 @@ class Trainer(object):
         self.eval_interval = args.eval_interval
         self.eval_batchs = args.eval_batchs
         self.init_logger()
-        self.train_dataloader = make_data_loader(args, "train", self.is_consistent, self.dataset_format)
-        self.val_dataloader = make_data_loader(args, "val", self.is_consistent, self.dataset_format)
+        self.train_dataloader = make_data_loader(
+            args, "train", self.is_consistent, self.dataset_format
+        )
+        self.val_dataloader = make_data_loader(
+            args, "val", self.is_consistent, self.dataset_format
+        )
         self.wdl_module = make_wide_and_deep_module(args, self.is_consistent)
         self.init_model()
-        self.opt = flow.optim.Adam(
-            self.wdl_module.parameters(), lr=args.learning_rate
-        )
+        self.opt = flow.optim.Adam(self.wdl_module.parameters(), lr=args.learning_rate)
 
         self.loss = flow.nn.BCELoss(reduction="none").to("cuda")
         if self.execution_mode == "graph":
             params, sparse_params = [], []
             for name, param in self.wdl_module.named_parameters():
-                sparse_params.append(param) if "embedding" in name else params.append(param)
+                sparse_params.append(param) if "embedding" in name else params.append(
+                    param
+                )
 
             self.opt = flow.optim.Adam(params, lr=args.learning_rate)
             sparse_opt = flow.optim.Adam(sparse_params, lr=args.learning_rate)
             sparse_opt = flow.optim.utils.SparseOptimizer(sparse_opt)
 
-            self.eval_graph = WideAndDeepValGraph(
-                self.wdl_module, self.val_dataloader
-            )
+            self.eval_graph = WideAndDeepValGraph(self.wdl_module, self.val_dataloader)
             self.train_graph = WideAndDeepTrainGraph(
                 self.wdl_module, self.train_dataloader, self.loss, self.opt, sparse_opt
             )
@@ -82,17 +84,19 @@ class Trainer(object):
         print_ranks = [0]
         self.train_logger = log.make_logger(self.rank, print_ranks)
         self.train_logger.register_metric("iter", log.IterationMeter(), "iter: {}/{}")
-        self.train_logger.register_metric("loss", log.AverageMeter(), "loss: {:.16f}", True)
-        self.train_logger.register_metric("latency", log.LatencyMeter(), "latency(ms): {:.16f}", True)
+        self.train_logger.register_metric(
+            "loss", log.AverageMeter(), "loss: {:.16f}", True
+        )
+        self.train_logger.register_metric(
+            "latency", log.LatencyMeter(), "latency(ms): {:.16f}", True
+        )
 
         self.val_logger = log.make_logger(self.rank, print_ranks)
         self.val_logger.register_metric("iter", log.IterationMeter(), "iter: {}/{}")
         self.val_logger.register_metric("auc", log.IterationMeter(), "eval_auc: {}")
 
     def meter(
-        self,
-        loss=None,
-        do_print=False,
+        self, loss=None, do_print=False,
     ):
         self.train_logger.meter("iter", (self.cur_iter, self.max_iter))
         if loss is not None:
@@ -102,12 +106,9 @@ class Trainer(object):
             self.train_logger.print_metrics()
 
     def meter_train_iter(self, loss):
-        do_print = (
-            self.cur_iter % self.loss_print_every_n_iter == 0
-        )
+        do_print = self.cur_iter % self.loss_print_every_n_iter == 0
         self.meter(
-            loss=loss,
-            do_print=do_print,
+            loss=loss, do_print=do_print,
         )
 
     def meter_eval(self, auc):
@@ -115,7 +116,6 @@ class Trainer(object):
         if auc is not None:
             self.val_logger.meter("auc", auc)
         self.val_logger.print_metrics()
-
 
     def load_state_dict(self):
         print(f"Loading model from {self.args.model_load_dir}")
@@ -128,7 +128,7 @@ class Trainer(object):
         self.wdl_module.load_state_dict(state_dict)
 
     def save(self, subdir):
-        if self.save_path is None or self.save_path == '':
+        if self.save_path is None or self.save_path == "":
             return
         save_path = os.path.join(self.save_path, subdir)
         if self.rank == 0:
@@ -209,9 +209,7 @@ class Trainer(object):
         dense_fields = dense_fields.to("cuda")
         wide_sparse_fields = wide_sparse_fields.to("cuda")
         deep_sparse_fields = deep_sparse_fields.to("cuda")
-        predicts = self.wdl_module(
-            dense_fields, wide_sparse_fields, deep_sparse_fields
-        )
+        predicts = self.wdl_module(dense_fields, wide_sparse_fields, deep_sparse_fields)
         loss = self.loss(predicts, labels)
         reduce_loss = flow.mean(loss)
         return reduce_loss

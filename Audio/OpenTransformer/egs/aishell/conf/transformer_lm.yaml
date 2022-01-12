@@ -1,0 +1,39 @@
+data:
+  name: aishell
+  dataset_type: text
+  vocab: egs/aishell/data/vocab
+  batch_size: 16
+  src_vocab: egs/aishell/data/vocab
+  tgt_vocab: egs/aishell/data/vocab
+  train:
+    src: ['egs/aishell/data/train/text']
+    tgt: ['egs/aishell/data/train/text']
+model:
+  type: transformer_lm
+  vocab_size: 4233
+  num_blocks: 6
+  d_model: 256
+  n_heads: 4
+  d_ff: 1024
+  residual_dropout: 0.1
+  smoothing: 0.1
+  share_embedding: True
+train:
+  optimizer_type: adam
+  optimizer:
+    lr: 0.001
+    betas: [0.9, 0.98]
+    eps: 1.0e-9
+    weight_decay: 1.0e-6
+    amsgrad: False
+  scheduler_type: transformer
+  scheduler:
+    model_size: 256
+    warmup_steps: 12000
+    factor: 1.0
+  clip_grad: 5
+  epochs: 60
+  accum_steps: 4
+  grad_noise: 0.0
+  load_model: False
+  save_name: transformer_lm_baseline

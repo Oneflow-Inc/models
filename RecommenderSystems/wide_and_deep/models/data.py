@@ -6,6 +6,7 @@ import glob
 
 __all__ = ["make_data_loader"]
 
+
 def make_data_loader(args, mode, is_consistent=False, data_format="ofrecord"):
     assert mode in ("train", "val")
 
@@ -19,7 +20,7 @@ def make_data_loader(args, mode, is_consistent=False, data_format="ofrecord"):
         placement = flow.env.all_device_placement("cpu")
         sbp = flow.sbp.split(0)
         batch_size_per_proc = total_batch_size
-    
+
     if data_format == "ofrecord":
         ofrecord_data_loader = OFRecordDataLoader(
             data_dir=args.data_dir,
@@ -86,7 +87,7 @@ class OFRecordDataLoader(nn.Module):
         self.batch_size = batch_size
         self.total_batch_size = total_batch_size
         self.mode = mode
-  
+
         self.reader = nn.OfrecordReader(
             os.path.join(data_dir, mode),
             batch_size=batch_size,
@@ -146,7 +147,7 @@ class OneRecDataLoader(nn.Module):
         self.placement = placement
         self.sbp = sbp
         self.shuffle = shuffle
-        self.onerec_files = glob.glob(os.path.join(data_dir, mode, '*.onerec'))
+        self.onerec_files = glob.glob(os.path.join(data_dir, mode, "*.onerec"))
 
     def _blob_decoder(self, reader, bn, shape, dtype=flow.int32):
         return flow.decode_onerec(reader, bn, shape=shape, dtype=dtype)
@@ -160,13 +161,19 @@ class OneRecDataLoader(nn.Module):
             shuffle_mode="batch",
             shuffle_buffer_size=64,
             shuffle_after_epoch=self.shuffle,
-            placement = self.placement,
-            sbp = self.sbp,
+            placement=self.placement,
+            sbp=self.sbp,
         )
         labels = self._blob_decoder(reader, "labels", (1,))
-        dense_fields = self._blob_decoder(reader, "dense_fields", (self.num_dense_fields,), flow.float)
-        wide_sparse_fields = self._blob_decoder(reader, "wide_sparse_fields", (self.num_wide_sparse_fields,))
-        deep_sparse_fields = self._blob_decoder(reader, "deep_sparse_fields", (self.num_deep_sparse_fields,))
+        dense_fields = self._blob_decoder(
+            reader, "dense_fields", (self.num_dense_fields,), flow.float
+        )
+        wide_sparse_fields = self._blob_decoder(
+            reader, "wide_sparse_fields", (self.num_wide_sparse_fields,)
+        )
+        deep_sparse_fields = self._blob_decoder(
+            reader, "deep_sparse_fields", (self.num_deep_sparse_fields,)
+        )
         return labels, dense_fields, wide_sparse_fields, deep_sparse_fields
 
 
@@ -195,55 +202,70 @@ class SyntheticDataLoader(nn.Module):
 
         if self.placement is not None and self.sbp is not None:
             self.labels = flow.randint(
-                    0,
-                    high=2,
-                    size=self.label_shape,
-                    dtype=flow.int32,
-                    placement=self.placement,
-                    sbp=self.sbp,
+                0,
+                high=2,
+                size=self.label_shape,
+                dtype=flow.int32,
+                placement=self.placement,
+                sbp=self.sbp,
             )
 
             self.dense_fields = flow.randint(
-                    0,
-                    high=256,
-                    size=self.dense_fields_shape,
-                    dtype=flow.float,
-                    placement=self.placement,
-                    sbp=self.sbp,
+                0,
+                high=256,
+                size=self.dense_fields_shape,
+                dtype=flow.float,
+                placement=self.placement,
+                sbp=self.sbp,
             )
 
             self.wide_sparse_fields = flow.randint(
-                    0,
-                    high=256,
-                    size=self.wide_sparse_fields_shape,
-                    dtype=flow.int32,
-                    placement=self.placement,
-                    sbp=self.sbp,
+                0,
+                high=256,
+                size=self.wide_sparse_fields_shape,
+                dtype=flow.int32,
+                placement=self.placement,
+                sbp=self.sbp,
             )
 
             self.deep_sparse_fields = flow.randint(
-                    0,
-                    high=256,
-                    size=self.deep_sparse_fields_shape,
-                    dtype=flow.int32,
-                    placement=self.placement,
-                    sbp=self.sbp,
+                0,
+                high=256,
+                size=self.deep_sparse_fields_shape,
+                dtype=flow.int32,
+                placement=self.placement,
+                sbp=self.sbp,
             )
         else:
             self.labels = flow.randint(
                 0, high=2, size=self.label_shape, dtype=flow.int32, device="cpu"
             )
             self.dense_fields = flow.randint(
-                0, high=256, size=self.dense_fields_shape, dtype=flow.float, device="cpu",
+                0,
+                high=256,
+                size=self.dense_fields_shape,
+                dtype=flow.float,
+                device="cpu",
             )
             self.wide_sparse_fields = flow.randint(
-                0, high=256, size=self.wide_sparse_fields_shape, dtype=flow.int32, device="cpu"
+                0,
+                high=256,
+                size=self.wide_sparse_fields_shape,
+                dtype=flow.int32,
+                device="cpu",
             )
             self.deep_sparse_fields = flow.randint(
-                0, high=256, size=self.deep_sparse_fields_shape, dtype=flow.int32, device="cpu",
+                0,
+                high=256,
+                size=self.deep_sparse_fields_shape,
+                dtype=flow.int32,
+                device="cpu",
             )
-            
 
     def forward(self):
-        return self.labels, self.dense_fields, self.wide_sparse_fields, self.deep_sparse_fields
-
+        return (
+            self.labels,
+            self.dense_fields,
+            self.wide_sparse_fields,
+            self.deep_sparse_fields,
+        )

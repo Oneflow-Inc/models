@@ -7,7 +7,8 @@ from typing import Type, Any, Callable, Union, List, Optional
 
 
 def conv3x3(
-    in_planes: int, out_planes: int, stride: int = 1, groups: int = 1, dilation: int = 1) -> nn.Conv2d:
+    in_planes: int, out_planes: int, stride: int = 1, groups: int = 1, dilation: int = 1
+) -> nn.Conv2d:
     """3x3 convolution with padding"""
     return nn.Conv2d(
         in_planes,
@@ -203,9 +204,10 @@ class ResNet(nn.Module):
         else:
             channel_size = 3
         if self.channel_last:
-            os.environ["ONEFLOW_ENABLE_NHWC"] = '1'
+            os.environ["ONEFLOW_ENABLE_NHWC"] = "1"
         self.conv1 = nn.Conv2d(
-            channel_size, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False)
+            channel_size, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False
+        )
 
         if self.fuse_bn_relu:
             self.bn1 = nn.FusedBatchNorm2d(self.inplanes)

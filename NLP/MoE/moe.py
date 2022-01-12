@@ -75,10 +75,8 @@ class SparseDispatcher(object):
 
         # assigns samples to experts whose gate is nonzero
         # expand according to batch index so we can just split by _part_sizes
-        inp_exp = inp[self._batch_index].squeeze(1)   
+        inp_exp = inp[self._batch_index].squeeze(1)
         return flow.split(inp_exp, self._part_sizes, dim=0)
-        
-            
 
     def combine(self, expert_out, multiply_by_gates=True):
         """Sum together the expert output, weighted by the gates.
@@ -96,25 +94,30 @@ class SparseDispatcher(object):
         # apply exp to expert outputs, so we are not longer in log space
 
         stitched = flow.cat(expert_out, 0).exp()
-     
 
         if multiply_by_gates:
             stitched = stitched.mul(self._nonzero_gates)
-        zeros = flow.zeros(self._gates.size(
-            0), expert_out[-1].size(1), requires_grad=True,device=stitched.device)
+        zeros = flow.zeros(
+            self._gates.size(0),
+            expert_out[-1].size(1),
+            requires_grad=True,
+            device=stitched.device,
+        )
 
         # spanning a index matrix
         batch_index = np.zeros([stitched.shape[0], stitched.shape[1]])
-        
+
         for i in range(stitched.shape[0]):
-            batch_index[i, :] = np.ones(
-                batch_index.shape[1])*self._batch_index[i].item()
-        batch_index_ = flow.Tensor(batch_index,device=stitched.device)
+            batch_index[i, :] = (
+                np.ones(batch_index.shape[1]) * self._batch_index[i].item()
+            )
+        batch_index_ = flow.Tensor(batch_index, device=stitched.device)
         batch_index_ = batch_index_.int()
         batch_index_.requires_grad = False
 
         combined = flow.scatter_add(
-            zeros, dim=0, index=batch_index_, src=stitched.float())
+            zeros, dim=0, index=batch_index_, src=stitched.float()
+        )
 
         # add eps to all zero values in order to avoid nans when going back to log space
         combined[combined == 0] = np.finfo(float).eps
@@ -130,11 +133,12 @@ class SparseDispatcher(object):
         # split nonzero gates for each expert
         return flow.split(self._nonzero_gates, self._part_sizes, dim=0)
 
+
 # should be aware of the placement
 def cdf(value, loc=flow.tensor([0.0]), scale=flow.tensor([1.0])):
     loc = loc.to(value.device)
     scale = scale.to(value.device)
-    return 0.5*(1+oneflow.erf((value-loc)*scale.reciprocal()/math.sqrt(2)))
+    return 0.5 * (1 + oneflow.erf((value - loc) * scale.reciprocal() / math.sqrt(2)))
 
 
 class MoE(nn.Module):
@@ -149,7 +153,9 @@ class MoE(nn.Module):
     k: an integer - how many experts to use for each batch element
     """
 
-    def __init__(self, model, input_size, output_size, num_experts, noisy_gating=True, k=4):
+    def __init__(
+        self, model, input_size, output_size, num_experts, noisy_gating=True, k=4
+    ):
         super(MoE, self).__init__()
         self.noisy_gating = noisy_gating
         self.num_experts = num_experts
@@ -158,18 +164,19 @@ class MoE(nn.Module):
         self.k = k
 
         # instantiate experts
-        self.experts = nn.ModuleList(
-            [model for i in range(self.num_experts)])
+        self.experts = nn.ModuleList([model for i in range(self.num_experts)])
 
-        self.w_gate = nn.Parameter(flow.zeros(
-            input_size, num_experts), requires_grad=True)
-        self.w_noise = nn.Parameter(flow.zeros(
-            input_size, num_experts), requires_grad=True)
+        self.w_gate = nn.Parameter(
+            flow.zeros(input_size, num_experts), requires_grad=True
+        )
+        self.w_noise = nn.Parameter(
+            flow.zeros(input_size, num_experts), requires_grad=True
+        )
 
         self.softplus = nn.Softplus()
         self.softmax = nn.Softmax(1)
 
-        assert(self.k <= self.num_experts)
+        assert self.k <= self.num_experts
 
     def cv_squared(self, x):
         """The squared coefficient of variation of a sample.
@@ -185,7 +192,7 @@ class MoE(nn.Module):
         # if only num_experts = 1
         if x.shape[0] == 1:
             return flow.Tensor([0])
-        return x.float().var() / (x.float().mean()**2 + eps)
+        return x.float().var() / (x.float().mean() ** 2 + eps)
 
     def _gates_to_load(self, gates):
         """Compute the true load per expert, given the gates.
@@ -197,7 +204,9 @@ class MoE(nn.Module):
         """
         return (gates > 0).sum(0)
 
-    def _prob_in_top_k(self, clean_values, noisy_values, noise_stddev, noisy_top_values):
+    def _prob_in_top_k(
+        self, clean_values, noisy_values, noise_stddev, noisy_top_values
+    ):
         """Helper function to NoisyTopKGating.
         Computes the probability that value is in top k, given different random noise.
         This gives us a way of backpropagating from a loss that balances the number
@@ -219,20 +228,23 @@ class MoE(nn.Module):
         m = noisy_top_values.size(1)
         top_values_flat = noisy_top_values.flatten()
 
-        threshold_positions_if_in = flow.arange(batch, device=noisy_values.device) * m + self.k
+        threshold_positions_if_in = (
+            flow.arange(batch, device=noisy_values.device) * m + self.k
+        )
 
-        threshold_if_in = flow.unsqueeze(flow.gather(
-            top_values_flat, 0, threshold_positions_if_in), 1)
+        threshold_if_in = flow.unsqueeze(
+            flow.gather(top_values_flat, 0, threshold_positions_if_in), 1
+        )
         is_in = flow.gt(noisy_values, threshold_if_in)
 
-
         threshold_positions_if_out = threshold_positions_if_in - 1
-        threshold_if_out = flow.unsqueeze(flow.gather(
-            top_values_flat, 0, threshold_positions_if_out), 1)
+        threshold_if_out = flow.unsqueeze(
+            flow.gather(top_values_flat, 0, threshold_positions_if_out), 1
+        )
 
         # is each value currently in the top k.
-        prob_if_in = cdf((clean_values - threshold_if_in)/noise_stddev)
-        prob_if_out = cdf((clean_values - threshold_if_out)/noise_stddev)
+        prob_if_in = cdf((clean_values - threshold_if_in) / noise_stddev)
+        prob_if_out = cdf((clean_values - threshold_if_out) / noise_stddev)
 
         prob = flow.where(is_in, prob_if_in, prob_if_out)
         return prob
@@ -253,24 +265,26 @@ class MoE(nn.Module):
 
         if self.noisy_gating:
             raw_noise_stddev = oneflow.matmul(x, self.w_noise)
-            noise_stddev = (
-                (self.softplus(raw_noise_stddev) + noise_epsilon) * train)
-#            noisy_logits = clean_logits + ( torch.randn(clean_logits.size()) * noise_stddev)
+            noise_stddev = (self.softplus(raw_noise_stddev) + noise_epsilon) * train
+            #            noisy_logits = clean_logits + ( torch.randn(clean_logits.size()) * noise_stddev)
             # TODO, fix this after torch randn argument fixed
-            noisy_logits = clean_logits + \
-                (flow.randn(clean_logits.size()[
-                 0], clean_logits.size()[1], device=clean_logits.device) * noise_stddev)
+            noisy_logits = clean_logits + (
+                flow.randn(
+                    clean_logits.size()[0],
+                    clean_logits.size()[1],
+                    device=clean_logits.device,
+                )
+                * noise_stddev
+            )
 
             logits = noisy_logits
         else:
             logits = clean_logits
 
-
         # calculate topk + 1 that will be needed for the noisy gates
-        top_logits, top_indices = logits.topk(
-            min(self.k + 1, self.num_experts), dim=1)
-        top_k_logits = top_logits[:, :self.k]
-        top_k_indices = top_indices[:, :self.k]
+        top_logits, top_indices = logits.topk(min(self.k + 1, self.num_experts), dim=1)
+        top_k_logits = top_logits[:, : self.k]
+        top_k_indices = top_indices[:, : self.k]
         top_k_gates = self.softmax(top_k_logits)
 
         top_k_logits = top_k_logits.to(logits.device)
@@ -278,13 +292,16 @@ class MoE(nn.Module):
         top_logits = top_logits.to(logits.device)
 
         zeros = flow.zeros(
-            logits.shape, dtype=logits.dtype, requires_grad=True,device=logits.device)
+            logits.shape, dtype=logits.dtype, requires_grad=True, device=logits.device
+        )
         gates = oneflow.scatter(zeros, 1, top_k_indices, top_k_gates)
 
-
         if self.noisy_gating and self.k < self.num_experts:
-            load = (self._prob_in_top_k(clean_logits,
-                    noisy_logits, noise_stddev, top_logits)).sum(0)
+            load = (
+                self._prob_in_top_k(
+                    clean_logits, noisy_logits, noise_stddev, top_logits
+                )
+            ).sum(0)
         else:
             load = self._gates_to_load(gates)
         return gates, load
@@ -309,9 +326,9 @@ class MoE(nn.Module):
         loss = self.cv_squared(importance) + self.cv_squared(load)
         loss *= loss_coef
 
-        dispatcher = SparseDispatcher(self.num_experts, gates)     
+        dispatcher = SparseDispatcher(self.num_experts, gates)
         expert_inputs = dispatcher.dispatch(x)
-        gates = dispatcher.expert_to_gates() 
+        gates = dispatcher.expert_to_gates()
 
         expert_outputs = []
         # TODO, vectorize this part after fixing the zero dimension bug
@@ -319,5 +336,5 @@ class MoE(nn.Module):
             if expert_inputs[i].shape.numel() != 0:
                 expert_outputs.append(self.experts[i](expert_inputs[i]))
 
-        y = dispatcher.combine(expert_outputs)       
+        y = dispatcher.combine(expert_outputs)
         return y, loss

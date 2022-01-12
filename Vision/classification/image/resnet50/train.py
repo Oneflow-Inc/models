@@ -50,7 +50,7 @@ class Trainer(object):
             zero_init_residual=self.zero_init_residual,
             fuse_bn_relu=self.fuse_bn_relu,
             fuse_bn_add_relu=self.fuse_bn_add_relu,
-            channel_last=self.channel_last
+            channel_last=self.channel_last,
         )
         self.init_model()
         self.cross_entropy = make_cross_entropy(args)

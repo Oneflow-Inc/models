@@ -93,7 +93,7 @@ class OFRecordDataLoader(flow.nn.Module):
         )
 
         if channel_last:
-            os.environ["ONEFLOW_ENABLE_NHWC"] = '1'
+            os.environ["ONEFLOW_ENABLE_NHWC"] = "1"
         color_space = "RGB"
         image_height = 224
         image_width = 224
@@ -106,7 +106,10 @@ class OFRecordDataLoader(flow.nn.Module):
             if self.use_gpu_decode:
                 self.bytesdecoder_img = flow.nn.OFRecordBytesDecoder("encoded")
                 self.image_decoder = flow.nn.OFRecordImageGpuDecoderRandomCropResize(
-                    target_width=image_width, target_height=image_height, num_workers=3, warmup_size=2048
+                    target_width=image_width,
+                    target_height=image_height,
+                    num_workers=3,
+                    warmup_size=2048,
                 )
             else:
                 self.image_decoder = flow.nn.OFRecordImageDecoderRandomCrop(
@@ -174,7 +177,13 @@ class OFRecordDataLoader(flow.nn.Module):
 
 class SyntheticDataLoader(flow.nn.Module):
     def __init__(
-        self, batch_size, image_size=224, num_classes=1000, placement=None, sbp=None, channel_last=False,
+        self,
+        batch_size,
+        image_size=224,
+        num_classes=1000,
+        placement=None,
+        sbp=None,
+        channel_last=False,
     ):
         super().__init__()
 

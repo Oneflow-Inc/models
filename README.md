@@ -115,6 +115,7 @@ Please check our the following **demos** for a quick start
 - [MaskCycleGAN-VC](https://github.com/Oneflow-Inc/models/tree/main/Audio/MaskCycleGAN-VC)
 - [StarGAN-VC](https://github.com/Oneflow-Inc/models/tree/main/Audio/StarGAN-VC)
 - [Adaptive_Voice_Conversion](https://github.com/Oneflow-Inc/models/tree/main/Audio/Adaptive_Voice_Conversion)
+- [Opentransformer](https://github.com/Oneflow-Inc/models/tree/main/Audio/Opentransformer)
 </details>
 
 <details>

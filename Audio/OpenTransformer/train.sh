@@ -1,0 +1,1 @@
+python3 run.py -c egs/aishell/conf/transformer_baseline.yaml > train.log 2>&1
