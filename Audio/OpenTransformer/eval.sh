@@ -1,0 +1,1 @@
+python3 eval.py -m egs/aishell/exp/transformer_baseline/model.average.from70to79.pt

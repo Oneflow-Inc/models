@@ -30,6 +30,7 @@ def make_data_loader(args, mode, is_consistent=False, synthetic=False):
             num_classes=args.num_classes,
             placement=placement,
             sbp=sbp,
+            channel_last=args.channel_last,
         )
         return data_loader.to("cuda")
 
@@ -40,7 +41,7 @@ def make_data_loader(args, mode, is_consistent=False, synthetic=False):
         mode=mode,
         batch_size=batch_size,
         total_batch_size=total_batch_size,
-        channel_last=args.channels_last,
+        channel_last=args.channel_last,
         placement=placement,
         sbp=sbp,
         use_gpu_decode=args.use_gpu_decode,
@@ -91,7 +92,8 @@ class OFRecordDataLoader(flow.nn.Module):
             "class/label", shape=tuple(), dtype=flow.int32
         )
 
-        output_layout = "NHWC" if channel_last else "NCHW"
+        if channel_last:
+            os.environ["ONEFLOW_ENABLE_NHWC"] = "1"
         color_space = "RGB"
         image_height = 224
         image_width = 224
@@ -104,7 +106,10 @@ class OFRecordDataLoader(flow.nn.Module):
             if self.use_gpu_decode:
                 self.bytesdecoder_img = flow.nn.OFRecordBytesDecoder("encoded")
                 self.image_decoder = flow.nn.OFRecordImageGpuDecoderRandomCropResize(
-                    target_width=image_width, target_height=image_height, num_workers=3
+                    target_width=image_width,
+                    target_height=image_height,
+                    num_workers=3,
+                    warmup_size=2048,
                 )
             else:
                 self.image_decoder = flow.nn.OFRecordImageDecoderRandomCrop(
@@ -118,7 +123,6 @@ class OFRecordDataLoader(flow.nn.Module):
             )
             self.crop_mirror_norm = flow.nn.CropMirrorNormalize(
                 color_space=color_space,
-                output_layout=output_layout,
                 mean=rgb_mean,
                 std=rgb_std,
                 output_dtype=flow.float,
@@ -134,7 +138,6 @@ class OFRecordDataLoader(flow.nn.Module):
             )
             self.crop_mirror_norm = flow.nn.CropMirrorNormalize(
                 color_space=color_space,
-                output_layout=output_layout,
                 crop_h=image_height,
                 crop_w=image_width,
                 crop_pos_y=0.5,
@@ -156,11 +159,11 @@ class OFRecordDataLoader(flow.nn.Module):
             else:
                 image_raw_bytes = self.image_decoder(record)
                 image = self.resize(image_raw_bytes)[0]
+                image = image.to("cuda")
 
             label = self.label_decoder(record)
             flip_code = self.flip()
-            if self.use_gpu_decode:
-                flip_code = flip_code.to("cuda")
+            flip_code = flip_code.to("cuda")
             image = self.crop_mirror_norm(image, flip_code)
         else:
             record = self.ofrecord_reader()
@@ -174,11 +177,20 @@ class OFRecordDataLoader(flow.nn.Module):
 
 class SyntheticDataLoader(flow.nn.Module):
     def __init__(
-        self, batch_size, image_size=224, num_classes=1000, placement=None, sbp=None,
+        self,
+        batch_size,
+        image_size=224,
+        num_classes=1000,
+        placement=None,
+        sbp=None,
+        channel_last=False,
     ):
         super().__init__()
 
-        self.image_shape = (batch_size, 3, image_size, image_size)
+        if channel_last:
+            self.image_shape = (batch_size, image_size, image_size, 3)
+        else:
+            self.image_shape = (batch_size, 3, image_size, image_size)
         self.label_shape = (batch_size,)
         self.num_classes = num_classes
         self.placement = placement

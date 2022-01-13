@@ -1,4 +1,3 @@
-
 import os
 import sys
 import random
@@ -13,11 +12,16 @@ from tokenizer.tokenizer import build_tokenizer
 
 from transformers import GPT2Tokenizer, GPT2Model
 
+
 def text_generator():
     parser = argparse.ArgumentParser()
     parser.add_argument("--text", type=str, required=True)
     parser.add_argument("--nsamples", type=int, default=1)
-    parser.add_argument('--unconditional', action='store_true', help='If true, unconditional generation.')
+    parser.add_argument(
+        "--unconditional",
+        action="store_true",
+        help="If true, unconditional generation.",
+    )
     parser.add_argument("--batch_size", type=int, default=-1)
     parser.add_argument("--length", type=int, default=-1)
     parser.add_argument("--temperature", type=float, default=0.7)
@@ -37,7 +41,7 @@ def text_generator():
 
     device = flow.device("cuda")
 
-    tokenizer = build_tokenizer(vocab_file='vocab.json', merges_file='merge.txt')
+    tokenizer = build_tokenizer(vocab_file="vocab.json", merges_file="merge.txt")
     config = GPT2Config()
     model = GPT2LMHeadModel(config)
 
@@ -54,7 +58,7 @@ def text_generator():
         args.length = config.n_ctx // 2
     elif args.length > config.n_ctx:
         raise ValueError("Can't get samples longer than window size: %s" % config.n_ctx)
-    
+
     text = args.text
     print(text)
 
@@ -62,18 +66,24 @@ def text_generator():
     generated = 0
     for _ in range(args.nsamples // args.batch_size):
         out = sample_sequence(
-            model=model, length=args.length,
+            model=model,
+            length=args.length,
             context=context_tokens if not args.unconditional else None,
-            start_token=tokenizer.vocab['<|endoftext|>'] if args.unconditional else None,
+            start_token=tokenizer.vocab["<|endoftext|>"]
+            if args.unconditional
+            else None,
             batch_size=args.batch_size,
-            temperature=args.temperature, top_k=args.top_k, device=device
+            temperature=args.temperature,
+            top_k=args.top_k,
+            device=device,
         )
-        out = out[:, len(context_tokens):].tolist()
+        out = out[:, len(context_tokens) :].tolist()
         for i in range(args.batch_size):
             generated += 1
             text = tokenizer.detokenize(out[i])
             print("=" * 40 + " SAMPLE " + str(generated) + " " + "=" * 40)
             print(text)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     text_generator()

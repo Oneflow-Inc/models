@@ -29,7 +29,7 @@ def parse_args(ignore_unknown_args=False):
     parser.add_argument(
         "--save",
         type=str,
-        default="./checkpoints",
+        default=None,
         dest="save_path",
         help="root dir of saving checkpoint",
     )
@@ -71,6 +71,20 @@ def parse_args(ignore_unknown_args=False):
         action="store_true",
         dest="synthetic_data",
         help="Use synthetic data",
+    )
+
+    # fuse bn relu or bn add relu
+    parser.add_argument(
+        "--fuse-bn-relu",
+        action="store_true",
+        dest="fuse_bn_relu",
+        help="Whether to use use fuse batch_normalization and relu.",
+    )
+    parser.add_argument(
+        "--fuse-bn-add-relu",
+        action="store_true",
+        dest="fuse_bn_add_relu",
+        help="Whether to use use fuse batch_normalization, add and relu.",
     )
 
     # training hyper-parameters
@@ -186,7 +200,7 @@ def parse_args(ignore_unknown_args=False):
         help="num of pic classes",
     )
     parser.add_argument(
-        "--channels-last", action="store_true", dest="channels_last",
+        "--channel-last", action="store_true", dest="channel_last",
     )
     parser.add_argument(
         "--samples-per-epoch",
@@ -280,9 +294,6 @@ def parse_args(ignore_unknown_args=False):
 
     if args.use_fp16 and not args.graph:
         raise ValueError("NOT support fp16 in eager mode")
-
-    if args.channels_last:
-        raise ValueError("NOT support channels_last yet")
 
     if args.ddp and not args.metric_local:
         raise ValueError("metric_local must be set to True when with ddp")

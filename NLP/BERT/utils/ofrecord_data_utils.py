@@ -27,10 +27,10 @@ class OfRecordDataLoader(nn.Module):
                 self.placement = flow.placement("cpu", {0: [0]})
                 self.sbp = flow.sbp.broadcast
             else:
-                self.placement = flow.placement("cpu", {0: range(self.world_size)})
+                self.placement = flow.env.all_device_placement("cuda")
                 self.sbp = flow.sbp.split(0)
 
-        self.ofrecord_reader = nn.OfrecordReader(
+        self.ofrecord_reader = nn.OFRecordReader(
             ofrecord_dir,
             batch_size=batch_size,
             data_part_num=data_part_num,
@@ -71,7 +71,7 @@ class OfRecordDataLoader(nn.Module):
         masked_lm_weights = self.blob_confs["masked_lm_weights"](data_record)
 
         if self.use_consistent and self.data_part_num < self.world_size:
-            placement = flow.placement("cpu", {0: range(self.world_size)})
+            placement = flow.env.all_device_placement("cpu")
             sbp = flow.sbp.split(0)
             input_ids = input_ids.to_consistent(placement=placement, sbp=sbp)
             next_sent_labels = next_sent_labels.to_consistent(
