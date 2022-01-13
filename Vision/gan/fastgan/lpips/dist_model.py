@@ -5,6 +5,7 @@ from collections import OrderedDict
 from .base_model import BaseModel
 from scipy.ndimage import zoom
 from tqdm import tqdm
+import torch
 
 from . import networks_basic as networks
 import lpips as util
@@ -54,11 +55,11 @@ class DistModel(BaseModel):
                 kw['map_location'] = 'cpu'
             if(model_path is None):
                 import inspect
-                model_path = os.path.abspath(os.path.join(inspect.getfile(self.initialize), '..', 'weights/v%s/%s'%(version,net)))
+                model_path = os.path.abspath(os.path.join(inspect.getfile(self.initialize), '..', 'weights/v%s/%s.pth'%(version,net)))
 
             if(not is_train):
                 print('Loading model from: %s'%model_path)
-                self.net.load_state_dict(flow.load(model_path, **kw), strict=False)
+                self.net.load_state_dict(torch.load(model_path, **kw), strict=False)
 
         elif(self.model=='net'): # pretrained network
             self.net = networks.PNetLin(pnet_rand=pnet_rand, pnet_type=net, lpips=False)
