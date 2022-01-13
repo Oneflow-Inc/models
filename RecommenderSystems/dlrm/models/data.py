@@ -36,19 +36,16 @@ def make_data_loader(args, mode, is_consistent=False, data_format="ofrecord"):
     if data_format == "parquet":
         return ParquetDataLoader(data_dir=args.data_dir, **kps)
     elif data_format == "ofrecord":
-        ofrecord_data_loader = OFRecordDataLoader(
+        return OFRecordDataLoader(
             data_dir=args.data_dir,
             data_part_num=args.data_part_num,
             part_name_suffix_length=args.data_part_name_suffix_length,
             **kps
         )
-        return ofrecord_data_loader
     elif data_format == "onerec":
-        onerec_data_loader = OneRecDataLoader(data_dir=args.data_dir, **kps)
-        return onerec_data_loader
+        return OneRecDataLoader(data_dir=args.data_dir, **kps)
     elif data_format == "synthetic":
-        synthetic_data_loader = SyntheticDataLoader(**kps)
-        return synthetic_data_loader
+        return SyntheticDataLoader(**kps)
     else:
         raise ValueError("data format must be one of ofrecord, onerec or synthetic")
 
@@ -88,9 +85,9 @@ class OFRecordDataLoader(nn.Module):
         def _blob_decoder(bn, shape, dtype=flow.int32):
             return nn.OfrecordRawDecoder(bn, shape=shape, dtype=dtype)
 
-        self.labels = _blob_decoder("labels", (1,))
+        self.labels = _blob_decoder("labels", (1,), flow.float)
         self.dense_fields = _blob_decoder(
-            "dense_fields", (num_dense_fields,), flow.int32
+            "dense_fields", (num_dense_fields,), flow.float
         )
         self.sparse_fields = _blob_decoder(
             "deep_sparse_fields", (num_sparse_fields,)
@@ -144,7 +141,7 @@ class OneRecDataLoader(nn.Module):
             placement = self.placement,
             sbp = self.sbp,
         )
-        labels = self._blob_decoder(reader, "labels", (1,))
+        labels = self._blob_decoder(reader, "labels", (1,), flow.float)
         dense_fields = self._blob_decoder(reader, "dense_fields", (self.num_dense_fields,), flow.float)
         sparse_fields = self._blob_decoder(reader, "deep_sparse_fields", (self.num_sparse_fields,))
         return labels, dense_fields, sparse_fields
@@ -178,7 +175,7 @@ class SyntheticDataLoader(nn.Module):
                     0,
                     high=2,
                     size=self.label_shape,
-                    dtype=flow.int32,
+                    dtype=flow.float,
                     placement=self.placement,
                     sbp=self.sbp,
             )
@@ -202,7 +199,7 @@ class SyntheticDataLoader(nn.Module):
             )
         else:
             self.labels = flow.randint(
-                0, high=2, size=self.label_shape, dtype=flow.int32, device="cpu"
+                0, high=2, size=self.label_shape, dtype=flow.float, device="cpu"
             )
             self.dense_fields = flow.randint(
                 0, high=256, size=self.dense_fields_shape, dtype=flow.float, device="cpu",

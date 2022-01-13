@@ -184,7 +184,7 @@ class Trainer(object):
             dense_fields,
             sparse_fields,
         ) = self.val_dataloader()
-        labels = labels.to("cuda")#.to(dtype=flow.float32)
+        labels = labels.to("cuda")
         dense_fields = dense_fields.to("cuda")
         sparse_fields = sparse_fields.to("cuda")
         with flow.no_grad():
@@ -199,7 +199,7 @@ class Trainer(object):
             dense_fields,
             sparse_fields,
         ) = self.train_dataloader()
-        labels = labels.to("cuda")#.to(dtype=flow.float32)
+        labels = labels.to("cuda")
         dense_fields = dense_fields.to("cuda")
         sparse_fields = sparse_fields.to("cuda")
         predicts = self.dlrm_module(dense_fields, sparse_fields)
