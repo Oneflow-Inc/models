@@ -23,6 +23,16 @@ def make_data_loader(args, mode, is_consistent=False, data_format="ofrecord"):
         batch_size_per_proc = total_batch_size
         eval_batch_size_per_proc = eval_total_batch_size
     
+    kps = dict(
+        num_dense_fields=args.num_dense_fields,
+        num_sparse_fields=args.num_sparse_fields,
+        batch_size=batch_size_per_proc if mode=='train' else eval_batch_size_per_proc,
+        total_batch_size=total_batch_size if mode=='train' else eval_total_batch_size,
+        mode=mode,
+        shuffle=(mode=='train'),   
+        placement=placement,
+        sbp=sbp,
+    )
     if data_format == "ofrecord":
         if mode == "val":
             data_part_num = 256
@@ -32,40 +42,12 @@ def make_data_loader(args, mode, is_consistent=False, data_format="ofrecord"):
             data_dir=args.data_dir,
             data_part_num=data_part_num,
             part_name_suffix_length=args.data_part_name_suffix_length,
-            num_dense_fields=args.num_dense_fields,
-            num_sparse_fields=args.num_sparse_fields,
-            batch_size=batch_size_per_proc if mode=='train' else eval_batch_size_per_proc,
-            total_batch_size=total_batch_size if mode=='train' else eval_total_batch_size,
-            mode=mode,
-            shuffle=(mode=='train'),
-            placement=placement,
-            sbp=sbp,
+            **kps
         )
-        return ofrecord_data_loader
     elif data_format == "onerec":
-        onerec_data_loader = OneRecDataLoader(
-            data_dir=args.data_dir,
-            num_dense_fields=args.num_dense_fields,
-            num_sparse_fields=args.num_sparse_fields,
-            batch_size=batch_size_per_proc if mode=='train' else eval_batch_size_per_proc,
-            total_batch_size=total_batch_size if mode=='train' else eval_total_batch_size,
-            mode=mode,
-            shuffle=(mode=='train'),
-            placement=placement,
-            sbp=sbp,
-        )
-        return onerec_data_loader
+        return OneRecDataLoader(data_dir=args.data_dir, **kps)
     elif data_format == "synthetic":
-        print("synthetic")
-        synthetic_data_loader = SyntheticDataLoader(
-            num_dense_fields=args.num_dense_fields,
-            num_sparse_fields=args.num_sparse_fields,
-            batch_size=batch_size_per_proc if mode=='train' else eval_batch_size_per_proc,
-            total_batch_size=total_batch_size if mode=='train' else eval_total_batch_size,
-            placement=placement,
-            sbp=sbp,
-        )
-        return synthetic_data_loader
+        return SyntheticDataLoader(**kps)
     else:
         raise ValueError("data format must be one of ofrecord, onerec or synthetic")
 
@@ -105,9 +87,9 @@ class OFRecordDataLoader(nn.Module):
         def _blob_decoder(bn, shape, dtype=flow.int32):
             return nn.OfrecordRawDecoder(bn, shape=shape, dtype=dtype)
 
-        self.labels = _blob_decoder("labels", (1,))
+        self.labels = _blob_decoder("labels", (1,), flow.float)
         self.dense_fields = _blob_decoder(
-            "dense_fields", (num_dense_fields,), flow.int32
+            "dense_fields", (num_dense_fields,), flow.float
         )
         self.sparse_fields = _blob_decoder(
             "deep_sparse_fields", (num_sparse_fields,)
@@ -161,7 +143,7 @@ class OneRecDataLoader(nn.Module):
             placement = self.placement,
             sbp = self.sbp,
         )
-        labels = self._blob_decoder(reader, "labels", (1,))
+        labels = self._blob_decoder(reader, "labels", (1,), flow.float)
         dense_fields = self._blob_decoder(reader, "dense_fields", (self.num_dense_fields,), flow.float)
         sparse_fields = self._blob_decoder(reader, "deep_sparse_fields", (self.num_sparse_fields,))
         return labels, dense_fields, sparse_fields
@@ -174,6 +156,8 @@ class SyntheticDataLoader(nn.Module):
         num_sparse_fields: int = 26,
         batch_size: int = 1,
         total_batch_size: int = 1,
+        mode: str = "train",
+        shuffle: bool = True,    
         placement=None,
         sbp=None,
     ):
@@ -193,7 +177,7 @@ class SyntheticDataLoader(nn.Module):
                     0,
                     high=2,
                     size=self.label_shape,
-                    dtype=flow.int32,
+                    dtype=flow.float,
                     placement=self.placement,
                     sbp=self.sbp,
             )
@@ -217,7 +201,7 @@ class SyntheticDataLoader(nn.Module):
             )
         else:
             self.labels = flow.randint(
-                0, high=2, size=self.label_shape, dtype=flow.int32, device="cpu"
+                0, high=2, size=self.label_shape, dtype=flow.float, device="cpu"
             )
             self.dense_fields = flow.randint(
                 0, high=256, size=self.dense_fields_shape, dtype=flow.float, device="cpu",
