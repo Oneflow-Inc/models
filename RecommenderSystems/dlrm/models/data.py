@@ -38,7 +38,7 @@ def make_data_loader(args, mode, is_consistent=False, data_format="ofrecord"):
             data_part_num = 256
         else:
             data_part_num = args.data_part_num
-        ofrecord_data_loader = OFRecordDataLoader(
+        return OFRecordDataLoader(
             data_dir=args.data_dir,
             data_part_num=data_part_num,
             part_name_suffix_length=args.data_part_name_suffix_length,
