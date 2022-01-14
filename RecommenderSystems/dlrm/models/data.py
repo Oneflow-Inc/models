@@ -250,6 +250,7 @@ class ParquetDataLoader(nn.Module):
     def forward(self):
         labels, dense_fields, sparse_fields = self.reader()
         labels = flow.cast(labels, flow.float)
+        dense_fields = flow.cast(dense_fields, flow.float)        
         return labels, dense_fields, sparse_fields
 
 
