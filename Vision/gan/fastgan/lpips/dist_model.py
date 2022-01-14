@@ -16,7 +16,7 @@ class DistModel(BaseModel):
 
     def initialize(self, model='net-lin', net='alex', colorspace='Lab', pnet_rand=False, pnet_tune=False, model_path=None,
             use_gpu=True, printNet=False, spatial=False, 
-            is_train=False, lr=.0001, beta1=0.5, version='0.1', gpu_ids='cuda:0'):
+            is_train=False, lr=.0001, beta1=0.5, version='0.1',):
         '''
         INPUTS
             model - ['net-lin'] for linearly calibrated network
@@ -38,13 +38,12 @@ class DistModel(BaseModel):
             version - 0.1 for latest, 0.0 was original (with a bug)
             gpu_ids - int array - [0] by default, gpus to use
         '''
-        BaseModel.initialize(self, use_gpu=use_gpu, gpu_ids=gpu_ids)
+        BaseModel.initialize(self, use_gpu=use_gpu,)
 
         self.model = model
         self.net = net
         self.is_train = is_train
         self.spatial = spatial
-        self.gpu_ids = gpu_ids
         self.model_name = '%s [%s]'%(model,net)
 
         if(self.model == 'net-lin'): # pretrained net + linear layer
@@ -85,10 +84,11 @@ class DistModel(BaseModel):
             self.net.eval()
 
         if(use_gpu):
-            self.net.to(gpu_ids)
-            # self.net = torch.nn.DataParallel(self.net, device_ids=gpu_ids)
+            self.net.cuda()
+            # self.net = flow.nn.parallel.DistributedDataParallel(self.net, broadcast_buffers=False,)
             if(self.is_train):
-                self.rankLoss = self.rankLoss.to(gpu_ids) # just put this on GPU0
+                # self.rankLoss = self.rankLoss.to(gpu_ids) # just put this on GPU0
+                self.rankLoss = flow.nn.parallel.DistributedDataParallel(self.rankLoss, broadcast_buffers=False,)
 
         if(printNet):
             print('---------- Networks initialized -------------')

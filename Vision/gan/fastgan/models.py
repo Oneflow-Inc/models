@@ -96,7 +96,7 @@ def UpBlockComp(in_planes, out_planes):
 
 class Generator(nn.Module):
     def __init__(self, ngf=64, nz=100, nc=3, im_size=1024):
-        super().__init__()
+        super(Generator, self).__init__()
 
         nfc_multi = {4:16, 8:8, 16:4, 32:2, 64:2, 128:1, 256:0.5, 512:0.25, 1024:0.125}
         nfc = {}
@@ -141,18 +141,18 @@ class Generator(nn.Module):
         feat_256 = self.se_256( feat_16, self.feat_256(feat_128) )
 
         if self.im_size == 256:
-            return [self.to_big(feat_256), self.to_128(feat_128)]
+            return self.to_big(feat_256), self.to_128(feat_128)
         
         feat_512 = self.se_512( feat_32, self.feat_512(feat_256) )
         if self.im_size == 512:
-            return [self.to_big(feat_512), self.to_128(feat_128)]
+            return self.to_big(feat_512), self.to_128(feat_128)
 
         feat_1024 = self.feat_1024(feat_512)
 
         im_128 = flow.tanh(self.to_128(feat_128))
         im_1024 = flow.tanh(self.to_big(feat_1024))
-
-        return [im_1024, im_128]
+        # return im_1024
+        return im_1024, im_128
 
 class DownBlock(nn.Module):
     def __init__(self, in_planes, out_planes):
@@ -282,7 +282,7 @@ class Discriminator(nn.Module):
             if part==3:
                 rec_img_part = self.decoder_part(feat_32[:,:,8:,8:])
 
-            return flow.cat([rf_0, rf_1]) , [rec_img_big, rec_img_small, rec_img_part]
+            return flow.cat([rf_0, rf_1]) , rec_img_big, rec_img_small, rec_img_part
 
         return flow.cat([rf_0, rf_1]) 
 
