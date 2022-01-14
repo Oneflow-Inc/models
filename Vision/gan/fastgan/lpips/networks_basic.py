@@ -1,3 +1,4 @@
+# from turtle import forward
 import oneflow as flow
 import oneflow.nn as nn
 from . import pretrained_networks as pn
@@ -62,9 +63,11 @@ class PNetLin(nn.Module):
 
         if(self.lpips):
             if(self.spatial):
-                res = [upsample(self.lins[kk].model(diffs[kk]), out_H=in0.shape[2]) for kk in range(self.L)]
+                # res = [upsample(self.lins[kk].model(diffs[kk]), out_H=in0.shape[2]) for kk in range(self.L)]
+                res = [upsample(self.lins[kk](diffs[kk]), out_H=in0.shape[2]) for kk in range(self.L)]
             else:
-                res = [spatial_average(self.lins[kk].model(diffs[kk]), keepdim=True) for kk in range(self.L)]
+                # res = [spatial_average(self.lins[kk].model(diffs[kk]), keepdim=True) for kk in range(self.L)]
+                res = [spatial_average(self.lins[kk](diffs[kk]), keepdim=True) for kk in range(self.L)]
         else:
             if(self.spatial):
                 res = [upsample(diffs[kk].sum(dim=1,keepdim=True), out_H=in0.shape[2]) for kk in range(self.L)]
@@ -97,6 +100,9 @@ class NetLinLayer(nn.Module):
         layers = [nn.Dropout(),] if(use_dropout) else []
         layers += [nn.Conv2d(chn_in, chn_out, 1, stride=1, padding=0, bias=False),]
         self.model = nn.Sequential(*layers)
+
+    def forward(self, x):
+        return self.model(x)
 
 class Dist2LogitLayer(nn.Module):
     ''' takes 2 distances, puts through fc layers, spits out value between [0,1] (if use_sigmoid is True) '''

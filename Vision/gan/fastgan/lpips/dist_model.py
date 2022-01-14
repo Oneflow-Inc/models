@@ -50,8 +50,8 @@ class DistModel(BaseModel):
             self.net = networks.PNetLin(pnet_rand=pnet_rand, pnet_tune=pnet_tune, pnet_type=net,
                 use_dropout=True, spatial=spatial, version=version, lpips=True)
             kw = {}
-            if not use_gpu:
-                kw['map_location'] = 'cpu'
+            # if not use_gpu:
+            kw['map_location'] = 'cpu' #不加载到CPU就会导致都占用一张显卡
             if(model_path is None):
                 import inspect
                 model_path = os.path.abspath(os.path.join(inspect.getfile(self.initialize), '..', 'weights/v%s/%s.pth'%(version,net)))
@@ -87,8 +87,8 @@ class DistModel(BaseModel):
             self.net.cuda()
             # self.net = flow.nn.parallel.DistributedDataParallel(self.net, broadcast_buffers=False,)
             if(self.is_train):
-                # self.rankLoss = self.rankLoss.to(gpu_ids) # just put this on GPU0
-                self.rankLoss = flow.nn.parallel.DistributedDataParallel(self.rankLoss, broadcast_buffers=False,)
+                self.rankLoss = self.rankLoss.cuda() # just put this on GPU0
+                # self.rankLoss = flow.nn.parallel.DistributedDataParallel(self.rankLoss, broadcast_buffers=False,)
 
         if(printNet):
             print('---------- Networks initialized -------------')
