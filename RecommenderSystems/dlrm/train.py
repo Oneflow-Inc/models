@@ -8,7 +8,7 @@ import numpy as np
 from sklearn.metrics import roc_auc_score
 import oneflow as flow
 from config import get_args
-from models.data import make_data_loader
+from models.data import make_data_loader,make_slot_loader
 from models.dlrm import make_dlrm_module,make_lr_scheduler
 from oneflow.nn.parallel import DistributedDataParallel as DDP
 from graph import DLRMValGraph, DLRMTrainGraph
@@ -46,6 +46,7 @@ class Trainer(object):
         self.init_logger()
         self.train_dataloader = make_data_loader(args, "train", self.is_consistent, self.dataset_format)
         self.val_dataloader = make_data_loader(args, "val", self.is_consistent, self.dataset_format)
+        self.slotloader = make_slot_loader(args.batch_size)
         self.dlrm_module = make_dlrm_module(args)
         self.init_model()
         if self.is_consistent:
@@ -67,10 +68,10 @@ class Trainer(object):
         self.loss = flow.nn.BCELoss(reduction="none").to("cuda")
         if self.execution_mode == "graph":
             self.eval_graph = DLRMValGraph(
-                self.dlrm_module, self.val_dataloader
+                self.dlrm_module, self.val_dataloader, self.slotloader
             )
             self.train_graph = DLRMTrainGraph(
-                self.dlrm_module, self.train_dataloader, self.loss, self.opt, self.lr_scheduler, self.grad_scaler
+                self.dlrm_module, self.train_dataloader, self.slotloader, self.loss, self.opt, self.lr_scheduler, self.grad_scaler
             )
 
     def init_model(self):
@@ -222,12 +223,14 @@ class Trainer(object):
             dense_fields,
             sparse_fields,
         ) = self.val_dataloader()
+        sparse_slots = self.slotloader()
         labels = labels.to("cuda")
         dense_fields = dense_fields.to("cuda")
         sparse_fields = sparse_fields.to("cuda")
+        sparse_slots = sparse_slots.to("cuda")
         with flow.no_grad():
             predicts = self.dlrm_module(
-                dense_fields, sparse_fields
+                dense_fields, sparse_fields, sparse_slots
             )
         return predicts, labels
 
@@ -237,10 +240,12 @@ class Trainer(object):
             dense_fields,
             sparse_fields,
         ) = self.train_dataloader()
+        sparse_slots = self.slotloader()
         labels = labels.to("cuda")
         dense_fields = dense_fields.to("cuda")
         sparse_fields = sparse_fields.to("cuda")
-        predicts = self.dlrm_module(dense_fields, sparse_fields)
+        sparse_slots = sparse_slots.to("cuda")
+        predicts = self.dlrm_module(dense_fields, sparse_fields, sparse_slots)
         loss = self.loss(predicts, labels)
         reduce_loss = flow.mean(loss)
         return reduce_loss

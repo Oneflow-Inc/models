@@ -2,7 +2,7 @@ import os
 import oneflow as flow
 import oneflow.nn as nn
 import glob
-
+import numpy as np
 
 __all__ = ["make_data_loader"]
 
@@ -50,6 +50,27 @@ def make_data_loader(args, mode, is_consistent=False, data_format="ofrecord"):
         return SyntheticDataLoader(**kps)
     else:
         raise ValueError("data format must be one of ofrecord, onerec or synthetic")
+
+
+def make_slot_loader(batch_size):
+    return SlotsDataLoader(batch_size)
+
+class SlotsDataLoader(nn.Module):
+    def __init__(self, batch_size):
+        super(SlotsDataLoader, self).__init__()
+        self.batch_size = batch_size
+
+    def forward(self):
+        np_slot = np.ones((self.batch_size, 26))
+        for i in range(26):
+            np_slot[:,i]=i
+        slots = flow.tensor(
+            np_slot,
+            dtype=flow.int32,
+            placement=flow.placement("cuda", {0: [0, 1, 2, 3]}), sbp=flow.sbp.split(0)
+        )
+        return slots
+
 
 
 class OFRecordDataLoader(nn.Module):

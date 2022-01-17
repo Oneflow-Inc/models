@@ -141,11 +141,12 @@ class DLRMModule(nn.Module):
         self.sigmoid = nn.Sigmoid()
 
 
-    def forward(self, dense_fields, sparse_fields) -> flow.Tensor:
+    def forward(self, dense_fields, sparse_fields, sparse_slots) -> flow.Tensor:
         dense_fields = flow.log(dense_fields + 2.0)
         dense_fields = self.bottom_mlp(dense_fields)
         sparse_fields = flow.cast(sparse_fields, flow.int64)
-        embedding = self.embedding(sparse_fields)
+        sparse_slots = flow.cast(sparse_slots, flow.int32)
+        embedding = self.embedding(sparse_fields, sparse_slots)
         embedding = embedding.view(-1, embedding.shape[-1] * embedding.shape[-2])
         features = self.interaction(dense_fields, embedding)
         features = self.top_mlp(features)
