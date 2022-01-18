@@ -99,24 +99,24 @@ class Embedding(nn.Embedding):
             # W = np.load('/tank/model_zoo/dlrm_baseline_params_emb16/embedding_weight.npy')
             # param.data = flow.tensor(W, requires_grad=True)
 
-# class OneEmbedding(nn.OneEmbeddingLookup):
-#     def __init__(self, vocab_size, embed_size):
-#         options = {
-#             "name": "my_embedding",
-#             # Can't change the embedding_size 128 because the kv store value_length has been set to 128
-#             "embedding_size": 128,
-#             "dtype": flow.float,
-#             "encoder": "invalid",
-#             "partitioning": "invalid",
-#             "initializer": "invalid",
-#             "optimizer": "invalid",
-#             "backend": "invalid",
-#         }
-#         super(OneEmbedding, self).__init__(options)
+class OneEmbedding(nn.OneEmbeddingLookup):
+    def __init__(self, vocab_size, embed_size):
+        options = {
+            "name": "my_embedding",
+            # Can't change the embedding_size 128 because the kv store value_length has been set to 128
+            "embedding_size": embed_size,
+            "dtype": flow.float,
+            "encoder": "invalid",
+            "partitioning": "invalid",
+            "initializer": "invalid",
+            "optimizer": "invalid",
+            "backend": "invalid",
+        }
+        super(OneEmbedding, self).__init__(options)
 
 
 embd_dict = {
-    # 'OneEmbedding': OneEmbedding,
+    'OneEmbedding': OneEmbedding,
     'Embedding': Embedding,
 }
 
