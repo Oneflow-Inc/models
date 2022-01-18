@@ -10,6 +10,7 @@ import oneflow as flow
 from config import get_args
 from models.data import make_data_loader
 from models.dlrm import make_dlrm_module
+from lr_scheduler import make_lr_scheduler
 from oneflow.nn.parallel import DistributedDataParallel as DDP
 from graph import DLRMValGraph, DLRMTrainGraph
 import warnings
@@ -56,6 +57,7 @@ class Trainer(object):
         self.opt = flow.optim.SGD(
             self.dlrm_module.parameters(), lr=args.learning_rate
         )
+        self.lr_scheduler = make_lr_scheduler(args, self.opt)
 
         self.loss = flow.nn.BCELoss(reduction="none").to("cuda")
         if self.execution_mode == "graph":
@@ -63,7 +65,8 @@ class Trainer(object):
                 self.dlrm_module, self.val_dataloader
             )
             self.train_graph = DLRMTrainGraph(
-                self.dlrm_module, self.train_dataloader, self.loss, self.opt
+                self.dlrm_module, self.train_dataloader, self.loss, self.opt, 
+                self.lr_scheduler
             )
 
     def init_model(self):
