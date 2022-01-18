@@ -109,7 +109,16 @@ class OneEmbedding(nn.OneEmbeddingLookup):
             "embedding_options": '{"embedding_size": embed_size, "embedding_name":"EmbeddingTest"}',
         }
         super(OneEmbedding, self).__init__(options)
+        slots = flow.tensor([i for i in range(26)], dtype=flow.int32)
+        self.register_buffer("slots", slots)
 
+    def forward(self, ids):
+        bsz = ids.shape[0]
+        slots = flow.cat(bsz * [self.slots])
+        return flow._C.embedding_lookup_placeholder(
+            ids, slots, self.dtype, self.embedding_options,
+        )
+        # return super(OneEmbedding, self).forward(ids, slots)
 
 embd_dict = {
     'OneEmbedding': OneEmbedding,
