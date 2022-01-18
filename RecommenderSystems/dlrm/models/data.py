@@ -67,7 +67,7 @@ class SlotsDataLoader(nn.Module):
         slots = flow.tensor(
             np_slot,
             dtype=flow.int32,
-            placement=flow.placement("cuda", {0: [0, 1, 2, 3]}), sbp=flow.sbp.split(0)
+            placement=flow.env.all_device_placement("cuda"), sbp=flow.sbp.split(0)
         )
         return slots
 
