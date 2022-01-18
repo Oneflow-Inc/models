@@ -19,16 +19,16 @@ export L1_CACHE_MEMORY_BUDGET_MB=16384 #8192
 export L2_CACHE_POLICY="none"
 export L2_CACHE_MEMORY_BUDGET_MB=8192
 export KEY_VALUE_STORE="block_based"
-export BLOCK_BASED_PATH="/NVME0/guoran/rocks"
-rm /NVME0/guoran/rocks/0-4/*
-rm /NVME0/guoran/rocks/1-4/*
-rm /NVME0/guoran/rocks/2-4/*
-rm /NVME0/guoran/rocks/3-4/*
-#export LD_PRELOAD=/lib/x86_64-linux-gnu/libtcmalloc.so.4:$LD_PRELOAD
+export BLOCK_BASED_PATH="rocks/"
+rm rocks/0-4/*
+rm rocks/1-4/*
+rm rocks/2-4/*
+rm rocks/3-4/*
+export LD_PRELOAD=/lib/x86_64-linux-gnu/libtcmalloc.so.4:$LD_PRELOAD
 export GRADIENT_SHUFFLE_USE_FP16=1
 
 #/usr/local/cuda-11.4/bin/nsys profile --stat=true \
-    python3 -m oneflow.distributed.launch \
+python3 -m oneflow.distributed.launch \
     --nproc_per_node $DEVICE_NUM_PER_NODE \
     --nnodes $NUM_NODES \
     --node_rank $NODE_RANK \
