@@ -50,6 +50,7 @@ def get_args(print_args=True):
         "--dataset_format", type=str, default="ofrecord", help="ofrecord, onerec, parquet or synthetic"
     )
     parser.add_argument("--data_part_num", type=int, default=256)
+    parser.add_argument("--eval_data_part_num", type=int, default=256)
     parser.add_argument(
         "--data_dir", type=str, default="/dataset/wdl_ofrecord/ofrecord"
     )
