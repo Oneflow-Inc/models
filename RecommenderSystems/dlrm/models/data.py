@@ -38,7 +38,7 @@ def make_data_loader(args, mode, is_consistent=False, data_format="ofrecord"):
     elif data_format == "ofrecord":
         return OFRecordDataLoader(
             data_dir=args.data_dir,
-            data_part_num=args.data_part_num if mode=='train' else args.eval_data_part_num
+            data_part_num=args.data_part_num if mode=='train' else args.eval_data_part_num,
             part_name_suffix_length=args.data_part_name_suffix_length,
             **kps
         )
