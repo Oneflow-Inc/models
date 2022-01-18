@@ -23,6 +23,7 @@ python3 -m oneflow.distributed.launch \
     --master_addr $MASTER_ADDR \
     train.py \
     --interaction_type dot \
+    --dataset_format $dataset_format \
     --embedding_type Embedding \
     --bottom_mlp 512,256,$emb_size \
     --top_mlp 1024,1024,512,256 \
