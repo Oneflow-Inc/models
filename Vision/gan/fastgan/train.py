@@ -105,9 +105,9 @@ if __name__ == '__main__':
     cfg = get_config()
 
     netG = Generator(ngf=cfg.G.ngf, nz=cfg.G.nz, im_size=cfg.TRAIN.im_size)
-    netG.apply(weights_init)
+    # netG.apply(weights_init)
     netD = Discriminator(ndf=cfg.D.ndf, im_size=cfg.TRAIN.im_size)
-    netD.apply(weights_init)
+    # netD.apply(weights_init)
     netG_ema = Generator(ngf=cfg.G.ngf, nz=cfg.G.nz, im_size=cfg.TRAIN.im_size)
     accumulate(netG_ema, netG, 0)
 

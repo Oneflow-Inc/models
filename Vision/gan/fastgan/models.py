@@ -1,6 +1,7 @@
 import oneflow as flow
 import oneflow.nn as nn
 # from oneflow.nn.utils import spectral_norm
+from spectral_norm import SpectralNorm
 import oneflow.nn.functional as F
 
 def weights_init(m):
@@ -13,12 +14,12 @@ def weights_init(m):
 
 
 def conv2d(*args, **kwargs):
-    # return spectral_norm(nn.Conv2d(*args, **kwargs))
-    return nn.Conv2d(*args, **kwargs)
+    return SpectralNorm(nn.Conv2d(*args, **kwargs))
+    # return nn.Conv2d(*args, **kwargs)
 
 def convTranspose2d(*args, **kwargs):
-    # return spectral_norm(nn.ConvTranspose2d(*args, **kwargs))
-    return nn.ConvTranspose2d(*args, **kwargs)
+    return SpectralNorm(nn.ConvTranspose2d(*args, **kwargs))
+    # return nn.ConvTranspose2d(*args, **kwargs)
 
 def batchNorm2d(*args, **kwargs):
     return nn.BatchNorm2d(*args, **kwargs)
@@ -160,7 +161,7 @@ class DownBlock(nn.Module):
 
         self.main = nn.Sequential(
             conv2d(in_planes, out_planes, 4, 2, 1, bias=False),
-            batchNorm2d(out_planes), nn.LeakyReLU(0.2, inplace=True),
+            batchNorm2d(out_planes), nn.LeakyReLU(0.2),
             )
 
     def forward(self, feat):
@@ -173,7 +174,7 @@ class DownBlockComp(nn.Module):
 
         self.main = nn.Sequential(
             conv2d(in_planes, out_planes, 4, 2, 1, bias=False),
-            batchNorm2d(out_planes), nn.LeakyReLU(0.2, inplace=True),
+            batchNorm2d(out_planes), nn.LeakyReLU(0.2),
             conv2d(out_planes, out_planes, 3, 1, 1, bias=False),
             batchNorm2d(out_planes), nn.LeakyReLU(0.2)
             )
@@ -201,18 +202,18 @@ class Discriminator(nn.Module):
         if im_size == 1024:
             self.down_from_big = nn.Sequential( 
                                     conv2d(nc, nfc[1024], 4, 2, 1, bias=False),
-                                    nn.LeakyReLU(0.2, inplace=True),
+                                    nn.LeakyReLU(0.2),
                                     conv2d(nfc[1024], nfc[512], 4, 2, 1, bias=False),
                                     batchNorm2d(nfc[512]),
-                                    nn.LeakyReLU(0.2, inplace=True))
+                                    nn.LeakyReLU(0.2))
         elif im_size == 512:
             self.down_from_big = nn.Sequential( 
                                     conv2d(nc, nfc[512], 4, 2, 1, bias=False),
-                                    nn.LeakyReLU(0.2, inplace=True) )
+                                    nn.LeakyReLU(0.2) )
         elif im_size == 256:
             self.down_from_big = nn.Sequential( 
                                     conv2d(nc, nfc[512], 3, 1, 1, bias=False),
-                                    nn.LeakyReLU(0.2, inplace=True) )
+                                    nn.LeakyReLU(0.2) )
 
         self.down_4  = DownBlockComp(nfc[512], nfc[256])
         self.down_8  = DownBlockComp(nfc[256], nfc[128])
@@ -222,7 +223,7 @@ class Discriminator(nn.Module):
 
         self.rf_big = nn.Sequential(
                             conv2d(nfc[16] , nfc[8], 1, 1, 0, bias=False),
-                            batchNorm2d(nfc[8]), nn.LeakyReLU(0.2, inplace=True),
+                            batchNorm2d(nfc[8]), nn.LeakyReLU(0.2),
                             conv2d(nfc[8], 1, 4, 1, 0, bias=False))
 
         self.se_2_16 = SEBlock(nfc[512], nfc[64])
@@ -231,7 +232,7 @@ class Discriminator(nn.Module):
 
         self.down_from_small = nn.Sequential( 
                                             conv2d(nc, nfc[256], 4, 2, 1, bias=False), 
-                                            nn.LeakyReLU(0.2, inplace=True),
+                                            nn.LeakyReLU(0.2),
                                             DownBlock(nfc[256],  nfc[128]),
                                             DownBlock(nfc[128],  nfc[64]),
                                             DownBlock(nfc[64],  nfc[32]), )
