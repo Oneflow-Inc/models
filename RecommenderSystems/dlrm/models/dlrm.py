@@ -109,6 +109,15 @@ class OneEmbedding(nn.OneEmbeddingLookup):
             "embedding_options": '{"embedding_size": embed_size, "embedding_name":"EmbeddingTest"}',
         }
         super(OneEmbedding, self).__init__(options)
+        slots = flow.tensor(range(26), dtype=flow.int32).reshape(1,26)
+        self.register_buffer("slots", slots)
+
+    def forward(self, ids):
+        bsz = ids.shape[0]
+        slots = flow.ones((bsz, 1), dtype=flow.int32, sbp=ids.sbp, placement=ids.placement) * self.slots
+        if (ids.is_consistent):
+            slots = slots.to_consistent(sbp=ids.sbp, placement=ids.placement)
+        return super(OneEmbedding, self._origin).forward(ids, slots)
 
 
 embd_dict = {
