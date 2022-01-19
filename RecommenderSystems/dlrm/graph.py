@@ -14,7 +14,7 @@ class DLRMValGraph(flow.nn.Graph):
             dense_fields,
             sparse_fields,
         ) = self.dataloader()
-        sparse_slots = self.slotloader()
+        sparse_slots = self.slotloader(False)
         labels = labels.to("cuda").to(dtype=flow.float32)
         dense_fields = dense_fields.to("cuda")
         sparse_fields = sparse_fields.to("cuda")
@@ -42,7 +42,7 @@ class DLRMTrainGraph(flow.nn.Graph):
             dense_fields,
             sparse_fields,
         ) = self.dataloader()
-        sparse_slots = self.slotloader()
+        sparse_slots = self.slotloader(True)
         labels = labels.to("cuda").to(dtype=flow.float32)
         dense_fields = dense_fields.to("cuda")
         sparse_fields = sparse_fields.to("cuda")

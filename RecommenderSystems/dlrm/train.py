@@ -46,7 +46,7 @@ class Trainer(object):
         self.init_logger()
         self.train_dataloader = make_data_loader(args, "train", self.is_consistent, self.dataset_format)
         self.val_dataloader = make_data_loader(args, "val", self.is_consistent, self.dataset_format)
-        self.slotloader = make_slot_loader(args.batch_size)
+        self.slotloader = make_slot_loader(args.batch_size, args.eval_batch_size)
         self.dlrm_module = make_dlrm_module(args)
         self.init_model()
         if self.is_consistent:
@@ -93,6 +93,8 @@ class Trainer(object):
         self.val_logger = log.make_logger(self.rank, print_ranks)
         self.val_logger.register_metric("iter", log.IterationMeter(), "iter: {}/{}")
         self.val_logger.register_metric("auc", log.IterationMeter(), "eval_auc: {}")
+        self.val_logger.register_metric("latency", log.LatencyMeter(), "latency(ms): {:.16f}", True)
+
 
     def meter(
         self,
@@ -117,6 +119,7 @@ class Trainer(object):
 
     def meter_eval(self, auc):
         self.val_logger.meter("iter", (self.cur_iter, self.max_iter))
+        self.val_logger.meter("latency")
         if auc is not None:
             self.val_logger.meter("auc", auc)
         self.val_logger.print_metrics()
@@ -202,14 +205,15 @@ class Trainer(object):
         self.dlrm_module.eval()
         labels = np.array([[0]])
         preds = np.array([[0]])
-        for _ in range(self.eval_batchs):
+        for iter in range(self.eval_batchs):
             if self.execution_mode == "graph":
                 pred, label = self.eval_graph()
             else:
                 pred, label = self.inference()
             label_ = label.numpy().astype(np.float32)
+            pred_ = pred.numpy()
             labels = np.concatenate((labels, label_), axis=0)
-            preds = np.concatenate((preds, pred.numpy()), axis=0)
+            preds = np.concatenate((preds, pred_), axis=0)
         auc = roc_auc_score(labels[1:], preds[1:])
         self.meter_eval(auc)
         if save_model:
@@ -223,7 +227,7 @@ class Trainer(object):
             dense_fields,
             sparse_fields,
         ) = self.val_dataloader()
-        sparse_slots = self.slotloader()
+        sparse_slots = self.slotloader(is_train=False)
         labels = labels.to("cuda")
         dense_fields = dense_fields.to("cuda")
         sparse_fields = sparse_fields.to("cuda")
@@ -240,7 +244,7 @@ class Trainer(object):
             dense_fields,
             sparse_fields,
         ) = self.train_dataloader()
-        sparse_slots = self.slotloader()
+        sparse_slots = self.slotloader(is_train=True)
         labels = labels.to("cuda")
         dense_fields = dense_fields.to("cuda")
         sparse_fields = sparse_fields.to("cuda")

@@ -52,16 +52,18 @@ def make_data_loader(args, mode, is_consistent=False, data_format="ofrecord"):
         raise ValueError("data format must be one of ofrecord, onerec or synthetic")
 
 
-def make_slot_loader(batch_size):
-    return SlotsDataLoader(batch_size)
+def make_slot_loader(train_batch_size, eval_batch_size):
+    return SlotsDataLoader(train_batch_size, eval_batch_size)
 
 class SlotsDataLoader(nn.Module):
-    def __init__(self, batch_size):
+    def __init__(self, train_batch_size, eval_batch_size):
         super(SlotsDataLoader, self).__init__()
-        self.batch_size = batch_size
+        self.train_batch_size = train_batch_size
+        self.eval_batch_size = eval_batch_size
 
-    def forward(self):
-        np_slot = np.ones((self.batch_size, 26))
+    def forward(self, is_train):
+        batch_size = max(self.train_batch_size, self.eval_batch_size)
+        np_slot = np.ones((batch_size, 26))
         for i in range(26):
             np_slot[:,i]=i
         slots = flow.tensor(
