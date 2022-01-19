@@ -47,9 +47,10 @@ def get_args(print_args=True):
         help="do eval after_training",
     )
     parser.add_argument(
-        "--dataset_format", type=str, default="ofrecord", help="ofrecord, onerec or synthetic"
+        "--dataset_format", type=str, default="ofrecord", help="ofrecord, onerec, parquet or synthetic"
     )
     parser.add_argument("--data_part_num", type=int, default=256)
+    parser.add_argument("--eval_data_part_num", type=int, default=256)
     parser.add_argument(
         "--data_dir", type=str, default="/dataset/wdl_ofrecord/ofrecord"
     )
@@ -61,6 +62,9 @@ def get_args(print_args=True):
     parser.add_argument("--batch_size", type=int, default=16384)
     parser.add_argument("--batch_size_per_proc", type=int, default=None)
     parser.add_argument("--learning_rate", type=float, default=1e-3)
+    parser.add_argument("--warmup_batches", type=int, default=2750)
+    parser.add_argument("--decay_batches", type=int, default=27772)
+    parser.add_argument("--decay_start", type=int, default=49315)
     parser.add_argument("--vocab_size", type=int, default=1603616)
     parser.add_argument("--embedding_vec_size", type=int, default=128)
     parser.add_argument("--num_dense_fields", type=int, default=13)

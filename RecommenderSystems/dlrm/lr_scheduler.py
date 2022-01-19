@@ -1,3 +1,7 @@
+<<<<<<< HEAD
+=======
+import os
+>>>>>>> dev_dlrm
 import math
 import oneflow as flow
 from oneflow.nn.optimizer.lr_scheduler import LrScheduler
@@ -76,3 +80,19 @@ class PolynomialLR(LrScheduler):
             )
             learning_rate_decay_conf.mutable_polynomial_conf().set_power(self.power)
             learning_rate_decay_conf.mutable_polynomial_conf().set_cycle(self.cycle)
+<<<<<<< HEAD
+=======
+
+
+def make_lr_scheduler(args, optimizer):
+    warmup_batches = args.warmup_batches
+    decay_batches = args.decay_batches
+
+    os.environ['DECAY_START'] = f'{args.decay_start}'
+    lr_scheduler = PolynomialLR(optimizer, steps=decay_batches, end_learning_rate=0.0, power=2.0)
+
+    lr_scheduler = flow.optim.lr_scheduler.WarmUpLR(
+        lr_scheduler, warmup_factor=0, warmup_iters=warmup_batches, warmup_method="linear"
+    )
+    return lr_scheduler
+>>>>>>> dev_dlrm

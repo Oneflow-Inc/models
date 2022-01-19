@@ -33,14 +33,12 @@ def make_data_loader(args, mode, is_consistent=False, data_format="ofrecord"):
         placement=placement,
         sbp=sbp,
     )
-    if data_format == "ofrecord":
-        if mode == "val":
-            data_part_num = 256
-        else:
-            data_part_num = args.data_part_num
+    if data_format == "parquet":
+        return ParquetDataLoader(data_dir=args.data_dir, **kps)
+    elif data_format == "ofrecord":
         return OFRecordDataLoader(
             data_dir=args.data_dir,
-            data_part_num=data_part_num,
+            data_part_num=args.data_part_num if mode=='train' else args.eval_data_part_num,
             part_name_suffix_length=args.data_part_name_suffix_length,
             **kps
         )
@@ -237,3 +235,49 @@ class SyntheticDataLoader(nn.Module):
     def forward(self):
         return self.labels, self.dense_fields, self.sparse_fields
 
+class ParquetDataLoader(nn.Module):
+    def __init__(
+        self,
+        data_dir: str = "/dataset/wdl_parquet",
+        num_dense_fields: int = 13,
+        num_sparse_fields: int = 26,
+        batch_size: int = 1,
+        total_batch_size: int = 1,
+        mode: str = "train",
+        shuffle: bool = True,
+        placement=None,
+        sbp=None,
+    ):
+        super(ParquetDataLoader, self).__init__()
+        assert mode in ("train", "val")
+        self.batch_size = batch_size
+        self.total_batch_size = total_batch_size
+        self.mode = mode
+        schema = [
+            {"col_name": "labels", "shape": (1,), "dtype": flow.double},
+            {"col_name": 'dense_fields', "shape": (num_dense_fields,), "dtype": flow.double},
+            {"col_name": 'deep_sparse_fields', "shape": (num_sparse_fields,), "dtype": flow.int32},
+            # {"col_id": 1, "shape": (num_dense_fields,), "dtype": flow.double},
+            # {"col_id": 2, "shape": (num_sparse_fields,), "dtype": flow.int32},
+            # {"col_id": 3, "shape": (2,), "dtype": flow.int32},
+        ]
+        self.reader = nn.ParquetReader(
+            os.path.join(data_dir, mode),
+            schema=schema,
+            batch_size=batch_size,
+            shuffle=shuffle,
+            placement=placement,
+            sbp=sbp,
+        )
+
+    def forward(self):
+        labels, dense_fields, sparse_fields = self.reader()
+        labels = flow.cast(labels, flow.float)
+        dense_fields = flow.cast(dense_fields, flow.float)        
+        return labels, dense_fields, sparse_fields
+
+
+if __name__ == "__main__":
+    m = ParquetDataLoader("/tank/dataset/criteo_kaggle/dlrm_parquet", batch_size=32, total_batch_size=32)
+    labels, dense_fields, sparse_fields = m()
+    print(labels.shape)

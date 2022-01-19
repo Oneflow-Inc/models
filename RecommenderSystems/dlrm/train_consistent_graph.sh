@@ -36,7 +36,12 @@ python3 -m oneflow.distributed.launch \
     train.py \
     --dataset_format 'ofrecord' \
     --interaction_type dot \
+<<<<<<< HEAD
     --embedding_type OneEmbedding \
+=======
+    --dataset_format $dataset_format \
+    --embedding_type Embedding \
+>>>>>>> dev_dlrm
     --bottom_mlp 512,256,$emb_size \
     --top_mlp 1024,1024,512,256 \
     --embedding_vec_size $emb_size \
