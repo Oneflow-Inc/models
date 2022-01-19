@@ -9,7 +9,8 @@ from sklearn.metrics import roc_auc_score
 import oneflow as flow
 from config import get_args
 from models.data import make_data_loader,make_slot_loader
-from models.dlrm import make_dlrm_module,make_lr_scheduler
+from models.dlrm import make_dlrm_module
+from lr_scheduler import make_lr_scheduler
 from oneflow.nn.parallel import DistributedDataParallel as DDP
 from graph import DLRMValGraph, DLRMTrainGraph
 import warnings
@@ -71,12 +72,7 @@ class Trainer(object):
                 self.dlrm_module, self.val_dataloader, self.slotloader
             )
             self.train_graph = DLRMTrainGraph(
-<<<<<<< HEAD
                 self.dlrm_module, self.train_dataloader, self.slotloader, self.loss, self.opt, self.lr_scheduler, self.grad_scaler
-=======
-                self.dlrm_module, self.train_dataloader, self.loss, self.opt, 
-                self.lr_scheduler
->>>>>>> dev_dlrm
             )
 
     def init_model(self):

@@ -168,14 +168,3 @@ def make_dlrm_module(args):
     )
     return model
 
-def make_lr_scheduler(args, optimizer):
-    warmup_batches = 2750
-    decay_batches = 27772
-
-    os.environ['DECAY_START'] = '49315'
-    lr_scheduler = PolynomialLR(optimizer, steps=decay_batches, end_learning_rate=0.0, power=2.0)
-
-    lr_scheduler = flow.optim.lr_scheduler.WarmUpLR(
-        lr_scheduler, warmup_factor=0, warmup_iters=warmup_batches, warmup_method="linear"
-    )
-    return lr_scheduler
