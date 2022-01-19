@@ -115,10 +115,8 @@ class OneEmbedding(nn.OneEmbeddingLookup):
     def forward(self, ids):
         bsz = ids.shape[0]
         slots = flow.cat(bsz * [self.slots])
-        return flow._C.embedding_lookup_placeholder(
-            ids, slots, self.dtype, self.embedding_options,
-        )
-        # return super(OneEmbedding, self).forward(ids, slots)
+        return super(OneEmbedding, self._origin).forward(ids, slots)
+
 
 embd_dict = {
     'OneEmbedding': OneEmbedding,
