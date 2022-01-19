@@ -115,6 +115,8 @@ class OneEmbedding(nn.OneEmbeddingLookup):
     def forward(self, ids):
         bsz = ids.shape[0]
         slots = flow.cat(bsz * [self.slots])
+        if (ids.is_consistent):
+            slots = slots.to_consistent(sbp = ids.sbp, placement = ids.placement)
         return super(OneEmbedding, self._origin).forward(ids, slots)
 
 
