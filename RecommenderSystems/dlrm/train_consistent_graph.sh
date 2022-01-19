@@ -20,10 +20,10 @@ export L2_CACHE_POLICY="none"
 export L2_CACHE_MEMORY_BUDGET_MB=8192
 export KEY_VALUE_STORE="block_based"
 export BLOCK_BASED_PATH="rocks/"
-rm rocks/0-4/*
-rm rocks/1-4/*
-rm rocks/2-4/*
-rm rocks/3-4/*
+rm -rf rocks/0-4/*
+rm -rf rocks/1-4/*
+rm -rf rocks/2-4/*
+rm -rf rocks/3-4/*
 export LD_PRELOAD=/lib/x86_64-linux-gnu/libtcmalloc.so.4:$LD_PRELOAD
 export GRADIENT_SHUFFLE_USE_FP16=1
 
