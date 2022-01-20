@@ -9,7 +9,7 @@ from flowvision import transforms
 from flowvision.utils import vision_helpers as vutils
 from oneflow.utils.data.dataloader import DataLoader
 from operation import ImageFolder, InfiniteSamplerWrapper
-from models import weights_init, Discriminator, Generator
+from models import Discriminator, Generator
 import oneflow.optim as optim
 import oneflow.nn as nn
 from tqdm import tqdm
@@ -103,6 +103,7 @@ if __name__ == '__main__':
     n_gpu = int(os.environ["WORLD_SIZE"]) if "WORLD_SIZE" in os.environ else 1
     args.distributed = n_gpu > 1
     cfg = get_config()
+    cfg.TRAIN.nlr = cfg.TRAIN.nlr / n_gpu
 
     netG = Generator(ngf=cfg.G.ngf, nz=cfg.G.nz, im_size=cfg.TRAIN.im_size)
     # netG.apply(weights_init)
@@ -137,10 +138,6 @@ if __name__ == '__main__':
             broadcast_buffers=False,
         )
 
-        # percept = nn.parallel.DistributedDataParallel(
-        #     percept,
-        #     broadcast_buffers=False,
-        # )
 
     transform_list = [
         transforms.Resize((int(cfg.TRAIN.im_size), int(cfg.TRAIN.im_size))),

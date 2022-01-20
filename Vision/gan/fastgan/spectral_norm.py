@@ -29,7 +29,15 @@ class SpectralNorm(nn.Module):
 
     def _make_params(self):
         w = getattr(self.module, self.name)
-
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
+                m.weight.data.normal_(0, 0.02)
+                if m.bias is not None:
+                    m.bias.data.fill_(0)
+            elif isinstance(m, nn.BatchNorm2d):
+                m.weight.data.normal_(0, 0.02)
+                if m.bias is not None:
+                    m.bias.data.fill_(0)
         height = w.data.shape[0]
         width = w.view(height, -1).data.shape[1]
 

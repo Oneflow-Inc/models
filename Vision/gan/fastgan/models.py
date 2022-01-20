@@ -4,14 +4,6 @@ import oneflow.nn as nn
 from spectral_norm import SpectralNorm
 import oneflow.nn.functional as F
 
-def weights_init(m):
-    classname = m.__class__.__name__
-    if classname.find("Conv") != -1:
-        m.weight.data.normal_(0, 0.02)
-    elif classname.find("BatchNorm") != -1:
-        m.weight.data.normal_(1.0, 0.02)
-        m.bias.data.fill_(0)
-
 
 def conv2d(*args, **kwargs):
     return SpectralNorm(nn.Conv2d(*args, **kwargs))
@@ -125,7 +117,20 @@ class Generator(nn.Module):
             self.feat_512 = UpBlockComp(nfc[256], nfc[512]) 
             self.se_512 = SEBlock(nfc[32], nfc[512])
         if im_size > 512:
-            self.feat_1024 = UpBlock(nfc[512], nfc[1024])  
+            self.feat_1024 = UpBlock(nfc[512], nfc[1024])
+        
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
+                # initialized in custom spectral_norm.py
+                # if m.weight is not None: 
+                #     m.weight.data.normal_(0, 0.02)
+                # if m.bias is not None:
+                #     m.bias.data.fill_(0)
+                pass
+            elif isinstance(m, nn.BatchNorm2d):
+                m.weight.data.normal_(0, 0.02)
+                if m.bias is not None:
+                    m.bias.data.fill_(0)
 
 
     def forward(self, input):
@@ -242,6 +247,19 @@ class Discriminator(nn.Module):
         self.decoder_big = SimpleDecoder(nfc[16], nc)
         self.decoder_part = SimpleDecoder(nfc[32], nc)
         self.decoder_small = SimpleDecoder(nfc[32], nc)
+
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d) or isinstance(m, nn.ConvTranspose2d):
+                # initialized in custom spectral_norm.py
+                # if m.weight is not None: 
+                    # m.weight.data.normal_(0, 0.02)
+                # if m.bias is not None:
+                    # m.bias.data.fill_(0)
+                pass
+            elif isinstance(m, nn.BatchNorm2d):
+                m.weight.data.normal_(0, 0.02)
+                if m.bias is not None:
+                    m.bias.data.fill_(0)
 
     def forward(self, imgs, label, part=None):
         if type(imgs) is not list:
