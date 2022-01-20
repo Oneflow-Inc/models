@@ -19,48 +19,31 @@ def make_data_loader(args, mode, is_consistent=False, data_format="ofrecord"):
         placement = flow.env.all_device_placement("cpu")
         sbp = flow.sbp.split(0)
         batch_size_per_proc = total_batch_size
-    
+
+    kps = dict(
+        num_dense_fields=args.num_dense_fields,
+        num_wide_sparse_fields=args.num_wide_sparse_fields,
+        num_deep_sparse_fields=args.num_deep_sparse_fields,
+        batch_size=batch_size_per_proc,
+        total_batch_size=total_batch_size,
+        mode=mode,
+        shuffle=(mode=='train'),   
+        placement=placement,
+        sbp=sbp,
+    )    
     if data_format == "ofrecord":
-        ofrecord_data_loader = OFRecordDataLoader(
+        return OFRecordDataLoader(
             data_dir=args.data_dir,
             data_part_num=args.data_part_num,
             part_name_suffix_length=args.data_part_name_suffix_length,
-            num_dense_fields=args.num_dense_fields,
-            num_wide_sparse_fields=args.num_wide_sparse_fields,
-            num_deep_sparse_fields=args.num_deep_sparse_fields,
-            batch_size=batch_size_per_proc,
-            total_batch_size=total_batch_size,
-            mode=mode,
-            shuffle=True,
-            placement=placement,
-            sbp=sbp,
+            **kps
         )
-        return ofrecord_data_loader
     elif data_format == "onerec":
-        onerec_data_loader = OneRecDataLoader(
-            data_dir=args.data_dir,
-            num_dense_fields=args.num_dense_fields,
-            num_wide_sparse_fields=args.num_wide_sparse_fields,
-            num_deep_sparse_fields=args.num_deep_sparse_fields,
-            batch_size=batch_size_per_proc,
-            total_batch_size=total_batch_size,
-            mode=mode,
-            shuffle=True,
-            placement=placement,
-            sbp=sbp,
-        )
-        return onerec_data_loader
+        return OneRecDataLoader(data_dir=args.data_dir, **kps)
     elif data_format == "synthetic":
-        synthetic_data_loader = SyntheticDataLoader(
-            num_dense_fields=args.num_dense_fields,
-            num_wide_sparse_fields=args.num_wide_sparse_fields,
-            num_deep_sparse_fields=args.num_deep_sparse_fields,
-            batch_size=batch_size_per_proc,
-            total_batch_size=total_batch_size,
-            placement=placement,
-            sbp=sbp,
-        )
-        return synthetic_data_loader
+        return SyntheticDataLoader(**kps)
+    elif data_format == "parquet":
+        return ParquetDataLoader(data_dir=args.data_dir, **kps)    
     else:
         raise ValueError("data format must be one of ofrecord, onerec or synthetic")
 
@@ -178,6 +161,8 @@ class SyntheticDataLoader(nn.Module):
         num_deep_sparse_fields: int = 26,
         batch_size: int = 1,
         total_batch_size: int = 1,
+        mode: str = "train",
+        shuffle: bool = True,
         placement=None,
         sbp=None,
     ):
@@ -247,3 +232,41 @@ class SyntheticDataLoader(nn.Module):
     def forward(self):
         return self.labels, self.dense_fields, self.wide_sparse_fields, self.deep_sparse_fields
 
+
+class ParquetDataLoader(nn.Module):
+    def __init__(
+        self,
+        data_dir: str = "/dataset/wdl_parquet",
+        num_dense_fields: int = 13,
+        num_wide_sparse_fields: int = 2,
+        num_deep_sparse_fields: int = 26,
+        batch_size: int = 1,
+        total_batch_size: int = 1,
+        mode: str = "train",
+        shuffle: bool = True,
+        placement=None,
+        sbp=None,
+    ):
+        super(ParquetDataLoader, self).__init__()
+        assert mode in ("train", "val")
+        self.batch_size = batch_size
+        self.total_batch_size = total_batch_size
+        self.mode = mode
+        schema = [
+            {"col_name": "labels", "shape": (1,), "dtype": flow.int32},
+            {"col_name": 'dense_fields', "shape": (num_dense_fields,), "dtype": flow.float},
+            {"col_name": 'wide_sparse_fields', "shape": (num_wide_sparse_fields,), "dtype": flow.int32},
+            {"col_name": 'deep_sparse_fields', "shape": (num_deep_sparse_fields,), "dtype": flow.int32},
+        ]
+        self.reader = nn.ParquetReader(
+            os.path.join(data_dir, mode),
+            schema=schema,
+            batch_size=batch_size,
+            shuffle=shuffle,
+            placement=placement,
+            sbp=sbp,
+        )
+
+    def forward(self):
+        labels, dense_fields, wide_sparse_fields, deep_sparse_fields = self.reader()
+        return labels, dense_fields, wide_sparse_fields, deep_sparse_fields
