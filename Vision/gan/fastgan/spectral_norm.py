@@ -35,14 +35,12 @@ class SpectralNorm(nn.Module):
                 if m.bias is not None:
                     m.bias.data.fill_(0)
             elif isinstance(m, nn.BatchNorm2d):
-                m.weight.data.normal_(0, 0.02)
+                m.weight.data.normal_(1, 0.02)
                 if m.bias is not None:
                     m.bias.data.fill_(0)
         height = w.data.shape[0]
         width = w.view(height, -1).data.shape[1]
 
-        # u = Parameter(w.data.new(height).normal_(0, 1), requires_grad=False)
-        # v = Parameter(w.data.new(width).normal_(0, 1), requires_grad=False)
         u = Parameter(flow.randn(height), requires_grad=False)
         v = Parameter(flow.randn(width), requires_grad=False)
         u.data = l2normalize(u.data)

@@ -45,7 +45,7 @@ def train(netG, netD, netG_ema, optimizerG, optimizerD, args, cfg, dataloader, c
     for iteration in tqdm(range(current_iteration, cfg.TRAIN.iter)):
         real_image = next(dataloader)
         real_image = real_image.cuda()
-        real_image = DiffAugment(real_image, policy=policy)
+        real_image = DiffAugment(real_image, policy=policy) #应该没问题
         current_batch_size = real_image.size(0)
         noise = flow.tensor(np.random.normal(size=(current_batch_size, cfg.G.nz)), dtype=flow.float32)
         fake_images1, fake_images2 = netG(noise.cuda())
