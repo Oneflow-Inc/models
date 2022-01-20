@@ -50,6 +50,7 @@ def train(netG, netD, netG_ema, optimizerG, optimizerD, args, cfg, dataloader, c
         noise = flow.tensor(np.random.normal(size=(current_batch_size, cfg.G.nz)), dtype=flow.float32)
         fake_images1, fake_images2 = netG(noise.cuda())
         fake_images = [fake_images1, fake_images2]
+        fake_images = [DiffAugment(fake, policy=policy) for fake in fake_images]
         ## 2. train Discriminator
         optimizerD.zero_grad()
         part = random.randint(0, 3)
