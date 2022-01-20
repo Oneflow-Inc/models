@@ -128,7 +128,7 @@ class Generator(nn.Module):
                 #     m.bias.data.fill_(0)
                 pass
             elif isinstance(m, nn.BatchNorm2d):
-                m.weight.data.normal_(0, 0.02)
+                m.weight.data.normal_(1, 0.02)
                 if m.bias is not None:
                     m.bias.data.fill_(0)
 
@@ -257,7 +257,7 @@ class Discriminator(nn.Module):
                     # m.bias.data.fill_(0)
                 pass
             elif isinstance(m, nn.BatchNorm2d):
-                m.weight.data.normal_(0, 0.02)
+                m.weight.data.normal_(1, 0.02)
                 if m.bias is not None:
                     m.bias.data.fill_(0)
 
