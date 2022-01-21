@@ -70,7 +70,7 @@ class Interaction(nn.Module):
             (batch_size, d) = x.shape
             T = flow.cat([x, ly], dim=1).view((batch_size, -1, d))
             # perform a dot product
-            Z = flow.bmm(T, flow.transpose(T, 1, 2))
+            Z = flow.matmul(T, T, transpose_b=True)
             Zflat = Z[:, self.li, self.lj]
             R = flow.cat([x, Zflat], dim=1)       
         else:
