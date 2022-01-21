@@ -60,7 +60,10 @@ class SlotsDataLoader(nn.Module):
         self.eval_batch_size = eval_batch_size
 
     def forward(self, is_train):
-        batch_size = max(self.train_batch_size, self.eval_batch_size)
+        if is_train:
+            batch_size = self.train_batch_size
+        else:
+            batch_size = self.eval_batch_size
         np_slot = np.ones((batch_size, 26))
         for i in range(26):
             np_slot[:,i]=i

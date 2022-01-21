@@ -168,12 +168,16 @@ class Trainer(object):
 
 
     def save(self, subdir):
+        # print("Here is Emebdding handler save")
+        # self.dlrm_module.embedding.handler.SaveSnapshot("zzk_test")
+
         if self.save_path is None or self.save_path == '':
             return
         save_path = os.path.join(self.save_path, subdir)
         if self.rank == 0:
             print(f"Saving model to {save_path}")
         state_dict = self.dlrm_module.state_dict()
+        print("Here save")
         if self.is_consistent:
             flow.save(state_dict, save_path, consistent_dst_rank=0)
         elif self.rank == 0:

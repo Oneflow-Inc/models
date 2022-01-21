@@ -43,7 +43,8 @@ def get_args(print_args=True):
     )
     parser.add_argument(
         "--eval_after_training",
-        action="store_true",
+        # action="store_true",
+        type=bool, 
         help="do eval after_training",
     )
     parser.add_argument(
