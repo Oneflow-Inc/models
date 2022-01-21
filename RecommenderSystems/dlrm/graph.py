@@ -1,4 +1,5 @@
 import oneflow as flow
+import os
 
 
 class DLRMValGraph(flow.nn.Graph):
@@ -32,8 +33,9 @@ class DLRMTrainGraph(flow.nn.Graph):
         self.slotloader = slotloader
         self.bce_loss = bce_loss
         self.add_optimizer(optimizer, lr_sch=lr_scheduler)
-        #self.config.enable_amp(True)
-        #self.set_grad_scaler(grad_scaler)
+        if os.environ.get("USE_FP16", False):
+            self.config.enable_amp(True)
+            self.set_grad_scaler(grad_scaler)
 
 
     def build(self):
