@@ -46,11 +46,12 @@ class Trainer(object):
         self.train_dataloader = make_data_loader(args, "train", self.is_consistent, self.dataset_format)
         self.val_dataloader = make_data_loader(args, "val", self.is_consistent, self.dataset_format)
         self.dlrm_module = make_dlrm_module(args)
-        self.init_model()
         if self.is_consistent:
             self.dlrm_module.to_consistent(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
+            self.dlrm_module.embedding.set_model_parallel(flow.env.all_device_placement("cuda"))
         else:
             self.dlrm_module.to("cuda")
+        self.init_model()
         # self.opt = flow.optim.Adam(
         self.opt = flow.optim.SGD(
             self.dlrm_module.parameters(), lr=args.learning_rate

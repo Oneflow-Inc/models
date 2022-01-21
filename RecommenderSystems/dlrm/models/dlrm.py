@@ -96,22 +96,18 @@ class Embedding(nn.Embedding):
         if args.is_consistent:
             assert args.embedding_split_axis < 2, "Embedding model parallel split axis can only be 0 or 1."
             self.split_axis = args.embedding_split_axis
-            if self.split_axis == 0:
-                vocab_size = vocab_size // flow.env.get_world_size()
-            elif self.split_axis == 1:
-                embed_size = embed_size // flow.env.get_world_size()
         else:
             self.split_axis = -1
-
         super(Embedding, self).__init__(vocab_size, embed_size, padding_idx=0)
         for param in self.parameters():
             nn.init.uniform_(param, a=-0.05, b=0.05)
             # W = np.load('/tank/model_zoo/dlrm_baseline_params_emb16/embedding_weight.npy')
             # param.data = flow.tensor(W, requires_grad=True)
 
-    def to_consistent(self, placement=None, sbp=None):
-        print("Embedding weight to_consistent")
-        return self.weight.to_consistent(placement, flow.sbp.split(0))
+    def set_model_parallel(self, placement=None):
+        # Overriding to_consistent function does not work
+        # because to_consistent call is not recursive
+        self.to_consistent(placement, flow.sbp.split(self.split_axis))
 
     def forward(self, ids):
         if self.split_axis >= 0:
@@ -145,6 +141,9 @@ class OneEmbedding(nn.OneEmbeddingLookup):
         if (ids.is_consistent):
             slots = slots.to_consistent(sbp=ids.sbp, placement=ids.placement)
         return super(OneEmbedding, self._origin).forward(ids, slots)
+    
+    def set_model_parallel(self, placement=None):
+        pass
 
 
 embd_dict = {
