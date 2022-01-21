@@ -112,12 +112,23 @@ class Embedding(nn.Embedding):
     def forward(self, ids):
         if self.split_axis >= 0:
             ids = ids.to_consistent(sbp=flow.sbp.broadcast)
-
+        
+        # Forward
+        # weight    ids => embedding
+        # S(0)      B   => P
+        # S(1)      B   => S(2)
         embeddings = flow._C.gather(self.weight, ids, axis=0)
+        # Backward: unsorted_segment_sum_like
+        # segment_ids   data            like    => out
+        # ids           embedding_grad  weight  => weight_grad
+        # B             B               S(0)    => S(0)
+        # B             S(2)            S(1)    => S(1)
 
         if self.split_axis == 0:
+            # Forward: P => S(0), Backward: S(0) => B
             return embeddings.to_consistent(sbp=flow.sbp.split(0), grad_sbp=flow.sbp.broadcast)
         elif self.split_axis == 1:
+            # Forward: S(2) => S(0), Backward: S(0) => S(2)
             return embeddings.to_consistent(sbp=flow.sbp.split(0), grad_sbp=flow.sbp.split(2))
         else:
             return embeddings
