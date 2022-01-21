@@ -107,7 +107,8 @@ class Embedding(nn.Embedding):
     def set_model_parallel(self, placement=None):
         # Overriding to_consistent function does not work
         # because to_consistent call is not recursive
-        self.to_consistent(placement, flow.sbp.split(self.split_axis))
+        if self.split_axis >= 0:
+            self.to_consistent(placement, flow.sbp.split(self.split_axis))
 
     def forward(self, ids):
         if self.split_axis >= 0:
