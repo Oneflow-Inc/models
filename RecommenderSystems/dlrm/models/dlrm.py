@@ -166,16 +166,6 @@ embd_dict = {
 
 class DLRMModule(nn.Module):
     def __init__(self, args):
-    #     vocab_size: int,
-    #     embedding_vec_size: int = 16,
-    #     num_sparse_fields: int = 26,
-    #     num_dense_fields: int = 13,
-    #     bottom_mlp = [],
-    #     top_mlp = [],
-    #     interaction_type = 'dot',
-    #     interaction_itself = False,
-    #     embedding_type = "Embedding",
-    # ):
         super(DLRMModule, self).__init__()
         self.bottom_mlp = MLP(args.num_dense_fields, args.bottom_mlp)
         self.embedding = embd_dict[args.embedding_type](args.vocab_size, args.embedding_vec_size, args)
@@ -200,14 +190,4 @@ class DLRMModule(nn.Module):
 
 def make_dlrm_module(args):
     model = DLRMModule(args)
-    #     vocab_size=args.vocab_size,
-    #     embedding_vec_size=args.embedding_vec_size,
-    #     num_sparse_fields=args.num_sparse_fields,
-    #     num_dense_fields=args.num_dense_fields,
-    #     bottom_mlp=args.bottom_mlp,
-    #     top_mlp=args.top_mlp,
-    #     interaction_type = args.interaction_type,
-    #     interaction_itself = args.interaction_itself,
-    #     embedding_type = args.embedding_type,
-    # )
     return model
