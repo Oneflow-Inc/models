@@ -92,15 +92,42 @@ class Interaction(nn.Module):
 
 
 class Embedding(nn.Embedding):
-    def __init__(self, vocab_size, embed_size):
+    def __init__(self, vocab_size, embed_size, args):
+        if args.is_consistent:
+            assert args.embedding_split_axis < 2, "Embedding model parallel split axis can only be 0 or 1."
+            self.split_axis = args.embedding_split_axis
+            if self.split_axis == 0:
+                vocab_size = vocab_size // flow.env.get_world_size()
+            elif self.split_axis == 1:
+                embed_size = embed_size // flow.env.get_world_size()
+        else:
+            self.split_axis = -1
+
         super(Embedding, self).__init__(vocab_size, embed_size, padding_idx=0)
         for param in self.parameters():
             nn.init.uniform_(param, a=-0.05, b=0.05)
             # W = np.load('/tank/model_zoo/dlrm_baseline_params_emb16/embedding_weight.npy')
             # param.data = flow.tensor(W, requires_grad=True)
 
+    def to_consistent(self, placement=None, sbp=None):
+        print("Embedding weight to_consistent")
+        return self.weight.to_consistent(placement, flow.sbp.split(0))
+
+    def forward(self, ids):
+        if self.split_axis >= 0:
+            ids = ids.to_consistent(sbp=flow.sbp.broadcast)
+
+        embeddings = flow._C.gather(self.weight, ids, axis=0)
+
+        if self.split_axis == 0:
+            return embeddings.to_consistent(sbp=flow.sbp.split(0), grad_sbp=flow.sbp.broadcast)
+        elif self.split_axis == 1:
+            return embeddings.to_consistent(sbp=flow.sbp.split(0), grad_sbp=flow.sbp.split(2))
+        else:
+            return embeddings
+
 class OneEmbedding(nn.OneEmbeddingLookup):
-    def __init__(self, vocab_size, embed_size):
+    def __init__(self, vocab_size, embed_size, args):
         options = {
             "name": "my_embedding",
             # Can't change the embedding_size 128 because the kv store value_length has been set to 128
@@ -127,25 +154,24 @@ embd_dict = {
 
 
 class DLRMModule(nn.Module):
-    def __init__(
-        self,
-        vocab_size: int,
-        embedding_vec_size: int = 16,
-        num_sparse_fields: int = 26,
-        num_dense_fields: int = 13,
-        bottom_mlp = [],
-        top_mlp = [],
-        interaction_type = 'dot',
-        interaction_itself = False,
-        embedding_type = "Embedding",
-    ):
+    def __init__(self, args):
+    #     vocab_size: int,
+    #     embedding_vec_size: int = 16,
+    #     num_sparse_fields: int = 26,
+    #     num_dense_fields: int = 13,
+    #     bottom_mlp = [],
+    #     top_mlp = [],
+    #     interaction_type = 'dot',
+    #     interaction_itself = False,
+    #     embedding_type = "Embedding",
+    # ):
         super(DLRMModule, self).__init__()
-        self.bottom_mlp = MLP(num_dense_fields, bottom_mlp)
-        self.embedding = embd_dict[embedding_type](vocab_size, embedding_vec_size)
-        self.interaction = Interaction(interaction_type, interaction_itself, num_sparse_fields)
-        feature_size = self.interaction.output_feature_size(embedding_vec_size, bottom_mlp[-1])        
-        self.top_mlp = MLP(feature_size, top_mlp)
-        self.scores = nn.Linear(top_mlp[-1], 1)
+        self.bottom_mlp = MLP(args.num_dense_fields, args.bottom_mlp)
+        self.embedding = embd_dict[args.embedding_type](args.vocab_size, args.embedding_vec_size, args)
+        self.interaction = Interaction(args.interaction_type, args.interaction_itself, args.num_sparse_fields)
+        feature_size = self.interaction.output_feature_size(args.embedding_vec_size, args.bottom_mlp[-1])        
+        self.top_mlp = MLP(feature_size, args.top_mlp)
+        self.scores = nn.Linear(args.top_mlp[-1], 1)
         self.sigmoid = nn.Sigmoid()
 
 
@@ -162,15 +188,15 @@ class DLRMModule(nn.Module):
 
 
 def make_dlrm_module(args):
-    model = DLRMModule(
-        vocab_size=args.vocab_size,
-        embedding_vec_size=args.embedding_vec_size,
-        num_sparse_fields=args.num_sparse_fields,
-        num_dense_fields=args.num_dense_fields,
-        bottom_mlp=args.bottom_mlp,
-        top_mlp=args.top_mlp,
-        interaction_type = args.interaction_type,
-        interaction_itself = args.interaction_itself,
-        embedding_type = args.embedding_type,
-    )
+    model = DLRMModule(args)
+    #     vocab_size=args.vocab_size,
+    #     embedding_vec_size=args.embedding_vec_size,
+    #     num_sparse_fields=args.num_sparse_fields,
+    #     num_dense_fields=args.num_dense_fields,
+    #     bottom_mlp=args.bottom_mlp,
+    #     top_mlp=args.top_mlp,
+    #     interaction_type = args.interaction_type,
+    #     interaction_itself = args.interaction_itself,
+    #     embedding_type = args.embedding_type,
+    # )
     return model

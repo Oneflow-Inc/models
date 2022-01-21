@@ -36,9 +36,7 @@ class Trainer(object):
                 UserWarning,
             )
             self.execution_mode = "eager"
-        self.is_consistent = (
-            flow.env.get_world_size() > 1 and not args.ddp
-        ) or args.execution_mode == "graph"
+        self.is_consistent = args.is_consistent
         self.rank = flow.env.get_rank()
         self.world_size = flow.env.get_world_size()
         self.cur_iter = 0
