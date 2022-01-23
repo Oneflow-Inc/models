@@ -82,7 +82,7 @@ class FC7(flow.nn.Module):
         self.total_num_sample = self.num_sample * size
 
     def forward(self, x, label):
-        x = flow.nn.functional.l2_normalize(input=x, dim=1, epsilon=1e-10)
+        x = flow.nn.functional.normalize(x, dim=1)
         if self.partial_fc:
             (
                 mapped_label,
@@ -95,7 +95,7 @@ class FC7(flow.nn.Module):
             weight = sampled_weight
         else:
             weight = self.weight
-        weight = flow.nn.functional.l2_normalize(input=weight, dim=1, epsilon=1e-10)
+        weight = flow.nn.functional.normalize(weight, dim=1)
         x = flow.matmul(x, weight, transpose_b=True)
         if x.is_consistent:
             return x, label
@@ -250,6 +250,8 @@ class Trainer(object):
                 self.callback_verification(
                     self.global_step, self.train_module, val_graph
                 )
+                if self.global_step >= self.cfg.train_num:
+                    exit(0)
             self.callback_checkpoint(
                 self.global_step, epoch, self.train_module, is_consistent=True
             )
@@ -283,4 +285,6 @@ class Trainer(object):
                 )
                 self.callback_verification(self.global_step, self.backbone)
                 self.scheduler.step()
+                if self.global_step >= self.cfg.train_num:
+                    exit(0)
             self.callback_checkpoint(self.global_step, epoch, self.train_module)
