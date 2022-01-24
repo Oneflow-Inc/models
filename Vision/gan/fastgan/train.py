@@ -1,5 +1,6 @@
 import argparse
 import os
+import shutil
 from sys import path
 from flowvision.datasets.folder import ImageFolder
 from numpy import dtype
@@ -91,8 +92,22 @@ def train(netG, netD, netG_ema, optimizerG, optimizerD, args, cfg, dataloader, c
             if args.local_rank ==0:
                 flow.save({'g':netG_ema.state_dict(),'d':netD.state_dict()}, cfg.TRAIN.saved_model_folder+'/%d.pth'%iteration)
 
+
+def save_file(args):
+    task_name = './train_results/' + args.name
+    save_model_folder = os.path.join(task_name, 'model')
+    save_image_folder = os.path.join(task_name, 'image')
+    os.makedirs(save_model_folder, exist_ok=True)
+    os.makedirs(save_image_folder, exist_ok=True)
+    for f in os.listdir('./'):
+        if '.py' in f:
+            shutil.copy(f, task_name + '/' + f)
+    return save_model_folder, save_image_folder
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='region gan')
+    parser.add_argument("--name", type=str, required=True)
     parser.add_argument("--local_rank", type=int, default=0, required=False, help='local rank for DistributedDataParallel')
     args, unparsed = parser.parse_known_args()
     n_gpu = int(os.environ["WORLD_SIZE"]) if "WORLD_SIZE" in os.environ else 1
@@ -118,11 +133,8 @@ if __name__ == '__main__':
     current_iteration = 0
     if cfg.TRAIN.checkpoint != 'None':
         pass
-
-    if not os.path.isdir(cfg.TRAIN.saved_image_folder):
-        os.mkdir(cfg.TRAIN.saved_image_folder)
-    if not os.path.isdir(cfg.TRAIN.saved_model_folder):
-        os.mkdir(cfg.TRAIN.saved_model_folder)
+    
+    cfg.TRAIN.saved_model_folder, cfg.TRAIN.saved_image_folder = save_file(args)
 
     netG = netG.cuda()
     netD = netD.cuda()

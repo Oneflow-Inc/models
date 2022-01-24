@@ -13,10 +13,9 @@ _C.BASE = ['']
 # -----------------------------------------------------------------------------
 _C.DATA = CN()
 # Batch size for a single GPU
-_C.DATA.BATCH_SIZE = 4
+_C.DATA.BATCH_SIZE = 16
 _C.DATA.DATA_PATH = '/home/shikaijie/models/Vision/gan/fastgan/100-shot-panda'
 _C.DATA.DATASET = 'imagenet'
-# _C.DATA.IMAGE_SIZE = 1024
 
 
 # -----------------------------------------------------------------------------
@@ -33,10 +32,9 @@ _C.TRAIN.save = ''
 _C.TRAIN.load = ''
 _C.TRAIN.dataloader_workers = 8
 _C.TRAIN.save_interval = 100
-_C.TRAIN.im_size = 1024
+_C.TRAIN.im_size = 256
 _C.TRAIN.cpkt = ''
 _C.TRAIN.multi_gpu = ''
-_C.TRAIN.saved_image_folder = '/home/shikaijie/models/Vision/gan/fastgan/panda_gan'
 _C.TRAIN.checkpoint = ''
 
 # -----------------------------------------------------------------------------
