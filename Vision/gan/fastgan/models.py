@@ -7,27 +7,22 @@ import oneflow.nn.functional as F
 
 def conv2d(*args, **kwargs):
     return SpectralNorm(nn.Conv2d(*args, **kwargs))
-    # return nn.Conv2d(*args, **kwargs)
 
 def convTranspose2d(*args, **kwargs):
     return SpectralNorm(nn.ConvTranspose2d(*args, **kwargs))
-    # return nn.ConvTranspose2d(*args, **kwargs)
 
 def batchNorm2d(*args, **kwargs):
     return nn.BatchNorm2d(*args, **kwargs)
 
-
 class NoiseInjection(nn.Module):
     def __init__(self):
         super().__init__()
-
         self.weight = nn.Parameter(flow.zeros(1), requires_grad=True)
 
     def forward(self, feat, noise=None):
         if noise is None:
             batch, _, height, width = feat.shape
             noise = flow.randn(batch, 1, height, width).to(feat.device)
-
         return feat + self.weight * noise
 
 
