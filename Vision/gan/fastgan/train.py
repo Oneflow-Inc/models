@@ -90,7 +90,7 @@ def train(netG, netD, netG_ema, optimizerG, optimizerD, args, cfg, dataloader, c
 
         if iteration % (cfg.TRAIN.save_interval*50) == 0 or iteration == cfg.TRAIN.iter:
             if args.local_rank ==0:
-                flow.save({'g':netG_ema.state_dict(),'d':netD.state_dict()}, cfg.TRAIN.saved_model_folder+'/%d.pth'%iteration)
+                flow.save({'g':netG.state_dict(),'d':netD.state_dict(), 'ema':netG_ema.state_dict()}, cfg.TRAIN.saved_model_folder+'/%d.pth'%iteration)
 
 
 def save_file(args):
