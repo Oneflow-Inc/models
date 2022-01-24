@@ -79,7 +79,7 @@ def train(netG, netD, netG_ema, optimizerG, optimizerD, args, cfg, dataloader, c
         if iteration % 100 == 0:
             print("GAN: loss d: %.5f    loss g: %.5f"%(err_dr, -err_g.item()))
 
-        if iteration % (cfg.TRAIN.save_interval*10) == 0:
+        if iteration % (cfg.TRAIN.save_interval*10) == 0 and flow.env.get_rank() == 0:
             with flow.no_grad():
                 vutils.save_image(netG_ema(fixed_noise)[0].add(1).mul(0.5), cfg.TRAIN.saved_image_folder+'/%d.jpg'%iteration, nrow=4)
                 vutils.save_image( flow.cat([
@@ -87,15 +87,9 @@ def train(netG, netD, netG_ema, optimizerG, optimizerD, args, cfg, dataloader, c
                         rec_all, rec_small,
                         rec_part]).add(1).mul(0.5), cfg.TRAIN.saved_image_folder+'/rec_%d.jpg'%iteration )
 
-        # if args.local_rank ==0:
-        #     if iteration % (save_interval*50) == 0 or iteration == total_iterations:
-        #         torch.save({'g':netG.state_dict(),'d':netD.state_dict()}, saved_model_folder+'/%d.pth'%iteration)
-        #         load_params(netG, backup_para)
-        #         torch.save({'g':netG.state_dict(),
-        #                     'd':netD.state_dict(),
-        #                     'g_ema': avg_param_G,
-        #                     'opt_g': optimizerG.state_dict(),
-        #                     'opt_d': optimizerD.state_dict()}, saved_model_folder+'/all_%d.pth'%iteration)
+        if iteration % (cfg.TRAIN.save_interval*50) == 0 or iteration == cfg.TRAIN.iter:
+            if args.local_rank ==0:
+                flow.save({'g':netG_ema.state_dict(),'d':netD.state_dict()}, cfg.TRAIN.saved_model_folder+'/%d.pth'%iteration)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='region gan')
@@ -104,7 +98,8 @@ if __name__ == '__main__':
     n_gpu = int(os.environ["WORLD_SIZE"]) if "WORLD_SIZE" in os.environ else 1
     args.distributed = n_gpu > 1
     cfg = get_config()
-    cfg.TRAIN.nlr = cfg.TRAIN.nlr / n_gpu
+    cfg.TRAIN.nlr = cfg.TRAIN.nlr * n_gpu
+    cfg.TRAIN.save_interval = cfg.TRAIN.save_interval / n_gpu
 
     netG = Generator(ngf=cfg.G.ngf, nz=cfg.G.nz, im_size=cfg.TRAIN.im_size)
     # netG.apply(weights_init)
@@ -116,7 +111,9 @@ if __name__ == '__main__':
     optimizerG = optim.Adam(netG.parameters(), lr=cfg.TRAIN.nlr, betas=(cfg.TRAIN.nbeta1, cfg.TRAIN.nbeta2))
     optimizerD = optim.Adam(netD.parameters(), lr=cfg.TRAIN.nlr, betas=(cfg.TRAIN.nbeta1, cfg.TRAIN.nbeta2))
 
-    percept = lpips.PerceptualLoss(model='net-lin', net='vgg', use_gpu=True,)
+    # percept = lpips.PerceptualLoss(model='net-lin', net='vgg', use_gpu=True,)
+    percept = lpips.PerceptualLoss(model='net-lin', net='alex', use_gpu=True,)
+    # percept = lpips.PerceptualLoss(model='net-lin', net='squeeze', use_gpu=True,)
 
     current_iteration = 0
     if cfg.TRAIN.checkpoint != 'None':
@@ -124,6 +121,8 @@ if __name__ == '__main__':
 
     if not os.path.isdir(cfg.TRAIN.saved_image_folder):
         os.mkdir(cfg.TRAIN.saved_image_folder)
+    if not os.path.isdir(cfg.TRAIN.saved_model_folder):
+        os.mkdir(cfg.TRAIN.saved_model_folder)
 
     netG = netG.cuda()
     netD = netD.cuda()
@@ -131,12 +130,12 @@ if __name__ == '__main__':
     if args.distributed:
         netG = nn.parallel.DistributedDataParallel(
             netG,
-            broadcast_buffers=False,
+            broadcast_buffers=True,
         )
 
         netD = nn.parallel.DistributedDataParallel(
             netD,
-            broadcast_buffers=False,
+            broadcast_buffers=True,# 这个设置和分布式是否有关
         )
 
 
