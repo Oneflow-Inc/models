@@ -33,7 +33,8 @@ class DLRMTrainGraph(flow.nn.Graph):
         self.slotloader = slotloader
         self.bce_loss = bce_loss
         self.add_optimizer(optimizer, lr_sch=lr_scheduler)
-        if os.environ.get("USE_FP16", False):
+        if int(os.environ.get("USE_FP16", 0))==1:
+            print("use fp16")
             self.config.enable_amp(True)
             self.set_grad_scaler(grad_scaler)
 
