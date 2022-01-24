@@ -49,11 +49,14 @@ class Trainer(object):
         self.val_dataloader = make_data_loader(args, "val", self.is_consistent, self.dataset_format)
         self.slotloader = make_slot_loader(args.batch_size, args.eval_batch_size)
         self.dlrm_module = make_dlrm_module(args)
-        self.init_model()
+        
         if self.is_consistent:
             self.dlrm_module.to_consistent(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
         else:
             self.dlrm_module.to("cuda")
+        
+        self.init_model()
+
         # self.opt = flow.optim.Adam(
         self.opt = flow.optim.SGD(
             self.dlrm_module.parameters(), lr=args.learning_rate
@@ -128,6 +131,7 @@ class Trainer(object):
 
     def load_state_dict(self):
         print(f"Loading model from {self.args.model_load_dir}")
+        """
         state_dict = {
             'bottom_mlp.linear_layers.fc0.features.0.bias': 'bot_l.0.bias.npy',
             'bottom_mlp.linear_layers.fc0.features.0.weight': 'bot_l.0.weight.npy',
@@ -157,6 +161,8 @@ class Trainer(object):
             param.data = flow.tensor(W, requires_grad=True).to('cuda').to_consistent(placement = flow.placement("cuda", {0: 0}), sbp=flow.sbp.broadcast)
         # exit()
         return
+        """
+        print("========= Here Load ===========")
         if self.is_consistent:
             state_dict = flow.load(self.args.model_load_dir, consistent_src_rank=0)
         elif self.rank == 0:
@@ -200,6 +206,7 @@ class Trainer(object):
             self.meter_train_iter(loss)
 
             if self.eval_interval > 0 and self.cur_iter % self.eval_interval == 0:
+                print("here is train after iter")
                 self.eval(self.save_model_after_each_eval)
         if self.eval_after_training:
             self.eval(True)

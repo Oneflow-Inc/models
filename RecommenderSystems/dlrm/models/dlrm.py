@@ -100,7 +100,7 @@ class Embedding(nn.Embedding):
             # param.data = flow.tensor(W, requires_grad=True)
 
 class OneEmbedding(nn.OneEmbeddingLookup):
-    def __init__(self, vocab_size, embed_size, snapshot_name):
+    def __init__(self, vocab_size, embed_size):
         print("embed_size", embed_size)
         options = {
             "name": "my_embedding",
@@ -108,7 +108,6 @@ class OneEmbedding(nn.OneEmbeddingLookup):
             "embedding_size": embed_size,
             "dtype": flow.float,
             "embedding_options": '{"embedding_size": embed_size, "embedding_name":"EmbeddingTest"}',
-            "snapshot_name": snapshot_name, 
         }
         super(OneEmbedding, self).__init__(options)
 
@@ -131,11 +130,10 @@ class DLRMModule(nn.Module):
         interaction_type = 'dot',
         interaction_itself = False,
         embedding_type = "Embedding",
-        snapshot_name = "Snapshot_default", 
     ):
         super(DLRMModule, self).__init__()
         self.bottom_mlp = MLP(num_dense_fields, bottom_mlp)
-        self.embedding = embd_dict[embedding_type](vocab_size, embedding_vec_size, snapshot_name)
+        self.embedding = embd_dict[embedding_type](vocab_size, embedding_vec_size)
         self.interaction = Interaction(interaction_type, interaction_itself, num_sparse_fields)
         feature_size = self.interaction.output_feature_size(embedding_vec_size, bottom_mlp[-1])        
         self.top_mlp = MLP(feature_size, top_mlp)

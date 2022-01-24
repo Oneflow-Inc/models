@@ -38,7 +38,8 @@ def get_args(print_args=True):
     )
     parser.add_argument(
         "--save_model_after_each_eval",
-        action="store_true",
+        # action="store_true",
+        type=bool, 
         help="save model after each eval.",
     )
     parser.add_argument(
