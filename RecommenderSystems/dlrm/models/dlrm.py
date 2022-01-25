@@ -174,6 +174,9 @@ for i in range(scales.size):
 class OneEmbedding(nn.OneEmbeddingLookup):
     def __init__(self, vocab_size, embed_size, args):
         cache_list = []
+        assert len(args.cache_policy) <= 2
+        assert len(args.cache_policy) == len(args.cache_memory_budget_mb)
+        assert len(args.cache_policy) == len(args.value_memory_kind)
         for i in range(len(args.cache_policy)):
             if args.cache_policy[i] != "none":
                 cache = {
