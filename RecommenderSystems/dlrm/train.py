@@ -57,15 +57,24 @@ class Trainer(object):
             self.dlrm_module.parameters(), lr=args.learning_rate
         )
         self.lr_scheduler = make_lr_scheduler(args, self.opt)
+        if args.loss_scale_policy == "static":
+            self.grad_scaler = flow.amp.StaticGradScaler(1024)
+        else:
+            self.grad_scaler = flow.amp.GradScaler(
+                init_scale=1073741824,
+                growth_factor=2.0,
+                backoff_factor=0.5,
+                growth_interval=2000,
+            )
 
         self.loss = flow.nn.BCELoss(reduction="none").to("cuda")
         if self.execution_mode == "graph":
             self.eval_graph = DLRMValGraph(
-                self.dlrm_module, self.val_dataloader
+                self.dlrm_module, self.val_dataloader, args.use_fp16
             )
             self.train_graph = DLRMTrainGraph(
                 self.dlrm_module, self.train_dataloader, self.loss, self.opt, 
-                self.lr_scheduler
+                self.lr_scheduler, self.grad_scaler, args.use_fp16
             )
 
     def init_model(self):
