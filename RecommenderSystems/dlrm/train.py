@@ -130,7 +130,6 @@ class Trainer(object):
 
 
     def load_state_dict(self):
-        print(f"Loading model from {self.args.model_load_dir}")
         """
         state_dict = {
             'bottom_mlp.linear_layers.fc0.features.0.bias': 'bot_l.0.bias.npy',
@@ -162,7 +161,6 @@ class Trainer(object):
         # exit()
         return
         """
-        print("========= Here Load ===========")
         if self.is_consistent:
             state_dict = flow.load(self.args.model_load_dir, consistent_src_rank=0)
         elif self.rank == 0:
@@ -174,16 +172,12 @@ class Trainer(object):
 
 
     def save(self, subdir):
-        # print("Here is Emebdding handler save")
-        # self.dlrm_module.embedding.handler.SaveSnapshot("zzk_test")
-
         if self.save_path is None or self.save_path == '':
             return
         save_path = os.path.join(self.save_path, subdir)
         if self.rank == 0:
             print(f"Saving model to {save_path}")
         state_dict = self.dlrm_module.state_dict()
-        print("Here save")
         if self.is_consistent:
             flow.save(state_dict, save_path, consistent_dst_rank=0)
         elif self.rank == 0:
@@ -206,7 +200,6 @@ class Trainer(object):
             self.meter_train_iter(loss)
 
             if self.eval_interval > 0 and self.cur_iter % self.eval_interval == 0:
-                print("here is train after iter")
                 self.eval(self.save_model_after_each_eval)
         if self.eval_after_training:
             self.eval(True)
