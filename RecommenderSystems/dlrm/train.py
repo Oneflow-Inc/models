@@ -169,7 +169,7 @@ class Trainer(object):
         if self.eval_after_training:
             self.eval(True)
 
-        if self.args.eval_save_dir != '':
+        if self.args.eval_save_dir != '' and self.eval_after_training:
             calculate_auc_from_dir(self.args.eval_save_dir)
 
     def eval(self, save_model=False):
