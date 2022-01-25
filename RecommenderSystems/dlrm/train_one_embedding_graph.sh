@@ -56,6 +56,5 @@ python3 -m oneflow.distributed.launch \
     --execution_mode 'graph' \
     --eval_after_training true \
     --save_model_after_each_eval true \
-    --model_load_dir "./checkpoint/iter_8_val_auc_0.5948326297116294/" \
     --test_name 'train_eager_graph_'$DEVICE_NUM_PER_NODE'gpu' | tee 'train_eager_graph_'$DEVICE_NUM_PER_NODE'gpu'.log
     #--dataset_format 'synthetic' \
