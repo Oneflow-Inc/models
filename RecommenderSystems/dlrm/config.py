@@ -20,7 +20,8 @@ import oneflow as flow
 def get_args(print_args=True):
     def int_list(x):
         return list(map(int, x.split(",")))
-
+    def str_list(x):
+        return list(map(str, x.split(",")))
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--bottom_mlp", type=int_list, default="512,256,128")
@@ -80,6 +81,17 @@ def get_args(print_args=True):
     parser.add_argument(
         "--embedding_type", type=str, default="OneEmbedding", help="OneEmbedding or Embedding"
     )
+    parser.add_argument("--embedding_split_axis", type=int, default=-1, help="-1: no split")
+    parser.add_argument(
+        "--blocked_based_path", type=str, default="", help="path for kv store"
+    )
+    parser.add_argument(
+        "--cache_policy", type=str_list, default="lru,none"
+    )
+    parser.add_argument("--cache_memory_budget_mb", type=int_list, default="16384,16384", help="cache_memory_budget_mb")
+    parser.add_argument(
+        "--value_memory_kind", type=str_list, default="device,host"
+    )
     parser.add_argument(
         "--test_name", type=str, default="noname_test"
     )
@@ -103,6 +115,10 @@ def get_args(print_args=True):
     else:
         assert args.eval_batch_size % args.eval_batch_size_per_proc == 0
 
+    args.is_consistent = (
+        flow.env.get_world_size() > 1 and not args.ddp
+    ) or args.execution_mode == "graph"
+    
     if print_args and flow.env.get_rank() == 0:
         _print_args(args)
     return args
