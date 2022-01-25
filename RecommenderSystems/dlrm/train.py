@@ -84,7 +84,7 @@ class Trainer(object):
         if self.ddp:
             self.dlrm_module = DDP(self.dlrm_module)
         if self.save_init and args.model_save_dir != "":
-            self.save(os.path.join(args.model_save_dir, "initial_checkpoint"))
+            self.save("initial_checkpoint")
 
     def init_logger(self):
         print_ranks = [0]
