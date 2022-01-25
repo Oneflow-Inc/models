@@ -3,9 +3,8 @@ import oneflow as flow
 from oneflow.framework.tensor import _xor
 import oneflow.nn as nn
 from typing import Any
-
 import numpy as np
-
+import os
 
 __all__ = ["make_dlrm_module"]
 
@@ -99,25 +98,102 @@ class Embedding(nn.Embedding):
             # W = np.load('/tank/model_zoo/dlrm_baseline_params_emb16/embedding_weight.npy')
             # param.data = flow.tensor(W, requires_grad=True)
 
+slot_size_array = np.array(
+    [
+        227605432,
+        39060,
+        17295,
+        7424,
+        20265,
+        3,
+        7122,
+        1543,
+        63,
+        130229467,
+        3067956,
+        405282,
+        10,
+        2209,
+        11938,
+        155,
+        4,
+        976,
+        14,
+        292775614,
+        40790948,
+        187188510,
+        590152,
+        12973,
+        108,
+        36,
+    ]
+)
+scales = np.sqrt(1 / slot_size_array)
+initializer_list = []
+for i in range(scales.size):
+    initializer_list.append(
+        {"initializer": {"type": "uniform", "low": -scales[i], "high": scales[i],}}
+    )
+
+
 class OneEmbedding(nn.OneEmbeddingLookup):
     def __init__(self, vocab_size, embed_size):
         options = {
-            "name": "my_embedding",
-            # Can't change the embedding_size 128 because the kv store value_length has been set to 128
-            "embedding_size": embed_size,
             "dtype": flow.float,
-            "embedding_options": '{"embedding_size": embed_size, "embedding_name":"EmbeddingTest"}',
+            "name": "my_embedding",
+            "embedding_dim": embed_size,
+            "cache" : [
+                {
+                    "policy": "lru",
+                    "cache_memory_budget_mb": 16384,
+                    "value_memory_kind": "device",
+                },
+                #{
+                #    "policy": "full",
+                #    "cache_memory_budget_mb": 163840,
+                #    "value_memory_kind": "host",
+                #}
+            ],
+            "kv_store": {
+                "persistent_table": {
+                    "path": os.environ.get("BLOCK_BASED_PATH"),
+                    "physical_block_size": 512,
+                },
+            },
+            "default_initializer": {"type": "normal", "mean": 0, "std": 1},
+            "columns": initializer_list,
+            "optimizer": {
+                "lr": {
+                    "base_lr": 24,
+                    "decay": {
+                        "type": "polynomial",
+                        "decay_batches": 27772,
+                        "end_lr": 0.0,
+                        "power": 2.0,
+                        "cycle": False,
+                    },
+                    "warmup": {
+                        "type": "linear",
+                        "warmup_batches": 2750,
+                        "start_multiplier": 0.0,
+                    },
+                },
+                "type": "sgd",
+                "momentum": 0.0,
+                "betas": [0.9, 0.999],
+                "eps": 1e-8,
+            },
         }
         super(OneEmbedding, self).__init__(options)
-        slots = flow.tensor(range(26), dtype=flow.int32).reshape(1,26)
-        self.register_buffer("slots", slots)
+        column_id = flow.tensor(range(26), dtype=flow.int32).reshape(1,26)
+        self.register_buffer("column_id", column_id)
 
     def forward(self, ids):
         bsz = ids.shape[0]
-        slots = flow.ones((bsz, 1), dtype=flow.int32, sbp=ids.sbp, placement=ids.placement) * self.slots
+        column_id = flow.ones((bsz, 1), dtype=flow.int32, sbp=ids.sbp, placement=ids.placement) * self.column_id
         if (ids.is_consistent):
-            slots = slots.to_consistent(sbp=ids.sbp, placement=ids.placement)
-        return super(OneEmbedding, self._origin).forward(ids, slots)
+            column_id = column_id.to_consistent(sbp=ids.sbp, placement=ids.placement)
+        return super(OneEmbedding, self._origin).forward(ids, column_id)
 
 
 embd_dict = {
