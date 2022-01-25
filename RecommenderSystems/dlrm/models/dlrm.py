@@ -132,47 +132,16 @@ class Embedding(nn.Embedding):
             return embeddings.to_consistent(sbp=flow.sbp.split(0), grad_sbp=flow.sbp.split(2))
         else:
             return embeddings
-
-
-slot_size_array = np.array(
-    [
-        227605432,
-        39060,
-        17295,
-        7424,
-        20265,
-        3,
-        7122,
-        1543,
-        63,
-        130229467,
-        3067956,
-        405282,
-        10,
-        2209,
-        11938,
-        155,
-        4,
-        976,
-        14,
-        292775614,
-        40790948,
-        187188510,
-        590152,
-        12973,
-        108,
-        36,
-    ]
-)
-scales = np.sqrt(1 / slot_size_array)
-initializer_list = []
-for i in range(scales.size):
-    initializer_list.append(
-        {"initializer": {"type": "uniform", "low": -scales[i], "high": scales[i],}}
-    )
     
 class OneEmbedding(nn.OneEmbeddingLookup):
     def __init__(self, vocab_size, embed_size, args):
+        assert args.column_size_array is not None
+        scales = np.sqrt(1 / np.array(args.column_size_array))
+        initializer_list = []
+        for i in range(scales.size):
+            initializer_list.append(
+                {"initializer": {"type": "uniform", "low": -scales[i], "high": scales[i],}}
+            )
         cache_list = []
         assert len(args.cache_policy) <= 2
         assert len(args.cache_policy) == len(args.cache_memory_budget_mb)
@@ -254,7 +223,7 @@ class DLRMModule(nn.Module):
 
 
     def forward(self, dense_fields, sparse_fields) -> flow.Tensor:
-        dense_fields = flow.log(dense_fields + 1.0)
+        dense_fields = flow.log(dense_fields + 2.0)
         dense_fields = self.bottom_mlp(dense_fields)
         sparse_fields = flow.cast(sparse_fields, flow.int64)
         embedding = self.embedding(sparse_fields)

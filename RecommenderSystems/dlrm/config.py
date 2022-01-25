@@ -82,6 +82,7 @@ def get_args(print_args=True):
         "--embedding_type", type=str, default="OneEmbedding", help="OneEmbedding or Embedding"
     )
     parser.add_argument("--embedding_split_axis", type=int, default=-1, help="-1: no split")
+    parser.add_argument("--column_size_array", type=int_list, help="column_size_array")
     parser.add_argument(
         "--blocked_based_path", type=str, default="", help="path for kv store"
     )
