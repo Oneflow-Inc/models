@@ -80,6 +80,7 @@ def get_args(print_args=True):
     parser.add_argument(
         "--embedding_type", type=str, default="OneEmbedding", help="OneEmbedding or Embedding"
     )
+    parser.add_argument("--embedding_split_axis", type=int, default=-1, help="-1: no split")
     parser.add_argument(
         "--test_name", type=str, default="noname_test"
     )
@@ -103,6 +104,10 @@ def get_args(print_args=True):
     else:
         assert args.eval_batch_size % args.eval_batch_size_per_proc == 0
 
+    args.is_consistent = (
+        flow.env.get_world_size() > 1 and not args.ddp
+    ) or args.execution_mode == "graph"
+    
     if print_args and flow.env.get_rank() == 0:
         _print_args(args)
     return args
