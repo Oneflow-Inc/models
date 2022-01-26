@@ -13,8 +13,10 @@ def calculate_auc_from_file(pkl):
     iter = results['iter']
     labels = np.concatenate(labels, axis=0)
     preds = np.concatenate(preds, axis=0)
+    start = time.time()
     auc = roc_auc_score(labels, preds)
-    print('iter', iter, auc, time.time(), labels.shape[0])
+    duration = time.time() - start
+    print(f'Iter {iter} AUC: {auc:0.4f}, Num of Evaluation: {labels.shape[0]}, time:{duration:0.3f}')
 
 
 def calculate_auc_from_dir(directory, startswith='eval_results_iter'):
