@@ -14,7 +14,8 @@ def InfiniteSampler(n):
         yield order[i]
         i += 1
         if i>=n:
-            np.random.seed(flow.env.get_rank())
+            # np.random.seed(flow.env.get_rank())
+            np.random.seed()
             order = np.random.permutation(n)
             i = 0
 
