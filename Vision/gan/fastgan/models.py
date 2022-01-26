@@ -7,9 +7,11 @@ import oneflow.nn.functional as F
 
 def conv2d(*args, **kwargs):
     return SpectralNorm(nn.Conv2d(*args, **kwargs))
+    # return nn.Conv2d(*args, **kwargs)
 
 def convTranspose2d(*args, **kwargs):
     return SpectralNorm(nn.ConvTranspose2d(*args, **kwargs))
+    # return nn.ConvTranspose2d(*args, **kwargs)
 
 def batchNorm2d(*args, **kwargs):
     return nn.BatchNorm2d(*args, **kwargs)

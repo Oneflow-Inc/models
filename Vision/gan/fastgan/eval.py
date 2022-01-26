@@ -74,9 +74,8 @@ if __name__ == "__main__":
         with flow.no_grad():
             for i in tqdm(range(args.n_sample//args.batch)):
                 noise = flow.tensor(np.random.normal(size=(args.batch, noise_dim)), dtype=flow.float32).cuda()
-                # noise = flow.randn(args.batch, noise_dim).to(device)
                 g_imgs = net_ig(noise)[0]
                 g_imgs = F.interpolate(g_imgs, 512)
-                for j, g_img in enumerate( g_imgs ):
+                for j, g_img in enumerate(g_imgs):
                     vutils.save_image(g_img.add(1).mul(0.5), 
                         os.path.join(dist, '%d.png'%(i*args.batch+j)))#, normalize=True, range=(-1,1))

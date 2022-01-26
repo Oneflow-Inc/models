@@ -33,20 +33,20 @@ def crop_image_by_part(image, part):
         return image[:,:,hw:,hw:]
 
 def accumulate(model1, model2, decay=0.999):
-    par1 = dict(model1.named_parameters())
+    par1 = dict(model1.named_parameters()) #没有buffer参数（buffer参数也不更新）
     par2 = dict(model2.named_parameters())
 
     for k in par1.keys():
-        par1[k].data = par1[k].data.mul(decay).add((1 - decay)*par2[k].data)
+        par1[k].data = par1[k].data.mul(decay).add((1 - decay)*par2[k].data).clone()
 
 
 def train(netG, netD, netG_ema, optimizerG, optimizerD, args, cfg, dataloader, current_iteration, percept):
     fixed_noise = flow.tensor(np.random.normal(size=(8, cfg.G.nz)), dtype=flow.float32).cuda()
 
-    for iteration in tqdm(range(current_iteration, cfg.TRAIN.iter)):
+    for iteration in tqdm(range(current_iteration, cfg.TRAIN.iter+1)):
         real_image = next(dataloader)
         real_image = real_image.cuda()
-        real_image = DiffAugment(real_image, policy=policy) #应该没问题
+        real_image = DiffAugment(real_image, policy=policy)
         current_batch_size = real_image.size(0)
         noise = flow.tensor(np.random.normal(size=(current_batch_size, cfg.G.nz)), dtype=flow.float32)
         fake_images1, fake_images2 = netG(noise.cuda())
@@ -88,7 +88,7 @@ def train(netG, netD, netG_ema, optimizerG, optimizerD, args, cfg, dataloader, c
                         rec_all, rec_small,
                         rec_part]).add(1).mul(0.5), cfg.TRAIN.saved_image_folder+'/rec_%d.jpg'%iteration )
 
-        if iteration % (cfg.TRAIN.save_interval*50) == 0 or iteration == cfg.TRAIN.iter:
+        if iteration % (cfg.TRAIN.save_interval*100) == 0 or iteration == cfg.TRAIN.iter:
             if args.local_rank ==0:
                 flow.save({'g':netG.state_dict(),'d':netD.state_dict(), 'ema':netG_ema.state_dict()}, cfg.TRAIN.saved_model_folder+'/%d.pth'%iteration)
 
