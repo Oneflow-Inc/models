@@ -49,8 +49,8 @@ class SpectralNorm(nn.Module):
 
         del self.module._parameters[self.name]
 
-        self.module.register_parameter(self.name + "_u", u)
-        self.module.register_parameter(self.name + "_v", v)
+        self.module.register_buffer(self.name + "_u", u)
+        self.module.register_buffers(self.name + "_v", v)
         self.module.register_parameter(self.name + "_bar", w_bar)
 
     def _update_u_v(self):
