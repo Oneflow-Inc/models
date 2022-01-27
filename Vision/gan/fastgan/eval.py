@@ -55,12 +55,7 @@ if __name__ == "__main__":
     for epoch in [10000*i for i in range(args.start_iter, args.end_iter+1)]:
         ckpt = f"{args.artifacts}/model/{epoch}.pth"
         checkpoint = flow.load(ckpt)
-        # Remove prefix `module`.
-        # checkpoint['g'] = {k.replace('module.', ''): v for k, v in checkpoint['g'].items()}
-        net_ig.load_state_dict(checkpoint['g'])
-        #load_params(net_ig, checkpoint['g_ema'])
-
-        #net_ig.eval()
+        net_ig.load_state_dict(checkpoint['ema'])
         print('load checkpoint success, epoch %d'%epoch)
 
         net_ig.to(device)
