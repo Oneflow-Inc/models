@@ -56,10 +56,11 @@ class Interaction(nn.Module):
         offset = 1 if self.interaction_itself else 0
         # indices = flow.tensor([i * 27 + j for i in range(27) for j in range(i + offset)])
         # self.register_buffer("indices", indices)
-        li = flow.tensor([i for i in range(27) for j in range(i + offset)])
-        lj = flow.tensor([j for i in range(27) for j in range(i + offset)])
-        self.register_buffer("li", li)
-        self.register_buffer("lj", lj)
+        if interaction_type == 'dot':
+            li = flow.tensor([i for i in range(27) for j in range(i + offset)])
+            lj = flow.tensor([j for i in range(27) for j in range(i + offset)])
+            self.register_buffer("li", li)
+            self.register_buffer("lj", lj)
         
     def forward(self, x:flow.Tensor, ly:flow.Tensor) -> flow.Tensor:
         # x - dense fields, ly = embedding
@@ -71,7 +72,10 @@ class Interaction(nn.Module):
             # perform a dot product
             Z = flow.matmul(T, T, transpose_b=True)
             Zflat = Z[:, self.li, self.lj]
-            R = flow.cat([x, Zflat], dim=1)       
+            R = flow.cat([x, Zflat], dim=1)
+        elif self.interaction_type == 'fused':
+            (batch_size, d) = x.shape
+            R = flow._C.fused_interaction(x, flow.reshape(ly, (batch_size, -1, d)))
         else:
             assert 0, 'dot or cat'
         return R
@@ -86,6 +90,12 @@ class Interaction(nn.Module):
             return dense_feature_size + sum(range(n_cols))
         elif self.interaction_type == 'cat':
             return embedding_vec_size * self.num_sparse_fields + dense_feature_size
+        elif self.interaction_type == 'fused':
+            assert embedding_vec_size == dense_feature_size, "Embedding vector size must equle to dense feature size"
+            n_cols = self.num_sparse_fields + 1
+            if self.interaction_itself:
+                n_cols += 1
+            return dense_feature_size + sum(range(n_cols)) + 1
         else:
             assert 0, 'dot or cat'
 
