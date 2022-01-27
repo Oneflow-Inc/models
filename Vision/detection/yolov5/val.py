@@ -1,23 +1,3 @@
-# YOLOv5 🚀 by Ultralytics, GPL-3.0 license
-"""
-Validate a trained YOLOv5 model accuracy on a custom dataset
-
-Usage:
-    $ python path/to/val.py --weights yolov5s.pt --data coco128.yaml --img 640
-
-Usage - formats:
-    $ python path/to/val.py --weights yolov5s.pt                 # PyTorch
-                                      yolov5s.torchscript        # TorchScript
-                                      yolov5s.onnx               # ONNX Runtime or OpenCV DNN with --dnn
-                                      yolov5s.xml                # OpenVINO
-                                      yolov5s.engine             # TensorRT
-                                      yolov5s.mlmodel            # CoreML (MacOS-only)
-                                      yolov5s_saved_model        # TensorFlow SavedModel
-                                      yolov5s.pb                 # TensorFlow GraphDef
-                                      yolov5s.tflite             # TensorFlow Lite
-                                      yolov5s_edgetpu.tflite     # TensorFlow Edge TPU
-"""
-
 import argparse
 import json
 import os
@@ -171,7 +151,7 @@ def run(data,
     with flow.no_grad():
         for batch_i, (im, targets, paths, shapes) in enumerate(pbar):
             t1 = time_sync()
-            im = im.to(device, non_blocking=True)
+            im = im.to(device)
             targets = targets.to(device)
             im = im.half() if half else im.float()  # uint8 to fp16/32
             im /= 255  # 0 - 255 to 0.0 - 1.0
@@ -210,20 +190,21 @@ def run(data,
                 # Predictions
                 if single_cls:
                     pred[:, 5] = 0
-                predn = pred.clone()
-                scale_coords(im[si].shape[1:], predn[:, :4], shape, shapes[si][1])  # native-space pred
+                # import pdb; pdb.set_trace()
+                predn = pred.copy()
+                scale_coords(im[si].shape[1:], predn[:, :4], shapes[si][0], shapes[si][1])  # native-space pred
 
                 # Evaluate
-                if nl:
-                    tbox = xywh2xyxy(labels[:, 1:5])  # target boxes
-                    scale_coords(im[si].shape[1:], tbox, shape, shapes[si][1])  # native-space labels
-                    labelsn = flow.cat((labels[:, 0:1], tbox), 1)  # native-space labels
-                    correct = process_batch(predn, labelsn, iouv)
-                    if plots:
-                        confusion_matrix.process_batch(predn, labelsn)
-                else:
-                    correct = flow.zeros(pred.shape[0], niou, dtype=flowh.bool)
-                stats.append((correct.cpu(), pred[:, 4].cpu(), pred[:, 5].cpu(), tcls))  # (correct, conf, pcls, tcls)
+                # if nl:
+                #     tbox = xywh2xyxy(labels[:, 1:5])  # target boxes
+                #     scale_coords(im[si].shape[1:], tbox, shapes[si][0], shapes[si][1])  # native-space labels
+                #     labelsn = flow.cat((labels[:, 0:1], tbox), 1)  # native-space labels
+                #     correct = process_batch(predn, labelsn, iouv)
+                #     if plots:
+                #         confusion_matrix.process_batch(predn, labelsn)
+                # else:
+                #     correct = flow.zeros(pred.shape[0], niou, dtype=flowh.bool)
+                # stats.append((correct.cpu(), pred[:, 4].cpu(), pred[:, 5].cpu(), tcls))  # (correct, conf, pcls, tcls)
 
                 # Save/log
                 if save_txt:
@@ -251,7 +232,7 @@ def run(data,
 
     # Print results
     pf = '%20s' + '%11i' * 2 + '%11.3g' * 4  # print format
-    LOGGER.info(pf % ('all', seen, nt.sum(), mp, mr, map50, map))
+    LOGGER.info(pf % ('all', seen, nt.sum().cpu().numpy(), mp, mr, map50, map))
 
     # Print results per class
     if (verbose or (nc < 50 and not training)) and nc > 1 and len(stats):
@@ -309,7 +290,7 @@ def run(data,
 def parse_opt():
     parser = argparse.ArgumentParser()
     parser.add_argument('--data', type=str, default=ROOT / 'data/coco.yaml', help='dataset.yaml path')
-    parser.add_argument('--weights', nargs='+', type=str, default=ROOT / 'yolov5s.pt', help='model.pt path(s)')
+    parser.add_argument('--weights', nargs='+', type=str, default=ROOT / 'yolov5_ckpt', help='model path(s)')
     parser.add_argument('--batch-size', type=int, default=32, help='batch size')
     parser.add_argument('--imgsz', '--img', '--img-size', type=int, default=640, help='inference size (pixels)')
     parser.add_argument('--conf-thres', type=float, default=0.001, help='confidence threshold')
