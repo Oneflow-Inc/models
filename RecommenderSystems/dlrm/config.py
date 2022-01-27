@@ -60,6 +60,7 @@ def get_args(print_args=True):
     parser.add_argument('--eval_batch_size', type=int, default=512)
     parser.add_argument("--eval_batch_size_per_proc", type=int, default=None)
     parser.add_argument('--eval_interval', type=int, default=1000)    
+    parser.add_argument("--eval_save_dir", type=str, default='', help="eval AUC offline if available")    
     parser.add_argument("--batch_size", type=int, default=16384)
     parser.add_argument("--batch_size_per_proc", type=int, default=None)
     parser.add_argument("--learning_rate", type=float, default=1e-3)
