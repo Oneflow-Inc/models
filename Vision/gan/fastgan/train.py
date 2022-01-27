@@ -90,7 +90,8 @@ def train(netG, netD, netG_ema, optimizerG, optimizerD, args, cfg, dataloader, c
 
         if iteration % (cfg.TRAIN.save_interval*100) == 0 or iteration == cfg.TRAIN.iter:
             if args.local_rank ==0:
-                flow.save({'g':netG.state_dict(),'d':netD.state_dict(), 'ema':netG_ema.state_dict()}, cfg.TRAIN.saved_model_folder+'/%d.pth'%iteration)
+                flow.save({'ema':netG_ema.state_dict()}, cfg.TRAIN.saved_model_folder+'/%d.pth'%iteration)
+                # flow.save({'g':netG.state_dict(),'d':netD.state_dict(), 'ema':netG_ema.state_dict()}, cfg.TRAIN.saved_model_folder+'/%d.pth'%iteration)
 
 
 def save_file(args):
@@ -126,8 +127,8 @@ if __name__ == '__main__':
     optimizerG = optim.Adam(netG.parameters(), lr=cfg.TRAIN.nlr, betas=(cfg.TRAIN.nbeta1, cfg.TRAIN.nbeta2))
     optimizerD = optim.Adam(netD.parameters(), lr=cfg.TRAIN.nlr, betas=(cfg.TRAIN.nbeta1, cfg.TRAIN.nbeta2))
 
-    # percept = lpips.PerceptualLoss(model='net-lin', net='vgg', use_gpu=True,)
-    percept = lpips.PerceptualLoss(model='net-lin', net='alex', use_gpu=True,)
+    percept = lpips.PerceptualLoss(model='net-lin', net='vgg', use_gpu=True,)
+    # percept = lpips.PerceptualLoss(model='net-lin', net='alex', use_gpu=True,)
     # percept = lpips.PerceptualLoss(model='net-lin', net='squeeze', use_gpu=True,)
 
     current_iteration = 0
