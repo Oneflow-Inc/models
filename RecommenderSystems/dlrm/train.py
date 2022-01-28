@@ -1,5 +1,6 @@
 import os
 import sys
+import pickle
 
 sys.path.append(
     os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
@@ -15,6 +16,7 @@ from oneflow.nn.parallel import DistributedDataParallel as DDP
 from graph import DLRMValGraph, DLRMTrainGraph
 import warnings
 import utils.logger as log
+from utils.auc_calculater import calculate_auc_from_dir
 
 
 class Trainer(object):
@@ -153,7 +155,6 @@ class Trainer(object):
         self.train()
 
     def train(self):
-        losses = []
         self.dlrm_module.train()
         for _ in range(self.max_iter):
             self.cur_iter += 1
@@ -168,21 +169,34 @@ class Trainer(object):
         if self.eval_after_training:
             self.eval(True)
 
+        if self.args.eval_save_dir != '' and self.eval_after_training:
+            calculate_auc_from_dir(self.args.eval_save_dir)
+
     def eval(self, save_model=False):
         if self.eval_batchs <= 0:
             return
         self.dlrm_module.eval()
-        labels = np.array([[0]])
-        preds = np.array([[0]])
+        labels = []
+        preds = []
         for _ in range(self.eval_batchs):
             if self.execution_mode == "graph":
                 pred, label = self.eval_graph()
             else:
                 pred, label = self.inference()
             label_ = label.numpy().astype(np.float32)
-            labels = np.concatenate((labels, label_), axis=0)
-            preds = np.concatenate((preds, pred.numpy()), axis=0)
-        auc = roc_auc_score(labels[1:], preds[1:])
+            labels.append(label_)
+            preds.append(pred.numpy())
+        if self.args.eval_save_dir != '':
+            pf = os.path.join(self.args.eval_save_dir, f'eval_results_iter_{self.cur_iter}.pkl')
+            with open(pf, 'wb') as f:
+                obj = {'labels': labels, 'preds': preds, 'iter': self.cur_iter}
+                pickle.dump(obj, f, protocol=pickle.HIGHEST_PROTOCOL)
+            # auc = roc_auc_score(label_, pred.numpy())
+            auc = 'nc'
+        else:
+            labels = np.concatenate(labels, axis=0)
+            preds = np.concatenate(preds, axis=0)
+            auc = roc_auc_score(labels, preds)
         self.meter_eval(auc)
         if save_model:
             sub_save_dir = f"iter_{self.cur_iter}_val_auc_{auc}"
