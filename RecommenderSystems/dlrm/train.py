@@ -1,3 +1,4 @@
+import oneflow as flow
 import os
 import sys
 import pickle
@@ -7,7 +8,6 @@ sys.path.append(
 )
 import numpy as np
 from sklearn.metrics import roc_auc_score
-import oneflow as flow
 from config import get_args
 from models.data import make_data_loader
 from models.dlrm import make_dlrm_module
