@@ -143,7 +143,7 @@ class Embedding(nn.Embedding):
         else:
             return embeddings
     
-class OneEmbedding(nn.OneEmbeddingLookup):
+class OneEmbedding(nn.Module):
     def __init__(self, vocab_size, embed_size, args):
         assert args.column_size_array is not None
         scales = np.sqrt(1 / np.array(args.column_size_array))
@@ -200,16 +200,17 @@ class OneEmbedding(nn.OneEmbeddingLookup):
                 "eps": 1e-8,
             },
         }
-        super(OneEmbedding, self).__init__(options)
+        super(OneEmbedding, self).__init__()
         column_id = flow.tensor(range(26), dtype=flow.int32).reshape(1,26)
         self.register_buffer("column_id", column_id)
+        self.one_embedding = nn.OneEmbeddingLookup(options)
 
     def forward(self, ids):
         bsz = ids.shape[0]
         column_id = flow.ones((bsz, 1), dtype=flow.int32, sbp=ids.sbp, placement=ids.placement) * self.column_id
         if (ids.is_consistent):
             column_id = column_id.to_consistent(sbp=ids.sbp, placement=ids.placement)
-        return super(OneEmbedding, self._origin).forward(ids, column_id)
+        return self.one_embedding.forward(ids, column_id)
     def set_model_parallel(self, placement=None):
         pass
 
