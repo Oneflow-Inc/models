@@ -169,6 +169,7 @@ class OneEmbedding(nn.Module):
             "dtype": flow.float,
             "name": "my_embedding",
             "embedding_dim": embed_size,
+            "scale_factor": 1,
             "cache" : cache_list,
             "kv_store": {
                 "persistent_table": {
@@ -178,27 +179,6 @@ class OneEmbedding(nn.Module):
             },
             "default_initializer": {"type": "normal", "mean": 0, "std": 1},
             "columns": initializer_list,
-            "optimizer": {
-                "lr": {
-                    "base_lr": 24,
-                    "decay": {
-                        "type": "polynomial",
-                        "decay_batches": 27772,
-                        "end_lr": 0.0,
-                        "power": 2.0,
-                        "cycle": False,
-                    },
-                    "warmup": {
-                        "type": "linear",
-                        "warmup_batches": 2750,
-                        "start_multiplier": 0.0,
-                    },
-                },
-                "type": "sgd",
-                "momentum": 0.0,
-                "betas": [0.9, 0.999],
-                "eps": 1e-8,
-            },
         }
         super(OneEmbedding, self).__init__()
         column_id = flow.tensor(range(26), dtype=flow.int32).reshape(1,26)
