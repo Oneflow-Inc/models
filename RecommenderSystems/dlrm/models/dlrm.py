@@ -12,10 +12,13 @@ __all__ = ["make_dlrm_module"]
 class Dense(nn.Module):
     def __init__(self, in_features: int, out_features: int) -> None:
         super(Dense, self).__init__()
+        """
         self.features = nn.Sequential(
             nn.Linear(in_features, out_features),
             nn.ReLU(inplace=True),
         )
+        """
+        self.features = nn.FusedLinearReLU(in_features, out_features)
         for name, param in self.named_parameters():
             if name.endswith("weight"):
                 nn.init.normal_(param, 0.0, np.sqrt(2 / (in_features + out_features)))
