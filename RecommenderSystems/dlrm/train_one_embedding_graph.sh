@@ -3,7 +3,7 @@ DEVICE_NUM_PER_NODE=4
 MASTER_ADDR=127.0.0.1
 NUM_NODES=1
 NODE_RANK=0
-DATA_DIR=/data/xiexuan/criteo1t_ofrecord_shuffle_per_day/
+DATA_DIR=/data/criteo1t/dlrm_v884m_ofrecord
 EMBD_SIZE=33762578
 BATHSIZE=55296
 export GLOG_minloglevel=2
@@ -29,7 +29,7 @@ python3 -m oneflow.distributed.launch \
     --node_rank $NODE_RANK \
     --master_addr $MASTER_ADDR \
   train.py \
-    --interaction_type dot \
+    --interaction_type fused \
     --embedding_type OneEmbedding \
     --learning_rate 24 \
     --batch_size $BATHSIZE \
@@ -49,3 +49,5 @@ python3 -m oneflow.distributed.launch \
     --blocked_based_path $BLOCK_BASED_PATH \
     --column_size_array '227605432,39060,17295,7424,20265,3,7122,1543,63,130229467,3067956,405282,10,2209,11938,155,4,976,14,292775614,40790948,187188510,590152,12973,108,36' \
     --test_name 'train_one_embedding_graph_'$DEVICE_NUM_PER_NODE'gpu' | tee 'train_one_embedding_graph_'$DEVICE_NUM_PER_NODE'gpu'.log
+    #--eval_save_dir '/NVME0/guoran/auc/' \
+    #--eval_after_training \

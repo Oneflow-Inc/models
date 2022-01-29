@@ -166,18 +166,19 @@ class OneEmbedding(nn.Module):
                 cache_list.append(cache)
         print("cache_list", cache_list)
         options = {
-            "dtype": flow.float,
+            "key_type": flow.int64,
+            "value_type": flow.float,
             "name": "my_embedding",
             "embedding_dim": embed_size,
-            "scale_factor": 1,
-            "cache" : cache_list,
+            "storage_dim": embed_size,
             "kv_store": {
+                "caches" : cache_list,
                 "persistent_table": {
                     "path": args.blocked_based_path,
                     "physical_block_size": 512,
                 },
             },
-            "default_initializer": {"type": "normal", "mean": 0, "std": 1},
+            "default_initializer": {"type": "normal", "mean": 0, "std": 0.05},
             "columns": initializer_list,
         }
         super(OneEmbedding, self).__init__()
