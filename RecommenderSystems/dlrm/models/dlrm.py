@@ -174,7 +174,7 @@ class OneEmbedding(nn.Module):
             "kv_store": {
                 "caches" : cache_list,
                 "persistent_table": {
-                    "path": args.blocked_based_path,
+                    "path": args.persistent_path,
                     "physical_block_size": 512,
                 },
             },
