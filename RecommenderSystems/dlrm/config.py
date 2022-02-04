@@ -13,8 +13,10 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
+import os
 import argparse
 import oneflow as flow
+from datetime import datetime
 
 
 def get_args(print_args=True):
@@ -127,6 +129,13 @@ def get_args(print_args=True):
         flow.env.get_world_size() > 1 and not args.ddp
     ) or args.execution_mode == "graph"
     
+    if args.eval_save_dir != '':
+        time_str = str(datetime.now().strftime("%Y%m%d%H%M%S"))
+        args.eval_save_dir = os.path.join(args.eval_save_dir, f'eval_results-{time_str}')
+        if not os.path.exists(args.eval_save_dir):
+            os.makedirs(args.eval_save_dir)
+    else:
+        args.eval_save_dir = ''
     if print_args and flow.env.get_rank() == 0:
         _print_args(args)
     return args

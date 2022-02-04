@@ -168,9 +168,8 @@ class Trainer(object):
                 self.eval(self.save_model_after_each_eval)
         if self.eval_after_training:
             self.eval(True)
-
-        if self.args.eval_save_dir != '' and self.eval_after_training:
-            calculate_auc_from_dir(self.args.eval_save_dir)
+            if self.args.eval_save_dir != '' and self.rank == 0:
+                calculate_auc_from_dir(self.args.eval_save_dir)
 
     def eval(self, save_model=False):
         if self.eval_batchs <= 0:
@@ -187,12 +186,13 @@ class Trainer(object):
             labels.append(label_)
             preds.append(pred.numpy())
         if self.args.eval_save_dir != '':
-            pf = os.path.join(self.args.eval_save_dir, f'eval_results_iter_{self.cur_iter}.pkl')
-            with open(pf, 'wb') as f:
-                obj = {'labels': labels, 'preds': preds, 'iter': self.cur_iter}
-                pickle.dump(obj, f, protocol=pickle.HIGHEST_PROTOCOL)
-            # auc = roc_auc_score(label_, pred.numpy())
-            auc = 'nc'
+            if self.rank == 0:
+                pf = os.path.join(self.args.eval_save_dir, f'iter_{self.cur_iter}.pkl')
+                with open(pf, 'wb') as f:
+                    obj = {'labels': labels, 'preds': preds, 'iter': self.cur_iter}
+                    pickle.dump(obj, f, protocol=pickle.HIGHEST_PROTOCOL)
+            auc = roc_auc_score(label_, pred.numpy())
+            # auc = 'nc'
         else:
             labels = np.concatenate(labels, axis=0)
             preds = np.concatenate(preds, axis=0)
