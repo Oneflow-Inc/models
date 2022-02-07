@@ -46,7 +46,7 @@ python3 -m oneflow.distributed.launch \
     --cache_policy 'lru,none' \
     --cache_memory_budget_mb '16384,163840' \
     --value_memory_kind 'device,host' \
-    --blocked_based_path $BLOCK_BASED_PATH \
+    --persistent_path $BLOCK_BASED_PATH \
     --column_size_array '227605432,39060,17295,7424,20265,3,7122,1543,63,130229467,3067956,405282,10,2209,11938,155,4,976,14,292775614,40790948,187188510,590152,12973,108,36' \
     --test_name 'train_one_embedding_graph_'$DEVICE_NUM_PER_NODE'gpu' | tee 'train_one_embedding_graph_'$DEVICE_NUM_PER_NODE'gpu'.log
     #--eval_save_dir '/NVME0/guoran/auc/' \
