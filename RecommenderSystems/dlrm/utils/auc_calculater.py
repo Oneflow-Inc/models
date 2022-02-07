@@ -19,7 +19,7 @@ def calculate_auc_from_file(pkl):
     print(f'Iter {iter} AUC: {auc:0.4f}, Num of Evaluation: {labels.shape[0]}, time:{duration:0.3f}')
 
 
-def calculate_auc_from_dir(directory, startswith='eval_results_iter'):
+def calculate_auc_from_dir(directory, startswith='iter'):
     print('calculate AUC from folder:', directory)
     for file in os.listdir(directory):
         filename = os.fsdecode(file)
