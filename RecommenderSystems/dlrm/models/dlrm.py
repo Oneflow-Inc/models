@@ -217,7 +217,7 @@ class DLRMModule(nn.Module):
     def forward(self, dense_fields, sparse_fields) -> flow.Tensor:
         dense_fields = flow.log(dense_fields + 1.0)
         dense_fields = self.bottom_mlp(dense_fields)
-        sparse_fields = flow.cast(sparse_fields, flow.int64)
+        #sparse_fields = flow.cast(sparse_fields, flow.int64)
         embedding = self.embedding(sparse_fields)
         embedding = embedding.view(-1, embedding.shape[-1] * embedding.shape[-2])
         features = self.interaction(dense_fields, embedding)

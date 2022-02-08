@@ -44,8 +44,8 @@ class DLRMTrainGraph(flow.nn.Graph):
         #    sparse_fields,
         #) = self.dataloader()
         labels = labels.to("cuda").to(dtype=flow.float32)
-        dense_fields = dense_fields.to("cuda")
-        sparse_fields = sparse_fields.to("cuda")
+        dense_fields = dense_fields.to("cuda").to(dtype=flow.float32)
+        sparse_fields = sparse_fields.to("cuda").to(dtype=flow.int64)
 
         logits = self.module(dense_fields, sparse_fields)
         loss = self.bce_loss(logits, labels)

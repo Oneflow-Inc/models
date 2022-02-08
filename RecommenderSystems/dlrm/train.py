@@ -25,9 +25,9 @@ from utils.auc_calculater import calculate_auc_from_dir
 
 train_files=[]
 for i in range(23):
-    train_files += ['file://' + name for name in glob.glob('/NVME3/liujuncheng/from_ofrecord/day_{}/*.parquet'.format(i))]
+    train_files += ['file://' + name for name in glob.glob('/NVME3/liujuncheng/from_ofrecord_int/day_{}/*.parquet'.format(i))]
 train_files.sort()
-eval_files = ['file://' + name for name in glob.glob('/NVME3/liujuncheng/from_ofrecord/day_23/*.parquet')]
+eval_files = ['file://' + name for name in glob.glob('/NVME3/liujuncheng/from_ofrecord_int/day_23/*.parquet')]
 eval_files.sort()
 
 class Trainer(object):
@@ -91,6 +91,12 @@ class Trainer(object):
             )
             self.batch_train_generator = get_batches(make_batch_reader(train_files, workers_count=2, shuffle_row_groups=False), 55296)
             self.batch_eval_generator = get_batches(make_batch_reader(eval_files, workers_count=2, shuffle_row_groups=False), 32744)
+            self.labels = None
+            self.dense_fields = None
+            self.sparse_fields = None
+            self.np_label = None
+            self.np_dense_fields = None
+            self.np_sparse_fields = None
 
     def init_model(self):
         args = self.args
@@ -174,7 +180,7 @@ class Trainer(object):
             loss = self.train_one_step()
 
             loss = tol(loss)
-
+#
             self.meter_train_iter(loss)
 
             if self.eval_interval > 0 and self.cur_iter % self.eval_interval == 0:
@@ -276,32 +282,44 @@ class Trainer(object):
         return loss
 
     def train_one_step(self):
-        np_label, np_denses, np_sparses  = next(self.batch_train_generator)
-        labels = flow.tensor(
-                    np_label.reshape(-1,1).astype(np.int32),
-                    dtype = flow.int64,
-                    placement=flow.env.all_device_placement("cuda"),
-                    sbp=flow.sbp.split(0),
-        )
-        dense_fields_list = []
-        for np_dense in np_denses:
-            dense_fields_list.append(flow.tensor(
-                        np_dense.reshape(-1,1).astype(np.float32),
+        if self.labels is None:
+            np_label, np_denses, np_sparses  = next(self.batch_train_generator)
+            np_dense = np.stack(np_denses, axis=-1)
+            np_sparse = np.stack(np_sparses, axis=-1)
+            self.dense_fields = flow.tensor(
+                        np_dense,
                         placement=flow.env.all_device_placement("cuda"),
                         sbp=flow.sbp.split(0),
-            ))
-        dense_fields = flow.cat(dense_fields_list, dim=1)
-        sparse_fields_list = []
-        for np_sparse in np_sparses:
-            sparse_fields_list.append(flow.tensor(
-                        np_sparse.reshape(-1,1).astype(np.int64),
+            )
+            self.sparse_fields = flow.tensor(
+                        np_sparse,
                         placement=flow.env.all_device_placement("cuda"),
                         sbp=flow.sbp.split(0),
-            ))
-        sparse_fields = flow.cat(sparse_fields_list, dim=1)
+            )
+            self.labels = flow.tensor(
+                        np_label.reshape(-1,1),
+                        placement=flow.env.all_device_placement("cuda"),
+                        sbp=flow.sbp.split(0),
+            )
+        #dense_fields_list = []
+        #for np_dense in np_denses:
+        #    dense_fields_list.append(flow.tensor(
+        #                np_dense.reshape(-1,1).astype(np.float32),
+        #                placement=flow.env.all_device_placement("cpu"),
+        #                sbp=flow.sbp.split(0),
+        #    ).to("cuda"))
+        #dense_fields = flow.cat(dense_fields_list, dim=1)
+        #sparse_fields_list = []
+        #for np_sparse in np_sparses:
+        #    sparse_fields_list.append(flow.tensor(
+        #                np_sparse.reshape(-1,1).astype(np.int64),
+        #                placement=flow.env.all_device_placement("cpu"),
+        #                sbp=flow.sbp.split(0),
+        #    ).to("cuda"))
+        #sparse_fields = flow.cat(sparse_fields_list, dim=1)
         self.dlrm_module.train()
         if self.execution_mode == "graph":
-            train_loss = self.train_graph(labels, dense_fields, sparse_fields)
+            train_loss = self.train_graph(self.labels, self.dense_fields, self.sparse_fields)
         else:
             train_loss = self.train_eager()
         return train_loss
