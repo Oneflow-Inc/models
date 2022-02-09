@@ -3,7 +3,7 @@ import numpy as np
 import oneflow as flow
 
 
-def make_data_loader(args, mode, is_consistent=False, synthetic=False):
+def make_data_loader(args, mode, is_global=False, synthetic=False):
     assert mode in ("train", "validation")
 
     if mode == "train":
@@ -18,10 +18,10 @@ def make_data_loader(args, mode, is_consistent=False, synthetic=False):
     placement = None
     sbp = None
 
-    if is_consistent:
+    if is_global:
         placement = flow.env.all_device_placement("cpu")
         sbp = flow.sbp.split(0)
-        # NOTE(zwx): consistent view, only consider logical batch size
+        # NOTE(zwx): global view, only consider logical batch size
         batch_size = total_batch_size
 
     if synthetic:
