@@ -1,10 +1,10 @@
 import os
 import math
 import oneflow as flow
-from oneflow.nn.optimizer.lr_scheduler import LrScheduler
+from oneflow.nn.optimizer.lr_scheduler import LRScheduler
 
 
-class PolynomialLR(LrScheduler):
+class PolynomialLR(LRScheduler):
     """This operator creates a polynomial decayed learning rate scheduler.
     The learning rate will be updated as follows:
     If cycle is `True`, the equation is:
