@@ -11,19 +11,19 @@ python3 -m oneflow.distributed.launch \
     --nnodes $NUM_NODES \
     --node_rank $NODE_RANK \
     --master_addr $MASTER_ADDR \
-  train.py \
+    train.py \
     --learning_rate 0.001 \
     --batch_size $BATHSIZE \
     --data_dir $DATA_DIR \
-    --loss_print_every_n_iter 10 \
+    --loss_print_every_n_iter 100 \
     --eval_interval 0 \
     --deep_dropout_rate 0.5 \
-    --max_iter 31 \
-    --hidden_units_num 2 \
+    --max_iter 310 \
+    --hidden_units_num 7 \
     --hidden_size 1024 \
     --wide_vocab_size $EMBD_SIZE \
     --deep_vocab_size $EMBD_SIZE \
     --data_part_num 256 \
     --data_part_name_suffix_length 5 \
-    --execution_mode 'graph' \
-    --test_name 'train_eager_graph_'$DEVICE_NUM_PER_NODE'gpu'
+    --execution_mode 'eager' \
+    --test_name 'train_global_eager_'$DEVICE_NUM_PER_NODE'gpu'
