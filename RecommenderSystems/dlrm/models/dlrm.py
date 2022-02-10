@@ -102,7 +102,7 @@ class Interaction(nn.Module):
 
 class Embedding(nn.Embedding):
     def __init__(self, vocab_size, embed_size, args):
-        if args.is_consistent:
+        if args.is_global:
             assert args.embedding_split_axis < 2, "Embedding model parallel split axis can only be 0 or 1."
             self.split_axis = args.embedding_split_axis
         else:
@@ -114,14 +114,14 @@ class Embedding(nn.Embedding):
             # param.data = flow.tensor(W, requires_grad=True)
 
     def set_model_parallel(self, placement=None):
-        # Overriding to_consistent function does not work
-        # because to_consistent call is not recursive
+        # Overriding to_global function does not work
+        # because to_global call is not recursive
         if self.split_axis >= 0:
-            self.to_consistent(placement, flow.sbp.split(self.split_axis))
+            self.to_global(placement, flow.sbp.split(self.split_axis))
 
     def forward(self, ids):
         if self.split_axis >= 0:
-            ids = ids.to_consistent(sbp=flow.sbp.broadcast)
+            ids = ids.to_global(sbp=flow.sbp.broadcast)
         
         # Forward
         # weight    ids => embedding
@@ -136,10 +136,10 @@ class Embedding(nn.Embedding):
 
         if self.split_axis == 0:
             # Forward: P => S(0), Backward: S(0) => B
-            return embeddings.to_consistent(sbp=flow.sbp.split(0), grad_sbp=flow.sbp.broadcast)
+            return embeddings.to_global(sbp=flow.sbp.split(0), grad_sbp=flow.sbp.broadcast)
         elif self.split_axis == 1:
             # Forward: S(2) => S(0), Backward: S(0) => S(2)
-            return embeddings.to_consistent(sbp=flow.sbp.split(0), grad_sbp=flow.sbp.split(2))
+            return embeddings.to_global(sbp=flow.sbp.split(0), grad_sbp=flow.sbp.split(2))
         else:
             return embeddings
     
@@ -189,8 +189,8 @@ class OneEmbedding(nn.Module):
     def forward(self, ids):
         bsz = ids.shape[0]
         column_id = flow.ones((bsz, 1), dtype=flow.int32, sbp=ids.sbp, placement=ids.placement) * self.column_id
-        if (ids.is_consistent):
-            column_id = column_id.to_consistent(sbp=ids.sbp, placement=ids.placement)
+        if (ids.is_global):
+            column_id = column_id.to_global(sbp=ids.sbp, placement=ids.placement)
         return self.one_embedding.forward(ids, column_id)
     def set_model_parallel(self, placement=None):
         pass
