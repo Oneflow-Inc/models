@@ -1,10 +1,3 @@
-"""
-YOLO-specific modules
-
-Usage:
-    $ python path/to/models/yolo.py --cfg yolov5s.yaml
-"""
-
 import argparse
 import sys
 from copy import deepcopy
@@ -21,11 +14,6 @@ from models.experimental import *
 from utils.autoanchor import check_anchor_order
 from utils.general import LOGGER, check_version, check_yaml, make_divisible, print_args
 from utils.flow_utils import fuse_conv_and_bn, initialize_weights, model_info, scale_img, select_device, time_sync
-
-try:
-    import thop  # for FLOPs computation
-except ImportError:
-    thop = None
 
 
 class Detect(nn.Module):
@@ -56,21 +44,9 @@ class Detect(nn.Module):
                     self.grid[i] = self.grid[i].to(x[i].device)
 
                 y = x[i].sigmoid()
-                # import numpy as np
-                # np.save("/home/baixiaying/Codes/models/Vision/detection/yolov5/sigmoid_oneflow_{}.npy".format(i), y.data.cpu().numpy())
-                # import numpy as np
-                # np.save("/home/baixiaying/Codes/models/Vision/detection/yolov5/indices_oneflow_{}.npy".format(i), y[..., 0:2].data.cpu().numpy())
                 xy = (y[..., 0:2] * 2 - 0.5 + self.grid[i]) * self.stride[i]  # xy
-                # import numpy as np
-                # tmp = (y[..., 2:4] * 2) ** 2
-                # np.save("/home/baixiaying/Codes/models/Vision/detection/yolov5/sqrt_oneflow_{}.npy".format(i), tmp.data.cpu().numpy())
                 wh = (y[..., 2:4] * 2) ** 2 * self.anchor_grid[i]  # wh
-                # import numpy as np
-                # np.save("/home/baixiaying/Codes/models/Vision/detection/yolov5/xy_oneflow_{}.npy".format(i), xy.data.cpu().numpy())
-                # np.save("/home/baixiaying/Codes/models/Vision/detection/yolov5/wh_oneflow_{}.npy".format(i), wh.data.cpu().numpy())
                 y = flow.cat((xy, wh, y[..., 4:]), -1)
-                # import numpy as np
-                # np.save("/home/baixiaying/Codes/models/Vision/detection/yolov5/detect_output_oneflow_{}.npy".format(i), y.data.cpu().numpy())
                 z.append(y.view(bs, -1, self.no))
 
         return x if self.training else (flow.cat(z, 1), x)
@@ -146,13 +122,8 @@ class Model(nn.Module):
         for m in self.model:
             if m.f != -1:  # if not from previous layer
                 x = y[m.f] if isinstance(m.f, int) else [x if j == -1 else y[j] for j in m.f]  # from earlier layers
-            if profile:
-                self._profile_one_layer(m, x, dt)
             x = m(x)  # run
             y.append(x if m.i in self.save else None)  # save output
-        # import numpy as np
-        # np.save("/home/baixiaying/Codes/models/Vision/detection/yolov5/model_oneflow_0.npy", x[0].data.cpu().numpy())
-        # np.save("/home/baixiaying/Codes/models/Vision/detection/yolov5/model_oneflow_1.npy", x[1][0].data.cpu().numpy())
         return x
 
     def _descale_pred(self, p, flips, scale, img_size):
@@ -182,19 +153,6 @@ class Model(nn.Module):
         i = (y[-1].shape[1] // g) * sum(4 ** (nl - 1 - x) for x in range(e))  # indices
         y[-1] = y[-1][:, i:]  # small
         return y
-
-    def _profile_one_layer(self, m, x, dt):
-        c = isinstance(m, Detect)  # is final layer, copy input as inplace fix
-        o = thop.profile(m, inputs=(x.copy() if c else x,), verbose=False)[0] / 1E9 * 2 if thop else 0  # FLOPs
-        t = time_sync()
-        for _ in range(10):
-            m(x.copy() if c else x)
-        dt.append((time_sync() - t) * 100)
-        if m == self.model[0]:
-            LOGGER.info(f"{'time (ms)':>10s} {'GFLOPs':>10s} {'params':>10s}  {'module'}")
-        LOGGER.info(f'{dt[-1]:10.2f} {o:10.2f} {m.np:10.0f}  {m.type}')
-        if c:
-            LOGGER.info(f"{sum(dt):10.2f} {'-':>10s} {'-':>10s}  Total")
 
     def _initialize_biases(self, cf=None):  # initialize biases into Detect(), cf is class frequency
         # https://arxiv.org/abs/1708.02002 section 3.3

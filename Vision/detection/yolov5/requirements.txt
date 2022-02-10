@@ -1,0 +1,16 @@
+# base ----------------------------------------
+matplotlib>=3.2.2
+numpy>=1.18.5
+opencv-python>=4.1.2
+Pillow>=7.1.2
+PyYAML>=5.3.1
+scipy>=1.4.1
+tqdm>=4.41.0
+requests>=2.23.0
+pandas>=1.1.4
+
+# torch
+torch==1.10.1+cu102
+
+# oneflow
+oneflow==0.7.0+cu112

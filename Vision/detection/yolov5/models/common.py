@@ -12,7 +12,6 @@ from pathlib import Path
 import cv2
 import numpy as np
 import pandas as pd
-import requests
 import oneflow as flow
 import oneflow.nn as nn
 import yaml
@@ -305,95 +304,6 @@ class DetectMultiBackend(nn.Module):
         if isinstance(self.device, flow.device) and self.device.type != 'cpu':  # only warmup GPU models
             im = flow.zeros(*imgsz, dtype=flow.half if half else flow.float).to(self.device)  # input image
             self.forward(im)  # warmup
-
-
-class AutoShape(nn.Module):
-    # YOLOv5 input-robust model wrapper for passing cv2/np/PIL/torch inputs. Includes preprocessing, inference and NMS
-    conf = 0.25  # NMS confidence threshold
-    iou = 0.45  # NMS IoU threshold
-    agnostic = False  # NMS class-agnostic
-    multi_label = False  # NMS multiple labels per box
-    classes = None  # (optional list) filter by class, i.e. = [0, 15, 16] for COCO persons, cats and dogs
-    max_det = 1000  # maximum number of detections per image
-    # amp = False  # Automatic Mixed Precision (AMP) inference
-
-    def __init__(self, model):
-        super().__init__()
-        LOGGER.info('Adding AutoShape... ')
-        copy_attr(self, model, include=('yaml', 'nc', 'hyp', 'names', 'stride', 'abc'), exclude=())  # copy attributes
-        self.dmb = isinstance(model, DetectMultiBackend)  # DetectMultiBackend() instance
-        self.pt = not self.dmb or model.pt  # PyTorch model
-        self.model = model.eval()
-
-    def _apply(self, fn):
-        # Apply to(), cpu(), cuda(), half() to model tensors that are not parameters or registered buffers
-        self = super()._apply(fn)
-        if self.pt:
-            m = self.model.model.model[-1] if self.dmb else self.model.model[-1]  # Detect()
-            m.stride = fn(m.stride)
-            m.grid = list(map(fn, m.grid))
-            if isinstance(m.anchor_grid, list):
-                m.anchor_grid = list(map(fn, m.anchor_grid))
-        return self
-
-    @flow.no_grad()
-    def forward(self, imgs, size=640, augment=False, profile=False):
-        # Inference from various sources. For height=640, width=1280, RGB images example inputs are:
-        #   file:       imgs = 'data/images/zidane.jpg'  # str or PosixPath
-        #   URI:             = 'https://ultralytics.com/images/zidane.jpg'
-        #   OpenCV:          = cv2.imread('image.jpg')[:,:,::-1]  # HWC BGR to RGB x(640,1280,3)
-        #   PIL:             = Image.open('image.jpg') or ImageGrab.grab()  # HWC x(640,1280,3)
-        #   numpy:           = np.zeros((640,1280,3))  # HWC
-        #   torch:           = torch.zeros(16,3,320,640)  # BCHW (scaled to size=640, 0-1 values)
-        #   multiple:        = [Image.open('image1.jpg'), Image.open('image2.jpg'), ...]  # list of images
-
-        t = [time_sync()]
-        p = next(self.model.parameters()) if self.pt else flow.zeros(1)  # for device and type
-        autocast = self.amp and (p.device.type != 'cpu')  # Automatic Mixed Precision (AMP) inference
-        if isinstance(imgs, flow.Tensor):  # torch
-            # with amp.autocast(enabled=autocast):
-            return self.model(imgs.to(p.device).type_as(p), augment, profile)  # inference
-
-        # Pre-process
-        n, imgs = (len(imgs), imgs) if isinstance(imgs, list) else (1, [imgs])  # number of images, list of images
-        shape0, shape1, files = [], [], []  # image and inference shapes, filenames
-        for i, im in enumerate(imgs):
-            f = f'image{i}'  # filename
-            if isinstance(im, (str, Path)):  # filename or uri
-                im, f = Image.open(requests.get(im, stream=True).raw if str(im).startswith('http') else im), im
-                im = np.asarray(exif_transpose(im))
-            elif isinstance(im, Image.Image):  # PIL Image
-                im, f = np.asarray(exif_transpose(im)), getattr(im, 'filename', f) or f
-            files.append(Path(f).with_suffix('.jpg').name)
-            if im.shape[0] < 5:  # image in CHW
-                im = im.transpose((1, 2, 0))  # reverse dataloader .transpose(2, 0, 1)
-            im = im[..., :3] if im.ndim == 3 else np.tile(im[..., None], 3)  # enforce 3ch input
-            s = im.shape[:2]  # HWC
-            shape0.append(s)  # image shape
-            g = (size / max(s))  # gain
-            shape1.append([y * g for y in s])
-            imgs[i] = im if im.data.contiguous else np.ascontiguousarray(im)  # update
-        shape1 = [make_divisible(x, self.stride) for x in np.stack(shape1, 0).max(0)]  # inference shape
-        x = [letterbox(im, new_shape=shape1 if self.pt else size, auto=False)[0] for im in imgs]  # pad
-        x = np.stack(x, 0) if n > 1 else x[0][None]  # stack
-        x = np.ascontiguousarray(x.transpose((0, 3, 1, 2)))  # BHWC to BCHW
-        x = flow.tensor(x).to(p.device).type_as(p) / 255  # uint8 to fp16/32
-        t.append(time_sync())
-
-        # with amp.autocast(enabled=autocast):
-        # Inference
-        y = self.model(x, augment, profile)  # forward
-        t.append(time_sync())
-
-        # Post-process
-        y = non_max_suppression(y if self.dmb else y[0], self.conf, iou_thres=self.iou, classes=self.classes,
-                                agnostic=self.agnostic, multi_label=self.multi_label, max_det=self.max_det)  # NMS
-        for i in range(n):
-            scale_coords(shape1, y[i][:, :4], shape0[i])
-
-        t.append(time_sync())
-        return Detections(imgs, y, files, t, self.names, x.shape)
-
 
 class Classify(nn.Module):
     # Classification head, i.e. x(b,c1,20,20) to x(b,c2)
