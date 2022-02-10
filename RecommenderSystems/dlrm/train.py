@@ -95,8 +95,8 @@ class Trainer(object):
             self.dense_fields = None
             self.sparse_fields = None
             self.np_label = None
-            self.np_dense_fields = None
-            self.np_sparse_fields = None
+            self.np_dense = None
+            self.np_sparse = None
 
     def init_model(self):
         args = self.args
@@ -282,23 +282,24 @@ class Trainer(object):
         return loss
 
     def train_one_step(self):
-        if self.labels is None:
-            np_label, np_denses, np_sparses  = next(self.batch_train_generator)
-            np_dense = np.stack(np_denses, axis=-1)
-            np_sparse = np.stack(np_sparses, axis=-1)
+        if True:# self.labels is None:
+            if True: #self.np_label is None:
+                self.np_label, np_denses, np_sparses  = next(self.batch_train_generator)
+                self.np_dense = np.stack(np_denses, axis=-1)
+                self.np_sparse = np.stack(np_sparses, axis=-1)
             self.dense_fields = flow.tensor(
-                        np_dense,
-                        placement=flow.env.all_device_placement("cuda"),
+                        self.np_dense,
+                        placement=flow.env.all_device_placement("cpu"),
                         sbp=flow.sbp.split(0),
             )
             self.sparse_fields = flow.tensor(
-                        np_sparse,
-                        placement=flow.env.all_device_placement("cuda"),
+                        self.np_sparse,
+                        placement=flow.env.all_device_placement("cpu"),
                         sbp=flow.sbp.split(0),
             )
             self.labels = flow.tensor(
-                        np_label.reshape(-1,1),
-                        placement=flow.env.all_device_placement("cuda"),
+                        self.np_label.reshape(-1,1),
+                        placement=flow.env.all_device_placement("cpu"),
                         sbp=flow.sbp.split(0),
             )
         #dense_fields_list = []
