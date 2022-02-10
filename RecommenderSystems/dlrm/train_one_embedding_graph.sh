@@ -1,5 +1,5 @@
 rm core.*
-DEVICE_NUM_PER_NODE=4
+DEVICE_NUM_PER_NODE=1
 MASTER_ADDR=127.0.0.1
 NUM_NODES=1
 NODE_RANK=0
@@ -11,18 +11,19 @@ ulimit -SHn 131072
 eval_batch_size=32744
 eval_batchs=$(( 3274330 / eval_batch_size ))
 #eval_batchs=$(( 90243072 / eval_batch_size ))
+export GRADIENT_SHUFFLE_USE_FP16=1
 
-export LD_PRELOAD=/lib/x86_64-linux-gnu/libtcmalloc.so.4:
+#export LD_PRELOAD=/lib/x86_64-linux-gnu/libtcmalloc.so.4:
 export BLOCK_BASED_PATH="rocks" 
 echo "ll BLOCK_BASED_PATH"
 ls -l $BLOCK_BASED_PATH
+rm -rf rocks/0-1/*
 rm -rf rocks/0-4/*
 rm -rf rocks/1-4/*
 rm -rf rocks/2-4/*
 rm -rf rocks/3-4/*
 
 #/usr/local/cuda-11.4/bin/nsys profile --stat=true \
-#numactl --interleave=all \
 python3 -m oneflow.distributed.launch \
     --nproc_per_node $DEVICE_NUM_PER_NODE \
     --nnodes $NUM_NODES \
@@ -47,7 +48,10 @@ python3 -m oneflow.distributed.launch \
     --cache_memory_budget_mb '16384,163840' \
     --value_memory_kind 'device,host' \
     --persistent_path $BLOCK_BASED_PATH \
+    --use_fp16 \
+    --loss_scale_policy 'dynamic' \
     --column_size_array '227605432,39060,17295,7424,20265,3,7122,1543,63,130229467,3067956,405282,10,2209,11938,155,4,976,14,292775614,40790948,187188510,590152,12973,108,36' \
     --test_name 'train_one_embedding_graph_'$DEVICE_NUM_PER_NODE'gpu' | tee 'train_one_embedding_graph_'$DEVICE_NUM_PER_NODE'gpu'.log
+    #--dataset_format "petastorm" \
     #--eval_save_dir '/NVME0/guoran/auc' \
     #--eval_after_training \
