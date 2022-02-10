@@ -40,7 +40,16 @@ class Conv(nn.Module):
         self.act = nn.SiLU() if act is True else (act if isinstance(act, nn.Module) else nn.Identity())
 
     def forward(self, x):
-        return self.act(self.bn(self.conv(x)))
+        flow._oneflow_internal.profiler.RangePush('conv')
+        conv_res = self.conv(x)
+        flow._oneflow_internal.profiler.RangePop()
+        flow._oneflow_internal.profiler.RangePush('bn')
+        bn_res = self.bn(conv_res)
+        flow._oneflow_internal.profiler.RangePop()
+        flow._oneflow_internal.profiler.RangePush('silu')
+        res = self.act(bn_res)
+        flow._oneflow_internal.profiler.RangePop()
+        return res
 
     def forward_fuse(self, x):
         return self.act(self.conv(x))
@@ -98,7 +107,24 @@ class Bottleneck(nn.Module):
         self.add = shortcut and c1 == c2
 
     def forward(self, x):
-        return x + self.cv2(self.cv1(x)) if self.add else self.cv2(self.cv1(x))
+        if self.add:
+            flow._oneflow_internal.profiler.RangePush('conv1')
+            cv1_res = self.cv1(x)
+            flow._oneflow_internal.profiler.RangePop()
+            flow._oneflow_internal.profiler.RangePush('conv2')
+            cv2_res = self.cv2(cv1_res)
+            flow._oneflow_internal.profiler.RangePop()
+            flow._oneflow_internal.profiler.RangePush('add')
+            res = x + cv2_res
+            flow._oneflow_internal.profiler.RangePop()
+        else:
+            flow._oneflow_internal.profiler.RangePush('conv1')
+            cv1_res = self.cv1(x)
+            flow._oneflow_internal.profiler.RangePop()
+            flow._oneflow_internal.profiler.RangePush('conv2')
+            res = self.cv2(cv1_res)
+            flow._oneflow_internal.profiler.RangePop()
+        return  res
 
 
 class BottleneckCSP(nn.Module):
@@ -132,7 +158,22 @@ class C3(nn.Module):
         # self.m = nn.Sequential(*[CrossConv(c_, c_, 3, 1, g, 1.0, shortcut) for _ in range(n)])
 
     def forward(self, x):
-        return self.cv3(flow.cat((self.m(self.cv1(x)), self.cv2(x)), dim=1))
+        flow._oneflow_internal.profiler.RangePush('conv1')
+        cv1_res = self.cv1(x)
+        flow._oneflow_internal.profiler.RangePop()
+        flow._oneflow_internal.profiler.RangePush('conv2')
+        cv2_res = self.cv2(x)
+        flow._oneflow_internal.profiler.RangePop()
+        flow._oneflow_internal.profiler.RangePush('Sequential')
+        m_res = self.m(cv1_res)
+        flow._oneflow_internal.profiler.RangePop()
+        flow._oneflow_internal.profiler.RangePush('cat')
+        cat_res = flow.cat((m_res, cv2_res), dim=1)
+        flow._oneflow_internal.profiler.RangePop()
+        flow._oneflow_internal.profiler.RangePush('conv3')
+        res = self.cv3(cat_res)
+        flow._oneflow_internal.profiler.RangePop()
+        return res
 
 
 class C3TR(C3):
@@ -185,12 +226,27 @@ class SPPF(nn.Module):
         self.m = nn.MaxPool2d(kernel_size=k, stride=1, padding=k // 2)
 
     def forward(self, x):
+        flow._oneflow_internal.profiler.RangePush('conv1')
         x = self.cv1(x)
+        flow._oneflow_internal.profiler.RangePop()
         with warnings.catch_warnings():
             warnings.simplefilter('ignore')  # suppress torch 1.9.0 max_pool2d() warning
+            flow._oneflow_internal.profiler.RangePush('maxpool1')
             y1 = self.m(x)
+            flow._oneflow_internal.profiler.RangePop()
+            flow._oneflow_internal.profiler.RangePush('maxpool2')
             y2 = self.m(y1)
-            return self.cv2(flow.cat([x, y1, y2, self.m(y2)], 1))
+            flow._oneflow_internal.profiler.RangePop()
+            flow._oneflow_internal.profiler.RangePush('maxpool3')
+            y3 = self.m(y2)
+            flow._oneflow_internal.profiler.RangePop()
+            flow._oneflow_internal.profiler.RangePush('cat')
+            cat_res = flow.cat([x, y1, y2, y3], 1)
+            flow._oneflow_internal.profiler.RangePop()
+            flow._oneflow_internal.profiler.RangePush('conv2')
+            res = self.cv2(cat_res)
+            flow._oneflow_internal.profiler.RangePop()
+            return res
 
 
 class Focus(nn.Module):
@@ -292,12 +348,8 @@ class DetectMultiBackend(nn.Module):
 
     def forward(self, im, augment=False, visualize=False, val=False):
         # YOLOv5 MultiBackend inference
-        b, ch, h, w = im.shape  # batch, channel, height, width
         y = self.model(im, augment=augment, visualize=visualize)
         return y if val else y[0]
-
-        y = flow.tensor(y) if isinstance(y, np.ndarray) else y
-        return (y, []) if val else y
 
     def warmup(self, imgsz=(1, 3, 640, 640), half=False):
         # Warmup model by running inference once 

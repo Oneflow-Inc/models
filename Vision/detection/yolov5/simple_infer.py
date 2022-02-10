@@ -14,11 +14,7 @@ if str(ROOT) not in sys.path:
 ROOT = Path(os.path.relpath(ROOT, Path.cwd()))  # relative
 
 from models.common import DetectMultiBackend
-from utils.datasets import IMG_FORMATS, VID_FORMATS, LoadImages, LoadStreams
-from utils.general import (LOGGER, check_file, check_img_size, check_imshow, check_requirements, colorstr,
-                           increment_path, non_max_suppression, print_args, scale_coords, strip_optimizer, xyxy2xywh)
-from utils.plots import Annotator, colors, save_one_box
-from utils.flow_utils import select_device, time_sync
+from utils.flow_utils import time_sync
 
 
 model = DetectMultiBackend(weights=ROOT / 'yolov5_ckpt', device='cuda:0', dnn=False, data=ROOT / 'data/coco128.yaml')
@@ -30,10 +26,12 @@ im = flow.tensor(np.random.rand(1, 3, 640, 640)).to('cuda:0')
 im = im.float()
 flow._oneflow_internal.profiler.RangePush('yolov5')
 for i in range(20):
+    flow._oneflow_internal.profiler.RangePush('iter{}'.format(i))
     pred = model(im, augment=False, visualize=False)
-    out = pred.numpy()
+    # out = pred.cpu().numpy()
+    flow._oneflow_internal.profiler.RangePop()
 flow._oneflow_internal.profiler.RangePop()
 # t2 = time_sync()
 # flow.save(model.state_dict(), "./yolov5_model")
-# np.save("./pred_oneflow.npy", pred.data.cpu().numpy())
+# np.save(ROOT / "pred_oneflow.npy", out)
 # print("time of inference: ", t2 - t1)

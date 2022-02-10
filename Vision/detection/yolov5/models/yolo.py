@@ -35,7 +35,9 @@ class Detect(nn.Module):
     def forward(self, x):
         z = []  # inference output
         for i in range(self.nl):
+            flow._oneflow_internal.profiler.RangePush('Conv{}'.format(i))
             x[i] = self.m[i](x[i])  # conv
+            flow._oneflow_internal.profiler.RangePop()
             bs, _, ny, nx = x[i].shape  # x(bs,255,20,20) to x(bs,3,20,20,85)
             x[i] = x[i].view(bs, self.na, self.no, ny, nx).permute(0, 1, 3, 4, 2).contiguous()
             if not self.training:  # inference
@@ -87,7 +89,9 @@ class Model(nn.Module):
         if isinstance(m, Detect):
             s = 256  # 2x min stride
             m.inplace = self.inplace
-            m.stride = flow.tensor([s / x.shape[-2] for x in self.forward(flow.zeros(1, ch, s, s))])  # forward
+            factors = [32, 16, 8]
+            stride_list = [s / x for x in factors]
+            m.stride = flow.tensor(stride_list)  # forward
             m.anchors /= m.stride.view(-1, 1, 1)
             check_anchor_order(m)
             self.stride = m.stride
@@ -119,10 +123,15 @@ class Model(nn.Module):
 
     def _forward_once(self, x, profile=False, visualize=False):
         y, dt = [], []  # outputs
-        for m in self.model:
+        module_names = ["Conv1", "Conv2", "C3-1", "Conv3", "C3-2", "Conv4", "C3-3", "Conv5", "C3-4", "SPPF", \
+                "Conv6", "Upsample1", "Concat1", "C3-5", "Conv7", "Upsample2", "Concat2", "C3-6", "Conv8", "Concat3", "C3-7", \
+                "Conv9", "Concat4", "C3-8", "Detect"]
+        for i, m in enumerate(self.model):
             if m.f != -1:  # if not from previous layer
                 x = y[m.f] if isinstance(m.f, int) else [x if j == -1 else y[j] for j in m.f]  # from earlier layers
-            x = m(x)  # run
+            flow._oneflow_internal.profiler.RangePush(module_names[i])
+            x = m(x)  # run conv1
+            flow._oneflow_internal.profiler.RangePop()
             y.append(x if m.i in self.save else None)  # save output
         return x
 
