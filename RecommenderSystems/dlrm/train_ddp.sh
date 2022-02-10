@@ -4,7 +4,8 @@ MASTER_ADDR=127.0.0.1
 NUM_NODES=1
 NODE_RANK=0
 # DATA_DIR=/dataset/wdl_ofrecord/ofrecord
-DATA_DIR=/tank/dataset/criteo_kaggle/dlrm_ofrecord
+dataset_format=ofrecord
+DATA_DIR=/tank/dataset/criteo_kaggle/dlrm_$dataset_format
 EMBD_SIZE=33762577 # 33762578
 BATHSIZE=32
 
@@ -41,6 +42,6 @@ python3 -m oneflow.distributed.launch \
     --data_part_name_suffix_length 5 \
     --ddp \
     --model_load_dir /tank/model_zoo/dlrm_baseline_params_emb$emb_size \
-    --test_name 'train_eager_conisitent_'$DEVICE_NUM_PER_NODE'gpu'
+    --test_name 'train_ddp_'$DEVICE_NUM_PER_NODE'gpu'
     # --dataset_format torch \
     # --model_load_dir /tank/xiexuan/dlrm/initial_parameters \

@@ -42,6 +42,6 @@ python3 -m oneflow.distributed.launch \
     --data_part_name_suffix_length 5 \
     --execution_mode 'eager' \
     --model_load_dir /tank/model_zoo/dlrm_baseline_params_emb$emb_size \
-    --test_name 'train_eager_conisitent_'$DEVICE_NUM_PER_NODE'gpu'
+    --test_name 'train_global_eager_'$DEVICE_NUM_PER_NODE'gpu'
     # --dataset_format torch \
     # --model_load_dir /tank/xiexuan/dlrm/initial_parameters \
