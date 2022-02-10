@@ -42,12 +42,10 @@ def make_data_loader(args, mode, is_consistent=False, data_format="ofrecord"):
             part_name_suffix_length=args.data_part_name_suffix_length,
             **kps
         )
-    elif data_format == "onerec":
-        return OneRecDataLoader(data_dir=args.data_dir, **kps)
     elif data_format == "synthetic":
         return SyntheticDataLoader(**kps)
     else:
-        raise ValueError("data format must be one of ofrecord, onerec or synthetic")
+        raise ValueError("data format must be one of ofrecord, parquet or synthetic")
 
 
 class OFRecordDataLoader(nn.Module):
@@ -98,52 +96,6 @@ class OFRecordDataLoader(nn.Module):
         labels = self.labels(reader)
         dense_fields = self.dense_fields(reader)
         sparse_fields = self.sparse_fields(reader)
-        return labels, dense_fields, sparse_fields
-
-
-class OneRecDataLoader(nn.Module):
-    def __init__(
-        self,
-        data_dir: str = "/dataset/wdl_onerec",
-        num_dense_fields: int = 13,
-        num_sparse_fields: int = 26,
-        batch_size: int = 1,
-        total_batch_size: int = 1,
-        mode: str = "train",
-        shuffle: bool = True,
-        placement=None,
-        sbp=None,
-    ):
-        super(OneRecDataLoader, self).__init__()
-        assert mode in ("train", "val")
-        self.batch_size = batch_size
-        self.total_batch_size = total_batch_size
-        self.num_dense_fields = num_dense_fields
-        self.num_sparse_fields = num_sparse_fields
-        self.mode = mode
-        self.placement = placement
-        self.sbp = sbp
-        self.shuffle = shuffle
-        self.onerec_files = glob.glob(os.path.join(data_dir, mode, '*.onerec'))
-
-    def _blob_decoder(self, reader, bn, shape, dtype=flow.int32):
-        return flow.decode_onerec(reader, bn, shape=shape, dtype=dtype)
-
-    def forward(self):
-        reader = flow.read_onerec(
-            self.onerec_files,
-            batch_size=self.batch_size,
-            random_shuffle=self.shuffle,
-            verify_example=False,
-            shuffle_mode="batch",
-            shuffle_buffer_size=64,
-            shuffle_after_epoch=self.shuffle,
-            placement = self.placement,
-            sbp = self.sbp,
-        )
-        labels = self._blob_decoder(reader, "labels", (1,), flow.float)
-        dense_fields = self._blob_decoder(reader, "dense_fields", (self.num_dense_fields,), flow.float)
-        sparse_fields = self._blob_decoder(reader, "deep_sparse_fields", (self.num_sparse_fields,))
         return labels, dense_fields, sparse_fields
 
 

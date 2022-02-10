@@ -22,7 +22,7 @@
 |-----|---|------|
 |batch_size|the data batch size in one step training|16384|
 |data_dir|the data file directory|/dataset/wdl_ofrecord/ofrecord|
-|dataset_format|ofrecord format data or onerec format data|ofrecord|
+|dataset_format|ofrecord format data or parquet format data|ofrecord|
 |deep_dropout_rate|the argument dropout in the deep part|0.5|
 |deep_embedding_vec_size|the embedding dim in deep part|16|
 |deep_vocab_size|the embedding size in deep part|1603616|
@@ -64,7 +64,7 @@ bash train_consistent_graph.sh
 bash train_consistent_eager.sh
 ```
 ## Dataset preparation
-Currently OneFlow-WDL supports two types of dataset format: ofrecord and onerec, both can be tranformed from HugeCTR parquet format dataset.
+Currently OneFlow-WDL supports two types of dataset format: ofrecord and parquet, both can be tranformed from HugeCTR parquet format dataset.
 Following two steps to process dataset:
 
 Step 1: [Preprocess the Dataset Through NVTabular](https://github.com/NVIDIA-Merlin/HugeCTR/tree/master/samples/wdl#preprocess-the-dataset-through-nvtabular)
@@ -73,11 +73,11 @@ Run NVTabular docker and execute the following preprocessing command to parquet 
 ```bash
 $ bash preprocess.sh 1 criteo_data nvt 1 0 1 # parquet output
 ```
-Step 2: Convert parquet format dataset to ofrecord or(and) onerec format dataset
+Step 2: Convert parquet format dataset to ofrecord format dataset
 
 This step needs to be executed in the spark 2.4.x environment. Please download the dependent jar package from [here](http://oneflow-public.oss-cn-beijing.aliyuncs.com/tools/spark-oneflow-connector-assembly-0.2.0-SNAPSHOT.jar) first, then launch spark shell environment with this jar support.
 
-In spark shell environment, execute following scripts. You may modify `db_path`(parquet dataset path as input), `output_path`(ofrecord or onerec dataset path for output).
+In spark shell environment, execute following scripts. You may modify `db_path`(parquet dataset path as input), `output_path`(ofrecord dataset path for output).
 ```scala
 import org.oneflow.spark.functions._
 import org.apache.spark.sql.types.{IntegerType}
@@ -111,9 +111,6 @@ def convert_parquet(input_path: String, output_path: String, db_type: String) = 
   df.write.mode("overwrite").ofrecord(path)
   sc.formatFilenameAsOneflowStyle(path)
   
-  path = output_path + "wdl_onerec/" + db_type
-  println(path)
-  df.write.mode("overwrite").onerec(path)
 }
 
 val output_path = "/dataset/8c609a13/day_0/"
