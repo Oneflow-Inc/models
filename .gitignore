@@ -110,7 +110,7 @@ venv.bak/
 
 
 # data
-data/
+data/data/
 images/
 *.tar*
 
@@ -126,7 +126,7 @@ mnist
 
 # pix2pix
 of_pix2pix
-data
+pix2pix2/data
 ofrecord/
 checkpoints/
 of_losses.txt
