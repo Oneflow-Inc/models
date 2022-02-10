@@ -29,5 +29,5 @@ python3 -m oneflow.distributed.launch \
     --data_part_num 256 \
     --data_part_name_suffix_length 5 \
     --execution_mode 'graph' \
-    --test_name 'train_eager_graph_'$DEVICE_NUM_PER_NODE'gpu' > $PREFIX'_n'$NUM_NODES'_g'$DEVICE_NUM_PER_NODE'_b'$BATHSIZE'_h'$HIDDEN_UNITS_NUM'_log_'$PREFIX
+    --test_name 'train_nn_graph_'$DEVICE_NUM_PER_NODE'gpu' > $PREFIX'_n'$NUM_NODES'_g'$DEVICE_NUM_PER_NODE'_b'$BATHSIZE'_h'$HIDDEN_UNITS_NUM'_log_'$PREFIX
 

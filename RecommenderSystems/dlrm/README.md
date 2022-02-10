@@ -11,8 +11,8 @@
     |-- logger.py     #Loger info
 |-- config.py                   #Argument configuration
 |-- train.py              #Python script for train mode
-|-- train_consistent_eager.sh              #Shell script for starting training in eager mode
-|-- train_consistent_graph.sh              #Shell script for starting training in graph mode
+|-- train_global_eager.sh              #Shell script for starting training in eager mode
+|-- train_global_graph.sh              #Shell script for starting training in graph mode
 |-- train_ddp.sh              #Shell script for starting training in ddp mode
 |-- __init__.py
 └── README.md                   #Documentation
@@ -55,13 +55,13 @@ Please view [how_to_make_ofrecord_for_wdl](https://github.com/Oneflow-Inc/OneFlo
 ```
 bash train_ddp.sh
 ```
-### Train by graph mode in consistent view 
+### Train by graph mode in global view 
 ```
-bash train_consistent_graph.sh
+bash train_global_graph.sh
 ```
-### Train by eager mode in consistent view 
+### Train by eager mode in global view 
 ```
-bash train_consistent_eager.sh
+bash train_global_eager.sh
 ```
 ## Dataset preparation
 Currently OneFlow-WDL supports two types of dataset format: ofrecord and parquet, both can be tranformed from HugeCTR parquet format dataset.

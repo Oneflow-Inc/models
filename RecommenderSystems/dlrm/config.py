@@ -125,7 +125,7 @@ def get_args(print_args=True):
     else:
         assert args.eval_batch_size % args.eval_batch_size_per_proc == 0
 
-    args.is_consistent = (
+    args.is_global = (
         flow.env.get_world_size() > 1 and not args.ddp
     ) or args.execution_mode == "graph"
     
