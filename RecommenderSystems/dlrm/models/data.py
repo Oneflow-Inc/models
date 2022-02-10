@@ -6,7 +6,7 @@ import glob
 
 __all__ = ["make_data_loader"]
 
-def make_data_loader(args, mode, is_consistent=False, data_format="ofrecord"):
+def make_data_loader(args, mode, is_global=False, data_format="ofrecord"):
     assert mode in ("train", "val")
 
     total_batch_size = args.batch_size
@@ -17,7 +17,7 @@ def make_data_loader(args, mode, is_consistent=False, data_format="ofrecord"):
     placement = None
     sbp = None
 
-    if is_consistent:
+    if is_global:
         placement = flow.env.all_device_placement("cpu")
         sbp = flow.sbp.split(0)
         batch_size_per_proc = total_batch_size
