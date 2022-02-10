@@ -21,7 +21,7 @@ from utils.plots import Annotator, colors, save_one_box
 from utils.flow_utils import select_device, time_sync
 
 
-model = DetectMultiBackend(weights=ROOT / 'yolov5s.pt', device='cuda:0', dnn=False, data=ROOT / 'data/coco128.yaml')
+model = DetectMultiBackend(weights=ROOT / 'yolov5_ckpt', device='cuda:0', dnn=False, data=ROOT / 'data/coco128.yaml')
 model = model.eval()
 
 # t1 = time_sync()

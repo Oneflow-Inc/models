@@ -88,18 +88,11 @@ def attempt_load(weights, map_location=None, inplace=True, fuse=True):
     # Loads an ensemble of models weights=[a,b,c] or a single model weights=[a] or weights=a
     model = Ensemble()
     for w in weights if isinstance(weights, list) else [weights]:
-        yolo = Model(cfg="/home/baixiaying/Codes/models/Vision/detection/yolov5/models/yolov5s.yaml")
+        yolo = Model()
         ckpt = flow.load("yolov5_ckpt")  # load
         yolo.load_state_dict(ckpt)
         yolo.to(map_location)
         model.append(yolo.eval())
-        # if fuse:
-        #     model.append(ckpt['ema' if ckpt.get('ema') else 'model'].float().fuse().eval())  # FP32 model
-        # else:
-        #     model.append(ckpt['ema' if ckpt.get('ema') else 'model'].float().eval())  # without layer fuse
-    
-        # detect = Detect()
-        # detect.load_state_dict()
     # Compatibility updates
     for m in model.modules():
         if type(m) in [nn.Hardswish, nn.LeakyReLU, nn.ReLU, nn.ReLU6, nn.SiLU, Detect, Model]:
