@@ -31,6 +31,7 @@ im = im.float()
 flow._oneflow_internal.profiler.RangePush('yolov5')
 for i in range(20):
     pred = model(im, augment=False, visualize=False)
+    out = pred.numpy()
 flow._oneflow_internal.profiler.RangePop()
 # t2 = time_sync()
 # flow.save(model.state_dict(), "./yolov5_model")
