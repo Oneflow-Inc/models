@@ -23,21 +23,21 @@ model = model.eval()
 np.random.seed(0)
 im = flow.tensor(np.random.rand(4, 3, 640, 640)).to('cuda:0')
 im = im.float()
-# 预热
-for i in range(5):
-    pred = model(im, augment=False, visualize=False)
-    out = pred.numpy()
-t1 = time_sync()
-flow._oneflow_internal.profiler.RangePush("oneflow-yolov5-infer")
-for i in range(20):
-    flow._oneflow_internal.profiler.RangePush("forward")
-    pred = model(im, augment=False, visualize=False)
+with flow.no_grad()
+    # 预热
+    for i in range(5):
+        pred = model(im, augment=False, visualize=False)
+        out = pred.numpy()
+    t1 = time_sync()
+    # 埋点
+    flow._oneflow_internal.profiler.RangePush("oneflow-yolov5-infer")
+    for i in range(20):
+        flow._oneflow_internal.profiler.RangePush("forward")
+        pred = model(im, augment=False, visualize=False)
+        flow._oneflow_internal.profiler.RangePop()
+        flow._oneflow_internal.profiler.RangePush('.numpy')
+        out = pred.numpy()
+        flow._oneflow_internal.profiler.RangePop()
     flow._oneflow_internal.profiler.RangePop()
-    flow._oneflow_internal.profiler.RangePush('.numpy')
-    out = pred.numpy()
-    flow._oneflow_internal.profiler.RangePop()
-flow._oneflow_internal.profiler.RangePop()
-t2 = time_sync()
-# flow.save(model.state_dict(), "./yolov5_model")
-# np.save(ROOT / "pred_oneflow.npy", out)
+    t2 = time_sync()
 print("time of inference: ", t2 - t1)

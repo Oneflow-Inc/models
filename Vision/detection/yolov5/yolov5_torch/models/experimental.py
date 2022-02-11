@@ -9,7 +9,7 @@ import torch
 import torch.nn as nn
 
 from models.common import Conv
-from utils.downloads import attempt_download
+# from utils.downloads import attempt_download
 
 
 class CrossConv(nn.Module):
@@ -93,11 +93,11 @@ def attempt_load(weights, map_location=None, inplace=True, fuse=False):
     # Loads an ensemble of models weights=[a,b,c] or a single model weights=[a] or weights=a
     model = Ensemble()
     for w in weights if isinstance(weights, list) else [weights]:
-        ckpt = torch.load(attempt_download(w), map_location=map_location)  # load
-        if fuse:
-            model.append(ckpt['ema' if ckpt.get('ema') else 'model'].float().fuse().eval())  # FP32 model
-        else:
-            model.append(ckpt['ema' if ckpt.get('ema') else 'model'].float().eval())  # without layer fuse
+        # ckpt = torch.load(attempt_download(w), map_location=map_location)  # load
+        # model.append(ckpt['ema' if ckpt.get('ema') else 'model'].float().eval())  # without layer fuse
+        yolo = Model()
+        yolo.to(map_location)
+        model.append(yolo.eval())
     # Compatibility updates
     for m in model.modules():
         if type(m) in [nn.Hardswish, nn.LeakyReLU, nn.ReLU, nn.ReLU6, nn.SiLU, Detect, Model]:

@@ -89,8 +89,8 @@ def attempt_load(weights, map_location=None, inplace=True, fuse=True):
     model = Ensemble()
     for w in weights if isinstance(weights, list) else [weights]:
         yolo = Model()
-        ckpt = flow.load("yolov5_ckpt")  # load
-        yolo.load_state_dict(ckpt)
+        # ckpt = flow.load("yolov5_ckpt")  # load
+        # yolo.load_state_dict(ckpt)
         yolo.to(map_location)
         model.append(yolo.eval())
     # Compatibility updates
