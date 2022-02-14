@@ -258,39 +258,8 @@ class ParquetDataLoader(nn.Module):
         dense_fields = flow.cast(dense_fields, flow.float)        
         return labels, dense_fields, sparse_fields
 
-files = ['file://' + name for name in glob.glob('/NVME3/liujuncheng/from_ofrecord/day_0/*.parquet')]
 
-fields = ['label']
-fields += ["I{}".format(i + 1) for i in range(13)]
-fields += ["C{}".format(i + 1) for i in range(26)]
-def get_batches(reader, batch_size):
-    tail = None
-    for rg in reader:
-        rgdict = rg._asdict()
-        rglist = [rgdict[field] for field in fields]
-        pos = 0
-        if tail is not None:
-            pos = batch_size - len(tail[0])
-            tail = list([np.concatenate((tail[i], rglist[i][0:(batch_size - len(tail[i]))])) for i in range(40)])
-            if len(tail[0]) == batch_size:
-                label = tail[0]
-                dense = tail[1:14] #np.stack(tail[1:14], axis=-1)
-                sparse = tail[14:40] #np.stack(tail[14:40], axis=-1)
-                tail = None
-                yield label, dense, sparse
-            else:
-                pos = 0
-                continue
-        while (pos + batch_size) <= len(rglist[0]):
-            label = rglist[0][pos:pos+batch_size]
-            dense = [rglist[j][pos:pos+batch_size] for j in range(1, 14)] #np.stack([rglist[j][pos:pos+batch_size] for j in range(1, 14)], axis=-1)
-            sparse = [rglist[j][pos:pos+batch_size] for j in range(14, 40)] #np.stack([rglist[j][pos:pos+batch_size] for j in range(14, 40)], axis=-1)
-            pos += batch_size
-            yield label, dense, sparse
-        if pos != len(rglist[0]):
-            tail = [rglist[i][pos:] for i in range(40)]
-
-class PetastormDataLoader(nn.Module):
+class PetastormDataLoader():
     def __init__(
         self,
         data_dir: str = "/dataset/wdl_parquet",
@@ -309,12 +278,26 @@ class PetastormDataLoader(nn.Module):
         self.total_batch_size = total_batch_size
         print("batch_size total_batch_size", batch_size, total_batch_size)
         self.mode = mode
-        self.reader = make_batch_reader(files, workers_count=2, shuffle_row_groups=False)
-        self.placement = placement
-        self.sbp = sbp
+        if mode == 'train':
+            files=[]
+            for i in range(23):
+                files += ['file://' + name for name in glob.glob(f'{data_dir}/day_{i}/*.parquet')]
+        elif mode == 'val':
+            files = ['file://' + name for name in glob.glob(f'{data_dir}/day_23/*.parquet')]
+        else:
+            assert 0
+        files.sort()
+        self.reader = make_batch_reader(files, workers_count=2, shuffle_row_groups=shuffle)
+        # self.placement = placement
+        # self.sbp = sbp
         #self.placement = flow.env.all_device_placement("cuda")
         #self.sbp = flow.sbp.split(0)
-        self.batch_generator = get_batches(self.reader, self.batch_size)
+        fields = ['label']
+        fields += [f"I{i+1}" for i in range(num_dense_fields)]
+        fields += [f"C{i+1}" for i in range(num_sparse_fields)]
+        self.fields = fields
+        self.batch_generator = self.get_batches()
+
 
     def forward(self):
         time.sleep(50.0/1000)
@@ -346,6 +329,34 @@ class PetastormDataLoader(nn.Module):
         sparse_fields = flow.cat(sparse_fields_list, dim=1)
         return labels, dense_fields, sparse_fields
 
+    def get_batches(self, batch_size=None):
+        if batch_size is None:
+            batch_size = self.batch_size
+        tail = None
+        for rg in self.reader:
+            rgdict = rg._asdict()
+            rglist = [rgdict[field] for field in self.fields]
+            pos = 0
+            if tail is not None:
+                pos = self.batch_size - len(tail[0])
+                tail = list([np.concatenate((tail[i], rglist[i][0:(batch_size - len(tail[i]))])) for i in range(40)])
+                if len(tail[0]) == batch_size:
+                    label = tail[0]
+                    dense = tail[1:14] #np.stack(tail[1:14], axis=-1)
+                    sparse = tail[14:40] #np.stack(tail[14:40], axis=-1)
+                    tail = None
+                    yield label, dense, sparse
+                else:
+                    pos = 0
+                    continue
+            while (pos + batch_size) <= len(rglist[0]):
+                label = rglist[0][pos:pos+batch_size]
+                dense = [rglist[j][pos:pos+batch_size] for j in range(1, 14)] #np.stack([rglist[j][pos:pos+batch_size] for j in range(1, 14)], axis=-1)
+                sparse = [rglist[j][pos:pos+batch_size] for j in range(14, 40)] #np.stack([rglist[j][pos:pos+batch_size] for j in range(14, 40)], axis=-1)
+                pos += batch_size
+                yield label, dense, sparse
+            if pos != len(rglist[0]):
+                tail = [rglist[i][pos:] for i in range(40)]
 
 if __name__ == "__main__":
     m = ParquetDataLoader("/tank/dataset/criteo_kaggle/dlrm_parquet", batch_size=32, total_batch_size=32)
