@@ -22,7 +22,7 @@ model = model.eval()
 
 # t1 = time_sync()
 np.random.seed(0)
-im = torch.tensor(np.random.rand(1, 3, 640, 640)).to('cuda:0')
+im = torch.tensor(np.random.rand(4, 3, 640, 640)).to('cuda:0')
 im = im.float()
 with torch.no_grad():
     # 预热

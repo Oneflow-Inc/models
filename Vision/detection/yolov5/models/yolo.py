@@ -131,6 +131,9 @@ class Model(nn.Module):
                 x = y[m.f] if isinstance(m.f, int) else [x if j == -1 else y[j] for j in m.f]  # from earlier layers
             flow._oneflow_internal.profiler.RangePush(module_names[i])
             x = m(x)  # run conv1
+            if i == 23:
+                print(type(m))
+                print(x.shape)
             flow._oneflow_internal.profiler.RangePop()
             y.append(x if m.i in self.save else None)  # save output
         return x

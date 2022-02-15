@@ -21,9 +21,9 @@ model = DetectMultiBackend(weights=ROOT / 'yolov5_ckpt', device='cuda:0', dnn=Fa
 model = model.eval()
 
 np.random.seed(0)
-im = flow.tensor(np.random.rand(4, 3, 640, 640)).to('cuda:0')
+im = flow.tensor(np.random.rand(1, 3, 640, 640)).to('cuda:0')
 im = im.float()
-with flow.no_grad()
+with flow.no_grad():
     # 预热
     for i in range(5):
         pred = model(im, augment=False, visualize=False)
