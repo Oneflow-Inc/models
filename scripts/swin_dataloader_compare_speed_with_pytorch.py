@@ -83,6 +83,11 @@ def run(mode, imagenet_path, batch_size, num_wokers):
 
     dataset_train, data_loader_train = build_loader(args.imagenet_path, args.batch_size, args.num_workers)
     data_loader_train_iter = iter(data_loader_train)
+    
+    # warm up
+    for idx in range(5):
+        samples, targets = data_loader_train_iter.__next__()
+
     start_time = time.time()
     for idx in range(200):
         samples, targets = data_loader_train_iter.__next__()
