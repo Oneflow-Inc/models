@@ -15,8 +15,7 @@ import os
 import time
 from collections import defaultdict, deque
 from pathlib import Path
-from numpy import mat
-
+import numpy as np
 import oneflow as flow
 # import oneflow.distributed
 import torch.distributed as dist
@@ -25,8 +24,11 @@ inf = math.inf
 
 
 def reduce_tensor(tensor):
+    print(tensor)
     rt = tensor.clone()
+    print(rt)
     rt = flow.comm.all_reduce(rt)
+    print(rt)
     rt /= flow.env.get_world_size()
     return rt
 
@@ -57,15 +59,17 @@ class SmoothedValue(object):
             return
         t = flow.tensor([self.count, self.total], dtype=flow.float64, device='cuda')
         # dist.barrier() 不确定是否可以直接删除
-        t = reduce_tensor(t)
+        flow.comm.all_reduce(t)
         t = t.tolist()
         self.count = int(t[0])
         self.total = t[1]
 
     @property
     def median(self):
-        d = flow.tensor(list(self.deque))
-        return d.median().item()
+        # d = flow.tensor(list(self.deque))
+        d = np.array(list(self.deque))
+        d = np.median(d)
+        return flow.tensor(d)
 
     @property
     def avg(self):
@@ -148,7 +152,9 @@ class MetricLogger(object):
             'data: {data}'
         ]
         if flow.cuda.is_available():
-            log_msg.append('max mem: {memory:.0f}')
+            # 还未实现
+            # log_msg.append('max mem: {memory:.0f}')
+            pass
         log_msg = self.delimiter.join(log_msg)
         MB = 1024.0 * 1024.0
         for obj in iterable:
@@ -250,10 +256,10 @@ def init_distributed_mode(args):
 
     args.distributed = True
 
-    flow.cuda.set_device(args.gpu)
-    args.dist_backend = 'nccl'
-    print('| distributed init (rank {}): {}, gpu {}'.format(
-        args.rank, args.dist_url, args.gpu), flush=True)
+    # flow.cuda.set_device(args.gpu)
+    # args.dist_backend = 'nccl'
+    # print('| distributed init (rank {}): {}, gpu {}'.format(
+        # args.rank, args.dist_url, args.gpu), flush=True)
     # torch.distributed.init_process_group(backend=args.dist_backend, init_method=args.dist_url,
                                         #  world_size=args.world_size, rank=args.rank)
     # torch.distributed.barrier()
@@ -264,7 +270,8 @@ class NativeScalerWithGradNormCount:
     state_dict_key = "amp_scaler"
 
     def __init__(self):
-        self._scaler = flow.cuda.amp.GradScaler()
+        pass
+        # self._scaler = flow.cuda.amp.GradScaler()
 
     def __call__(self, loss, optimizer, clip_grad=None, parameters=None, create_graph=False, update_grad=True):
         self._scaler.scale(loss).backward(create_graph=create_graph)
@@ -342,7 +349,8 @@ def all_reduce_mean(x):
     if world_size > 1:
         x_reduce = flow.tensor(x).cuda()
         # dist.all_reduce(x_reduce)
-        x_reduce = reduce_tensor(x_reduce)
+        # reduce_tensor(x_reduce)
+        flow.comm.all_reduce(x_reduce)
         # x_reduce /= world_size
         return x_reduce.item()
     else:
