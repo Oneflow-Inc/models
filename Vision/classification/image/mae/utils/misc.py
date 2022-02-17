@@ -18,7 +18,6 @@ from pathlib import Path
 import numpy as np
 import oneflow as flow
 # import oneflow.distributed
-import torch.distributed as dist
 import math
 inf = math.inf
 
