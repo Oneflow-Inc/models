@@ -2,9 +2,7 @@ import os
 import oneflow as flow
 import oneflow.nn as nn
 import glob
-from petastorm.reader import make_batch_reader
-import numpy as np
-import time
+
 
 __all__ = ["make_data_loader"]
 
@@ -48,8 +46,6 @@ def make_data_loader(args, mode, is_global=False, data_format="ofrecord"):
         return OneRecDataLoader(data_dir=args.data_dir, **kps)
     elif data_format == "synthetic":
         return SyntheticDataLoader(**kps)
-    elif data_format == "petastorm":
-        return PetastormDataLoader(**kps)
     else:
         raise ValueError("data format must be one of ofrecord, onerec or synthetic")
 
@@ -102,7 +98,6 @@ class OFRecordDataLoader(nn.Module):
         labels = self.labels(reader)
         dense_fields = self.dense_fields(reader)
         sparse_fields = self.sparse_fields(reader)
-        print("dense_fields shape", dense_fields.shape)
         return labels, dense_fields, sparse_fields
 
 
@@ -258,105 +253,6 @@ class ParquetDataLoader(nn.Module):
         dense_fields = flow.cast(dense_fields, flow.float)        
         return labels, dense_fields, sparse_fields
 
-
-class PetastormDataLoader():
-    def __init__(
-        self,
-        data_dir: str = "/dataset/wdl_parquet",
-        num_dense_fields: int = 13,
-        num_sparse_fields: int = 26,
-        batch_size: int = 1,
-        total_batch_size: int = 1,
-        mode: str = "train",
-        shuffle: bool = True,
-        placement=None,
-        sbp=None,
-    ):
-        super(PetastormDataLoader, self).__init__()
-        assert mode in ("train", "val")
-        self.batch_size = batch_size
-        self.total_batch_size = total_batch_size
-        print("batch_size total_batch_size", batch_size, total_batch_size)
-        self.mode = mode
-        if mode == 'train':
-            files=[]
-            for i in range(23):
-                files += ['file://' + name for name in glob.glob(f'{data_dir}/day_{i}/*.parquet')]
-        elif mode == 'val':
-            files = ['file://' + name for name in glob.glob(f'{data_dir}/day_23/*.parquet')]
-        else:
-            assert 0
-        files.sort()
-        self.reader = make_batch_reader(files, workers_count=2, shuffle_row_groups=shuffle)
-        # self.placement = placement
-        # self.sbp = sbp
-        #self.placement = flow.env.all_device_placement("cuda")
-        #self.sbp = flow.sbp.split(0)
-        fields = ['label']
-        fields += [f"I{i+1}" for i in range(num_dense_fields)]
-        fields += [f"C{i+1}" for i in range(num_sparse_fields)]
-        self.fields = fields
-        self.batch_generator = self.get_batches()
-
-
-    def forward(self):
-        time.sleep(50.0/1000)
-        np_label, np_denses, np_sparses  = next(self.batch_generator)
-        print("label", np_label.shape)
-        print("np_dense", np_denses[0].shape)
-        print("np_sparse", np_sparses[0].shape)
-        labels = flow.tensor(
-                    np_label.reshape(-1,1).astype(np.int32),
-                    dtype = flow.int64,
-                    placement=self.placement,
-                    sbp=self.sbp,
-        )
-        dense_fields_list = []
-        for np_dense in np_denses:
-            dense_fields_list.append(flow.tensor(
-                        np_dense.reshape(-1,1).astype(np.float32),
-                        placement=self.placement,
-                        sbp=self.sbp,
-            ))
-        dense_fields = flow.cat(dense_fields_list, dim=1)
-        sparse_fields_list = []
-        for np_sparse in np_sparses:
-            sparse_fields_list.append(flow.tensor(
-                        np_sparse.reshape(-1,1).astype(np.int64),
-                        placement=self.placement,
-                        sbp=self.sbp,
-            ))
-        sparse_fields = flow.cat(sparse_fields_list, dim=1)
-        return labels, dense_fields, sparse_fields
-
-    def get_batches(self, batch_size=None):
-        if batch_size is None:
-            batch_size = self.batch_size
-        tail = None
-        for rg in self.reader:
-            rgdict = rg._asdict()
-            rglist = [rgdict[field] for field in self.fields]
-            pos = 0
-            if tail is not None:
-                pos = self.batch_size - len(tail[0])
-                tail = list([np.concatenate((tail[i], rglist[i][0:(batch_size - len(tail[i]))])) for i in range(40)])
-                if len(tail[0]) == batch_size:
-                    label = tail[0]
-                    dense = tail[1:14] #np.stack(tail[1:14], axis=-1)
-                    sparse = tail[14:40] #np.stack(tail[14:40], axis=-1)
-                    tail = None
-                    yield label, dense, sparse
-                else:
-                    pos = 0
-                    continue
-            while (pos + batch_size) <= len(rglist[0]):
-                label = rglist[0][pos:pos+batch_size]
-                dense = [rglist[j][pos:pos+batch_size] for j in range(1, 14)] #np.stack([rglist[j][pos:pos+batch_size] for j in range(1, 14)], axis=-1)
-                sparse = [rglist[j][pos:pos+batch_size] for j in range(14, 40)] #np.stack([rglist[j][pos:pos+batch_size] for j in range(14, 40)], axis=-1)
-                pos += batch_size
-                yield label, dense, sparse
-            if pos != len(rglist[0]):
-                tail = [rglist[i][pos:] for i in range(40)]
 
 if __name__ == "__main__":
     m = ParquetDataLoader("/tank/dataset/criteo_kaggle/dlrm_parquet", batch_size=32, total_batch_size=32)

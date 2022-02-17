@@ -57,6 +57,9 @@ def get_args(print_args=True):
     parser.add_argument(
         "--data_dir", type=str, default="/dataset/wdl_ofrecord/ofrecord"
     )
+    parser.add_argument("--train_sub_folders", type=str_list,
+        default=','.join([f'day_{i}' for i in range(23)]))
+    parser.add_argument("--val_sub_folders", type=str_list, default="day_23")
     parser.add_argument('--data_part_name_suffix_length', type=int, default=-1)
     parser.add_argument('--eval_batchs', type=int, default=20)
     parser.add_argument('--eval_batch_size', type=int, default=512)

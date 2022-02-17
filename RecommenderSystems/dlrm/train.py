@@ -6,7 +6,6 @@ import glob
 from petastorm.reader import make_batch_reader
 import numpy as np
 import time
-from models.data import get_batches
 
 sys.path.append(
     os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
@@ -15,6 +14,7 @@ import numpy as np
 from sklearn.metrics import roc_auc_score
 from config import get_args
 from models.data import make_data_loader
+from utils.petastorm_dataloader import make_petastorm_dataloader
 from models.dlrm import make_dlrm_module
 from lr_scheduler import make_lr_scheduler
 from oneflow.nn.parallel import DistributedDataParallel as DDP
@@ -56,8 +56,12 @@ class Trainer(object):
         self.eval_interval = args.eval_interval
         self.eval_batchs = args.eval_batchs
         self.init_logger()
-        self.train_dataloader = make_data_loader(args, "train", self.is_global, self.dataset_format)
-        self.val_dataloader = make_data_loader(args, "val", self.is_global, self.dataset_format)
+        if self.dataset_format == 'petastorm':
+            self.train_dataloader = make_petastorm_dataloader(args, "train")
+            self.val_dataloader = make_petastorm_dataloader(args, "val")
+        else:
+            self.train_dataloader = make_data_loader(args, "train", self.is_global, self.dataset_format)
+            self.val_dataloader = make_data_loader(args, "val", self.is_global, self.dataset_format)
         self.dlrm_module = make_dlrm_module(args)
         if self.is_global:
             self.dlrm_module.to_global(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
@@ -83,15 +87,11 @@ class Trainer(object):
         self.loss = flow.nn.BCELoss(reduction="none").to("cuda")
         if self.execution_mode == "graph":
             if self.dataset_format == 'petastorm':
-                self.eval_graph = DLRMValGraph(
-                    self.dlrm_module, args.use_fp16
-                )
+                self.eval_graph = DLRMValGraph(self.dlrm_module, args.use_fp16)
                 self.train_graph = DLRMTrainGraph(
                     self.dlrm_module, self.loss, self.opt, 
                     self.lr_scheduler, self.grad_scaler, args.use_fp16
                 )
-                self.batch_train_generator = get_batches(make_batch_reader(train_files, workers_count=2, shuffle_row_groups=False), 55296)
-                self.batch_eval_generator = get_batches(make_batch_reader(eval_files, workers_count=2, shuffle_row_groups=False), 32744)
             else:
                 self.eval_graph = DLRMValGraphWithDataloader(
                     self.dlrm_module, self.val_dataloader, args.use_fp16
@@ -200,10 +200,7 @@ class Trainer(object):
         labels = []
         preds = []
         for _ in range(self.eval_batchs):
-            if self.execution_mode == "graph":
-                pred, label = self.graph_eval()
-            else:
-                pred, label = self.eager_eval()
+            pred, label = self.forward()
             label_ = label.numpy().astype(np.float32)
             labels.append(label_)
             preds.append(pred.numpy())
@@ -223,87 +220,45 @@ class Trainer(object):
         if save_model:
             sub_save_dir = f"iter_{self.cur_iter}_val_auc_{auc}"
             self.save(sub_save_dir)
-        # self.dlrm_module.train()
+        self.dlrm_module.train()
 
-    def graph_eval(self):
-        # TODO: ofrecord and petastorm
-        np_label, np_denses, np_sparses  = next(self.batch_eval_generator)
-        in_labels = flow.tensor(
-                    np_label.reshape(-1,1).astype(np.int32),
-                    dtype = flow.int64,
-                    placement=flow.env.all_device_placement("cuda"),
-                    sbp=flow.sbp.split(0),
-        )
-        dense_fields_list = []
-        for np_dense in np_denses:
-            dense_fields_list.append(flow.tensor(
-                        np_dense.reshape(-1,1).astype(np.float32),
-                        placement=flow.env.all_device_placement("cuda"),
-                        sbp=flow.sbp.split(0),
-            ))
-        dense_fields = flow.cat(dense_fields_list, dim=1)
-        sparse_fields_list = []
-        for np_sparse in np_sparses:
-            sparse_fields_list.append(flow.tensor(
-                        np_sparse.reshape(-1,1).astype(np.int64),
-                        placement=flow.env.all_device_placement("cuda"),
-                        sbp=flow.sbp.split(0),
-            ))
-        sparse_fields = flow.cat(sparse_fields_list, dim=1)
-        return self.eval_graph(in_labels, dense_fields, sparse_fields)
-
-    def eager_eval(self):
-        # TODO: ofrecord and petastorm
-        labels, dense_fields, sparse_fields = self.val_dataloader()
+    def load_data(self, dataloader):
+        labels, dense_fields, sparse_fields = dataloader()
         labels = labels.to("cuda")
         dense_fields = dense_fields.to("cuda")
         sparse_fields = sparse_fields.to("cuda")
-        with flow.no_grad():
-            predicts = self.dlrm_module(dense_fields, sparse_fields)
-        return predicts, labels
+        return labels, dense_fields, sparse_fields
 
-    def eager_train_one_step(self):
-        # TODO: ofrecord and petastorm
-        labels, dense_fields, sparse_fields = self.train_dataloader()
-        labels = labels.to("cuda")
-        dense_fields = dense_fields.to("cuda")
-        sparse_fields = sparse_fields.to("cuda")
-        predicts = self.dlrm_module(dense_fields, sparse_fields)
-        loss = self.loss(predicts, labels)
-        loss = flow.mean(loss)
-        loss.backward()
-        self.opt.step()
-        self.opt.zero_grad()
-        return loss
-
-    def graph_train_one_step(self):
-        np_label, np_denses, np_sparses  = next(self.batch_train_generator)
-        np_dense = np.stack(np_denses, axis=-1)
-        np_sparse = np.stack(np_sparses, axis=-1)
-        dense_fields = flow.tensor(
-                    np_dense,
-                    placement=flow.env.all_device_placement("cpu"),
-                    sbp=flow.sbp.split(0),
-        )
-        sparse_fields = flow.tensor(
-                    np_sparse,
-                    placement=flow.env.all_device_placement("cpu"),
-                    sbp=flow.sbp.split(0),
-        )
-        labels = flow.tensor(
-                    np_label.reshape(-1,1),
-                    placement=flow.env.all_device_placement("cpu"),
-                    sbp=flow.sbp.split(0),
-        )
-        return self.train_graph(labels, dense_fields, sparse_fields)
+    def forward(self):
+        if self.execution_mode == "graph":
+            if self.dataset_format == "petastorm":
+                labels, dense_fields, sparse_fields = self.load_data(self.val_dataloader)         
+                return self.eval_graph(labels, dense_fields, sparse_fields)
+            else:
+                return self.eval_graph()
+        else:
+            labels, dense_fields, sparse_fields = self.load_data(self.val_dataloader)
+            with flow.no_grad():
+                predicts = self.dlrm_module(dense_fields, sparse_fields)
+            return predicts, labels
 
     def train_one_step(self):
         self.dlrm_module.train()
         if self.execution_mode == "graph":
-            train_loss = self.graph_train_one_step()
+            if self.dataset_format == "petastorm":
+                labels, dense_fields, sparse_fields = self.load_data(self.train_dataloader)
+                return self.train_graph(labels, dense_fields, sparse_fields)
+            else:
+                return self.train_graph()
         else:
-            train_loss = self.eager_train_one_step()
-        return train_loss
+            labels, dense_fields, sparse_fields = self.load_data(self.train_dataloader)
+            predicts = self.dlrm_module(dense_fields, sparse_fields)
+            loss = self.loss(predicts, labels)
+            loss = flow.mean(loss)
+            loss.backward()
+            self.opt.step()
+            self.opt.zero_grad()
+            return loss
 
 
 def tol(tensor, pure_local=True):

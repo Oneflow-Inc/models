@@ -44,7 +44,7 @@ class DLRMTrainGraph(flow.nn.Graph):
 
 class DLRMValGraphWithDataloader(DLRMValGraph):
     def __init__(self, wdl_module, dataloader, use_fp16=False):
-        super(DLRMValGraphWithDataloader, self).__init__(wdl_module, dataloader, use_fp16)
+        super(DLRMValGraphWithDataloader, self).__init__(wdl_module, use_fp16)
         self.dataloader = dataloader
 
     def build(self):
