@@ -320,7 +320,7 @@ def save_model(args, epoch, model, model_without_ddp, optimizer, loss_scaler=Non
                 'model': model_without_ddp.state_dict(),
                 'optimizer': optimizer.state_dict(),
                 'epoch': epoch,
-                'scaler': loss_scaler.state_dict(),
+                # 'scaler': loss_scaler.state_dict(),
                 'args': args,
             }
 
