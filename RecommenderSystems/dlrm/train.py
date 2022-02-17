@@ -2,10 +2,8 @@ import oneflow as flow
 import os
 import sys
 import pickle
-import glob
 from petastorm.reader import make_batch_reader
 import numpy as np
-import time
 
 sys.path.append(
     os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
@@ -23,12 +21,6 @@ import warnings
 import utils.logger as log
 from utils.auc_calculater import calculate_auc_from_dir
 
-train_files=[]
-for i in range(23):
-    train_files += ['file://' + name for name in glob.glob('/NVME3/liujuncheng/from_ofrecord_int/day_{}/*.parquet'.format(i))]
-train_files.sort()
-eval_files = ['file://' + name for name in glob.glob('/NVME3/liujuncheng/from_ofrecord_int/day_23/*.parquet')]
-eval_files.sort()
 
 class Trainer(object):
     def __init__(self):
