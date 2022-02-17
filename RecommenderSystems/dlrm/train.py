@@ -2,7 +2,6 @@ import oneflow as flow
 import os
 import sys
 import pickle
-from petastorm.reader import make_batch_reader
 import numpy as np
 
 sys.path.append(
