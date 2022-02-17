@@ -312,7 +312,8 @@ def get_grad_norm_(parameters, norm_type: float = 2.0) -> flow.Tensor:
 def save_model(args, epoch, model, model_without_ddp, optimizer, loss_scaler=None):
     output_dir = Path(args.output_dir)
     epoch_name = str(epoch)
-    if loss_scaler is not None:
+    # if loss_scaler is not None:
+    if True:
         checkpoint_paths = [output_dir / ('checkpoint-%s.pth' % epoch_name)]
         for checkpoint_path in checkpoint_paths:
             to_save = {
