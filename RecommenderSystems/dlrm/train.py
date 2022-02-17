@@ -190,7 +190,7 @@ class Trainer(object):
         labels = []
         preds = []
         for _ in range(self.eval_batchs):
-            pred, label = self.forward()
+            pred, label = self.inference()
             label_ = label.numpy().astype(np.float32)
             labels.append(label_)
             preds.append(pred.numpy())
@@ -219,7 +219,7 @@ class Trainer(object):
         sparse_fields = sparse_fields.to("cuda")
         return labels, dense_fields, sparse_fields
 
-    def forward(self):
+    def inference(self):
         if self.execution_mode == "graph":
             if self.dataset_format == "petastorm":
                 labels, dense_fields, sparse_fields = self.load_data(self.val_dataloader)         
