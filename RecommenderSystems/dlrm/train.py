@@ -48,7 +48,6 @@ class Trainer(object):
         self.init_logger()
         if self.dataset_format == 'petastorm':
             self.train_dataloader = make_petastorm_dataloader(args, "train")
-            # self.val_dataloader = make_petastorm_dataloader(args, "val")
         else:
             self.train_dataloader = make_data_loader(args, "train", self.is_global, self.dataset_format)
             self.val_dataloader = make_data_loader(args, "val", self.is_global, self.dataset_format)
