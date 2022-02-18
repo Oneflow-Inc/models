@@ -137,6 +137,13 @@ def get_args(print_args=True):
         args.eval_save_dir = os.path.join(args.eval_save_dir, f'eval_results-{time_str}')
         if not os.path.exists(args.eval_save_dir):
             os.makedirs(args.eval_save_dir)
+
+    if args.embedding_type == 'Embedding':
+        if args.vocab_size <= 0:
+            assert len(args.column_size_array) > 0
+            args.vocab_size = sum(args.column_size_array)
+        assert args.vocab_size > 0, "vocab size must be greater than 0."
+
     if print_args and flow.env.get_rank() == 0:
         _print_args(args)
     return args
