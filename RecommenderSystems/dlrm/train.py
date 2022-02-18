@@ -74,7 +74,7 @@ class Trainer(object):
                 growth_interval=2000,
             )
 
-        self.loss = flow.nn.BCELoss(reduction="none").to("cuda")
+        self.loss = flow.nn.BCEWithLogitsLoss(reduction="none").to("cuda")
         if self.execution_mode == "graph":
             if self.dataset_format == 'petastorm':
                 self.eval_graph = DLRMValGraph(self.dlrm_module, args.use_fp16)
@@ -190,7 +190,8 @@ class Trainer(object):
         labels = []
         preds = []
         for _ in range(self.eval_batchs):
-            pred, label = self.inference()
+            logits, label = self.inference()
+            pred = logits.sigmoid()
             label_ = label.numpy().astype(np.float32)
             labels.append(label_)
             preds.append(pred.numpy())
@@ -242,8 +243,8 @@ class Trainer(object):
                 return self.train_graph()
         else:
             labels, dense_fields, sparse_fields = self.load_data(self.train_dataloader)
-            predicts = self.dlrm_module(dense_fields, sparse_fields)
-            loss = self.loss(predicts, labels)
+            logits = self.dlrm_module(dense_fields, sparse_fields)
+            loss = self.loss(logits, labels)
             loss = flow.mean(loss)
             loss.backward()
             self.opt.step()
