@@ -10,10 +10,11 @@ import numpy as np
 from sklearn.metrics import roc_auc_score
 from config import get_args
 from models.data import make_data_loader
+from utils.petastorm_dataloader import make_petastorm_dataloader
 from models.dlrm import make_dlrm_module
 from lr_scheduler import make_lr_scheduler
 from oneflow.nn.parallel import DistributedDataParallel as DDP
-from graph import DLRMValGraph, DLRMTrainGraph
+from graph import DLRMTrainGraphWithDataloader, DLRMValGraph, DLRMTrainGraph, DLRMValGraphWithDataloader
 import warnings
 import utils.logger as log
 from utils.auc_calculater import calculate_auc_from_dir
@@ -45,8 +46,12 @@ class Trainer(object):
         self.eval_interval = args.eval_interval
         self.eval_batchs = args.eval_batchs
         self.init_logger()
-        self.train_dataloader = make_data_loader(args, "train", self.is_global, self.dataset_format)
-        self.val_dataloader = make_data_loader(args, "val", self.is_global, self.dataset_format)
+        if self.dataset_format == 'petastorm':
+            self.train_dataloader = make_petastorm_dataloader(args, "train")
+            self.val_dataloader = make_petastorm_dataloader(args, "val")
+        else:
+            self.train_dataloader = make_data_loader(args, "train", self.is_global, self.dataset_format)
+            self.val_dataloader = make_data_loader(args, "val", self.is_global, self.dataset_format)
         self.dlrm_module = make_dlrm_module(args)
         if self.is_global:
             self.dlrm_module.to_global(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
@@ -71,13 +76,20 @@ class Trainer(object):
 
         self.loss = flow.nn.BCELoss(reduction="none").to("cuda")
         if self.execution_mode == "graph":
-            self.eval_graph = DLRMValGraph(
-                self.dlrm_module, self.val_dataloader, args.use_fp16
-            )
-            self.train_graph = DLRMTrainGraph(
-                self.dlrm_module, self.train_dataloader, self.loss, self.opt, 
-                self.lr_scheduler, self.grad_scaler, args.use_fp16
-            )
+            if self.dataset_format == 'petastorm':
+                self.eval_graph = DLRMValGraph(self.dlrm_module, args.use_fp16)
+                self.train_graph = DLRMTrainGraph(
+                    self.dlrm_module, self.loss, self.opt, 
+                    self.lr_scheduler, self.grad_scaler, args.use_fp16
+                )
+            else:
+                self.eval_graph = DLRMValGraphWithDataloader(
+                    self.dlrm_module, self.val_dataloader, args.use_fp16
+                )
+                self.train_graph = DLRMTrainGraphWithDataloader(
+                    self.dlrm_module, self.train_dataloader, self.loss, self.opt, 
+                    self.lr_scheduler, self.grad_scaler, args.use_fp16
+                )
 
     def init_model(self):
         args = self.args
@@ -178,10 +190,7 @@ class Trainer(object):
         labels = []
         preds = []
         for _ in range(self.eval_batchs):
-            if self.execution_mode == "graph":
-                pred, label = self.eval_graph()
-            else:
-                pred, label = self.inference()
+            pred, label = self.inference()
             label_ = label.numpy().astype(np.float32)
             labels.append(label_)
             preds.append(pred.numpy())
@@ -203,49 +212,43 @@ class Trainer(object):
             self.save(sub_save_dir)
         self.dlrm_module.train()
 
+    def load_data(self, dataloader):
+        labels, dense_fields, sparse_fields = dataloader()
+        labels = labels.to("cuda")
+        dense_fields = dense_fields.to("cuda")
+        sparse_fields = sparse_fields.to("cuda")
+        return labels, dense_fields, sparse_fields
+
     def inference(self):
-        (
-            labels,
-            dense_fields,
-            sparse_fields,
-        ) = self.val_dataloader()
-        labels = labels.to("cuda")
-        dense_fields = dense_fields.to("cuda")
-        sparse_fields = sparse_fields.to("cuda")
-        with flow.no_grad():
-            predicts = self.dlrm_module(
-                dense_fields, sparse_fields
-            )
-        return predicts, labels
-
-    def forward(self):
-        (
-            labels,
-            dense_fields,
-            sparse_fields,
-        ) = self.train_dataloader()
-        labels = labels.to("cuda")
-        dense_fields = dense_fields.to("cuda")
-        sparse_fields = sparse_fields.to("cuda")
-        predicts = self.dlrm_module(dense_fields, sparse_fields)
-        loss = self.loss(predicts, labels)
-        reduce_loss = flow.mean(loss)
-        return reduce_loss
-
-    def train_eager(self):
-        loss = self.forward()
-        loss.backward()
-        self.opt.step()
-        self.opt.zero_grad()
-        return loss
+        if self.execution_mode == "graph":
+            if self.dataset_format == "petastorm":
+                labels, dense_fields, sparse_fields = self.load_data(self.val_dataloader)         
+                return self.eval_graph(labels, dense_fields, sparse_fields)
+            else:
+                return self.eval_graph()
+        else:
+            labels, dense_fields, sparse_fields = self.load_data(self.val_dataloader)
+            with flow.no_grad():
+                predicts = self.dlrm_module(dense_fields, sparse_fields)
+            return predicts, labels
 
     def train_one_step(self):
         self.dlrm_module.train()
         if self.execution_mode == "graph":
-            train_loss = self.train_graph()
+            if self.dataset_format == "petastorm":
+                labels, dense_fields, sparse_fields = self.load_data(self.train_dataloader)
+                return self.train_graph(labels, dense_fields, sparse_fields)
+            else:
+                return self.train_graph()
         else:
-            train_loss = self.train_eager()
-        return train_loss
+            labels, dense_fields, sparse_fields = self.load_data(self.train_dataloader)
+            predicts = self.dlrm_module(dense_fields, sparse_fields)
+            loss = self.loss(predicts, labels)
+            loss = flow.mean(loss)
+            loss.backward()
+            self.opt.step()
+            self.opt.zero_grad()
+            return loss
 
 
 def tol(tensor, pure_local=True):
