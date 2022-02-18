@@ -211,7 +211,6 @@ class DLRMModule(nn.Module):
         feature_size = self.interaction.output_feature_size(args.embedding_vec_size, args.bottom_mlp[-1])        
         self.top_mlp = MLP(feature_size, args.top_mlp)
         self.scores = nn.Linear(args.top_mlp[-1], 1)
-        self.sigmoid = nn.Sigmoid()
 
 
     def forward(self, dense_fields, sparse_fields) -> flow.Tensor:
@@ -223,7 +222,7 @@ class DLRMModule(nn.Module):
         features = self.interaction(dense_fields, embedding)
         features = self.top_mlp(features)
         scores = self.scores(features)
-        return self.sigmoid(scores)
+        return scores
 
 
 def make_dlrm_module(args):
