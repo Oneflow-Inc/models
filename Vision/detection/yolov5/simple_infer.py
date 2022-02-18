@@ -31,7 +31,7 @@ with flow.no_grad():
     t1 = time_sync()
     # 埋点
     flow._oneflow_internal.profiler.RangePush("oneflow-yolov5-infer")
-    for i in range(20):
+    for i in range(4000):
         flow._oneflow_internal.profiler.RangePush("forward")
         pred = model(im, augment=False, visualize=False)
         flow._oneflow_internal.profiler.RangePop()

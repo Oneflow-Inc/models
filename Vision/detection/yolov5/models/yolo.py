@@ -40,16 +40,41 @@ class Detect(nn.Module):
             flow._oneflow_internal.profiler.RangePop()
             bs, _, ny, nx = x[i].shape  # x(bs,255,20,20) to x(bs,3,20,20,85)
             x[i] = x[i].view(bs, self.na, self.no, ny, nx).permute(0, 1, 3, 4, 2).contiguous()
+            # if not self.training:  # inference
+            #     if self.onnx_dynamic or self.grid[i].shape[2:4] != x[i].shape[2:4]:
+            #         self.grid[i], self.anchor_grid[i] = self._make_grid(nx, ny, i)
+            #         self.grid[i] = self.grid[i].to(x[i].device)
+
+            #     y = x[i].sigmoid()
+            #     xy = (y[..., 0:2] * 2 - 0.5 + self.grid[i]) * self.stride[i]  # xy
+            #     wh = (y[..., 2:4] * 2) ** 2 * self.anchor_grid[i]  # wh
+            #     y = flow.cat((xy, wh, y[..., 4:]), -1)
+            #     z.append(y.view(bs, -1, self.no))
             if not self.training:  # inference
+                flow._oneflow_internal.profiler.RangePush('onnx_dynamic')
                 if self.onnx_dynamic or self.grid[i].shape[2:4] != x[i].shape[2:4]:
                     self.grid[i], self.anchor_grid[i] = self._make_grid(nx, ny, i)
                     self.grid[i] = self.grid[i].to(x[i].device)
+                flow._oneflow_internal.profiler.RangePop()
 
+                flow._oneflow_internal.profiler.RangePush('sigmoid')
                 y = x[i].sigmoid()
+                flow._oneflow_internal.profiler.RangePop()
+                flow._oneflow_internal.profiler.RangePush('xy')
                 xy = (y[..., 0:2] * 2 - 0.5 + self.grid[i]) * self.stride[i]  # xy
+
+                flow._oneflow_internal.profiler.RangePop()
+                flow._oneflow_internal.profiler.RangePush('wh')
                 wh = (y[..., 2:4] * 2) ** 2 * self.anchor_grid[i]  # wh
+
+                flow._oneflow_internal.profiler.RangePop()
+                flow._oneflow_internal.profiler.RangePush('cat+slice')
                 y = flow.cat((xy, wh, y[..., 4:]), -1)
+                flow._oneflow_internal.profiler.RangePop()
+                flow._oneflow_internal.profiler.RangePush('view')
+                # print(y.view(bs, -1, self.no).shape)
                 z.append(y.view(bs, -1, self.no))
+                flow._oneflow_internal.profiler.RangePop()
 
         return x if self.training else (flow.cat(z, 1), x)
 
@@ -131,9 +156,6 @@ class Model(nn.Module):
                 x = y[m.f] if isinstance(m.f, int) else [x if j == -1 else y[j] for j in m.f]  # from earlier layers
             flow._oneflow_internal.profiler.RangePush(module_names[i])
             x = m(x)  # run conv1
-            if i == 23:
-                print(type(m))
-                print(x.shape)
             flow._oneflow_internal.profiler.RangePop()
             y.append(x if m.i in self.save else None)  # save output
         return x
