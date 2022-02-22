@@ -2,6 +2,7 @@ import oneflow as flow
 import os
 import sys
 import pickle
+from threading import Thread
 
 sys.path.append(
     os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
@@ -18,6 +19,13 @@ from graph import DLRMTrainGraphWithDataloader, DLRMValGraph, DLRMTrainGraph, DL
 import warnings
 import utils.logger as log
 from utils.auc_calculater import calculate_auc_from_dir
+
+
+def async_function(f):
+    def wrapper(*args, **kwargs):
+        thr = Thread(target=f, args=args, kwargs=kwargs)
+        thr.start()
+    return wrapper
 
 
 class Trainer(object):
@@ -122,6 +130,7 @@ class Trainer(object):
         if do_print:
             self.train_logger.print_metrics()
 
+    @async_function
     def meter_train_iter(self, loss):
         do_print = (
             self.cur_iter % self.loss_print_every_n_iter == 0
