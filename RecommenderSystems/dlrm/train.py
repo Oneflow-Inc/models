@@ -145,8 +145,7 @@ class Trainer(object):
                 last_time = time.time()
 
         if self.eval_after_training:
-            if self.cur_iter % self.eval_interval != 0:
-                self.eval(True)
+            self.eval(True)
             if self.args.eval_save_dir != '' and self.rank == 0:
                 calculate_auc_from_dir(self.args.eval_save_dir)
 
