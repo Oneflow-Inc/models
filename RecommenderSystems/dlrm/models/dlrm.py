@@ -10,12 +10,12 @@ __all__ = ["make_dlrm_module"]
 
 
 class Dense(nn.Module):
-    def __init__(self, in_features: int, out_features: int, last_act='relu') -> None:
+    def __init__(self, in_features: int, out_features: int, relu=True) -> None:
         super(Dense, self).__init__()
         self.features = nn.Sequential(
             nn.Linear(in_features, out_features),
             nn.ReLU(inplace=True),
-        ) if last_act == 'relu' else nn.Linear(in_features, out_features)
+        ) if relu else nn.Linear(in_features, out_features)
         for name, param in self.named_parameters():
             if name.endswith("weight"):
                 nn.init.normal_(param, 0.0, np.sqrt(2 / (in_features + out_features)))
@@ -210,7 +210,7 @@ class DLRMModule(nn.Module):
         self.interaction = Interaction(args.interaction_type, args.interaction_itself, args.num_sparse_fields)
         feature_size = self.interaction.output_feature_size(args.embedding_vec_size, args.bottom_mlp[-1])        
         self.top_mlp = MLP(feature_size, args.top_mlp)
-        self.scores = Dense(args.top_mlp[-1], 1, last_act=None)
+        self.scores = Dense(args.top_mlp[-1], 1, relu=False)
 
 
     def forward(self, dense_fields, sparse_fields) -> flow.Tensor:
