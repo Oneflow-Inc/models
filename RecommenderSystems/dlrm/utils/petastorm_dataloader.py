@@ -2,6 +2,8 @@ import os
 import oneflow as flow
 import glob
 import numpy as np
+import warnings
+warnings.filterwarnings("ignore", category=FutureWarning)
 from petastorm.reader import make_batch_reader
 
 

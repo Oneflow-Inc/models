@@ -1,8 +1,8 @@
 import oneflow as flow
 import os
 import sys
+import time
 import pickle
-from threading import Thread
 
 sys.path.append(
     os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
@@ -17,15 +17,7 @@ from lr_scheduler import make_lr_scheduler
 from oneflow.nn.parallel import DistributedDataParallel as DDP
 from graph import DLRMTrainGraphWithDataloader, DLRMValGraph, DLRMTrainGraph, DLRMValGraphWithDataloader
 import warnings
-import utils.logger as log
 from utils.auc_calculater import calculate_auc_from_dir
-
-
-def async_function(f):
-    def wrapper(*args, **kwargs):
-        thr = Thread(target=f, args=args, kwargs=kwargs)
-        thr.start()
-    return wrapper
 
 
 class Trainer(object):
@@ -53,7 +45,6 @@ class Trainer(object):
         self.cur_iter = 0
         self.eval_interval = args.eval_interval
         self.eval_batchs = args.eval_batchs
-        self.init_logger()
         if self.dataset_format == 'petastorm':
             self.train_dataloader = make_petastorm_dataloader(args, "train")
         else:
@@ -107,45 +98,6 @@ class Trainer(object):
         if self.save_init and args.model_save_dir != "":
             self.save("initial_checkpoint")
 
-    def init_logger(self):
-        print_ranks = [0]
-        self.train_logger = log.make_logger(self.rank, print_ranks)
-        self.train_logger.register_metric("iter", log.IterationMeter(), "iter: {}/{}")
-        self.train_logger.register_metric("loss", log.AverageMeter(), "loss: {:.16f}", True)
-        self.train_logger.register_metric("latency", log.LatencyMeter(), "latency(ms): {:.16f}", True)
-
-        self.val_logger = log.make_logger(self.rank, print_ranks)
-        self.val_logger.register_metric("iter", log.IterationMeter(), "iter: {}/{}")
-        self.val_logger.register_metric("auc", log.IterationMeter(), "eval_auc: {}")
-
-    def meter(
-        self,
-        loss=None,
-        do_print=False,
-    ):
-        self.train_logger.meter("iter", (self.cur_iter, self.max_iter))
-        if loss is not None:
-            self.train_logger.meter("loss", loss)
-        self.train_logger.meter("latency")
-        if do_print:
-            self.train_logger.print_metrics()
-
-    @async_function
-    def meter_train_iter(self, loss):
-        do_print = (
-            self.cur_iter % self.loss_print_every_n_iter == 0
-        )
-        self.meter(
-            loss=loss,
-            do_print=do_print,
-        )
-
-    def meter_eval(self, auc):
-        self.val_logger.meter("iter", (self.cur_iter, self.max_iter))
-        if auc is not None:
-            self.val_logger.meter("auc", auc)
-        self.val_logger.print_metrics()
-
 
     def load_state_dict(self):
         print(f"Loading model from {self.args.model_load_dir}")
@@ -176,18 +128,25 @@ class Trainer(object):
 
     def train(self):
         self.dlrm_module.train()
+        last_iter, last_time = 0, time.time()
         for _ in range(self.max_iter):
             self.cur_iter += 1
             loss = self.train_one_step()
 
-            loss = tol(loss)
-
-            self.meter_train_iter(loss)
+            if self.cur_iter % self.loss_print_every_n_iter == 0 and self.rank == 0:
+                loss = tol(loss).mean().numpy()
+                latency_ms = 1000 * (time.time() - last_time) / (self.cur_iter - last_iter)
+                last_iter, last_time = 0, time.time()
+                strtime = time.strftime("%Y-%m-%d %H:%M:%S")
+                print(f'Iter {self.cur_iter}, Loss {loss:0.4f}, Latency_ms {latency_ms:0.3f}, {strtime}')
 
             if self.eval_interval > 0 and self.cur_iter % self.eval_interval == 0:
                 self.eval(self.save_model_after_each_eval)
+                last_time = time.time()
+
         if self.eval_after_training:
-            self.eval(True)
+            if self.cur_iter % self.eval_interval != 0:
+                self.eval(True)
             if self.args.eval_save_dir != '' and self.rank == 0:
                 calculate_auc_from_dir(self.args.eval_save_dir)
 
@@ -212,12 +171,15 @@ class Trainer(object):
                     obj = {'labels': labels, 'preds': preds, 'iter': self.cur_iter}
                     pickle.dump(obj, f, protocol=pickle.HIGHEST_PROTOCOL)
             auc = roc_auc_score(label_, pred.numpy())
-            # auc = 'nc'
         else:
             labels = np.concatenate(labels, axis=0)
             preds = np.concatenate(preds, axis=0)
             auc = roc_auc_score(labels, preds)
-        self.meter_eval(auc)
+        
+        if self.rank == 0:
+            strtime = time.strftime("%Y-%m-%d %H:%M:%S")
+            print(f'Iter {self.cur_iter}, AUC {auc:0.5f}, {strtime}')
+
         if save_model:
             sub_save_dir = f"iter_{self.cur_iter}_val_auc_{auc}"
             self.save(sub_save_dir)
