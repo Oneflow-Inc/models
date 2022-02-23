@@ -161,10 +161,9 @@ class Trainer(object):
         for _ in range(self.eval_batchs):
             logits, label = self.inference()
             pred = logits.sigmoid()
-            if self.rank == 0:
-                label_ = label.numpy().astype(np.float32)
-                labels.append(label_)
-                preds.append(pred.numpy())
+            label_ = label.numpy().astype(np.float32)
+            labels.append(label_)
+            preds.append(pred.numpy())
 
         if self.rank == 0:
             if self.args.eval_save_dir != '':
