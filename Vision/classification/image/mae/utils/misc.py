@@ -270,6 +270,7 @@ class NativeScalerWithGradNormCount:
     def __init__(self):
         pass
         # self._scaler = flow.cuda.amp.GradScaler()
+        # self._scaler = flow.cuda.GradScaler()
 
     def __call__(self, loss, optimizer, clip_grad=None, parameters=None, create_graph=False, update_grad=True):
         self._scaler.scale(loss).backward(create_graph=create_graph)
@@ -277,7 +278,7 @@ class NativeScalerWithGradNormCount:
             if clip_grad is not None:
                 assert parameters is not None
                 self._scaler.unscale_(optimizer)  # unscale the gradients of optimizer's assigned params in-place
-                norm = torch.nn.utils.clip_grad_norm_(parameters, clip_grad)
+                norm = flow.nn.utils.clip_grad_norm_(parameters, clip_grad)
             else:
                 self._scaler.unscale_(optimizer)
                 norm = get_grad_norm_(parameters)
