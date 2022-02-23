@@ -161,24 +161,25 @@ class Trainer(object):
         for _ in range(self.eval_batchs):
             logits, label = self.inference()
             pred = logits.sigmoid()
-            label_ = label.numpy().astype(np.float32)
-            labels.append(label_)
-            preds.append(pred.numpy())
-        if self.args.eval_save_dir != '':
             if self.rank == 0:
+                label_ = label.numpy().astype(np.float32)
+                labels.append(label_)
+                preds.append(pred.numpy())
+
+        if self.rank == 0:
+            if self.args.eval_save_dir != '':
                 pf = os.path.join(self.args.eval_save_dir, f'iter_{self.cur_iter}.pkl')
                 with open(pf, 'wb') as f:
                     obj = {'labels': labels, 'preds': preds, 'iter': self.cur_iter}
                     pickle.dump(obj, f, protocol=pickle.HIGHEST_PROTOCOL)
-            auc = roc_auc_score(label_, pred.numpy())
-        else:
-            labels = np.concatenate(labels, axis=0)
-            preds = np.concatenate(preds, axis=0)
-            auc = roc_auc_score(labels, preds)
+                auc = roc_auc_score(label_, pred.numpy())
+            else:
+                labels = np.concatenate(labels, axis=0)
+                preds = np.concatenate(preds, axis=0)
+                auc = roc_auc_score(labels, preds)
         
-        if self.rank == 0:
             strtime = time.strftime("%Y-%m-%d %H:%M:%S")
-            print(f'Iter {self.cur_iter}, AUC {auc:0.5f}, {strtime}')
+            print(f'Iter {self.cur_iter}, AUC {auc:0.5f}, #Samples {labels.shape[0]}, {strtime}')
 
         if save_model:
             sub_save_dir = f"iter_{self.cur_iter}_val_auc_{auc}"
