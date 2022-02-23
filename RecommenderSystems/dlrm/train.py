@@ -136,7 +136,6 @@ class Trainer(object):
             if self.cur_iter % self.loss_print_every_n_iter == 0:
                 loss = tol(loss, False).numpy()
                 if self.rank == 0:
-                    # loss = loss.cpu().numpy()
                     latency_ms = 1000 * (time.time() - last_time) / (self.cur_iter - last_iter)
                     last_iter, last_time = 0, time.time()
                     strtime = time.strftime("%Y-%m-%d %H:%M:%S")
