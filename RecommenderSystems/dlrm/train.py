@@ -134,7 +134,7 @@ class Trainer(object):
             loss = self.train_one_step()
 
             if self.cur_iter % self.loss_print_every_n_iter == 0:
-                loss = tol(loss, False).numpy()
+                loss = loss.numpy()
                 if self.rank == 0:
                     latency_ms = 1000 * (time.time() - last_time) / (self.cur_iter - last_iter)
                     last_iter, last_time = 0, time.time()
@@ -222,17 +222,6 @@ class Trainer(object):
             self.opt.step()
             self.opt.zero_grad()
             return loss
-
-
-def tol(tensor, pure_local=True):
-    """ to local """
-    if tensor.is_global:
-        if pure_local:
-            tensor = tensor.to_local()
-        else:
-            tensor = tensor.to_global(sbp=flow.sbp.broadcast).to_local()
-
-    return tensor
 
 
 if __name__ == "__main__":
