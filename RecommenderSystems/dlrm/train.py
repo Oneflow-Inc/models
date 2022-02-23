@@ -133,12 +133,14 @@ class Trainer(object):
             self.cur_iter += 1
             loss = self.train_one_step()
 
-            if self.cur_iter % self.loss_print_every_n_iter == 0 and self.rank == 0:
-                loss = tol(loss).mean().numpy()
-                latency_ms = 1000 * (time.time() - last_time) / (self.cur_iter - last_iter)
-                last_iter, last_time = 0, time.time()
-                strtime = time.strftime("%Y-%m-%d %H:%M:%S")
-                print(f'Iter {self.cur_iter}, Loss {loss:0.4f}, Latency_ms {latency_ms:0.3f}, {strtime}')
+            if self.cur_iter % self.loss_print_every_n_iter == 0:
+                loss = tol(loss, False).numpy()
+                if self.rank == 0:
+                    # loss = loss.cpu().numpy()
+                    latency_ms = 1000 * (time.time() - last_time) / (self.cur_iter - last_iter)
+                    last_iter, last_time = 0, time.time()
+                    strtime = time.strftime("%Y-%m-%d %H:%M:%S")
+                    print(f'Iter {self.cur_iter}, Loss {loss:0.4f}, Latency_ms {latency_ms:0.3f}, {strtime}')
 
             if self.eval_interval > 0 and self.cur_iter % self.eval_interval == 0:
                 self.eval(self.save_model_after_each_eval)
