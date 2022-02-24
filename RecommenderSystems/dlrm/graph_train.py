@@ -12,7 +12,7 @@ sys.path.append(
 )
 from config import get_args
 from crieto_dataset_util import CrietoDatasetContextManager
-from models.dlrm import make_dlrm_module
+from dlrm import make_dlrm_module
 from lr_scheduler import make_lr_scheduler
 # from graph import DLRMValGraph, DLRMTrainGraph
 
