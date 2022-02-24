@@ -16,7 +16,6 @@ def make_petastorm_dataloader(args, mode):
         num_sparse_fields=args.num_sparse_fields,
         batch_size=args.batch_size_per_proc if mode=='train' else args.eval_batch_size_per_proc,
         mode=mode,
-        is_global=args.is_global,    
     )
 
 
@@ -28,13 +27,11 @@ class PetastormDataLoader():
         num_sparse_fields: int = 26,
         batch_size: int = 16,
         mode: str = "train",
-        is_global = False,
     ):
         assert mode in ("train", "val")
 
-        self.is_global = is_global
-        self.placement = flow.env.all_device_placement("cpu") if is_global else None
-        self.sbp = flow.sbp.split(0) if is_global else None
+        self.placement = flow.env.all_device_placement("cuda")
+        self.sbp = flow.sbp.split(0)
 
         files = []
         for folder in subfolders:
@@ -65,10 +62,9 @@ class PetastormDataLoader():
         labels = flow.tensor(np_label.reshape(-1, 1), dtype=flow.float)
         dense_fields = flow.tensor(np_dense, dtype=flow.float)
         sparse_fields = flow.tensor(np_sparse, dtype=flow.int32)
-        if self.is_global:
-            labels = labels.to_global(placement=self.placement, sbp=self.sbp)
-            dense_fields = dense_fields.to_global(placement=self.placement, sbp=self.sbp)
-            sparse_fields = sparse_fields.to_global(placement=self.placement, sbp=self.sbp)
+        labels = labels.to_global(placement=self.placement, sbp=self.sbp)
+        dense_fields = dense_fields.to_global(placement=self.placement, sbp=self.sbp)
+        sparse_fields = sparse_fields.to_global(placement=self.placement, sbp=self.sbp)
         return labels, dense_fields, sparse_fields
 
     def get_batches(self, batch_size=None):
@@ -115,7 +111,6 @@ if __name__ == "__main__":
     args.num_sparse_fields = 26
     args.batch_size_per_proc = 16
     args.eval_batch_size_per_proc = 32
-    args.is_global = True
 
     # subfolders = 
     m = make_petastorm_dataloader(args, mode='train')

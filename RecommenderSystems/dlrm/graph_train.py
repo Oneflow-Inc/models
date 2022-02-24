@@ -30,7 +30,6 @@ class Trainer(object):
         self.eval_after_training = args.eval_after_training
         self.max_iter = args.max_iter
         self.loss_print_every_n_iter = args.loss_print_every_n_iter
-        self.is_global = args.is_global
         self.rank = flow.env.get_rank()
         self.world_size = flow.env.get_world_size()
         self.cur_iter = 0
@@ -38,11 +37,8 @@ class Trainer(object):
         self.eval_batchs = args.eval_batchs
         self.train_dataloader = make_petastorm_dataloader(args, "train")
         self.dlrm_module = make_dlrm_module(args)
-        if self.is_global:
-            self.dlrm_module.to_global(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
-            self.dlrm_module.embedding.set_model_parallel(flow.env.all_device_placement("cuda"))
-        else:
-            self.dlrm_module.to("cuda")
+        self.dlrm_module.to_global(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
+        self.dlrm_module.embedding.set_model_parallel(flow.env.all_device_placement("cuda"))
         self.init_model()
         # self.opt = flow.optim.Adam(
         self.opt = flow.optim.SGD(
@@ -75,12 +71,7 @@ class Trainer(object):
 
     def load_state_dict(self):
         print(f"Loading model from {self.args.model_load_dir}")
-        if self.is_global:
-            state_dict = flow.load(self.args.model_load_dir, global_src_rank=0)
-        elif self.rank == 0:
-            state_dict = flow.load(self.args.model_load_dir)
-        else:
-            return
+        state_dict = flow.load(self.args.model_load_dir, global_src_rank=0)
         self.dlrm_module.load_state_dict(state_dict, strict=False)
 
     def save(self, subdir):
@@ -90,12 +81,7 @@ class Trainer(object):
         if self.rank == 0:
             print(f"Saving model to {save_path}")
         state_dict = self.dlrm_module.state_dict()
-        if self.is_global:
-            flow.save(state_dict, save_path, global_dst_rank=0)
-        elif self.rank == 0:
-            flow.save(state_dict, save_path)
-        else:
-            return
+        flow.save(state_dict, save_path, global_dst_rank=0)
 
     def __call__(self):
         self.train()
@@ -105,7 +91,7 @@ class Trainer(object):
         last_iter, last_time = 0, time.time()
         for _ in range(self.max_iter):
             self.cur_iter += 1
-            labels, dense_fields, sparse_fields = self.load_data(self.train_dataloader)
+            labels, dense_fields, sparse_fields = self.train_dataloader()
             loss = self.train_graph(labels, dense_fields, sparse_fields)
             if self.cur_iter % self.loss_print_every_n_iter == 0:
                 loss = loss.numpy()
@@ -132,7 +118,7 @@ class Trainer(object):
         labels = []
         preds = []
         for _ in range(self.eval_batchs):
-            label, dense_fields, sparse_fields = self.load_data(self.val_dataloader)    
+            label, dense_fields, sparse_fields = self.val_dataloader()
             logits, label =  self.eval_graph(label, dense_fields, sparse_fields)
             pred = logits.sigmoid()
             label_ = label.numpy().astype(np.float32)
@@ -158,13 +144,6 @@ class Trainer(object):
             sub_save_dir = f"iter_{self.cur_iter}_val_auc_{auc}"
             self.save(sub_save_dir)
         self.dlrm_module.train()
-
-    def load_data(self, dataloader):
-        labels, dense_fields, sparse_fields = dataloader()
-        labels = labels.to("cuda")
-        dense_fields = dense_fields.to("cuda")
-        sparse_fields = sparse_fields.to("cuda")
-        return labels, dense_fields, sparse_fields
 
 
 if __name__ == "__main__":
