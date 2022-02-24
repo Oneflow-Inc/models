@@ -28,16 +28,8 @@ class Trainer(object):
         self.save_init = args.save_initial_model
         self.save_model_after_each_eval = args.save_model_after_each_eval
         self.eval_after_training = args.eval_after_training
-        self.execution_mode = args.execution_mode
         self.max_iter = args.max_iter
         self.loss_print_every_n_iter = args.loss_print_every_n_iter
-        self.ddp = args.ddp
-        if self.ddp == 1 and self.execution_mode == "graph":
-            warnings.warn(
-                """when ddp is True, the execution_mode can only be eager, but it is graph""",
-                UserWarning,
-            )
-            self.execution_mode = "eager"
         self.is_global = args.is_global
         self.rank = flow.env.get_rank()
         self.world_size = flow.env.get_world_size()
@@ -68,22 +60,18 @@ class Trainer(object):
             )
 
         self.loss = flow.nn.BCEWithLogitsLoss(reduction="none").to("cuda")
-        if self.execution_mode == "graph":
-            self.eval_graph = DLRMValGraph(self.dlrm_module, args.use_fp16)
-            self.train_graph = DLRMTrainGraph(
-                self.dlrm_module, self.loss, self.opt, 
-                self.lr_scheduler, self.grad_scaler, args.use_fp16
-            )
+        self.eval_graph = DLRMValGraph(self.dlrm_module, args.use_fp16)
+        self.train_graph = DLRMTrainGraph(
+            self.dlrm_module, self.loss, self.opt,
+            self.lr_scheduler, self.grad_scaler, args.use_fp16
+        )
 
     def init_model(self):
         args = self.args
         if args.model_load_dir != "":
             self.load_state_dict()
-        if self.ddp:
-            self.dlrm_module = DDP(self.dlrm_module)
         if self.save_init and args.model_save_dir != "":
             self.save("initial_checkpoint")
-
 
     def load_state_dict(self):
         print(f"Loading model from {self.args.model_load_dir}")
@@ -117,13 +105,13 @@ class Trainer(object):
         last_iter, last_time = 0, time.time()
         for _ in range(self.max_iter):
             self.cur_iter += 1
-            loss = self.train_one_step()
-
+            labels, dense_fields, sparse_fields = self.load_data(self.train_dataloader)
+            loss = self.train_graph(labels, dense_fields, sparse_fields)
             if self.cur_iter % self.loss_print_every_n_iter == 0:
                 loss = loss.numpy()
                 if self.rank == 0:
                     latency_ms = 1000 * (time.time() - last_time) / (self.cur_iter - last_iter)
-                    last_iter, last_time = 0, time.time()
+                    last_iter, last_time = self.cur_iter, time.time()
                     strtime = time.strftime("%Y-%m-%d %H:%M:%S")
                     print(f'Iter {self.cur_iter}, Loss {loss:0.4f}, Latency_ms {latency_ms:0.3f}, {strtime}')
 
@@ -144,7 +132,8 @@ class Trainer(object):
         labels = []
         preds = []
         for _ in range(self.eval_batchs):
-            logits, label = self.inference()
+            label, dense_fields, sparse_fields = self.load_data(self.val_dataloader)    
+            logits, label =  self.eval_graph(label, dense_fields, sparse_fields)
             pred = logits.sigmoid()
             label_ = label.numpy().astype(np.float32)
             labels.append(label_)
@@ -176,31 +165,6 @@ class Trainer(object):
         dense_fields = dense_fields.to("cuda")
         sparse_fields = sparse_fields.to("cuda")
         return labels, dense_fields, sparse_fields
-
-    def inference(self):
-        if self.execution_mode == "graph":
-            labels, dense_fields, sparse_fields = self.load_data(self.val_dataloader)         
-            return self.eval_graph(labels, dense_fields, sparse_fields)
-        else:
-            labels, dense_fields, sparse_fields = self.load_data(self.val_dataloader)
-            with flow.no_grad():
-                predicts = self.dlrm_module(dense_fields, sparse_fields)
-            return predicts, labels
-
-    def train_one_step(self):
-        self.dlrm_module.train()
-        if self.execution_mode == "graph":
-            labels, dense_fields, sparse_fields = self.load_data(self.train_dataloader)
-            return self.train_graph(labels, dense_fields, sparse_fields)
-        else:
-            labels, dense_fields, sparse_fields = self.load_data(self.train_dataloader)
-            logits = self.dlrm_module(dense_fields, sparse_fields)
-            loss = self.loss(logits, labels)
-            loss = flow.mean(loss)
-            loss.backward()
-            self.opt.step()
-            self.opt.zero_grad()
-            return loss
 
 
 if __name__ == "__main__":
