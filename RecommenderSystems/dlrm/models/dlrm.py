@@ -9,38 +9,17 @@ import os
 __all__ = ["make_dlrm_module"]
 
 
-class Dense(nn.Module):
-    def __init__(self, in_features: int, out_features: int) -> None:
-        super(Dense, self).__init__()
-        self.features = nn.Sequential(
-            nn.Linear(in_features, out_features),
-            nn.ReLU(inplace=True),
-        )
-        for name, param in self.named_parameters():
-            if name.endswith("weight"):
-                nn.init.normal_(param, 0.0, np.sqrt(2 / (in_features + out_features)))
-            elif name.endswith("bias"):
-                nn.init.normal_(param, 0.0, np.sqrt(1 / out_features))
-
-    def forward(self, x: flow.Tensor) -> flow.Tensor:
-        x = self.features(x)
-        return x
-
-
 class MLP(nn.Module):
     def __init__(self, in_features: int, hidden_units) -> None:
         super(MLP, self).__init__()
-        self.linear_layers = nn.Sequential(
-            OrderedDict(
-                [
-                    (
-                        f"fc{i}",
-                        Dense(in_features if i == 0 else hidden_units[i-1], h)
-                    )
-                    for i, h in enumerate(hidden_units)
-                ]
-            )
-        )
+        self.linear_layers = nn.FusedMLP(in_features, hidden_units[:-1], hidden_units[-1])
+        for name, param in self.linear_layers.named_parameters():
+            idx = int(name.split("_")[1])
+            if name.startswith("weight"):
+                nn.init.normal_(param, 0.0, np.sqrt(2 / (in_features + hidden_units[0]) if idx == 0 else np.sqrt(2 / (hidden_units[idx-1] + hidden_units[idx]))))
+            elif name.startswith("bias"):
+                nn.init.normal_(param, 0.0, np.sqrt(2 / (hidden_units[idx])))
+
     def forward(self, x:flow.Tensor) -> flow.Tensor:
         return self.linear_layers(x)
 
@@ -75,7 +54,7 @@ class Interaction(nn.Module):
             R = flow.cat([x, Zflat], dim=1)
         elif self.interaction_type == 'fused':
             (batch_size, d) = x.shape
-            R = flow._C.fused_interaction(x, flow.reshape(ly, (batch_size, -1, d)))
+            R = flow._C.fused_dot_feature_interaction([flow.reshape(x,(batch_size,1,d)), flow.reshape(ly, (batch_size, -1,d))], output_concat=x, self_interaction=False, output_padding=1)
         else:
             assert 0, 'dot or cat'
         return R
