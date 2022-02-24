@@ -1,23 +1,45 @@
-import oneflow as flow
 import os
 import sys
+import glob
 import time
 import pickle
+import numpy as np
+from sklearn.metrics import roc_auc_score
+import oneflow as flow
 
 sys.path.append(
     os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
 )
-import numpy as np
-from sklearn.metrics import roc_auc_score
 from config import get_args
-from models.data import make_data_loader
-from utils.petastorm_dataloader import make_petastorm_dataloader
+from crieto_dataset_util import CrietoDatasetContextManager
 from models.dlrm import make_dlrm_module
 from lr_scheduler import make_lr_scheduler
-from oneflow.nn.parallel import DistributedDataParallel as DDP
-from graph import DLRMTrainGraphWithDataloader, DLRMValGraph, DLRMTrainGraph, DLRMValGraphWithDataloader
-import warnings
+from graph import DLRMValGraph, DLRMTrainGraph
 from utils.auc_calculater import calculate_auc_from_dir
+
+
+def make_crieto_dataloader(args, mode):
+    """Make a Crieto Parquet DataLoader.
+    :return: a context manager when exit the returned context manager, the reader
+                will be closed.
+    """
+    subfolders = args.train_sub_folders if mode=='train' else args.val_sub_folders
+
+    files = []
+    for folder in subfolders:
+        files += ['file://' + name for name in glob.glob(f'{args.data_dir}/{folder}/*.parquet')]
+    files.sort()
+
+    return CrietoDatasetContextManager(
+        files,
+        args.batch_size_per_proc if mode=='train' else args.eval_batch_size_per_proc,
+        None if mode=='train' else 1,
+        num_dense_fields=args.num_dense_fields,
+        num_sparse_fields=args.num_sparse_fields,
+        shuffling_queue_capacity=(mode=='train'),
+        shard_seed=1234,
+        shard_count=flow.env.get_world_size(),
+        cur_shard=flow.env.get_rank())
 
 
 class Trainer(object):
@@ -31,14 +53,15 @@ class Trainer(object):
         self.max_iter = args.max_iter
         self.loss_print_every_n_iter = args.loss_print_every_n_iter
         self.rank = flow.env.get_rank()
-        self.world_size = flow.env.get_world_size()
         self.cur_iter = 0
         self.eval_interval = args.eval_interval
         self.eval_batchs = args.eval_batchs
-        self.train_dataloader = make_petastorm_dataloader(args, "train")
+
+        self.placement = flow.env.all_device_placement("cuda")
+        self.sbp = flow.sbp.split(0)
         self.dlrm_module = make_dlrm_module(args)
-        self.dlrm_module.to_global(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
-        self.dlrm_module.embedding.set_model_parallel(flow.env.all_device_placement("cuda"))
+        self.dlrm_module.to_global(self.placement, flow.sbp.broadcast)
+        self.dlrm_module.embedding.set_model_parallel(self.placement)
         self.init_model()
         # self.opt = flow.optim.Adam(
         self.opt = flow.optim.SGD(
@@ -83,63 +106,66 @@ class Trainer(object):
     def __call__(self):
         self.train()
 
+    def batch_to_global(self, np_label, np_dense, np_sparse):
+        labels = flow.tensor(np_label.reshape(-1, 1), dtype=flow.float)
+        dense_fields = flow.tensor(np_dense, dtype=flow.float)
+        sparse_fields = flow.tensor(np_sparse, dtype=flow.int32)
+        labels = labels.to_global(placement=self.placement, sbp=self.sbp)
+        dense_fields = dense_fields.to_global(placement=self.placement, sbp=self.sbp)
+        sparse_fields = sparse_fields.to_global(placement=self.placement, sbp=self.sbp)
+        return labels, dense_fields, sparse_fields
+
     def train(self):
         self.dlrm_module.train()
         last_iter, last_time = 0, time.time()
-        for _ in range(self.max_iter):
-            self.cur_iter += 1
-            labels, dense_fields, sparse_fields = self.train_dataloader()
-            loss = self.train_graph(labels, dense_fields, sparse_fields)
-            if self.cur_iter % self.loss_print_every_n_iter == 0:
-                loss = loss.numpy()
-                if self.rank == 0:
-                    latency_ms = 1000 * (time.time() - last_time) / (self.cur_iter - last_iter)
-                    last_iter, last_time = self.cur_iter, time.time()
-                    strtime = time.strftime("%Y-%m-%d %H:%M:%S")
-                    print(f'Iter {self.cur_iter}, Loss {loss:0.4f}, Latency_ms {latency_ms:0.3f}, {strtime}')
+        with make_crieto_dataloader(self.args, "train") as train_loader:
+            for _ in range(self.max_iter):
+                self.cur_iter += 1
+                labels, dense_fields, sparse_fields = self.batch_to_global(*next(train_loader))
+                loss = self.train_graph(labels, dense_fields, sparse_fields)
+                if self.cur_iter % self.loss_print_every_n_iter == 0:
+                    loss = loss.numpy()
+                    if self.rank == 0:
+                        latency_ms = 1000 * (time.time() - last_time) / (self.cur_iter - last_iter)
+                        last_iter, last_time = self.cur_iter, time.time()
+                        strtime = time.strftime("%Y-%m-%d %H:%M:%S")
+                        print(f'Iter {self.cur_iter}, Loss {loss:0.4f}, Latency_ms {latency_ms:0.3f}, {strtime}')
 
-            if self.eval_interval > 0 and self.cur_iter % self.eval_interval == 0:
-                self.eval(self.save_model_after_each_eval)
-                last_time = time.time()
+                if self.eval_interval > 0 and self.cur_iter % self.eval_interval == 0:
+                    self.eval()
+                    last_time = time.time()
 
         if self.eval_after_training:
-            self.eval(True)
-            if self.args.eval_save_dir != '' and self.rank == 0:
-                calculate_auc_from_dir(self.args.eval_save_dir)
+            if self.eval_interval > 0 and self.cur_iter % self.eval_interval != 0:
+                self.eval()
 
-    def eval(self, save_model=False):
+    def eval(self):
         if self.eval_batchs <= 0:
-            return
+            return 'na'
         self.dlrm_module.eval()
-        self.val_dataloader = make_petastorm_dataloader(self.args, "val")
         labels = []
         preds = []
-        for _ in range(self.eval_batchs):
-            label, dense_fields, sparse_fields = self.val_dataloader()
-            logits, label =  self.eval_graph(label, dense_fields, sparse_fields)
-            pred = logits.sigmoid()
-            label_ = label.numpy().astype(np.float32)
-            labels.append(label_)
-            preds.append(pred.numpy())
-
+        with make_crieto_dataloader(self.args, "val") as val_loader:
+            num_eval_batches = 0
+            for np_batch in val_loader:
+                num_eval_batches += 1
+                if num_eval_batches > self.eval_batchs:
+                    break
+                label, dense_fields, sparse_fields = self.batch_to_global(*np_batch)
+                logits, label =  self.eval_graph(label, dense_fields, sparse_fields)
+                pred = logits.sigmoid()
+                labels.append(label.numpy())
+                preds.append(pred.numpy())
+        
         if self.rank == 0:
-            if self.args.eval_save_dir != '':
-                pf = os.path.join(self.args.eval_save_dir, f'iter_{self.cur_iter}.pkl')
-                with open(pf, 'wb') as f:
-                    obj = {'labels': labels, 'preds': preds, 'iter': self.cur_iter}
-                    pickle.dump(obj, f, protocol=pickle.HIGHEST_PROTOCOL)
-                auc = roc_auc_score(label_, pred.numpy())
-            else:
-                labels = np.concatenate(labels, axis=0)
-                preds = np.concatenate(preds, axis=0)
-                auc = roc_auc_score(labels, preds)
+            labels = np.concatenate(labels, axis=0)
+            preds = np.concatenate(preds, axis=0)
+            auc = roc_auc_score(labels, preds)
         
             strtime = time.strftime("%Y-%m-%d %H:%M:%S")
             print(f'Iter {self.cur_iter}, AUC {auc:0.5f}, #Samples {labels.shape[0]}, {strtime}')
-
-        if save_model:
-            sub_save_dir = f"iter_{self.cur_iter}_val_auc_{auc}"
-            self.save(sub_save_dir)
+            if self.save_model_after_each_eval:
+                self.save(f"iter_{self.cur_iter}_val_auc_{auc}")      
         self.dlrm_module.train()
 
 
