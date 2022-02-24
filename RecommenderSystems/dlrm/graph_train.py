@@ -14,8 +14,7 @@ from config import get_args
 from crieto_dataset_util import CrietoDatasetContextManager
 from models.dlrm import make_dlrm_module
 from lr_scheduler import make_lr_scheduler
-from graph import DLRMValGraph, DLRMTrainGraph
-from utils.auc_calculater import calculate_auc_from_dir
+# from graph import DLRMValGraph, DLRMTrainGraph
 
 
 def make_crieto_dataloader(args, mode):
@@ -40,6 +39,39 @@ def make_crieto_dataloader(args, mode):
         shard_seed=1234,
         shard_count=flow.env.get_world_size(),
         cur_shard=flow.env.get_rank())
+
+
+class DLRMValGraph(flow.nn.Graph):
+    def __init__(self, wdl_module, use_fp16=False):
+        super(DLRMValGraph, self).__init__()
+        self.module = wdl_module
+        if use_fp16:
+            self.config.enable_amp(True)
+
+    def build(self, labels, dense_fields, sparse_fields):
+        predicts = self.module(dense_fields, sparse_fields)
+        return predicts, labels
+
+
+class DLRMTrainGraph(flow.nn.Graph):
+    def __init__(self, wdl_module, bce_loss, optimizer, lr_scheduler=None, grad_scaler=None, use_fp16=False):
+        super(DLRMTrainGraph, self).__init__()
+        self.module = wdl_module
+        self.bce_loss = bce_loss
+        self.add_optimizer(optimizer, lr_sch=lr_scheduler)
+        self.config.allow_fuse_model_update_ops(True)
+        self.config.allow_fuse_add_to_output(True)
+        self.config.allow_fuse_cast_scale(True)
+        if use_fp16:
+            self.config.enable_amp(True)
+            self.set_grad_scaler(grad_scaler)
+
+    def build(self, labels, dense_fields, sparse_fields):
+        logits = self.module(dense_fields, sparse_fields)
+        loss = self.bce_loss(logits, labels)
+        reduce_loss = flow.mean(loss)
+        reduce_loss.backward()
+        return reduce_loss
 
 
 class Trainer(object):
@@ -109,7 +141,7 @@ class Trainer(object):
     def batch_to_global(self, np_label, np_dense, np_sparse):
         labels = flow.tensor(np_label.reshape(-1, 1), dtype=flow.float)
         dense_fields = flow.tensor(np_dense, dtype=flow.float)
-        sparse_fields = flow.tensor(np_sparse, dtype=flow.int32)
+        sparse_fields = flow.tensor(np_sparse, dtype=flow.int64)
         labels = labels.to_global(placement=self.placement, sbp=self.sbp)
         dense_fields = dense_fields.to_global(placement=self.placement, sbp=self.sbp)
         sparse_fields = sparse_fields.to_global(placement=self.placement, sbp=self.sbp)
