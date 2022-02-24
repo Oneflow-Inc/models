@@ -14,7 +14,6 @@ from config import get_args
 from crieto_dataset_util import CrietoDatasetContextManager
 from dlrm import make_dlrm_module
 from lr_scheduler import make_lr_scheduler
-# from graph import DLRMValGraph, DLRMTrainGraph
 
 
 def make_crieto_dataloader(args, mode):
@@ -135,9 +134,6 @@ class Trainer(object):
         state_dict = self.dlrm_module.state_dict()
         flow.save(state_dict, save_path, global_dst_rank=0)
 
-    def __call__(self):
-        self.train()
-
     def batch_to_global(self, np_label, np_dense, np_sparse):
         labels = flow.tensor(np_label.reshape(-1, 1), dtype=flow.float)
         dense_fields = flow.tensor(np_dense, dtype=flow.float)
@@ -204,4 +200,4 @@ class Trainer(object):
 if __name__ == "__main__":
     flow.boxing.nccl.enable_all_to_all(True)
     trainer = Trainer()
-    trainer()
+    trainer.train()
