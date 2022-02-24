@@ -137,7 +137,7 @@ class Trainer(object):
                 loss = loss.numpy()
                 if self.rank == 0:
                     latency_ms = 1000 * (time.time() - last_time) / (self.cur_iter - last_iter)
-                    last_iter, last_time = 0, time.time()
+                    last_iter, last_time = self.cur_iter, time.time()
                     strtime = time.strftime("%Y-%m-%d %H:%M:%S")
                     print(f'Iter {self.cur_iter}, Loss {loss:0.4f}, Latency_ms {latency_ms:0.3f}, {strtime}')
 
