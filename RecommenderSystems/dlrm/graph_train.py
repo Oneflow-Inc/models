@@ -65,14 +65,11 @@ class Trainer(object):
     def init_model(self):
         args = self.args
         if args.model_load_dir != "":
-            self.load_state_dict()
+            print(f"Loading model from {self.args.model_load_dir}")
+            state_dict = flow.load(self.args.model_load_dir, global_src_rank=0)
+            self.dlrm_module.load_state_dict(state_dict, strict=False)
         if self.save_init and args.model_save_dir != "":
             self.save("initial_checkpoint")
-
-    def load_state_dict(self):
-        print(f"Loading model from {self.args.model_load_dir}")
-        state_dict = flow.load(self.args.model_load_dir, global_src_rank=0)
-        self.dlrm_module.load_state_dict(state_dict, strict=False)
 
     def save(self, subdir):
         if self.save_path is None or self.save_path == '':
