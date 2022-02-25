@@ -1,11 +1,10 @@
+import oneflow as flow
 import os
 import sys
 import glob
 import time
-import pickle
 import numpy as np
 from sklearn.metrics import roc_auc_score
-import oneflow as flow
 
 sys.path.append(
     os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
