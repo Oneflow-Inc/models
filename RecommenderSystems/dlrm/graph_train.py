@@ -123,9 +123,9 @@ class Trainer(object):
             state_dict = flow.load(self.args.model_load_dir, global_src_rank=0)
             self.dlrm_module.load_state_dict(state_dict, strict=False)
         if self.save_init and args.model_save_dir != "":
-            self.save("initial_checkpoint")
+            self.save_model("initial_checkpoint")
 
-    def save(self, subdir):
+    def save_model(self, subdir):
         if self.save_path is None or self.save_path == '':
             return
         save_path = os.path.join(self.save_path, subdir)
@@ -193,7 +193,7 @@ class Trainer(object):
             strtime = time.strftime("%Y-%m-%d %H:%M:%S")
             print(f'Iter {self.cur_iter}, AUC {auc:0.5f}, #Samples {labels.shape[0]}, {strtime}')
             if self.save_model_after_each_eval:
-                self.save(f"iter_{self.cur_iter}_val_auc_{auc}")      
+                self.save_model(f"iter_{self.cur_iter}_val_auc_{auc}")
         self.dlrm_module.train()
 
 
