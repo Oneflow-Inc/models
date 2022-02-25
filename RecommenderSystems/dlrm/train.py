@@ -180,9 +180,9 @@ class Trainer(object):
             strtime = time.strftime("%Y-%m-%d %H:%M:%S")
             print(f'Iter {self.cur_iter}, AUC {auc:0.5f}, #Samples {labels.shape[0]}, {strtime}')
 
-        if save_model:
-            sub_save_dir = f"iter_{self.cur_iter}_val_auc_{auc}"
-            self.save(sub_save_dir)
+            if save_model:
+                sub_save_dir = f"iter_{self.cur_iter}_val_auc_{auc}"
+                self.save(sub_save_dir)
         self.dlrm_module.train()
 
     def load_data(self, dataloader):
