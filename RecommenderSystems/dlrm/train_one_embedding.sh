@@ -93,7 +93,6 @@ python3 -m oneflow.distributed.launch \
     --test_name train_${graph}_${DEVICE_NUM_PER_NODE}gpu
 
     # --save_init \
-    # --eval_save_dir output \
     # --save_model_after_each_eval \
     # --eval_after_training \
     # --model_load_dir /tank/model_zoo/dlrm_baseline_params_emb$emb_size \

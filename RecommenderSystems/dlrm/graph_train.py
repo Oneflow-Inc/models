@@ -168,8 +168,8 @@ class Trainer(object):
                 self.eval()
 
     def eval(self):
-        if self.eval_batchs <= 0:
-            return 'na'
+        if self.eval_batchs == 0:
+            return
         self.dlrm_module.eval()
         labels = []
         preds = []
@@ -177,7 +177,7 @@ class Trainer(object):
             num_eval_batches = 0
             for np_batch in val_loader:
                 num_eval_batches += 1
-                if num_eval_batches > self.eval_batchs:
+                if num_eval_batches > self.eval_batchs and self.eval_batchs > 0:
                     break
                 label, dense_fields, sparse_fields = self.batch_to_global(*np_batch)
                 logits, label =  self.eval_graph(label, dense_fields, sparse_fields)
