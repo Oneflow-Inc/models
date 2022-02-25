@@ -61,11 +61,11 @@ def get_args(print_args=True):
         default=','.join([f'day_{i}' for i in range(23)]))
     parser.add_argument("--val_sub_folders", type=str_list, default="day_23")
     parser.add_argument('--data_part_name_suffix_length', type=int, default=-1)
-    parser.add_argument('--eval_batchs', type=int, default=20)
+    parser.add_argument('--eval_batchs', type=int, default=-1, 
+                        help="<0: whole val ds, 0: do not val, >0: number of eval batches")
     parser.add_argument('--eval_batch_size', type=int, default=512)
     parser.add_argument("--eval_batch_size_per_proc", type=int, default=None)
     parser.add_argument('--eval_interval', type=int, default=1000)    
-    parser.add_argument("--eval_save_dir", type=str, default='', help="eval AUC offline if available")    
     parser.add_argument("--batch_size", type=int, default=16384)
     parser.add_argument("--batch_size_per_proc", type=int, default=None)
     parser.add_argument("--learning_rate", type=float, default=1e-3)
@@ -132,11 +132,6 @@ def get_args(print_args=True):
         flow.env.get_world_size() > 1 and not args.ddp
     ) or args.execution_mode == "graph"
     
-    if args.eval_save_dir != '':
-        time_str = str(datetime.now().strftime("%Y%m%d%H%M%S"))
-        args.eval_save_dir = os.path.join(args.eval_save_dir, f'eval_results-{time_str}')
-        if not os.path.exists(args.eval_save_dir):
-            os.makedirs(args.eval_save_dir)
     if args.vocab_size < 1:
         assert len(args.column_size_array) > 0
         args.vocab_size = sum(args.column_size_array)
