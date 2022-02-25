@@ -2,9 +2,7 @@ from collections import OrderedDict
 import oneflow as flow
 from oneflow.framework.tensor import _xor
 import oneflow.nn as nn
-from typing import Any
 import numpy as np
-import os
 
 __all__ = ["make_dlrm_module"]
 
@@ -212,11 +210,9 @@ class DLRMModule(nn.Module):
         self.top_mlp = MLP(feature_size, args.top_mlp)
         self.scores = Dense(args.top_mlp[-1], 1, relu=False)
 
-
     def forward(self, dense_fields, sparse_fields) -> flow.Tensor:
         dense_fields = flow.log(dense_fields + 1.0)
         dense_fields = self.bottom_mlp(dense_fields)
-        sparse_fields = flow.cast(sparse_fields, flow.int64)
         embedding = self.embedding(sparse_fields)
         embedding = embedding.view(-1, embedding.shape[-1] * embedding.shape[-2])
         features = self.interaction(dense_fields, embedding)

@@ -77,31 +77,36 @@ class Trainer(object):
         args = get_args()
         self.args = args
         self.save_path = args.model_save_dir
-        self.save_init = args.save_initial_model
         self.save_model_after_each_eval = args.save_model_after_each_eval
         self.eval_after_training = args.eval_after_training
         self.max_iter = args.max_iter
         self.loss_print_every_n_iter = args.loss_print_every_n_iter
-        self.rank = flow.env.get_rank()
-        self.cur_iter = 0
         self.eval_interval = args.eval_interval
         self.eval_batchs = args.eval_batchs
 
+        self.cur_iter = 0
+        self.rank = flow.env.get_rank()
         self.placement = flow.env.all_device_placement("cuda")
         self.sbp = flow.sbp.split(0)
+
         self.dlrm_module = make_dlrm_module(args)
         self.dlrm_module.to_global(self.placement, flow.sbp.broadcast)
         self.dlrm_module.embedding.set_model_parallel(self.placement)
-        self.init_model()
-        # self.opt = flow.optim.Adam(
-        self.opt = flow.optim.SGD(
-            self.dlrm_module.parameters(), lr=args.learning_rate
-        )
-        self.lr_scheduler = make_lr_scheduler(args, self.opt)
+
+        if args.model_load_dir != "":
+            print(f"Loading model from {self.args.model_load_dir}")
+            state_dict = flow.load(self.args.model_load_dir, global_src_rank=0)
+            self.dlrm_module.load_state_dict(state_dict, strict=False)
+        if args.save_initial_model and args.model_save_dir != "":
+            self.save_model("initial_checkpoint")
+
+        # opt = flow.optim.Adam(
+        opt = flow.optim.SGD(self.dlrm_module.parameters(), lr=args.learning_rate)
+        lr_scheduler = make_lr_scheduler(args, opt)
         if args.loss_scale_policy == "static":
-            self.grad_scaler = flow.amp.StaticGradScaler(1024)
+            grad_scaler = flow.amp.StaticGradScaler(1024)
         else:
-            self.grad_scaler = flow.amp.GradScaler(
+            grad_scaler = flow.amp.GradScaler(
                 init_scale=1073741824,
                 growth_factor=2.0,
                 backoff_factor=0.5,
@@ -111,18 +116,9 @@ class Trainer(object):
         self.loss = flow.nn.BCEWithLogitsLoss(reduction="none").to("cuda")
         self.eval_graph = DLRMValGraph(self.dlrm_module, args.use_fp16)
         self.train_graph = DLRMTrainGraph(
-            self.dlrm_module, self.loss, self.opt,
-            self.lr_scheduler, self.grad_scaler, args.use_fp16
+            self.dlrm_module, self.loss, opt,
+            lr_scheduler, grad_scaler, args.use_fp16
         )
-
-    def init_model(self):
-        args = self.args
-        if args.model_load_dir != "":
-            print(f"Loading model from {self.args.model_load_dir}")
-            state_dict = flow.load(self.args.model_load_dir, global_src_rank=0)
-            self.dlrm_module.load_state_dict(state_dict, strict=False)
-        if self.save_init and args.model_save_dir != "":
-            self.save_model("initial_checkpoint")
 
     def save_model(self, subdir):
         if self.save_path is None or self.save_path == '':
