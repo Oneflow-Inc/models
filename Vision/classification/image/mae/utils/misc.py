@@ -23,11 +23,12 @@ inf = math.inf
 
 
 def reduce_tensor(tensor):
-    print(tensor)
+    # print(tensor)
     rt = tensor.clone()
-    print(rt)
-    rt = flow.comm.all_reduce(rt)
-    print(rt)
+    # print(rt)
+    # rt = flow.comm.all_reduce(rt)
+    flow.comm.all_reduce(rt)
+    # print(rt)
     rt /= flow.env.get_world_size()
     return rt
 

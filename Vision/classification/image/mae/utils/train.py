@@ -55,6 +55,8 @@ def train_one_epoch(model: flow.nn.Module,
             sys.exit(1)
 
         loss /= accum_iter
+        loss.backward()
+        flow.nn.utils.clip_grad_norm_(model.parameters(), 5.0)
         # loss_scaler(loss, optimizer, parameters=model.parameters(),
                     # update_grad=(data_iter_step + 1) % accum_iter == 0)
         if (data_iter_step + 1) % accum_iter == 0:
