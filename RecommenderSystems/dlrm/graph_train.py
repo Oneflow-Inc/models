@@ -5,6 +5,7 @@ import glob
 import time
 import numpy as np
 from sklearn.metrics import roc_auc_score
+import psutil
 
 sys.path.append(
     os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
@@ -152,7 +153,8 @@ class Trainer(object):
                         latency_ms = 1000 * (time.time() - last_time) / (self.cur_iter - last_iter)
                         last_iter, last_time = self.cur_iter, time.time()
                         strtime = time.strftime("%Y-%m-%d %H:%M:%S")
-                        print(f'Iter {self.cur_iter}, Loss {loss:0.4f}, Latency_ms {latency_ms:0.3f}, {strtime}')
+                        print(f'Rank[{self.rank}], Iter {self.cur_iter}, Loss {loss:0.4f}, '+
+                              f'Latency_ms {latency_ms:0.3f}, {strtime}')
 
                 if self.eval_interval > 0 and self.cur_iter % self.eval_interval == 0:
                     self.eval()
@@ -185,10 +187,19 @@ class Trainer(object):
             preds = np.concatenate(preds, axis=0)
             auc = roc_auc_score(labels, preds)
         
+            host_mem_mb = psutil.Process().memory_info().rss // (1024 * 1024)
+            # os.system("nvidia-smi --query-gpu=memory.used --format=csv")
+            stream = os.popen("nvidia-smi --query-gpu=memory.used --format=csv")
+            device_mem_str = stream.read().split("\n")[self.rank + 1]
+
             strtime = time.strftime("%Y-%m-%d %H:%M:%S")
-            print(f'Iter {self.cur_iter}, AUC {auc:0.5f}, #Samples {labels.shape[0]}, {strtime}')
+            print(f'Rank[{self.rank}], Iter {self.cur_iter}, AUC {auc:0.5f}, ' +
+                  f'#Samples {labels.shape[0]}, Host_Memory {host_mem_mb} MiB, ' +
+                  f'Device_Memory {device_mem_str}, {strtime}')
             if self.save_model_after_each_eval:
                 self.save_model(f"iter_{self.cur_iter}_val_auc_{auc}")
+
+
         self.dlrm_module.train()
 
 
