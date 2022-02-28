@@ -197,7 +197,7 @@ class Trainer(object):
             strtime = time.strftime("%Y-%m-%d %H:%M:%S")
             print(f'Rank[{self.rank}], Iter {self.cur_iter}, AUC {auc:0.5f}, ' +
                   f'#Samples {labels.shape[0]}, Host_Memory {host_mem_mb} MiB, ' +
-                  f'Device_Memory {device_mem_str}, AUC_time {auc_time} s, {strtime}')
+                  f'Device_Memory {device_mem_str}, AUC_time {auc_time:0.1f} s, {strtime}')
             if self.save_model_after_each_eval:
                 self.save_model(f"iter_{self.cur_iter}_val_auc_{auc}")
 
