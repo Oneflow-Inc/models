@@ -189,7 +189,7 @@ class DLRMModule(nn.Module):
         self.interaction = Interaction(args.interaction_type, args.interaction_itself, args.num_sparse_fields)
         feature_size = self.interaction.output_feature_size(args.embedding_vec_size, args.bottom_mlp[-1])        
         self.top_mlp = MLP(feature_size, args.top_mlp)
-        self.scores = nn.Linear(args.top_mlp[-1], 1)
+        self.scores = Dense(args.top_mlp[-1], 1, relu=False)
 
 
     def forward(self, dense_fields, sparse_fields) -> flow.Tensor:
