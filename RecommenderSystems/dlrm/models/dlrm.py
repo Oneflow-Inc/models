@@ -10,9 +10,9 @@ __all__ = ["make_dlrm_module"]
 
 
 class MLP(nn.Module):
-    def __init__(self, in_features: int, hidden_units) -> None:
+    def __init__(self, in_features: int, hidden_units, skip_final_activation=False) -> None:
         super(MLP, self).__init__()
-        self.linear_layers = nn.FusedMLP(in_features, hidden_units[:-1], hidden_units[-1])
+        self.linear_layers = nn.FusedMLP(in_features, hidden_units[:-1], hidden_units[-1], skip_final_activation=skip_final_activation)
         for name, param in self.linear_layers.named_parameters():
             idx = int(name.split("_")[1])
             if name.startswith("weight"):
@@ -189,7 +189,7 @@ class DLRMModule(nn.Module):
         self.interaction = Interaction(args.interaction_type, args.interaction_itself, args.num_sparse_fields)
         feature_size = self.interaction.output_feature_size(args.embedding_vec_size, args.bottom_mlp[-1])        
         self.top_mlp = MLP(feature_size, args.top_mlp)
-        self.scores = Dense(args.top_mlp[-1], 1, relu=False)
+        self.scores = MLP(args.top_mlp[-1], 1, skip_final_activation=True)
 
 
     def forward(self, dense_fields, sparse_fields) -> flow.Tensor:
