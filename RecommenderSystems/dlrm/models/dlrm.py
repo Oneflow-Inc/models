@@ -13,12 +13,19 @@ class MLP(nn.Module):
     def __init__(self, in_features: int, hidden_units, skip_final_activation=False) -> None:
         super(MLP, self).__init__()
         self.linear_layers = nn.FusedMLP(in_features, hidden_units[:-1], hidden_units[-1], skip_final_activation=skip_final_activation)
+        self.layer_num = len(hidden_units)
+        self.w_init_factor = [in_features + hidden_units[0]]
+        self.b_init_factor = [hidden_units[0]]
+        for idx in range(1, self.layer_num): 
+            self.w_init_factor.append(hidden_units[idx-1] + hidden_units[idx])
+            self.b_init_factor.append(hidden_units[idx])
+
         for name, param in self.linear_layers.named_parameters():
             idx = int(name.split("_")[1])
             if name.startswith("weight"):
-                nn.init.normal_(param, 0.0, np.sqrt(2 / (in_features + hidden_units[0]) if idx == 0 else np.sqrt(2 / (hidden_units[idx-1] + hidden_units[idx]))))
+                nn.init.normal_(param, 0.0, np.sqrt(2 / self.w_init_factor[idx]))
             elif name.startswith("bias"):
-                nn.init.normal_(param, 0.0, np.sqrt(2 / (hidden_units[idx])))
+                nn.init.normal_(param, 0.0, np.sqrt(2 / self.b_init_factor[idx]))
 
     def forward(self, x:flow.Tensor) -> flow.Tensor:
         return self.linear_layers(x)
@@ -188,8 +195,7 @@ class DLRMModule(nn.Module):
         self.embedding = embd_dict[args.embedding_type](args.vocab_size, args.embedding_vec_size, args)
         self.interaction = Interaction(args.interaction_type, args.interaction_itself, args.num_sparse_fields)
         feature_size = self.interaction.output_feature_size(args.embedding_vec_size, args.bottom_mlp[-1])        
-        self.top_mlp = MLP(feature_size, args.top_mlp)
-        self.scores = MLP(args.top_mlp[-1], [1], skip_final_activation=True)
+        self.top_mlp = MLP(feature_size, args.top_mlp+[1], skip_final_activation=True)
 
 
     def forward(self, dense_fields, sparse_fields) -> flow.Tensor:
@@ -199,8 +205,7 @@ class DLRMModule(nn.Module):
         embedding = self.embedding(sparse_fields)
         embedding = embedding.view(-1, embedding.shape[-1] * embedding.shape[-2])
         features = self.interaction(dense_fields, embedding)
-        features = self.top_mlp(features)
-        scores = self.scores(features)
+        scores = self.top_mlp(features)
         return scores
 
 
