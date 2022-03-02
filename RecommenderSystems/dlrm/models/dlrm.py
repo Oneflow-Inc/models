@@ -25,7 +25,7 @@ class MLP(nn.Module):
             if name.startswith("weight"):
                 nn.init.normal_(param, 0.0, np.sqrt(2 / self.w_init_factor[idx]))
             elif name.startswith("bias"):
-                nn.init.normal_(param, 0.0, np.sqrt(2 / self.b_init_factor[idx]))
+                nn.init.normal_(param, 0.0, np.sqrt(1 / self.b_init_factor[idx]))
 
     def forward(self, x:flow.Tensor) -> flow.Tensor:
         return self.linear_layers(x)
