@@ -75,6 +75,7 @@ def train_one_epoch(model: flow.nn.Module, criterion: flow.nn.Module,
         if (data_iter_step + 1) % accum_iter == 0:
             loss.backward()
             flow.nn.utils.clip_grad_norm_(model.parameters(), 5.0)
+            optimizer.step()
             optimizer.zero_grad()
 
         # torch.cuda.synchronize()
