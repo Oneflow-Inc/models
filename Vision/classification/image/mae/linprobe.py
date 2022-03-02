@@ -224,6 +224,7 @@ def main(args):
     # for linear prob only
     # hack: revise model's head with BN
     model.head = flow.nn.Sequential(flow.nn.BatchNorm1d(model.head.in_features, affine=True, eps=1e-6), model.head)
+    # model.head = flow.nn.Sequential(model.head)
     # freeze all but the head
     for _, p in model.named_parameters():
         p.requires_grad = False
@@ -284,7 +285,7 @@ def main(args):
         if args.output_dir:
             misc.save_model(
                 args=args, model=model, model_without_ddp=model_without_ddp, optimizer=optimizer,
-                loss_scaler=loss_scaler, epoch=epoch)
+                epoch=epoch)
 
         test_stats = evaluate(data_loader_val, model, "cuda")
         print(f"Accuracy of the network on the {len(dataset_val)} test images: {test_stats['acc1']:.1f}%")

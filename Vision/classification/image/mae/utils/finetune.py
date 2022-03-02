@@ -23,6 +23,7 @@ from flowvision.utils import accuracy
 
 import utils.misc as misc
 import utils.lr_sched as lr_sched
+from .misc import reduce_tensor
 
 
 def train_one_epoch(model: flow.nn.Module, criterion: flow.nn.Module,
@@ -67,10 +68,13 @@ def train_one_epoch(model: flow.nn.Module, criterion: flow.nn.Module,
             sys.exit(1)
 
         loss /= accum_iter
+        
         # loss_scaler(loss, optimizer, clip_grad=max_norm,
                     # parameters=model.parameters(), create_graph=False,
                     # update_grad=(data_iter_step + 1) % accum_iter == 0)
         if (data_iter_step + 1) % accum_iter == 0:
+            loss.backward()
+            flow.nn.utils.clip_grad_norm_(model.parameters(), 5.0)
             optimizer.zero_grad()
 
         # torch.cuda.synchronize()
@@ -85,13 +89,15 @@ def train_one_epoch(model: flow.nn.Module, criterion: flow.nn.Module,
         metric_logger.update(lr=max_lr)
 
         loss_value_reduce = misc.all_reduce_mean(loss_value)
-        if log_writer is not None and (data_iter_step + 1) % accum_iter == 0:
-            """ We use epoch_1000x as the x-axis in tensorboard.
-            This calibrates different curves when batch size changes.
-            """
-            epoch_1000x = int((data_iter_step / len(data_loader) + epoch) * 1000)
-            log_writer.add_scalar('loss', loss_value_reduce, epoch_1000x)
-            log_writer.add_scalar('lr', max_lr, epoch_1000x)
+        # break
+        # if log_writer is not None and (data_iter_step + 1) % accum_iter == 0:
+        #     """ We use epoch_1000x as the x-axis in tensorboard.
+        #     This calibrates different curves when batch size changes.
+        #     """
+        #     epoch_1000x = int((data_iter_step / len(data_loader) + epoch) * 1000)
+        #     log_writer.add_scalar('loss', loss_value_reduce, epoch_1000x)
+        #     log_writer.add_scalar('lr', max_lr, epoch_1000x)
+        # # break
 
     # gather the stats from all processes
     metric_logger.synchronize_between_processes()
@@ -113,20 +119,24 @@ def evaluate(data_loader, model, device):
         for batch in metric_logger.log_every(data_loader, 10, header):
             images = batch[0]
             target = batch[-1]
-            images = images.to(device, non_blocking=True)
-            target = target.to(device, non_blocking=True)
+            images = images.to(device)
+            target = target.to(device)
 
             # compute output
             # with torch.cuda.amp.autocast():
             output = model(images)
             loss = criterion(output, target)
 
-            acc1, acc5 = accuracy(output, target, topk=(1, 5))
-
+            acc1, acc5, acc999 = accuracy(output, target, topk=(1, 5, 999))
+            acc1 = reduce_tensor(acc1)
+            acc5 = reduce_tensor(acc5)
+            # acc999 = reduce_tensor(acc999)
             batch_size = images.shape[0]
+            # print(batch_size)
             metric_logger.update(loss=loss.item())
             metric_logger.meters['acc1'].update(acc1.item(), n=batch_size)
             metric_logger.meters['acc5'].update(acc5.item(), n=batch_size)
+            
     # gather the stats from all processes
     metric_logger.synchronize_between_processes()
     print('* Acc@1 {top1.global_avg:.3f} Acc@5 {top5.global_avg:.3f} loss {losses.global_avg:.3f}'
