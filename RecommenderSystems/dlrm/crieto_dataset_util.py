@@ -1,3 +1,4 @@
+import glob
 import numpy as np
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
@@ -80,6 +81,30 @@ class CrietoDatasetContextManager(object):
                 yield label, np.stack(dense, axis=-1), np.stack(sparse, axis=-1)
             if pos != len(rglist[0]):
                 tail = [rglist[i][pos:] for i in range(self.C_end)]
+
+
+def make_crieto_dataloader(args, mode, shard_count, cur_shard):
+    """Make a Crieto Parquet DataLoader.
+    :return: a context manager when exit the returned context manager, the reader
+                will be closed.
+    """
+    subfolders = args.train_sub_folders if mode=='train' else args.val_sub_folders
+
+    files = []
+    for folder in subfolders:
+        files += ['file://' + name for name in glob.glob(f'{args.data_dir}/{folder}/*.parquet')]
+    files.sort()
+
+    return CrietoDatasetContextManager(
+        files,
+        args.batch_size_per_proc if mode=='train' else args.eval_batch_size_per_proc,
+        None if mode=='train' else 1,
+        num_dense_fields=args.num_dense_fields,
+        num_sparse_fields=args.num_sparse_fields,
+        shuffling_queue_capacity=(mode=='train'),
+        shard_seed=1234,
+        shard_count=shard_count,
+        cur_shard=cur_shard)
 
 
 if __name__ == "__main__":

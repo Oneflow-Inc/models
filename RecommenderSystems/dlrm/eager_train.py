@@ -16,39 +16,6 @@ from fused_dlrm import make_dlrm_module
 from lr_scheduler import make_lr_scheduler
 
 
-class DLRMValGraph(flow.nn.Graph):
-    def __init__(self, wdl_module, use_fp16=False):
-        super(DLRMValGraph, self).__init__()
-        self.module = wdl_module
-        if use_fp16:
-            self.config.enable_amp(True)
-
-    def build(self, labels, dense_fields, sparse_fields):
-        predicts = self.module(dense_fields, sparse_fields)
-        return predicts, labels
-
-
-class DLRMTrainGraph(flow.nn.Graph):
-    def __init__(self, wdl_module, bce_loss, optimizer, lr_scheduler=None, grad_scaler=None, use_fp16=False):
-        super(DLRMTrainGraph, self).__init__()
-        self.module = wdl_module
-        self.bce_loss = bce_loss
-        self.add_optimizer(optimizer, lr_sch=lr_scheduler)
-        self.config.allow_fuse_model_update_ops(True)
-        self.config.allow_fuse_add_to_output(True)
-        self.config.allow_fuse_cast_scale(True)
-        if use_fp16:
-            self.config.enable_amp(True)
-            self.set_grad_scaler(grad_scaler)
-
-    def build(self, labels, dense_fields, sparse_fields):
-        logits = self.module(dense_fields, sparse_fields)
-        loss = self.bce_loss(logits, labels)
-        reduce_loss = flow.mean(loss)
-        reduce_loss.backward()
-        return reduce_loss
-
-
 class Trainer(object):
     def __init__(self):
         args = get_args()
@@ -79,24 +46,9 @@ class Trainer(object):
             self.save_model("initial_checkpoint")
 
         # opt = flow.optim.Adam(
-        opt = flow.optim.SGD(self.dlrm_module.parameters(), lr=args.learning_rate)
-        lr_scheduler = make_lr_scheduler(args, opt)
-        if args.loss_scale_policy == "static":
-            grad_scaler = flow.amp.StaticGradScaler(1024)
-        else:
-            grad_scaler = flow.amp.GradScaler(
-                init_scale=1073741824,
-                growth_factor=2.0,
-                backoff_factor=0.5,
-                growth_interval=2000,
-            )
-
+        self.opt = flow.optim.SGD(self.dlrm_module.parameters(), lr=args.learning_rate)
+        self.lr_scheduler = make_lr_scheduler(args, self.opt)
         self.loss = flow.nn.BCEWithLogitsLoss(reduction="none").to("cuda")
-        self.eval_graph = DLRMValGraph(self.dlrm_module, args.use_fp16)
-        self.train_graph = DLRMTrainGraph(
-            self.dlrm_module, self.loss, opt,
-            lr_scheduler, grad_scaler, args.use_fp16
-        )
 
     def save_model(self, subdir):
         if self.save_path is None or self.save_path == '':
@@ -123,7 +75,13 @@ class Trainer(object):
             for _ in range(self.max_iter):
                 self.cur_iter += 1
                 labels, dense_fields, sparse_fields = self.batch_to_global(*next(loader))
-                loss = self.train_graph(labels, dense_fields, sparse_fields)
+                logits = self.dlrm_module(dense_fields, sparse_fields)
+                loss = self.loss(logits, labels)
+                loss = flow.mean(loss)
+                loss.backward()
+                self.opt.step()
+                self.opt.zero_grad()
+                self.lr_scheduler.step()
                 if self.cur_iter % self.loss_print_every_n_iter == 0:
                     loss = loss.numpy()
                     if self.rank == 0:
@@ -154,7 +112,8 @@ class Trainer(object):
                 if num_eval_batches > self.eval_batchs and self.eval_batchs > 0:
                     break
                 label, dense_fields, sparse_fields = self.batch_to_global(*np_batch)
-                logits, label =  self.eval_graph(label, dense_fields, sparse_fields)
+                with flow.no_grad():
+                    logits = self.dlrm_module(dense_fields, sparse_fields)
                 pred = logits.sigmoid()
                 labels.append(label.numpy())
                 preds.append(pred.numpy())
