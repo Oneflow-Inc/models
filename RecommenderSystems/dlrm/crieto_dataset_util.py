@@ -98,7 +98,7 @@ def make_crieto_dataloader(args, mode, shard_count=1, cur_shard=0):
     return CrietoDatasetContextManager(
         files,
         args.batch_size_per_proc if mode=='train' else args.eval_batch_size_per_proc,
-        None if mode=='train' else 1,
+        None, # TODO: if mode=='train' else 1, 
         num_dense_fields=args.num_dense_fields,
         num_sparse_fields=args.num_sparse_fields,
         shuffling_queue_capacity=(mode=='train'),

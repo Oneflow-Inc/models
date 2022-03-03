@@ -141,7 +141,7 @@ class Trainer(object):
                 self.eval()
 
     def eval(self):
-        if self.eval_batchs == 0:
+        if self.eval_batchs <= 0:
             return
         self.dlrm_module.eval()
         labels = []
