@@ -1,7 +1,6 @@
 import oneflow as flow
 import os
 import sys
-import glob
 import time
 import numpy as np
 from sklearn.metrics import roc_auc_score
@@ -11,33 +10,9 @@ sys.path.append(
     os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
 )
 from config import get_args
-from crieto_dataset_util import CrietoDatasetContextManager
+from crieto_dataset_util import make_crieto_dataloader
 from dlrm import make_dlrm_module
 from lr_scheduler import make_lr_scheduler
-
-
-def make_crieto_dataloader(args, mode):
-    """Make a Crieto Parquet DataLoader.
-    :return: a context manager when exit the returned context manager, the reader
-                will be closed.
-    """
-    subfolders = args.train_sub_folders if mode=='train' else args.val_sub_folders
-
-    files = []
-    for folder in subfolders:
-        files += ['file://' + name for name in glob.glob(f'{args.data_dir}/{folder}/*.parquet')]
-    files.sort()
-
-    return CrietoDatasetContextManager(
-        files,
-        args.batch_size_per_proc if mode=='train' else args.eval_batch_size_per_proc,
-        None if mode=='train' else 1,
-        num_dense_fields=args.num_dense_fields,
-        num_sparse_fields=args.num_sparse_fields,
-        shuffling_queue_capacity=(mode=='train'),
-        shard_seed=1234,
-        shard_count=flow.env.get_world_size(),
-        cur_shard=flow.env.get_rank())
 
 
 class DLRMValGraph(flow.nn.Graph):
@@ -86,6 +61,7 @@ class Trainer(object):
         self.eval_batchs = args.eval_batchs
 
         self.cur_iter = 0
+        self.world_size = flow.env.get_world_size()
         self.rank = flow.env.get_rank()
         self.placement = flow.env.all_device_placement("cuda")
         self.sbp = flow.sbp.split(0)
@@ -142,10 +118,10 @@ class Trainer(object):
     def train(self):
         self.dlrm_module.train()
         last_iter, last_time = 0, time.time()
-        with make_crieto_dataloader(self.args, "train") as train_loader:
+        with make_crieto_dataloader(self.args, "train", self.world_size, self.rank) as loader:
             for _ in range(self.max_iter):
                 self.cur_iter += 1
-                labels, dense_fields, sparse_fields = self.batch_to_global(*next(train_loader))
+                labels, dense_fields, sparse_fields = self.batch_to_global(*next(loader))
                 loss = self.train_graph(labels, dense_fields, sparse_fields)
                 if self.cur_iter % self.loss_print_every_n_iter == 0:
                     loss = loss.numpy()
@@ -170,7 +146,7 @@ class Trainer(object):
         self.dlrm_module.eval()
         labels = []
         preds = []
-        with make_crieto_dataloader(self.args, "val") as val_loader:
+        with make_crieto_dataloader(self.args, "val", self.world_size, self.rank) as val_loader:
             num_eval_batches = 0
             for np_batch in val_loader:
                 num_eval_batches += 1
