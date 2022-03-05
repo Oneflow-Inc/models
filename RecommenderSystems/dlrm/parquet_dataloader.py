@@ -5,7 +5,7 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 from petastorm.reader import make_batch_reader
 
 
-class CriteoDatasetContextManager(object):
+class ParquetDataloader(object):
     """A context manager that manages the creation and termination of a
     :class:`petastorm.Reader`.
     """
@@ -83,30 +83,6 @@ class CriteoDatasetContextManager(object):
                 tail = [rglist[i][pos:] for i in range(self.C_end)]
 
 
-def make_criteo_dataloader(args, mode, shard_count, cur_shard):
-    """Make a Criteo Parquet DataLoader.
-    :return: a context manager when exit the returned context manager, the reader
-                will be closed.
-    """
-    subfolders = args.train_sub_folders if mode=='train' else args.val_sub_folders
-
-    files = []
-    for folder in subfolders:
-        files += ['file://' + name for name in glob.glob(f'{args.data_dir}/{folder}/*.parquet')]
-    files.sort()
-
-    return CriteoDatasetContextManager(
-        files,
-        args.batch_size_per_proc if mode=='train' else args.eval_batch_size_per_proc,
-        None if mode=='train' else 1,
-        num_dense_fields=args.num_dense_fields,
-        num_sparse_fields=args.num_sparse_fields,
-        shuffle_row_groups=(mode=='train'),
-        shard_seed=1234,
-        shard_count=shard_count,
-        cur_shard=cur_shard)
-
-
 if __name__ == "__main__":
     import glob
     np.set_printoptions(linewidth=100)
@@ -122,13 +98,13 @@ if __name__ == "__main__":
     files.sort()
     batch_size = 32
     num_epochs = 1
-    with CriteoDatasetContextManager(files, batch_size, num_epochs) as dataloader:
+    with ParquetDataloader(files, batch_size, num_epochs) as dataloader:
         for i in range(10):
             labels, dense_fields, sparse_fields = next(dataloader)
             print(i, labels.shape, dense_fields.shape, sparse_fields.shape)
             print(i, type(labels), type(dense_fields), type(sparse_fields))
 
-    with CriteoDatasetContextManager(files, batch_size, num_epochs) as dataloader:
+    with ParquetDataloader(files, batch_size, num_epochs) as dataloader:
         i = 0
         for labels, dense_fields, sparse_fields in dataloader:
             i += 1
@@ -139,7 +115,7 @@ if __name__ == "__main__":
     import time
     import psutil
     for i in range(1000):
-        with CriteoDatasetContextManager(files, batch_size, num_epochs) as dataloader:
+        with ParquetDataloader(files, batch_size, num_epochs) as dataloader:
             pass
         # time.sleep(0.5)
         print(i, time.time(), psutil.Process().memory_info().rss // (1024 * 1024))
