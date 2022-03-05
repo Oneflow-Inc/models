@@ -39,8 +39,30 @@ class Trainer(object):
         self.dlrm_module.embedding.set_model_parallel(self.placement)
 
         if args.model_load_dir != "":
-            print(f"Loading model from {self.args.model_load_dir}")
-            state_dict = flow.load(self.args.model_load_dir, global_src_rank=0)
+            print(f"Loading model from {args.model_load_dir}")
+            state_dict = flow.load(args.model_load_dir, global_src_rank=0)
+            if 0:
+                o2n = {
+                    'bottom_mlp.linear_layers.fc0.features.0.weight': 'bottom_mlp.linear_layers.weight_0',
+                    'bottom_mlp.linear_layers.fc0.features.0.bias': 'bottom_mlp.linear_layers.bias_0',
+                    'bottom_mlp.linear_layers.fc1.features.0.weight': 'bottom_mlp.linear_layers.weight_1',
+                    'bottom_mlp.linear_layers.fc1.features.0.bias': 'bottom_mlp.linear_layers.bias_1',
+                    'bottom_mlp.linear_layers.fc2.features.0.weight': 'bottom_mlp.linear_layers.weight_2',
+                    'bottom_mlp.linear_layers.fc2.features.0.bias': 'bottom_mlp.linear_layers.bias_2',
+                    'top_mlp.linear_layers.fc0.features.0.weight': 'top_mlp.linear_layers.weight_0',
+                    'top_mlp.linear_layers.fc0.features.0.bias': 'top_mlp.linear_layers.bias_0',
+                    'top_mlp.linear_layers.fc1.features.0.weight': 'top_mlp.linear_layers.weight_1',
+                    'top_mlp.linear_layers.fc1.features.0.bias': 'top_mlp.linear_layers.bias_1',
+                    'top_mlp.linear_layers.fc2.features.0.weight': 'top_mlp.linear_layers.weight_2',
+                    'top_mlp.linear_layers.fc2.features.0.bias': 'top_mlp.linear_layers.bias_2',
+                    'top_mlp.linear_layers.fc3.features.0.weight': 'top_mlp.linear_layers.weight_3',
+                    'top_mlp.linear_layers.fc3.features.0.bias': 'top_mlp.linear_layers.bias_3',
+                    'top_mlp.linear_layers.fc4.features.weight': 'top_mlp.linear_layers.weight_4',
+                    'top_mlp.linear_layers.fc4.features.bias': 'top_mlp.linear_layers.bias_4',
+                }
+                for old, new in o2n.items():
+                    state_dict[new] = state_dict.pop(old)
+
             self.dlrm_module.load_state_dict(state_dict, strict=False)
         if args.save_initial_model and args.model_save_dir != "":
             self.save_model("initial_checkpoint")
@@ -68,6 +90,16 @@ class Trainer(object):
         sparse_fields = sparse_fields.to_global(placement=self.placement, sbp=self.sbp)
         return labels, dense_fields, sparse_fields
 
+    def train_one_step(self, labels, dense_fields, sparse_fields):
+        logits = self.dlrm_module(dense_fields, sparse_fields)
+        loss = self.loss(logits, labels)
+        loss = flow.mean(loss)
+        loss.backward()
+        self.opt.step()
+        self.opt.zero_grad()
+        self.lr_scheduler.step()
+        return loss
+
     def train(self):
         self.dlrm_module.train()
         last_iter, last_time = 0, time.time()
@@ -75,13 +107,7 @@ class Trainer(object):
             for _ in range(self.max_iter):
                 self.cur_iter += 1
                 labels, dense_fields, sparse_fields = self.batch_to_global(*next(loader))
-                logits = self.dlrm_module(dense_fields, sparse_fields)
-                loss = self.loss(logits, labels)
-                loss = flow.mean(loss)
-                loss.backward()
-                self.opt.step()
-                self.opt.zero_grad()
-                self.lr_scheduler.step()
+                loss = self.train_one_step(labels, dense_fields, sparse_fields)
                 if self.cur_iter % self.loss_print_every_n_iter == 0:
                     loss = loss.numpy()
                     if self.rank == 0:
@@ -99,6 +125,11 @@ class Trainer(object):
             if self.eval_interval > 0 and self.cur_iter % self.eval_interval != 0:
                 self.eval()
 
+    def inference(self, dense_fields, sparse_fields):
+        with flow.no_grad():
+            logits = self.dlrm_module(dense_fields, sparse_fields)
+            return logits
+
     def eval(self):
         if self.eval_batchs == 0:
             return
@@ -112,8 +143,7 @@ class Trainer(object):
                 if num_eval_batches > self.eval_batchs and self.eval_batchs > 0:
                     break
                 label, dense_fields, sparse_fields = self.batch_to_global(*np_batch)
-                with flow.no_grad():
-                    logits = self.dlrm_module(dense_fields, sparse_fields)
+                logits = self.inference(dense_fields, sparse_fields)
                 pred = logits.sigmoid()
                 labels.append(label.numpy())
                 preds.append(pred.numpy())
