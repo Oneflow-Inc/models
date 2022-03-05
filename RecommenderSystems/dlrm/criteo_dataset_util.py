@@ -5,7 +5,7 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 from petastorm.reader import make_batch_reader
 
 
-class CrietoDatasetContextManager(object):
+class CriteoDatasetContextManager(object):
     """A context manager that manages the creation and termination of a
     :class:`petastorm.Reader`.
     """
@@ -83,8 +83,8 @@ class CrietoDatasetContextManager(object):
                 tail = [rglist[i][pos:] for i in range(self.C_end)]
 
 
-def make_crieto_dataloader(args, mode, shard_count, cur_shard):
-    """Make a Crieto Parquet DataLoader.
+def make_criteo_dataloader(args, mode, shard_count, cur_shard):
+    """Make a Criteo Parquet DataLoader.
     :return: a context manager when exit the returned context manager, the reader
                 will be closed.
     """
@@ -95,7 +95,7 @@ def make_crieto_dataloader(args, mode, shard_count, cur_shard):
         files += ['file://' + name for name in glob.glob(f'{args.data_dir}/{folder}/*.parquet')]
     files.sort()
 
-    return CrietoDatasetContextManager(
+    return CriteoDatasetContextManager(
         files,
         args.batch_size_per_proc if mode=='train' else args.eval_batch_size_per_proc,
         None if mode=='train' else 1,
@@ -122,13 +122,13 @@ if __name__ == "__main__":
     files.sort()
     batch_size = 32
     num_epochs = 1
-    with CrietoDatasetContextManager(files, batch_size, num_epochs) as dataloader:
+    with CriteoDatasetContextManager(files, batch_size, num_epochs) as dataloader:
         for i in range(10):
             labels, dense_fields, sparse_fields = next(dataloader)
             print(i, labels.shape, dense_fields.shape, sparse_fields.shape)
             print(i, type(labels), type(dense_fields), type(sparse_fields))
 
-    with CrietoDatasetContextManager(files, batch_size, num_epochs) as dataloader:
+    with CriteoDatasetContextManager(files, batch_size, num_epochs) as dataloader:
         i = 0
         for labels, dense_fields, sparse_fields in dataloader:
             i += 1
@@ -139,7 +139,7 @@ if __name__ == "__main__":
     import time
     import psutil
     for i in range(1000):
-        with CrietoDatasetContextManager(files, batch_size, num_epochs) as dataloader:
+        with CriteoDatasetContextManager(files, batch_size, num_epochs) as dataloader:
             pass
         # time.sleep(0.5)
         print(i, time.time(), psutil.Process().memory_info().rss // (1024 * 1024))

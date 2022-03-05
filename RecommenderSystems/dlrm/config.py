@@ -26,34 +26,25 @@ def get_args(print_args=True):
         return list(map(str, x.split(",")))
     parser = argparse.ArgumentParser()
 
+    parser.add_argument("--mlp_type", type=str, default="FusedMLP", help="MLP or FusedMLP")
     parser.add_argument("--bottom_mlp", type=int_list, default="512,256,128")
     parser.add_argument("--top_mlp", type=int_list, default="1024,1024,512,256")
     parser.add_argument("--interaction_type", type=str, default="cat", help="dot, cat")
-    parser.add_argument(
-        "--interaction_itself", action="store_true", help="interaction itself or not"
-    )
+    parser.add_argument('--output_padding', type=int, default=1,
+                        help="interaction output padding size")
+    parser.add_argument("--interaction_itself", action="store_true",
+                        help="interaction itself or not")
     parser.add_argument("--model_load_dir", type=str, default="")
     parser.add_argument("--model_save_dir", type=str, default="./checkpoint")
-    parser.add_argument(
-        "--save_initial_model",
-        action="store_true",
-        help="save initial model parameters or not.",
-    )
-    parser.add_argument(
-        "--save_model_after_each_eval",
-        action="store_true",
-        help="save model after each eval.",
-    )
-    parser.add_argument(
-        "--eval_after_training",
-        action="store_true",
-        help="do eval after_training",
-    )
-    parser.add_argument(
-        "--data_dir", type=str, default="/dataset/wdl_ofrecord/ofrecord"
-    )
+    parser.add_argument("--save_initial_model", action="store_true",
+                        help="save initial model parameters or not.")
+    parser.add_argument("--save_model_after_each_eval", action="store_true",
+                        help="save model after each eval.")
+    parser.add_argument("--eval_after_training", action="store_true",
+                        help="do eval after_training")
+    parser.add_argument("--data_dir", type=str, default="/dataset/dlrm_parquet")
     parser.add_argument("--train_sub_folders", type=str_list,
-        default=','.join([f'day_{i}' for i in range(23)]))
+                        default=','.join([f'day_{i}' for i in range(23)]))
     parser.add_argument("--val_sub_folders", type=str_list, default="day_23")
     parser.add_argument('--data_part_name_suffix_length', type=int, default=-1)
     parser.add_argument('--eval_batchs', type=int, default=-1, 
@@ -73,25 +64,18 @@ def get_args(print_args=True):
     parser.add_argument("--max_iter", type=int, default=30000)
     parser.add_argument("--loss_print_every_n_iter", type=int, default=100)
     parser.add_argument("--num_sparse_fields", type=int, default=26)
-    parser.add_argument(
-        "--ddp", action="store_true", help="Run model in distributed data parallel mode"
-    )
-    parser.add_argument(
-        "--embedding_type", type=str, default="OneEmbedding", help="OneEmbedding or Embedding"
-    )
-    parser.add_argument("--mlp_type", type=str, default="MLP", help="MLP or FusedMLP")
+    parser.add_argument("--embedding_type", type=str, default="OneEmbedding", 
+                        help="OneEmbedding or Embedding")
     parser.add_argument("--embedding_split_axis", type=int, default=-1, help="-1: no split")
     parser.add_argument("--column_size_array", type=int_list, help="column_size_array")
-    parser.add_argument(
-        "--persistent_path", type=str, default="", help="path for persistent kv store"
-    )
+    parser.add_argument("--persistent_path", type=str, default="", 
+                        help="path for persistent kv store")
     parser.add_argument("--cache_policy", type=str_list, default="lru,none")
     parser.add_argument("--cache_memory_budget_mb", type=int_list, default="16384,16384")
     parser.add_argument("--value_memory_kind", type=str_list, default="device,host")
     parser.add_argument("--use_fp16", action="store_true", help="Run model with amp")
-    parser.add_argument(
-        "--loss_scale_policy", type=str, default="static", help="static or dynamic"
-    )
+    parser.add_argument("--loss_scale_policy", type=str, default="static", 
+                        help="static or dynamic")
     parser.add_argument("--test_name", type=str, default="noname_test")
 
     args = parser.parse_args()
@@ -118,6 +102,10 @@ def get_args(print_args=True):
     if args.vocab_size < 1:
         assert len(args.column_size_array) > 0
         args.vocab_size = sum(args.column_size_array)
+
+    if args.model_load_dir != "": # TODO: remove later
+        args.output_padding = 0
+
     if print_args and flow.env.get_rank() == 0:
         _print_args(args)
     return args
