@@ -29,7 +29,6 @@ def get_args(print_args=True):
     parser.add_argument("--mlp_type", type=str, default="FusedMLP", help="MLP or FusedMLP")
     parser.add_argument("--bottom_mlp", type=int_list, default="512,256,128")
     parser.add_argument("--top_mlp", type=int_list, default="1024,1024,512,256")
-    parser.add_argument("--interaction_type", type=str, default="cat", help="dot, cat")
     parser.add_argument('--output_padding', type=int, default=1,
                         help="interaction output padding size")
     parser.add_argument("--interaction_itself", action="store_true",
@@ -58,7 +57,7 @@ def get_args(print_args=True):
     parser.add_argument("--warmup_batches", type=int, default=2750)
     parser.add_argument("--decay_batches", type=int, default=27772)
     parser.add_argument("--decay_start", type=int, default=49315)
-    parser.add_argument("--vocab_size", type=int, default=1603616)
+    parser.add_argument("--vocab_size", type=int, default=-1)
     parser.add_argument("--embedding_vec_size", type=int, default=128)
     parser.add_argument("--num_dense_fields", type=int, default=13)
     parser.add_argument("--max_iter", type=int, default=30000)
@@ -97,8 +96,6 @@ def get_args(print_args=True):
     else:
         assert args.eval_batch_size % args.eval_batch_size_per_proc == 0
 
-    args.is_global = True
-    
     if args.vocab_size < 1:
         assert len(args.column_size_array) > 0
         args.vocab_size = sum(args.column_size_array)
