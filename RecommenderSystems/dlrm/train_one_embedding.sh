@@ -68,7 +68,6 @@ python3 -m oneflow.distributed.launch \
   graph_train.py \
     --model_save_dir ckpt \
     --column_size_array $column_size_array \
-    --interaction_type dot \
     --embedding_type OneEmbedding \
     --bottom_mlp 512,256,$emb_size \
     --top_mlp 1024,1024,512,256 \

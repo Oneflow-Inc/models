@@ -1,6 +1,7 @@
 import oneflow as flow
 import os
 import sys
+import glob
 import time
 import numpy as np
 from sklearn.metrics import roc_auc_score
@@ -10,15 +11,37 @@ sys.path.append(
     os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
 )
 from config import get_args
-from crieto_dataset_util import make_crieto_dataloader
-from fused_dlrm import make_dlrm_module
-# from dlrm import make_dlrm_module
+from parquet_dataloader import ParquetDataloader
+from dlrm import make_dlrm_module
 from lr_scheduler import make_lr_scheduler
 
 
+def make_criteo_dataloader(args, mode):
+    """Make a Criteo Parquet DataLoader.
+    :return: a context manager when exit the returned context manager, the reader
+                will be closed.
+    """
+    subfolders = args.train_sub_folders if mode=='train' else args.val_sub_folders
+
+    files = []
+    for folder in subfolders:
+        files += ['file://' + name for name in glob.glob(f'{args.data_dir}/{folder}/*.parquet')]
+    files.sort()
+
+    return ParquetDataloader(
+        files,
+        args.batch_size_per_proc if mode=='train' else args.eval_batch_size_per_proc,
+        None if mode=='train' else 1,
+        num_dense_fields=args.num_dense_fields,
+        num_sparse_fields=args.num_sparse_fields,
+        shuffle_row_groups=(mode=='train'),
+        shard_seed=1234,
+        shard_count=flow.env.get_world_size(),
+        cur_shard=flow.env.get_rank())
+
+
 class Trainer(object):
-    def __init__(self):
-        args = get_args()
+    def __init__(self, args):
         self.args = args
         self.save_path = args.model_save_dir
         self.save_model_after_each_eval = args.save_model_after_each_eval
@@ -29,7 +52,6 @@ class Trainer(object):
         self.eval_batchs = args.eval_batchs
 
         self.cur_iter = 0
-        self.world_size = flow.env.get_world_size()
         self.rank = flow.env.get_rank()
         self.placement = flow.env.all_device_placement("cuda")
         self.sbp = flow.sbp.split(0)
@@ -41,7 +63,7 @@ class Trainer(object):
         if args.model_load_dir != "":
             print(f"Loading model from {args.model_load_dir}")
             state_dict = flow.load(args.model_load_dir, global_src_rank=0)
-            if 0:
+            if args.mlp_type == 'FusedMLP':
                 o2n = {
                     'bottom_mlp.linear_layers.fc0.features.0.weight': 'bottom_mlp.linear_layers.weight_0',
                     'bottom_mlp.linear_layers.fc0.features.0.bias': 'bottom_mlp.linear_layers.bias_0',
@@ -62,7 +84,6 @@ class Trainer(object):
                 }
                 for old, new in o2n.items():
                     state_dict[new] = state_dict.pop(old)
-
             self.dlrm_module.load_state_dict(state_dict, strict=False)
         if args.save_initial_model and args.model_save_dir != "":
             self.save_model("initial_checkpoint")
@@ -103,7 +124,7 @@ class Trainer(object):
     def train(self):
         self.dlrm_module.train()
         last_iter, last_time = 0, time.time()
-        with make_crieto_dataloader(self.args, "train", self.world_size, self.rank) as loader:
+        with make_criteo_dataloader(self.args, "train") as loader:
             for _ in range(self.max_iter):
                 self.cur_iter += 1
                 labels, dense_fields, sparse_fields = self.batch_to_global(*next(loader))
@@ -115,7 +136,7 @@ class Trainer(object):
                         last_iter, last_time = self.cur_iter, time.time()
                         strtime = time.strftime("%Y-%m-%d %H:%M:%S")
                         print(f'Rank[{self.rank}], Iter {self.cur_iter}, Loss {loss:0.4f}, '+
-                              f'Latency_ms {latency_ms:0.3f}, {strtime}')
+                              f'Latency {latency_ms:0.3f} ms, {strtime}')
 
                 if self.eval_interval > 0 and self.cur_iter % self.eval_interval == 0:
                     self.eval()
@@ -136,7 +157,8 @@ class Trainer(object):
         self.dlrm_module.eval()
         labels = []
         preds = []
-        with make_crieto_dataloader(self.args, "val", self.world_size, self.rank) as val_loader:
+        eval_start_time = time.time()
+        with make_criteo_dataloader(self.args, "val") as val_loader:
             num_eval_batches = 0
             for np_batch in val_loader:
                 num_eval_batches += 1
@@ -154,24 +176,27 @@ class Trainer(object):
             auc_start_time = time.time()
             auc = roc_auc_score(labels, preds)
             auc_time = time.time() - auc_start_time
+            eval_time = time.time() - eval_start_time
         
             host_mem_mb = psutil.Process().memory_info().rss // (1024 * 1024)
-            # os.system("nvidia-smi --query-gpu=memory.used --format=csv")
             stream = os.popen("nvidia-smi --query-gpu=memory.used --format=csv")
             device_mem_str = stream.read().split("\n")[self.rank + 1]
 
             strtime = time.strftime("%Y-%m-%d %H:%M:%S")
             print(f'Rank[{self.rank}], Iter {self.cur_iter}, AUC {auc:0.5f}, ' +
                   f'#Samples {labels.shape[0]}, Host_Memory {host_mem_mb} MiB, ' +
-                  f'Device_Memory {device_mem_str}, AUC_time {auc_time:0.1f} s, {strtime}')
+                  f'Device_Memory {device_mem_str}, AUC_time {auc_time:0.1f} s, ' +
+                  f'Eval_time {eval_time} s, {strtime}')
             if self.save_model_after_each_eval:
                 self.save_model(f"iter_{self.cur_iter}_val_auc_{auc}")
-
 
         self.dlrm_module.train()
 
 
 if __name__ == "__main__":
     flow.boxing.nccl.enable_all_to_all(True)
-    trainer = Trainer()
+    args = get_args()
+    assert args.embedding_type != "OneEmbedding", "Do not support OneEmbedding in Eager Mode!"
+
+    trainer = Trainer(args)
     trainer.train()

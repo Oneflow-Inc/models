@@ -1,8 +1,13 @@
+import sys
 from collections import OrderedDict
 import oneflow as flow
-from oneflow.framework.tensor import _xor
 import oneflow.nn as nn
 import numpy as np
+
+
+def NameToClass(classname):
+    return getattr(sys.modules[__name__], classname)
+
 
 __all__ = ["make_dlrm_module"]
 
@@ -26,16 +31,19 @@ class Dense(nn.Module):
 
 
 class MLP(nn.Module):
-    def __init__(self, in_features: int, hidden_units) -> None:
+    def __init__(self, in_features: int, hidden_units, skip_final_activation=False) -> None:
         super(MLP, self).__init__()
+        print('using MLP')
+        units = [in_features] + hidden_units
+        num_layers = len(hidden_units)
         self.linear_layers = nn.Sequential(
             OrderedDict(
                 [
                     (
                         f"fc{i}",
-                        Dense(in_features if i == 0 else hidden_units[i-1], h)
+                        Dense(units[i], units[i+1], not skip_final_activation or (i+1)<num_layers)
                     )
-                    for i, h in enumerate(hidden_units)
+                    for i in range(num_layers)
                 ]
             )
         )
@@ -43,73 +51,57 @@ class MLP(nn.Module):
         return self.linear_layers(x)
 
 
+class FusedMLP(nn.Module):
+    def __init__(self, in_features: int, hidden_units, skip_final_activation=False) -> None:
+        super(FusedMLP, self).__init__()
+        print('using fusedMLP')
+        self.linear_layers = nn.FusedMLP(in_features, hidden_units[:-1], hidden_units[-1], 
+                                         skip_final_activation=skip_final_activation)
+        units = [in_features] + hidden_units
+        w_init_factor = [units[i] + units[i + 1] for i in range(len(hidden_units))]
+        for name, param in self.linear_layers.named_parameters():
+            idx = int(name.split("_")[1])
+            if name.startswith("weight"):
+                nn.init.normal_(param, 0.0, np.sqrt(2 / w_init_factor[idx]))
+            elif name.startswith("bias"):
+                nn.init.normal_(param, 0.0, np.sqrt(1 / hidden_units[idx]))
+
+    def forward(self, x:flow.Tensor) -> flow.Tensor:
+        return self.linear_layers(x)
+
+
 class Interaction(nn.Module):
-    def __init__(self, interaction_type='dot', interaction_itself=False, num_sparse_fields=26):
+    def __init__(self, interaction_itself=False, num_sparse_fields=26, output_padding=1):
         super(Interaction, self).__init__()
-        self.interaction_type = interaction_type
         self.interaction_itself = interaction_itself
         self.num_sparse_fields = num_sparse_fields
+        self.output_padding = output_padding
 
-        # slice
-        offset = 1 if self.interaction_itself else 0
-        # indices = flow.tensor([i * 27 + j for i in range(27) for j in range(i + offset)])
-        # self.register_buffer("indices", indices)
-        if interaction_type == 'dot':
-            li = flow.tensor([i for i in range(27) for j in range(i + offset)])
-            lj = flow.tensor([j for i in range(27) for j in range(i + offset)])
-            self.register_buffer("li", li)
-            self.register_buffer("lj", lj)
-        
     def forward(self, x:flow.Tensor, ly:flow.Tensor) -> flow.Tensor:
         # x - dense fields, ly = embedding
-        if self.interaction_type == 'cat':
-            R = flow.cat([x, ly], dim=1)
-        elif self.interaction_type == 'dot': # slice
-            (batch_size, d) = x.shape
-            T = flow.cat([x, ly], dim=1).view((batch_size, -1, d))
-            # perform a dot product
-            Z = flow.matmul(T, T, transpose_b=True)
-            Zflat = Z[:, self.li, self.lj]
-            R = flow.cat([x, Zflat], dim=1)
-        elif self.interaction_type == 'fused':
-            (batch_size, d) = x.shape
-            R = flow._C.fused_interaction(x, flow.reshape(ly, (batch_size, -1, d)))
-        else:
-            assert 0, 'dot or cat'
-        return R
+        (bsz, d) = x.shape
+        return flow._C.fused_dot_feature_interaction(
+            [x.view(bsz, 1, d), ly],
+            output_concat=x, 
+            self_interaction=self.interaction_itself, 
+            output_padding=self.output_padding
+        )
 
     def output_feature_size(self, embedding_vec_size, dense_feature_size):
-        if self.interaction_type == 'dot':
-            # assert 0, 'dot is not supported yet'
-            assert embedding_vec_size == dense_feature_size, "Embedding vector size must equle to dense feature size"
-            n_cols = self.num_sparse_fields + 1
-            if self.interaction_itself:
-                n_cols += 1
-            return dense_feature_size + sum(range(n_cols))
-        elif self.interaction_type == 'cat':
-            return embedding_vec_size * self.num_sparse_fields + dense_feature_size
-        elif self.interaction_type == 'fused':
-            assert embedding_vec_size == dense_feature_size, "Embedding vector size must equle to dense feature size"
-            n_cols = self.num_sparse_fields + 1
-            if self.interaction_itself:
-                n_cols += 1
-            return dense_feature_size + sum(range(n_cols)) + 1
-        else:
-            assert 0, 'dot or cat'
+        assert embedding_vec_size == dense_feature_size, "Embedding vector size must equle to dense feature size"
+        n_cols = self.num_sparse_fields + 1
+        if self.interaction_itself:
+            n_cols += 1
+        return dense_feature_size + sum(range(n_cols)) + self.output_padding
 
 
 class Embedding(nn.Embedding):
-    def __init__(self, vocab_size, embed_size, args):
-        if args.is_global:
-            assert args.embedding_split_axis < 2, "Embedding model parallel split axis can only be 0 or 1."
-            self.split_axis = args.embedding_split_axis
-        else:
-            self.split_axis = -1
-        super(Embedding, self).__init__(vocab_size, embed_size, padding_idx=0)
+    def __init__(self, args):
+        assert args.embedding_split_axis < 2, "Embedding model parallel split axis is 0 or 1."
+        self.split_axis = args.embedding_split_axis
+        super(Embedding, self).__init__(args.vocab_size, args.embedding_vec_size, padding_idx=0)
         for param in self.parameters():
             nn.init.uniform_(param, a=-0.05, b=0.05)
-            # W = np.load('/tank/model_zoo/dlrm_baseline_params_emb16/embedding_weight.npy')
-            # param.data = flow.tensor(W, requires_grad=True)
 
     def set_model_parallel(self, placement=None):
         # Overriding to_global function does not work
@@ -140,9 +132,10 @@ class Embedding(nn.Embedding):
             return embeddings.to_global(sbp=flow.sbp.split(0), grad_sbp=flow.sbp.split(2))
         else:
             return embeddings
-    
+
+
 class OneEmbedding(nn.Module):
-    def __init__(self, vocab_size, embed_size, args):
+    def __init__(self, args):
         assert args.column_size_array is not None
         scales = np.sqrt(1 / np.array(args.column_size_array))
         initializer_list = []
@@ -167,8 +160,8 @@ class OneEmbedding(nn.Module):
             "key_type": flow.int64,
             "value_type": flow.float,
             "name": "my_embedding",
-            "embedding_dim": embed_size,
-            "storage_dim": embed_size,
+            "embedding_dim": args.embedding_vec_size,
+            "storage_dim": args.embedding_vec_size,
             "kv_store": {
                 "caches" : cache_list,
                 "persistent_table": {
@@ -187,9 +180,9 @@ class OneEmbedding(nn.Module):
     def forward(self, ids):
         bsz = ids.shape[0]
         column_id = flow.ones((bsz, 1), dtype=flow.int32, sbp=ids.sbp, placement=ids.placement) * self.column_id
-        if (ids.is_global):
-            column_id = column_id.to_global(sbp=ids.sbp, placement=ids.placement)
+        column_id = column_id.to_global(sbp=ids.sbp, placement=ids.placement)
         return self.one_embedding.forward(ids, column_id)
+
     def set_model_parallel(self, placement=None):
         pass
 
@@ -203,23 +196,21 @@ embd_dict = {
 class DLRMModule(nn.Module):
     def __init__(self, args):
         super(DLRMModule, self).__init__()
-        self.bottom_mlp = MLP(args.num_dense_fields, args.bottom_mlp)
-        self.embedding = embd_dict[args.embedding_type](args.vocab_size, args.embedding_vec_size, args)
-        self.interaction = Interaction(args.interaction_type, args.interaction_itself, args.num_sparse_fields)
-        feature_size = self.interaction.output_feature_size(args.embedding_vec_size, args.bottom_mlp[-1])        
-        self.top_mlp = MLP(feature_size, args.top_mlp)
-        self.scores = Dense(args.top_mlp[-1], 1, relu=False)
+        self.bottom_mlp = NameToClass(args.mlp_type)(args.num_dense_fields, args.bottom_mlp)
+        self.embedding = NameToClass(args.embedding_type)(args)
+        self.interaction = Interaction(args.interaction_itself, args.num_sparse_fields,
+                                       args.output_padding)
+        feature_size = self.interaction.output_feature_size(args.embedding_vec_size,
+                                                            args.bottom_mlp[-1])
+        self.top_mlp = NameToClass(args.mlp_type)(feature_size, args.top_mlp + [1],
+                                                  skip_final_activation=True)
 
     def forward(self, dense_fields, sparse_fields) -> flow.Tensor:
         dense_fields = flow.log(dense_fields + 1.0)
         dense_fields = self.bottom_mlp(dense_fields)
         embedding = self.embedding(sparse_fields)
-        embedding = embedding.view(-1, embedding.shape[-1] * embedding.shape[-2])
         features = self.interaction(dense_fields, embedding)
-        features = self.top_mlp(features)
-        scores = self.scores(features)
-        return scores
-
+        return self.top_mlp(features)
 
 def make_dlrm_module(args):
     model = DLRMModule(args)
