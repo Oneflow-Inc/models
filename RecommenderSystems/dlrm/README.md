@@ -22,7 +22,6 @@
 |-----|---|------|
 |batch_size|the data batch size in one step training|16384|
 |data_dir|the data file directory|/dataset/wdl_ofrecord/ofrecord|
-|dataset_format|ofrecord format data or onerec format data|ofrecord|
 |deep_dropout_rate|the argument dropout in the deep part|0.5|
 |deep_embedding_vec_size|the embedding dim in deep part|16|
 |deep_vocab_size|the embedding size in deep part|1603616|

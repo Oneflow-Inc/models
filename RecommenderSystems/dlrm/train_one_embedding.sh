@@ -96,6 +96,4 @@ python3 -m oneflow.distributed.launch \
     # --save_model_after_each_eval \
     # --eval_after_training \
     # --model_load_dir /tank/model_zoo/dlrm_baseline_params_emb$emb_size \
-    # --dataset_format torch \
     # --model_load_dir /tank/xiexuan/dlrm/initial_parameters \
-    # --dataset_format $dataset_format \

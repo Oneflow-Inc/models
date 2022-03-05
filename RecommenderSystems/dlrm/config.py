@@ -50,11 +50,6 @@ def get_args(print_args=True):
         help="do eval after_training",
     )
     parser.add_argument(
-        "--dataset_format", type=str, default="petastorm", help="ofrecord, onerec, parquet or synthetic"
-    )
-    parser.add_argument("--data_part_num", type=int, default=256)
-    parser.add_argument("--eval_data_part_num", type=int, default=256)
-    parser.add_argument(
         "--data_dir", type=str, default="/dataset/wdl_ofrecord/ofrecord"
     )
     parser.add_argument("--train_sub_folders", type=str_list,
@@ -92,22 +87,14 @@ def get_args(print_args=True):
     parser.add_argument(
         "--persistent_path", type=str, default="", help="path for persistent kv store"
     )
-    parser.add_argument(
-        "--cache_policy", type=str_list, default="lru,none"
-    )
-    parser.add_argument("--cache_memory_budget_mb", type=int_list, default="16384,16384", help="cache_memory_budget_mb")
-    parser.add_argument(
-        "--value_memory_kind", type=str_list, default="device,host"
-    )
-    parser.add_argument(
-        "--use_fp16", action="store_true", help="Run model with amp"
-    )
+    parser.add_argument("--cache_policy", type=str_list, default="lru,none")
+    parser.add_argument("--cache_memory_budget_mb", type=int_list, default="16384,16384")
+    parser.add_argument("--value_memory_kind", type=str_list, default="device,host")
+    parser.add_argument("--use_fp16", action="store_true", help="Run model with amp")
     parser.add_argument(
         "--loss_scale_policy", type=str, default="static", help="static or dynamic"
     )
-    parser.add_argument(
-        "--test_name", type=str, default="noname_test"
-    )
+    parser.add_argument("--test_name", type=str, default="noname_test")
 
     args = parser.parse_args()
 
