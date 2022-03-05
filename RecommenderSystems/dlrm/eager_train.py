@@ -31,7 +31,7 @@ def make_criteo_dataloader(args, mode):
     return ParquetDataloader(
         files,
         args.batch_size_per_proc if mode=='train' else args.eval_batch_size_per_proc,
-        None if mode=='train' else 1,
+        None if mode=='train' else 1, # TODO: iterate over all eval dataset
         num_dense_fields=args.num_dense_fields,
         num_sparse_fields=args.num_sparse_fields,
         shuffle_row_groups=(mode=='train'),
@@ -44,10 +44,6 @@ class Trainer(object):
     def __init__(self, args):
         self.args = args
         self.save_path = args.model_save_dir
-        self.save_model_after_each_eval = args.save_model_after_each_eval
-        self.eval_after_training = args.eval_after_training
-        self.max_iter = args.max_iter
-        self.loss_print_every_n_iter = args.loss_print_every_n_iter
         self.eval_interval = args.eval_interval
         self.eval_batchs = args.eval_batchs
 
@@ -125,11 +121,11 @@ class Trainer(object):
         self.dlrm_module.train()
         last_iter, last_time = 0, time.time()
         with make_criteo_dataloader(self.args, "train") as loader:
-            for _ in range(self.max_iter):
+            for _ in range(self.args.max_iter):
                 self.cur_iter += 1
                 labels, dense_fields, sparse_fields = self.batch_to_global(*next(loader))
                 loss = self.train_one_step(labels, dense_fields, sparse_fields)
-                if self.cur_iter % self.loss_print_every_n_iter == 0:
+                if self.cur_iter % self.args.loss_print_every_n_iter == 0:
                     loss = loss.numpy()
                     if self.rank == 0:
                         latency_ms = 1000 * (time.time() - last_time) / (self.cur_iter - last_iter)
@@ -142,7 +138,7 @@ class Trainer(object):
                     self.eval()
                     last_time = time.time()
 
-        if self.eval_after_training:
+        if self.args.eval_after_training:
             if self.eval_interval > 0 and self.cur_iter % self.eval_interval != 0:
                 self.eval()
 
@@ -187,7 +183,7 @@ class Trainer(object):
                   f'#Samples {labels.shape[0]}, Host_Memory {host_mem_mb} MiB, ' +
                   f'Device_Memory {device_mem_str}, AUC_time {auc_time:0.1f} s, ' +
                   f'Eval_time {eval_time} s, {strtime}')
-            if self.save_model_after_each_eval:
+            if self.args.save_model_after_each_eval:
                 self.save_model(f"iter_{self.cur_iter}_val_auc_{auc}")
 
         self.dlrm_module.train()
