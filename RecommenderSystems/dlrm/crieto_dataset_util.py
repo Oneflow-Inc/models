@@ -16,7 +16,7 @@ class CrietoDatasetContextManager(object):
                  num_epochs,
                  num_dense_fields=13,
                  num_sparse_fields=26,
-                 shuffling_queue_capacity=True,
+                 shuffle_row_groups=True,
                  shard_seed=1234,
                  shard_count=1,
                  cur_shard=0,
@@ -24,7 +24,7 @@ class CrietoDatasetContextManager(object):
         self.parquet_file_url_list = parquet_file_url_list
         self.batch_size = batch_size
         self.num_epochs = num_epochs
-        self.shuffling_queue_capacity = shuffling_queue_capacity
+        self.shuffle_row_groups = shuffle_row_groups
         self.shard_seed = shard_seed
         self.shard_count = shard_count
         self.cur_shard = cur_shard
@@ -40,7 +40,7 @@ class CrietoDatasetContextManager(object):
         self.reader = make_batch_reader(
             self.parquet_file_url_list,
             workers_count=2,
-            shuffle_row_groups=self.shuffling_queue_capacity,
+            shuffle_row_groups=self.shuffle_row_groups,
             num_epochs=self.num_epochs,
             shard_seed=self.shard_seed,
             shard_count=self.shard_count,
@@ -101,7 +101,7 @@ def make_crieto_dataloader(args, mode, shard_count, cur_shard):
         None if mode=='train' else 1,
         num_dense_fields=args.num_dense_fields,
         num_sparse_fields=args.num_sparse_fields,
-        shuffling_queue_capacity=(mode=='train'),
+        shuffle_row_groups=(mode=='train'),
         shard_seed=1234,
         shard_count=shard_count,
         cur_shard=cur_shard)
@@ -109,6 +109,7 @@ def make_crieto_dataloader(args, mode, shard_count, cur_shard):
 
 if __name__ == "__main__":
     import glob
+    np.set_printoptions(linewidth=100)
     mode = 'train'
     data_dir = '/minio/sdd/dataset/criteo1t/add_slot_size_snappy_true'
     train_sub_folders = [f'day_{i}' for i in range(23)]
