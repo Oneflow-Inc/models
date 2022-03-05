@@ -77,11 +77,9 @@ def get_args(print_args=True):
         "--ddp", action="store_true", help="Run model in distributed data parallel mode"
     )
     parser.add_argument(
-        "--execution_mode", type=str, default="eager", help="graph or eager"
-    )
-    parser.add_argument(
         "--embedding_type", type=str, default="OneEmbedding", help="OneEmbedding or Embedding"
     )
+    parser.add_argument("--mlp_type", type=str, default="MLP", help="MLP or FusedMLP")
     parser.add_argument("--embedding_split_axis", type=int, default=-1, help="-1: no split")
     parser.add_argument("--column_size_array", type=int_list, help="column_size_array")
     parser.add_argument(
@@ -115,9 +113,7 @@ def get_args(print_args=True):
     else:
         assert args.eval_batch_size % args.eval_batch_size_per_proc == 0
 
-    args.is_global = (
-        flow.env.get_world_size() > 1 and not args.ddp
-    ) or args.execution_mode == "graph"
+    args.is_global = True
     
     if args.vocab_size < 1:
         assert len(args.column_size_array) > 0

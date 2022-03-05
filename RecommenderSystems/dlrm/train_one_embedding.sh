@@ -85,12 +85,11 @@ python3 -m oneflow.distributed.launch \
     --vocab_size $EMBD_SIZE \
     --data_part_num 256 \
     --data_part_name_suffix_length 5 \
-    --execution_mode graph \
     --persistent_path $block_based_dir/one_embedding0 \
     --cache_policy $cache_policy \
     --cache_memory_budget_mb $cache_memory_budget_mb \
     --value_memory_kind $value_memory_kind \
-    --test_name train_${graph}_${DEVICE_NUM_PER_NODE}gpu
+    --test_name train_${DEVICE_NUM_PER_NODE}gpu
 
     # --save_init \
     # --save_model_after_each_eval \
