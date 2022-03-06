@@ -202,7 +202,7 @@ class Trainer(object):
             print(f'Rank[{self.rank}], Iter {self.cur_iter}, AUC {auc:0.5f}, ' +
                   f'Eval_time {eval_time:0.2f} s, AUC_time {auc_time:0.2f} s, ' +
                   f'#Samples {labels.shape[0]}, ' +
-                  f'Device_Memory {device_mem_str}, Host_Memory {host_mem_mb} MiB, ' +
+                  f'GPU_Memory {device_mem_str}, Host_Memory {host_mem_mb} MiB, ' +
                   f'{strtime}')
             if self.args.save_model_after_each_eval:
                 self.save_model(f"iter_{self.cur_iter}_val_auc_{auc}")
