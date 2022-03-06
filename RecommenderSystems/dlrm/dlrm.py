@@ -33,7 +33,6 @@ class Dense(nn.Module):
 class MLP(nn.Module):
     def __init__(self, in_features: int, hidden_units, skip_final_activation=False) -> None:
         super(MLP, self).__init__()
-        print('using MLP')
         units = [in_features] + hidden_units
         num_layers = len(hidden_units)
         self.linear_layers = nn.Sequential(
@@ -54,7 +53,6 @@ class MLP(nn.Module):
 class FusedMLP(nn.Module):
     def __init__(self, in_features: int, hidden_units, skip_final_activation=False) -> None:
         super(FusedMLP, self).__init__()
-        print('using fusedMLP')
         self.linear_layers = nn.FusedMLP(in_features, hidden_units[:-1], hidden_units[-1], 
                                          skip_final_activation=skip_final_activation)
         units = [in_features] + hidden_units

@@ -13,7 +13,7 @@ sys.path.append(
 from config import get_args
 from parquet_dataloader import ParquetDataloader
 from dlrm import make_dlrm_module
-from lr_scheduler import make_lr_scheduler
+# from lr_scheduler import make_lr_scheduler
 
 
 def make_criteo_dataloader(args, mode):
@@ -38,6 +38,26 @@ def make_criteo_dataloader(args, mode):
         shard_seed=1234,
         shard_count=flow.env.get_world_size(),
         cur_shard=flow.env.get_rank())
+
+
+def make_lr_scheduler(args, optimizer):
+    warmup_lr = flow.optim.lr_scheduler.LinearLR(
+        optimizer, start_factor=0, total_iters=args.warmup_batches,
+    )
+    poly_decay_lr = flow.optim.lr_scheduler.PolynomialLR(
+        optimizer,
+        steps=args.decay_batches,
+        end_learning_rate=0,
+        power=2.0,
+        cycle=False,
+    )
+    sequential_lr = flow.optim.lr_scheduler.SequentialLR(
+        optimizer=optimizer,
+        schedulers=[warmup_lr, poly_decay_lr],
+        milestones=[args.decay_start],
+        interval_rescaling=True,
+    )
+    return sequential_lr
 
 
 class Trainer(object):
@@ -169,10 +189,10 @@ class Trainer(object):
         if self.rank == 0:
             labels = np.concatenate(labels, axis=0)
             preds = np.concatenate(preds, axis=0)
+            eval_time = time.time() - eval_start_time
             auc_start_time = time.time()
             auc = roc_auc_score(labels, preds)
             auc_time = time.time() - auc_start_time
-            eval_time = time.time() - eval_start_time
         
             host_mem_mb = psutil.Process().memory_info().rss // (1024 * 1024)
             stream = os.popen("nvidia-smi --query-gpu=memory.used --format=csv")
@@ -180,9 +200,10 @@ class Trainer(object):
 
             strtime = time.strftime("%Y-%m-%d %H:%M:%S")
             print(f'Rank[{self.rank}], Iter {self.cur_iter}, AUC {auc:0.5f}, ' +
-                  f'#Samples {labels.shape[0]}, Host_Memory {host_mem_mb} MiB, ' +
-                  f'Device_Memory {device_mem_str}, AUC_time {auc_time:0.2f} s, ' +
-                  f'Eval_time {eval_time:0.2f} s, {strtime}')
+                  f'Eval_time {eval_time:0.2f} s, AUC_time {auc_time:0.2f} s, ' +
+                  f'#Samples {labels.shape[0]}, ' +
+                  f'Device_Memory {device_mem_str}, Host_Memory {host_mem_mb} MiB, ' +
+                  f'{strtime}')
             if self.args.save_model_after_each_eval:
                 self.save_model(f"iter_{self.cur_iter}_val_auc_{auc}")
 
