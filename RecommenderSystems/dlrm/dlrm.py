@@ -5,10 +5,6 @@ import oneflow.nn as nn
 import numpy as np
 
 
-def NameToClass(classname):
-    return getattr(sys.modules[__name__], classname)
-
-
 __all__ = ["make_dlrm_module"]
 
 
@@ -183,6 +179,10 @@ class OneEmbedding(nn.Module):
 
     def set_model_parallel(self, placement=None):
         pass
+
+
+def NameToClass(classname):
+    return getattr(sys.modules[__name__], classname)
 
 
 class DLRMModule(nn.Module):
