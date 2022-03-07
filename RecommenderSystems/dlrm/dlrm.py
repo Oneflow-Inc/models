@@ -180,28 +180,28 @@ class OneEmbedding(nn.Module):
             )
         elif args.cache_type == "host_only":
             store_options = flow.one_embedding.make_host_mem_store_option(
-                size_factor=1,
                 host_memory_mb=args.cache_memory_budget_mb[0],
                 persistent_path=args.persistent_path,
+                size_factor=1,
             )
         elif args.cache_type == "device_ssd":
             store_options = flow.one_embedding.make_device_mem_cached_ssd_store_option(
-                size_factor=1,
                 device_memory_mb=args.cache_memory_budget_mb[0],
                 persistent_path=args.persistent_path,
+                size_factor=1,
             )
         elif args.cache_type == "host_ssd":
             store_options = flow.one_embedding.make_host_mem_cached_ssd_store_option(
-                size_factor=1,
-                cpu_memory_mb=args.cache_memory_budget_mb[0],
+                host_memory_mb=args.cache_memory_budget_mb[0],
                 persistent_path=args.persistent_path,
+                size_factor=1,
             )
         elif args.cache_type == "device_host":
             store_options = flow.one_embedding.make_device_mem_cached_host_store_option(
+                device_memory_mb=args.cache_memory_budget_mb[0],
+                host_memory_mb=args.cache_memory_budget_mb[0],
+                persistent_path=args.persistent_path,
                 size_factor=1,
-                gpu_memory_mb=args.cache_memory_budget_mb[0],
-                cpu_memory_mb=args.cache_memory_budget_mb[1],
-                persistent_path=args.persistent_path,  # 少传了一个参数，
             )
         else:
             raise NotImplementedError("not support")
