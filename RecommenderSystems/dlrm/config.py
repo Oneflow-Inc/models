@@ -95,6 +95,9 @@ def get_args(print_args=True):
     parser.add_argument(
         "--cache_policy", type=str_list, default="lru,none"
     )
+    parser.add_argument(
+        "--cache_type", type=str, default=""
+    )
     parser.add_argument("--cache_memory_budget_mb", type=int_list, default="16384,16384", help="cache_memory_budget_mb")
     parser.add_argument(
         "--value_memory_kind", type=str_list, default="device,host"
