@@ -64,7 +64,6 @@ class Trainer(object):
 
             self.opt = flow.optim.Adam(params, lr=args.learning_rate)
             sparse_opt = flow.optim.Adam(sparse_params, lr=args.learning_rate)
-            sparse_opt = flow.optim.utils.SparseOptimizer(sparse_opt)
 
             self.eval_graph = WideAndDeepValGraph(self.wdl_module, self.val_dataloader)
             self.train_graph = WideAndDeepTrainGraph(

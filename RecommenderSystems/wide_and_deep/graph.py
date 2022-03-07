@@ -30,7 +30,7 @@ class WideAndDeepTrainGraph(flow.nn.Graph):
         self.dataloader = dataloader
         self.bce_loss = bce_loss
         self.add_optimizer(optimizer)
-        self.add_optimizer(sparse_opt)
+        self.add_optimizer(sparse_opt, is_sparse=True)
 
     def build(self):
         (
