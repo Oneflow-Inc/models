@@ -173,35 +173,35 @@ class OneEmbedding(nn.Module):
             "columns": initializer_list,
         }
         if args.cache_type == "device_only":
-            store_options = flow.device_mem_store_option(
-                size_factor=1,
-                gpu_memory_mb=args.cache_memory_budget_mb[0],
+            store_options = flow.one_embedding.make_device_mem_store_option(
+                device_memory_mb=args.cache_memory_budget_mb[0],
                 persistent_path=args.persistent_path,
+                size_factor=1,
             )
         elif args.cache_type == "host_only":
-            store_options = flow.host_mem_store_option(
+            store_options = flow.one_embedding.make_host_mem_store_option(
                 size_factor=1,
-                cpu_memory_mb=args.cache_memory_budget_mb[0],
+                host_memory_mb=args.cache_memory_budget_mb[0],
                 persistent_path=args.persistent_path,
             )
         elif args.cache_type == "device_ssd":
-            store_options = flow.device_mem_cached_ssd_store_option(
+            store_options = flow.one_embedding.make_device_mem_cached_ssd_store_option(
                 size_factor=1,
-                gpu_memory_mb=args.cache_memory_budget_mb[0],
+                device_memory_mb=args.cache_memory_budget_mb[0],
                 persistent_path=args.persistent_path,
             )
         elif args.cache_type == "host_ssd":
-            store_options = flow.host_mem_cached_ssd_store_option(
+            store_options = flow.one_embedding.make_host_mem_cached_ssd_store_option(
                 size_factor=1,
                 cpu_memory_mb=args.cache_memory_budget_mb[0],
                 persistent_path=args.persistent_path,
             )
         elif args.cache_type == "device_host":
-            store_options = flow.device_mem_cached_host_store_option(
+            store_options = flow.one_embedding.make_device_mem_cached_host_store_option(
                 size_factor=1,
                 gpu_memory_mb=args.cache_memory_budget_mb[0],
                 cpu_memory_mb=args.cache_memory_budget_mb[1],
-                persistent_path=args.persistent_path,
+                persistent_path=args.persistent_path,  # 少传了一个参数，
             )
         else:
             raise NotImplementedError("not support")
@@ -210,7 +210,7 @@ class OneEmbedding(nn.Module):
         super(OneEmbedding, self).__init__()
         column_id = flow.tensor(range(26), dtype=flow.int32).reshape(1, 26)
         self.register_buffer("column_id", column_id)
-        self.one_embedding = nn.OneEmbeddingLookup(
+        self.one_embedding = flow.one_embedding.Embedding(
             "my_embedding",
             embed_size,
             flow.float,
