@@ -185,12 +185,6 @@ class OneEmbedding(nn.Module):
         pass
 
 
-embd_dict = {
-    'OneEmbedding': OneEmbedding,
-    'Embedding': Embedding,
-}
-
-
 class DLRMModule(nn.Module):
     def __init__(self, args):
         super(DLRMModule, self).__init__()
