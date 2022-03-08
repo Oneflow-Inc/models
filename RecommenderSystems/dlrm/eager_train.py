@@ -186,6 +186,7 @@ class Trainer(object):
                 labels.append(label.numpy())
                 preds.append(pred.numpy())
         
+        auc = 0 # will be updated by rank 0 only
         if self.rank == 0:
             labels = np.concatenate(labels, axis=0)
             preds = np.concatenate(preds, axis=0)
@@ -204,8 +205,8 @@ class Trainer(object):
                   f'#Samples {labels.shape[0]}, ' +
                   f'GPU_Memory {device_mem_str}, Host_Memory {host_mem_mb} MiB, ' +
                   f'{strtime}')
-            if self.args.save_model_after_each_eval:
-                self.save_model(f"iter_{self.cur_iter}_val_auc_{auc}")
+        if self.args.save_model_after_each_eval:
+            self.save_model(f"iter_{self.cur_iter}_val_auc_{auc:0.5f}")
 
         self.dlrm_module.train()
 
