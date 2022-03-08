@@ -135,41 +135,64 @@ class OneEmbedding(nn.Module):
         initializer_list = []
         for i in range(scales.size):
             initializer_list.append(
-                {"initializer": {"type": "uniform", "low": -scales[i], "high": scales[i],}}
-            )
-        cache_list = []
-        assert len(args.cache_policy) <= 2
-        assert len(args.cache_policy) == len(args.cache_memory_budget_mb)
-        assert len(args.cache_policy) == len(args.value_memory_kind)
-        for i in range(len(args.cache_policy)):
-            if args.cache_policy[i] != "none":
-                cache = {
-                    "policy": args.cache_policy[i],
-                    "cache_memory_budget_mb": args.cache_memory_budget_mb[i],
-                    "value_memory_kind": args.value_memory_kind[i]
+                {
+                    "initializer": {
+                        "type": "uniform",
+                        "low": -scales[i],
+                        "high": scales[i],
+                    }
                 }
-                cache_list.append(cache)
-        print("cache_list", cache_list)
-        options = {
-            "key_type": flow.int64,
-            "value_type": flow.float,
-            "name": "my_embedding",
-            "embedding_dim": args.embedding_vec_size,
-            "storage_dim": args.embedding_vec_size,
-            "kv_store": {
-                "caches" : cache_list,
-                "persistent_table": {
-                    "path": args.persistent_path,
-                    "physical_block_size": 512,
-                },
-            },
+            )
+        initializer = {
             "default_initializer": {"type": "normal", "mean": 0, "std": 0.05},
             "columns": initializer_list,
         }
+        if args.cache_type == "device_only":
+            store_options = flow.one_embedding.make_device_mem_store_option(
+                device_memory_mb=args.cache_memory_budget_mb[0],
+                persistent_path=args.persistent_path,
+                size_factor=1,
+            )
+        elif args.cache_type == "host_only":
+            store_options = flow.one_embedding.make_host_mem_store_option(
+                size_factor=1,
+                host_memory_mb=args.cache_memory_budget_mb[0],
+                persistent_path=args.persistent_path,
+            )
+        elif args.cache_type == "device_ssd":
+            store_options = flow.one_embedding.make_device_mem_cached_ssd_store_option(
+                size_factor=1,
+                device_memory_mb=args.cache_memory_budget_mb[0],
+                persistent_path=args.persistent_path,
+            )
+        elif args.cache_type == "host_ssd":
+            store_options = flow.one_embedding.make_host_mem_cached_ssd_store_option(
+                size_factor=1,
+                host_memory_mb=args.cache_memory_budget_mb[0],
+                persistent_path=args.persistent_path,
+            )
+        elif args.cache_type == "device_host":
+            store_options = flow.one_embedding.make_device_mem_cached_host_store_option(
+                size_factor=1,
+                device_memory_mb=args.cache_memory_budget_mb[0],
+                host_memory_mb=args.cache_memory_budget_mb[1],
+                persistent_path=args.persistent_path,
+            )
+        else:
+            raise NotImplementedError("not support", args.cache_type)
+        print("store_options", store_options)
+
         super(OneEmbedding, self).__init__()
-        column_id = flow.tensor(range(26), dtype=flow.int32).reshape(1,26)
+        column_id = flow.tensor(range(26), dtype=flow.int32).reshape(1, 26)
         self.register_buffer("column_id", column_id)
-        self.one_embedding = nn.OneEmbeddingLookup(options)
+        self.one_embedding = flow.one_embedding.Embedding(
+            "my_embedding",
+            args.embedding_vec_size,
+            flow.float,
+            flow.int64,
+            initializer,
+            store_options=store_options,
+        )
 
     def forward(self, ids):
         bsz = ids.shape[0]

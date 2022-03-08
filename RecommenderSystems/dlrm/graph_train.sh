@@ -57,38 +57,23 @@ elif [ "$embedding_type" = "OneEmbedding" ]; then
     block_based_dir=/minio/sde/model_zoo/dlrm_baseline_params_emb$emb_size
     # cp $block_based_dir/one_embedding0/index_cp $block_based_dir/one_embedding0/index
     if [ "$cache_type" = "device_ssd" ]; then # gpu + ssd
-        cache_policy="lru"
         cache_memory_budget_mb="16384"
-        value_memory_kind="device"
     elif [ "$cache_type" = "device_only" ]; then # gpu only, cache_memory > embedding table
-        cache_policy="full"
         cache_memory_budget_mb="16384"
-        value_memory_kind="device"
     elif [ "$cache_type" = "host_ssd" ]; then # cpu only, cache_memory > embedding table
-        cache_policy="lru"
         cache_memory_budget_mb="16384"
-        value_memory_kind="host"
     elif [ "$cache_type" = "host_only" ]; then # cpu only, cache_memory > embedding table
-        cache_policy="full"
         cache_memory_budget_mb="16384"
-        value_memory_kind="host"
-    elif [ "$cache_type" = "device_host_ssd" ]; then # gpu + cpu + ssd
-        cache_policy="lru,lru"
-        cache_memory_budget_mb="1024,2048"
-        value_memory_kind="device,host"    
-    else # gpu + cpu
-        cache_policy="lru,full"
-        cache_memory_budget_mb="1024,16384"
-        value_memory_kind="device,host"
+    elif [ "$cache_type" = "device_host" ]; then # gpu + cpu
+        cache_memory_budget_mb="4096,16384"
     fi
     cmd+="--persistent_path $block_based_dir/one_embedding0 "
-    cmd+="--cache_policy $cache_policy "
+    cmd+="--cache_type $cache_type "
     cmd+="--cache_memory_budget_mb $cache_memory_budget_mb "
-    cmd+="--value_memory_kind $value_memory_kind "
 fi
 
 cmd+="--test_name $test_case"
-echo $cmd
+# echo $cmd
 
 # export CUDA_VISIBLE_DEVICES=1
 # export ONEFLOW_DEBUG_MODE=True
