@@ -16,7 +16,6 @@ def print_rank_0(*args, **kwargs):
 
 class SubsetRandomSampler(flow.utils.data.Sampler):
     r"""Samples elements randomly from a given list of indices, without replacement.
-
     Arguments:
         indices (sequence): a sequence of indices
     """
@@ -78,7 +77,7 @@ def run(mode, imagenet_path, batch_size, num_wokers):
         import torch as flow
         from torch.utils.data import DataLoader
 
-        from timm import datasets, transforms
+        from torchvision import datasets, transforms
         from timm.data import create_transform
 
     dataset_train, data_loader_train = build_loader(args.imagenet_path, args.batch_size, args.num_workers)
@@ -102,9 +101,8 @@ if __name__ == "__main__":
     parser.add_argument("num_workers", type=int)
     args = parser.parse_args()
 
-    oneflow_data_loader_time = run('oneflow', args.imagenet_path, args.batch_size, args.num_wokers)
-    pytorch_data_loader_time = run('torch', args.imagenet_path, args.batch_size, args.num_wokers)
+    oneflow_data_loader_time = run('oneflow', args.imagenet_path, args.batch_size, args.num_workers)
+    pytorch_data_loader_time = run('torch', args.imagenet_path, args.batch_size, args.num_workers)
+    relative_speed = oneflow_data_loader_time / pytorch_data_loader_time
 
     print_rank_0(f"Relative speed: {relative_speed:.2f} (= {pytorch_data_loader_time:.1f}s / {oneflow_data_loader_time:.1f}s)")
-
-
