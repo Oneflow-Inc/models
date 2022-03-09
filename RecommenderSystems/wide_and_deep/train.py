@@ -5,8 +5,8 @@ sys.path.append(
     os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
 )
 import numpy as np
-from sklearn.metrics import roc_auc_score
 import oneflow as flow
+from sklearn.metrics import roc_auc_score
 from config import get_args
 from models.data import make_data_loader
 from models.wide_and_deep import make_wide_and_deep_module
