@@ -105,4 +105,4 @@ if __name__ == "__main__":
     pytorch_data_loader_time = run('torch', args.imagenet_path, args.batch_size, args.num_workers)
     relative_speed = oneflow_data_loader_time / pytorch_data_loader_time
 
-    print_rank_0(f"Relative speed: {relative_speed:.2f} (= {pytorch_data_loader_time:.3f}s / {oneflow_data_loader_time:.3f}s)")
+    print_rank_0(f"Relative speed: {relative_speed:.2f} (= {pytorch_data_loader_time:.1f}s / {oneflow_data_loader_time:.1f}s)")
