@@ -9,6 +9,9 @@ from oneflow.utils.data import DataLoader
 from flowvision import datasets, transforms
 from flowvision.data import create_transform
 
+
+# TODO: Auto download dataset and check md5sum
+
 def print_rank_0(*args, **kwargs):
     rank = int(os.getenv("RANK", "0"))
     if rank == 0:
