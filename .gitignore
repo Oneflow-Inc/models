@@ -147,3 +147,5 @@ result
 ._data
 *.tar.gz
 imagenette2/
+nanodataset/
+data-test/
