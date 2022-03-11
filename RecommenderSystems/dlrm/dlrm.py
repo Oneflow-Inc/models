@@ -190,7 +190,7 @@ class OneEmbedding(nn.Module):
             args.embedding_vec_size,
             flow.float,
             flow.int64,
-            initializer,
+            columns=initializer_list,
             store_options=store_options,
         )
 
