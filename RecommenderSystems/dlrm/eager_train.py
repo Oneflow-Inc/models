@@ -21,11 +21,8 @@ def make_criteo_dataloader(args, mode):
     :return: a context manager when exit the returned context manager, the reader
                 will be closed.
     """
-    subfolders = args.train_sub_folders if mode=='train' else args.val_sub_folders
-
-    files = []
-    for folder in subfolders:
-        files += ['file://' + name for name in glob.glob(f'{args.data_dir}/{folder}/*.parquet')]
+    assert mode in ['train', 'test', 'val']
+    files = glob.glob(f'{args.data_dir}/{mode}/*.parquet')
     files.sort()
 
     return ParquetDataloader(
@@ -153,7 +150,7 @@ class Trainer(object):
         labels = []
         preds = []
         eval_start_time = time.time()
-        with make_criteo_dataloader(self.args, "val") as val_loader:
+        with make_criteo_dataloader(self.args, "test") as val_loader:
             num_eval_batches = 0
             for np_batch in val_loader:
                 num_eval_batches += 1
