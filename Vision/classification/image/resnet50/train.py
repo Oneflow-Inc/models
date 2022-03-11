@@ -85,7 +85,7 @@ class Trainer(object):
 
         if self.is_consistent:
             placement = flow.env.all_device_placement("cuda")
-            self.model = self.model.to_consistent(
+            self.model = self.model.to_global(
                 placement=placement, sbp=flow.sbp.broadcast
             )
         else:
@@ -350,7 +350,7 @@ def tol(tensor, pure_local=True):
         if pure_local:
             tensor = tensor.to_local()
         else:
-            tensor = tensor.to_consistent(sbp=flow.sbp.broadcast).to_local()
+            tensor = tensor.to_global(sbp=flow.sbp.broadcast).to_local()
 
     return tensor
 
@@ -361,7 +361,7 @@ def tton(tensor, local_only=True):
         if local_only:
             tensor = tensor.to_local().numpy()
         else:
-            tensor = tensor.to_consistent(sbp=flow.sbp.broadcast).to_local().numpy()
+            tensor = tensor.to_global(sbp=flow.sbp.broadcast).to_local().numpy()
     else:
         tensor = tensor.numpy()
 
