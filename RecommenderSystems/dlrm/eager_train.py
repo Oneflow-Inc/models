@@ -22,7 +22,7 @@ def make_criteo_dataloader(args, mode):
                 will be closed.
     """
     assert mode in ['train', 'test', 'val']
-    files = glob.glob(f'{args.data_dir}/{mode}/*.parquet')
+    files = ['file://' + name for name in glob.glob(f'{args.data_dir}/{mode}/*.parquet')]
     files.sort()
 
     return ParquetDataloader(
