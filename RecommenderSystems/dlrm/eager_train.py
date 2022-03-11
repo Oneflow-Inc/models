@@ -31,7 +31,7 @@ def make_criteo_dataloader(args, mode):
     return ParquetDataloader(
         files,
         args.batch_size_per_proc if mode=='train' else args.eval_batch_size_per_proc,
-        None if mode=='train' else 1, # TODO: iterate over all eval dataset
+        None, # if mode=='train' else 1, # TODO: iterate over all eval dataset
         num_dense_fields=args.num_dense_fields,
         num_sparse_fields=args.num_sparse_fields,
         shuffle_row_groups=(mode=='train'),
