@@ -96,9 +96,6 @@ def get_args(print_args=True):
         assert len(args.column_size_array) > 0
         args.vocab_size = sum(args.column_size_array)
 
-    if args.model_load_dir != "": # TODO: remove later
-        args.output_padding = 0
-
     if print_args and flow.env.get_rank() == 0:
         _print_args(args)
     return args

@@ -79,27 +79,6 @@ class Trainer(object):
         if args.model_load_dir != "":
             print(f"Loading model from {args.model_load_dir}")
             state_dict = flow.load(args.model_load_dir, global_src_rank=0)
-            if args.mlp_type == 'FusedMLP':
-                o2n = {
-                    'bottom_mlp.linear_layers.fc0.features.0.weight': 'bottom_mlp.linear_layers.weight_0',
-                    'bottom_mlp.linear_layers.fc0.features.0.bias': 'bottom_mlp.linear_layers.bias_0',
-                    'bottom_mlp.linear_layers.fc1.features.0.weight': 'bottom_mlp.linear_layers.weight_1',
-                    'bottom_mlp.linear_layers.fc1.features.0.bias': 'bottom_mlp.linear_layers.bias_1',
-                    'bottom_mlp.linear_layers.fc2.features.0.weight': 'bottom_mlp.linear_layers.weight_2',
-                    'bottom_mlp.linear_layers.fc2.features.0.bias': 'bottom_mlp.linear_layers.bias_2',
-                    'top_mlp.linear_layers.fc0.features.0.weight': 'top_mlp.linear_layers.weight_0',
-                    'top_mlp.linear_layers.fc0.features.0.bias': 'top_mlp.linear_layers.bias_0',
-                    'top_mlp.linear_layers.fc1.features.0.weight': 'top_mlp.linear_layers.weight_1',
-                    'top_mlp.linear_layers.fc1.features.0.bias': 'top_mlp.linear_layers.bias_1',
-                    'top_mlp.linear_layers.fc2.features.0.weight': 'top_mlp.linear_layers.weight_2',
-                    'top_mlp.linear_layers.fc2.features.0.bias': 'top_mlp.linear_layers.bias_2',
-                    'top_mlp.linear_layers.fc3.features.0.weight': 'top_mlp.linear_layers.weight_3',
-                    'top_mlp.linear_layers.fc3.features.0.bias': 'top_mlp.linear_layers.bias_3',
-                    'top_mlp.linear_layers.fc4.features.weight': 'top_mlp.linear_layers.weight_4',
-                    'top_mlp.linear_layers.fc4.features.bias': 'top_mlp.linear_layers.bias_4',
-                }
-                for old, new in o2n.items():
-                    state_dict[new] = state_dict.pop(old)
             self.dlrm_module.load_state_dict(state_dict, strict=False)
         if args.save_initial_model and args.model_save_dir != "":
             self.save_model("initial_checkpoint")
