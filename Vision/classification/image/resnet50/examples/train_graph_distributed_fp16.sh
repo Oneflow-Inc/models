@@ -1,6 +1,6 @@
 # set -aux
 
-DEVICE_NUM_PER_NODE=8
+DEVICE_NUM_PER_NODE=2
 MASTER_ADDR=127.0.0.1
 NUM_NODES=1
 NODE_RANK=0
@@ -50,3 +50,5 @@ python3 -m oneflow.distributed.launch \
         --metric-train-acc True \
         --fuse-bn-relu \
         --fuse-bn-add-relu \
+        --use-gpu-decode \
+        --channel-last \

@@ -200,7 +200,7 @@ def parse_args(ignore_unknown_args=False):
         help="num of pic classes",
     )
     parser.add_argument(
-        "--channels-last", action="store_true", dest="channels_last",
+        "--channel-last", action="store_true", dest="channel_last",
     )
     parser.add_argument(
         "--samples-per-epoch",
@@ -285,9 +285,6 @@ def parse_args(ignore_unknown_args=False):
 
     if args.use_fp16 and not args.graph:
         raise ValueError("NOT support fp16 in eager mode")
-
-    if args.channels_last:
-        raise ValueError("NOT support channels_last yet")
 
     if args.ddp and not args.metric_local:
         raise ValueError("metric_local must be set to True when with ddp")

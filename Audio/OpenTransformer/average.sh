@@ -1,0 +1,1 @@
+python3 tools/average.py egs/aishell/exp/transformer_baseline 70 79

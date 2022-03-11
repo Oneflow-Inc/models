@@ -6,6 +6,7 @@ import oneflow as flow
 
 __all__ = ["make_logger"]
 
+
 def make_logger(rank, print_ranks):
     return Logger(rank, print_ranks)
 

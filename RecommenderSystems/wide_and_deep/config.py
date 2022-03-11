@@ -36,20 +36,21 @@ def get_args(print_args=True):
         help="save model after each eval.",
     )
     parser.add_argument(
-        "--eval_after_training",
-        action="store_true",
-        help="do eval after_training",
+        "--eval_after_training", action="store_true", help="do eval after_training",
     )
     parser.add_argument(
-        "--dataset_format", type=str, default="ofrecord", help="ofrecord, onerec or synthetic"
+        "--dataset_format",
+        type=str,
+        default="ofrecord",
+        help="ofrecord, onerec or synthetic",
     )
     parser.add_argument("--data_part_num", type=int, default=256)
     parser.add_argument(
         "--data_dir", type=str, default="/dataset/wdl_ofrecord/ofrecord"
     )
-    parser.add_argument('--data_part_name_suffix_length', type=int, default=-1)
-    parser.add_argument('--eval_batchs', type=int, default=20)
-    parser.add_argument('--eval_interval', type=int, default=1000)    
+    parser.add_argument("--data_part_name_suffix_length", type=int, default=-1)
+    parser.add_argument("--eval_batchs", type=int, default=20)
+    parser.add_argument("--eval_interval", type=int, default=1000)
     parser.add_argument("--batch_size", type=int, default=16384)
     parser.add_argument("--batch_size_per_proc", type=int, default=None)
     parser.add_argument("--learning_rate", type=float, default=1e-3)
@@ -70,9 +71,7 @@ def get_args(print_args=True):
     parser.add_argument(
         "--execution_mode", type=str, default="eager", help="graph or eager"
     )
-    parser.add_argument(
-        "--test_name", type=str, default="noname_test"
-    )
+    parser.add_argument("--test_name", type=str, default="noname_test")
 
     args = parser.parse_args()
 

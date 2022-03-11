@@ -1,3 +1,5 @@
+import os
+
 import oneflow as flow
 import oneflow.nn as nn
 from oneflow import Tensor
@@ -121,6 +123,12 @@ class Bottleneck(nn.Module):
 
     def forward(self, x: Tensor) -> Tensor:
         identity = x
+        if self.downsample is not None:
+            # Note self.downsample execute before  self.conv1 has better performance
+            # when open allow_fuse_add_to_output optimizatioin in nn.Graph.
+            # Reference: https://github.com/Oneflow-Inc/OneTeam/issues/840#issuecomment-994903466
+            # Reference: https://github.com/NVIDIA/cudnn-frontend/issues/21
+            identity = self.downsample(x)
 
         out = self.conv1(x)
 
@@ -139,9 +147,6 @@ class Bottleneck(nn.Module):
             out = self.relu(out)
 
         out = self.conv3(out)
-
-        if self.downsample is not None:
-            identity = self.downsample(x)
 
         if self.fuse_bn_add_relu:
             out = self.bn3(out, identity)
@@ -166,6 +171,7 @@ class ResNet(nn.Module):
         norm_layer: Optional[Callable[..., nn.Module]] = None,
         fuse_bn_relu=False,
         fuse_bn_add_relu=False,
+        channel_last=False,
     ) -> None:
         super(ResNet, self).__init__()
         if norm_layer is None:
@@ -173,6 +179,11 @@ class ResNet(nn.Module):
         self._norm_layer = norm_layer
         self.fuse_bn_relu = fuse_bn_relu
         self.fuse_bn_add_relu = fuse_bn_add_relu
+        self.channel_last = channel_last
+        if self.channel_last:
+            self.pad_input = True
+        else:
+            self.pad_input = False
 
         self.inplanes = 64
         self.dilation = 1
@@ -187,13 +198,21 @@ class ResNet(nn.Module):
             )
         self.groups = groups
         self.base_width = width_per_group
+
+        if self.pad_input:
+            channel_size = 4
+        else:
+            channel_size = 3
+        if self.channel_last:
+            os.environ["ONEFLOW_ENABLE_NHWC"] = "1"
         self.conv1 = nn.Conv2d(
-            3, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False
+            channel_size, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False
         )
+
         if self.fuse_bn_relu:
             self.bn1 = nn.FusedBatchNorm2d(self.inplanes)
         else:
-            self.bn1 = norm_layer(self.inplanes)
+            self.bn1 = self._norm_layer(self.inplanes)
             self.relu = nn.ReLU()
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
         self.layer1 = self._make_layer(block, 64, layers[0])
@@ -206,7 +225,8 @@ class ResNet(nn.Module):
         self.layer4 = self._make_layer(
             block, 512, layers[3], stride=2, dilate=replace_stride_with_dilation[2]
         )
-        self.avgpool = nn.AvgPool2d((7, 7))
+        self.avgpool = nn.AvgPool2d((7, 7), stride=(1, 1))
+
         self.fc = nn.Linear(512 * block.expansion, num_classes)
 
         for m in self.modules():
@@ -279,6 +299,14 @@ class ResNet(nn.Module):
         return nn.Sequential(*layers)
 
     def _forward_impl(self, x: Tensor) -> Tensor:
+        if self.pad_input:
+            if self.channel_last:
+                # NHWC
+                paddings = (0, 1)
+            else:
+                # NCHW
+                paddings = (0, 0, 0, 0, 0, 1)
+            x = flow._C.pad(x, pad=paddings, mode="constant", value=0)
         x = self.conv1(x)
         if self.fuse_bn_relu:
             x = self.bn1(x, None)
