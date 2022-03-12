@@ -35,7 +35,7 @@ class Embedding(nn.Embedding):
             nn.init.uniform_(param, a=-0.05, b=0.05)
 
 
-class ConsistentWideAndDeep(nn.Module):
+class GlobalWideAndDeep(nn.Module):
     def __init__(
         self,
         wide_vocab_size: int,
@@ -47,16 +47,16 @@ class ConsistentWideAndDeep(nn.Module):
         hidden_units_num: int = 7,
         deep_dropout_rate: float = 0.5,
     ):
-        super(ConsistentWideAndDeep, self).__init__()
+        super(GlobalWideAndDeep, self).__init__()
 
         self.wide_embedding = Embedding(wide_vocab_size // flow.env.get_world_size(), 1)
-        self.wide_embedding.to_consistent(
+        self.wide_embedding.to_global(
             flow.env.all_device_placement("cuda"), flow.sbp.split(0)
         )
         self.deep_embedding = Embedding(
             deep_vocab_size, deep_embedding_vec_size // flow.env.get_world_size()
         )
-        self.deep_embedding.to_consistent(
+        self.deep_embedding.to_global(
             flow.env.all_device_placement("cuda"), flow.sbp.split(1)
         )
         deep_feature_size = (
@@ -77,33 +77,33 @@ class ConsistentWideAndDeep(nn.Module):
                 ]
             )
         )
-        self.linear_layers.to_consistent(
+        self.linear_layers.to_global(
             flow.env.all_device_placement("cuda"), flow.sbp.broadcast
         )
         self.deep_scores = nn.Linear(hidden_size, 1)
-        self.deep_scores.to_consistent(
+        self.deep_scores.to_global(
             flow.env.all_device_placement("cuda"), flow.sbp.broadcast
         )
         self.sigmoid = nn.Sigmoid()
-        self.sigmoid.to_consistent(
+        self.sigmoid.to_global(
             flow.env.all_device_placement("cuda"), flow.sbp.broadcast
         )
 
     def forward(
         self, dense_fields, wide_sparse_fields, deep_sparse_fields
     ) -> flow.Tensor:
-        wide_sparse_fields = wide_sparse_fields.to_consistent(sbp=flow.sbp.broadcast)
+        wide_sparse_fields = wide_sparse_fields.to_global(sbp=flow.sbp.broadcast)
         wide_embedding = self.wide_embedding(wide_sparse_fields)
         wide_embedding = wide_embedding.view(
             -1, wide_embedding.shape[-1] * wide_embedding.shape[-2]
         )
         wide_scores = flow.sum(wide_embedding, dim=1, keepdim=True)
-        wide_scores = wide_scores.to_consistent(
+        wide_scores = wide_scores.to_global(
             sbp=flow.sbp.split(0), grad_sbp=flow.sbp.broadcast
         )
-        deep_sparse_fields = deep_sparse_fields.to_consistent(sbp=flow.sbp.broadcast)
+        deep_sparse_fields = deep_sparse_fields.to_global(sbp=flow.sbp.broadcast)
         deep_embedding = self.deep_embedding(deep_sparse_fields)
-        deep_embedding = deep_embedding.to_consistent(
+        deep_embedding = deep_embedding.to_global(
             sbp=flow.sbp.split(0), grad_sbp=flow.sbp.split(2)
         )
         deep_embedding = deep_embedding.view(
@@ -169,9 +169,9 @@ class LocalWideAndDeep(nn.Module):
         return self.sigmoid(wide_scores + deep_scores)
 
 
-def make_wide_and_deep_module(args, is_consistent):
-    if is_consistent:
-        model = ConsistentWideAndDeep(
+def make_wide_and_deep_module(args, is_global):
+    if is_global:
+        model = GlobalWideAndDeep(
             wide_vocab_size=args.wide_vocab_size,
             deep_vocab_size=args.deep_vocab_size,
             deep_embedding_vec_size=args.deep_embedding_vec_size,
