@@ -1,3 +1,4 @@
+import oneflow as flow
 import os
 import sys
 import glob
