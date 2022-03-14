@@ -143,10 +143,6 @@ class OneEmbedding(nn.Module):
                     }
                 }
             )
-        initializer = {
-            "default_initializer": {"type": "normal", "mean": 0, "std": 0.05},
-            "columns": initializer_list,
-        }
         if args.cache_type == "device_only":
             store_options = flow.one_embedding.make_device_mem_store_option(
                 device_memory_mb=args.cache_memory_budget_mb[0],
@@ -190,7 +186,7 @@ class OneEmbedding(nn.Module):
             args.embedding_vec_size,
             flow.float,
             flow.int64,
-            initializer,
+            columns=initializer_list,
             store_options=store_options,
         )
 
