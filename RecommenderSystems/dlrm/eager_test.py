@@ -13,49 +13,7 @@ sys.path.append(
 from config import get_args
 from parquet_dataloader import ParquetDataloader
 from dlrm import make_dlrm_module
-# from lr_scheduler import make_lr_scheduler
-
-
-def make_criteo_dataloader(args, mode):
-    """Make a Criteo Parquet DataLoader.
-    :return: a context manager when exit the returned context manager, the reader
-                will be closed.
-    """
-    assert mode in ['train', 'test']
-
-    files = ['file://' + name for name in glob.glob(f'{args.data_dir}/{mode}/*.parquet')]
-    files.sort()
-
-    return ParquetDataloader(
-        files,
-        args.batch_size_per_proc if mode=='train' else args.eval_batch_size_per_proc,
-        None, # if mode=='train' else 1, # TODO: iterate over all eval dataset
-        num_dense_fields=args.num_dense_fields,
-        num_sparse_fields=args.num_sparse_fields,
-        shuffle_row_groups=(mode=='train'),
-        shard_seed=1234,
-        shard_count=flow.env.get_world_size(),
-        cur_shard=flow.env.get_rank())
-
-
-def make_lr_scheduler(args, optimizer):
-    warmup_lr = flow.optim.lr_scheduler.LinearLR(
-        optimizer, start_factor=0, total_iters=args.warmup_batches,
-    )
-    poly_decay_lr = flow.optim.lr_scheduler.PolynomialLR(
-        optimizer,
-        steps=args.decay_batches,
-        end_learning_rate=0,
-        power=2.0,
-        cycle=False,
-    )
-    sequential_lr = flow.optim.lr_scheduler.SequentialLR(
-        optimizer=optimizer,
-        schedulers=[warmup_lr, poly_decay_lr],
-        milestones=[args.decay_start],
-        interval_rescaling=True,
-    )
-    return sequential_lr
+from eager_train import make_criteo_dataloader
 
 
 class Tester(object):
@@ -113,7 +71,7 @@ class Tester(object):
         labels = []
         preds = []
         eval_start_time = time.time()
-        with make_criteo_dataloader(self.args, "val") as val_loader:
+        with make_criteo_dataloader(self.args, "test") as val_loader:
             num_eval_batches = 0
             for np_batch in val_loader:
                 num_eval_batches += 1
