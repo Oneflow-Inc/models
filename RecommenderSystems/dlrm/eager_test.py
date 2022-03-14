@@ -20,11 +20,9 @@ def make_criteo_dataloader(args, mode):
     :return: a context manager when exit the returned context manager, the reader
                 will be closed.
     """
-    subfolders = args.train_sub_folders if mode=='train' else args.val_sub_folders
+    assert mode in ['train', 'test']:
 
-    files = []
-    for folder in subfolders:
-        files += ['file://' + name for name in glob.glob(f'{args.data_dir}/{folder}/*.parquet')]
+    files = ['file://' + name for name in glob.glob(f'{args.data_dir}/{mode}/*.parquet')]
     files.sort()
 
     return ParquetDataloader(
