@@ -21,7 +21,7 @@ def make_criteo_dataloader(args, mode):
     :return: a context manager when exit the returned context manager, the reader
                 will be closed.
     """
-    assert mode in ['train', 'test']:
+    assert mode in ['train', 'test']
 
     files = ['file://' + name for name in glob.glob(f'{args.data_dir}/{mode}/*.parquet')]
     files.sort()
