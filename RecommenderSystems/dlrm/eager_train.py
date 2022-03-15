@@ -13,7 +13,6 @@ sys.path.append(
 from config import get_args
 from parquet_dataloader import ParquetDataloader
 from dlrm import make_dlrm_module
-# from lr_scheduler import make_lr_scheduler
 
 
 def make_criteo_dataloader(args, mode):
@@ -80,7 +79,6 @@ class Trainer(object):
         if args.save_initial_model and args.model_save_dir != "":
             self.save_model("initial_checkpoint")
 
-        # opt = flow.optim.Adam(
         self.opt = flow.optim.SGD(self.dlrm_module.parameters(), lr=args.learning_rate)
         self.lr_scheduler = make_lr_scheduler(args, self.opt)
         self.loss = flow.nn.BCEWithLogitsLoss(reduction="none").to("cuda")
