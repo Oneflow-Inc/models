@@ -181,6 +181,7 @@ class Trainer(object):
                   f'#Samples {labels.shape[0]}, ' +
                   f'GPU_Memory {device_mem_str}, Host_Memory {host_mem_mb} MiB, ' +
                   f'{strtime}')
+        flow.comm.barrier()
         if self.args.save_model_after_each_eval:
             self.save_model(f"iter_{self.cur_iter}_val_auc_{auc:0.5f}")
 
