@@ -179,8 +179,6 @@ class OneEmbedding(nn.Module):
         print("store_options", store_options)
 
         super(OneEmbedding, self).__init__()
-        column_id = flow.tensor(range(26), dtype=flow.int32).reshape(1, 26)
-        self.register_buffer("column_id", column_id)
         self.one_embedding = flow.one_embedding.Embedding(
             "my_embedding",
             args.embedding_vec_size,
@@ -191,10 +189,7 @@ class OneEmbedding(nn.Module):
         )
 
     def forward(self, ids):
-        bsz = ids.shape[0]
-        column_id = flow.ones((bsz, 1), dtype=flow.int32, sbp=ids.sbp, placement=ids.placement) * self.column_id
-        column_id = column_id.to_global(sbp=ids.sbp, placement=ids.placement)
-        return self.one_embedding.forward(ids, column_id)
+        return self.one_embedding.forward(ids)
 
     def set_model_parallel(self, placement=None):
         pass
