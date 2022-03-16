@@ -1,7 +1,8 @@
+import sys
+import numpy as np
 from collections import OrderedDict
 import oneflow as flow
 import oneflow.nn as nn
-from typing import Any
 
 
 __all__ = ["make_wide_and_deep_module"]
@@ -29,15 +30,94 @@ class Dense(nn.Module):
 
 
 class Embedding(nn.Embedding):
-    def __init__(self, vocab_size, embed_size):
+    def __init__(self, vocab_size, embed_size, embd_type, args):
         super(Embedding, self).__init__(vocab_size, embed_size, padding_idx=0)
         for param in self.parameters():
             nn.init.uniform_(param, a=-0.05, b=0.05)
 
 
+class OneEmbedding(nn.Module):
+    def __init__(self, vocab_size, embed_size, embd_type, args):
+        if embd_type == "wide":
+            column_size_array = [int(i) for i in args.wide_column_size_array]
+            embedding_vec_size = 1
+        else:
+            column_size_array = [int(i) for i in args.deep_column_size_array]
+            embedding_vec_size = 8
+        persistent_path=args.persistent_path + "/" + embd_type
+
+        scales = np.sqrt(1 / np.array(column_size_array))
+        initializer_list = []
+        for i in range(scales.size):
+            initializer_list.append(
+                {
+                    "initializer": {
+                        "type": "uniform",
+                        "low": -scales[i],
+                        "high": scales[i],
+                    }
+                }
+            )
+        if args.cache_type == "device_only":
+            store_options = flow.one_embedding.make_device_mem_store_options(
+                device_memory_mb=args.cache_memory_budget_mb[0],
+                persistent_path=persistent_path,
+                size_factor=1,
+            )
+        elif args.cache_type == "host_only":
+            store_options = flow.one_embedding.make_host_mem_store_options(
+                host_memory_mb=args.cache_memory_budget_mb[0],
+                persistent_path=persistent_path,
+                size_factor=1,
+            )
+        elif args.cache_type == "device_ssd":
+            store_options = flow.one_embedding.make_device_mem_cached_ssd_store_options(
+                device_memory_mb=args.cache_memory_budget_mb[0],
+                persistent_path=persistent_path,
+                size_factor=1,
+            )
+        elif args.cache_type == "host_ssd":
+            store_options = flow.one_embedding.make_host_mem_cached_ssd_store_options(
+                host_memory_mb=args.cache_memory_budget_mb[0],
+                persistent_path=args.persistent_path,
+                size_factor=1,
+            )
+        elif args.cache_type == "device_host":
+            store_options = flow.one_embedding.make_device_mem_cached_host_store_options(
+                device_memory_mb=args.cache_memory_budget_mb[0],
+                host_memory_mb=args.cache_memory_budget_mb[1],
+                persistent_path=persistent_path,
+                size_factor=1,
+            )
+        else:
+            raise NotImplementedError("not support", args.cache_type)
+        print("store_options", store_options)
+
+        super(OneEmbedding, self).__init__()
+        self.one_embedding = flow.one_embedding.Embedding(
+            f"{embd_type}_embedding",
+            embedding_vec_size,
+            flow.float,
+            flow.int64,
+            columns=initializer_list,
+            store_options=store_options,
+        )
+
+    def forward(self, ids):
+        return self.one_embedding.forward(ids)
+
+    def set_model_parallel(self, placement=None):
+        pass
+
+
+def NameToClass(classname):
+    return getattr(sys.modules[__name__], classname)
+
+
 class GlobalWideAndDeep(nn.Module):
     def __init__(
         self,
+        args,
         wide_vocab_size: int,
         deep_vocab_size: int,
         deep_embedding_vec_size: int = 16,
@@ -46,14 +126,17 @@ class GlobalWideAndDeep(nn.Module):
         hidden_size: int = 1024,
         hidden_units_num: int = 7,
         deep_dropout_rate: float = 0.5,
+        embedding_type: str = 'Embedding',
     ):
         super(GlobalWideAndDeep, self).__init__()
 
-        self.wide_embedding = Embedding(wide_vocab_size // flow.env.get_world_size(), 1)
-        self.wide_embedding.to_global(
-            flow.env.all_device_placement("cuda"), flow.sbp.split(0)
+        self.wide_embedding = NameToClass(embedding_type)(
+            wide_vocab_size // flow.env.get_world_size(), 1, 'wide', args
         )
-        self.deep_embedding = Embedding(
+        self.wide_embedding.to_global(
+            flow.env.all_device_placement("cuda"), flow.sbp.split(0), 'deep', args
+        )
+        self.deep_embedding = NameToClass(embedding_type)(
             deep_vocab_size, deep_embedding_vec_size // flow.env.get_world_size()
         )
         self.deep_embedding.to_global(
@@ -172,6 +255,7 @@ class LocalWideAndDeep(nn.Module):
 def make_wide_and_deep_module(args, is_global):
     if is_global:
         model = GlobalWideAndDeep(
+            args,
             wide_vocab_size=args.wide_vocab_size,
             deep_vocab_size=args.deep_vocab_size,
             deep_embedding_vec_size=args.deep_embedding_vec_size,
@@ -180,6 +264,7 @@ def make_wide_and_deep_module(args, is_global):
             hidden_size=args.hidden_size,
             hidden_units_num=args.hidden_units_num,
             deep_dropout_rate=args.deep_dropout_rate,
+            embedding_type=args.embedding_type,
         )
     else:
         model = LocalWideAndDeep(

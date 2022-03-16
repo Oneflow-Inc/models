@@ -18,6 +18,8 @@ import oneflow as flow
 
 
 def get_args(print_args=True):
+    def int_list(x):
+        return list(map(int, x.split(",")))
     def str_list(x):
         return x.split(",")
 
@@ -72,7 +74,13 @@ def get_args(print_args=True):
         "--execution_mode", type=str, default="eager", help="graph or eager"
     )
     parser.add_argument("--test_name", type=str, default="noname_test")
-
+    parser.add_argument("--embedding_type", type=str, default="Embedding")
+    parser.add_argument("--deep_column_size_array", type=str_list, default="")
+    parser.add_argument("--wide_column_size_array", type=str_list, default="")
+    parser.add_argument("--cache_type", type=str, default="device_host")
+    parser.add_argument("--cache_memory_budget_mb", type=int_list, default="4096,16384")
+    parser.add_argument("--persistent_path", type=str, default="persistent", 
+                        help="path for persistent kv store")
     args = parser.parse_args()
 
     world_size = flow.env.get_world_size()
