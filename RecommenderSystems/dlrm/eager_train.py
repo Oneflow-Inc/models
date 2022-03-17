@@ -65,12 +65,12 @@ class Trainer(object):
 
         self.cur_iter = 0
         self.rank = flow.env.get_rank()
-        self.placement = flow.env.all_device_placement("cuda")
+        self.placement = flow.env.all_device_placement("cpu")
         self.sbp = flow.sbp.split(0)
 
         self.dlrm_module = make_dlrm_module(args)
-        self.dlrm_module.to_global(self.placement, flow.sbp.broadcast)
-        self.dlrm_module.embedding.set_model_parallel(self.placement)
+        self.dlrm_module.to_global(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
+        self.dlrm_module.embedding.set_model_parallel(flow.env.all_device_placement("cuda"))
 
         if args.model_load_dir != "":
             print(f"Loading model from {args.model_load_dir}")
@@ -102,14 +102,14 @@ class Trainer(object):
         return labels, dense_fields, sparse_fields
 
     def train_one_step(self, labels, dense_fields, sparse_fields):
-        logits = self.dlrm_module(dense_fields, sparse_fields)
-        loss = self.loss(logits, labels)
+        logits = self.dlrm_module(dense_fields.to("cuda"), sparse_fields.to("cuda"))
+        loss = self.loss(logits, labels.to("cuda"))
         loss = flow.mean(loss)
         loss.backward()
         self.opt.step()
         self.opt.zero_grad()
         self.lr_scheduler.step()
-        return loss
+        return loss.to("cpu")
 
     def train(self):
         self.dlrm_module.train()
@@ -138,7 +138,7 @@ class Trainer(object):
 
     def inference(self, dense_fields, sparse_fields):
         with flow.no_grad():
-            logits = self.dlrm_module(dense_fields, sparse_fields)
+            logits = self.dlrm_module(dense_fields.to("cuda"), sparse_fields.to("cuda"))
             return logits
 
     def eval(self):

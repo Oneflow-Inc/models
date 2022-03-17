@@ -18,8 +18,8 @@ class DLRMValGraph(flow.nn.Graph):
             self.config.enable_amp(True)
 
     def build(self, dense_fields, sparse_fields):
-        predicts = self.module(dense_fields, sparse_fields)
-        return predicts
+        predicts = self.module(dense_fields.to("cuda"), sparse_fields.to("cuda"))
+        return predicts.to("cpu")
 
 
 class DLRMTrainGraph(flow.nn.Graph):
@@ -36,11 +36,11 @@ class DLRMTrainGraph(flow.nn.Graph):
             self.set_grad_scaler(grad_scaler)
 
     def build(self, labels, dense_fields, sparse_fields):
-        logits = self.module(dense_fields, sparse_fields)
-        loss = self.bce_loss(logits, labels)
+        logits = self.module(dense_fields.to("cuda"), sparse_fields.to("cuda"))
+        loss = self.bce_loss(logits, labels.to("cuda"))
         reduce_loss = flow.mean(loss)
         reduce_loss.backward()
-        return reduce_loss
+        return reduce_loss.to("cpu")
 
 
 class GraphTrainer(Trainer):
