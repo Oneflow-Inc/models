@@ -145,32 +145,32 @@ class OneEmbedding(nn.Module):
             )
         if args.cache_type == "device_only":
             store_options = flow.one_embedding.make_device_mem_store_options(
-                device_memory_mb=args.cache_memory_budget_mb[0],
+                device_memory_budget_mb_per_rank=args.cache_memory_budget_mb[0],
                 persistent_path=args.persistent_path,
                 size_factor=1,
             )
         elif args.cache_type == "host_only":
             store_options = flow.one_embedding.make_host_mem_store_options(
-                host_memory_mb=args.cache_memory_budget_mb[0],
+                host_memory_budget_mb_per_rank=args.cache_memory_budget_mb[0],
                 persistent_path=args.persistent_path,
                 size_factor=1,
             )
         elif args.cache_type == "device_ssd":
             store_options = flow.one_embedding.make_device_mem_cached_ssd_store_options(
-                device_memory_mb=args.cache_memory_budget_mb[0],
+                device_memory_budget_mb_per_rank=args.cache_memory_budget_mb[0],
                 persistent_path=args.persistent_path,
                 size_factor=1,
             )
         elif args.cache_type == "host_ssd":
             store_options = flow.one_embedding.make_host_mem_cached_ssd_store_options(
-                host_memory_mb=args.cache_memory_budget_mb[0],
+                host_memory_budget_mb_per_rank=args.cache_memory_budget_mb[0],
                 persistent_path=args.persistent_path,
                 size_factor=1,
             )
         elif args.cache_type == "device_host":
-            store_options = flow.one_embedding.make_device_mem_cached_host_store_options(
-                device_memory_mb=args.cache_memory_budget_mb[0],
-                host_memory_mb=args.cache_memory_budget_mb[1],
+            store_options = flow.one_embedding.make_device_mem_cached_host_mem_store_options(
+                device_memory_budget_mb_per_rank=args.cache_memory_budget_mb[0],
+                host_memory_budget_mb_per_rank=args.cache_memory_budget_mb[1],
                 persistent_path=args.persistent_path,
                 size_factor=1,
             )
