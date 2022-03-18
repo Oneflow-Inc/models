@@ -57,8 +57,6 @@ def get_args(print_args=True):
     parser.add_argument("--max_iter", type=int, default=30000)
     parser.add_argument("--loss_print_every_n_iter", type=int, default=100)
     parser.add_argument("--num_sparse_fields", type=int, default=26)
-    parser.add_argument("--embedding_type", type=str, default="OneEmbedding", 
-                        help="OneEmbedding or Embedding")
     parser.add_argument("--embedding_split_axis", type=int, default=-1, help="-1: no split")
     parser.add_argument("--column_size_array", type=int_list, help="column_size_array")
     parser.add_argument("--persistent_path", type=str, default="", 

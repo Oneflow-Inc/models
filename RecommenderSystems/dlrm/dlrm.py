@@ -89,45 +89,6 @@ class Interaction(nn.Module):
         return dense_feature_size + sum(range(n_cols)) + self.output_padding
 
 
-class Embedding(nn.Embedding):
-    def __init__(self, args):
-        assert args.embedding_split_axis < 2, "Embedding model parallel split axis is 0 or 1."
-        self.split_axis = args.embedding_split_axis
-        super(Embedding, self).__init__(args.vocab_size, args.embedding_vec_size, padding_idx=0)
-        for param in self.parameters():
-            nn.init.uniform_(param, a=-0.05, b=0.05)
-
-    def set_model_parallel(self, placement=None):
-        # Overriding to_global function does not work
-        # because to_global call is not recursive
-        if self.split_axis >= 0:
-            self.to_global(placement, flow.sbp.split(self.split_axis))
-
-    def forward(self, ids):
-        if self.split_axis >= 0:
-            ids = ids.to_global(sbp=flow.sbp.broadcast)
-        
-        # Forward
-        # weight    ids => embedding
-        # S(0)      B   => P
-        # S(1)      B   => S(2)
-        embeddings = flow._C.gather(self.weight, ids, axis=0)
-        # Backward: unsorted_segment_sum_like
-        # segment_ids   data            like    => out
-        # ids           embedding_grad  weight  => weight_grad
-        # B             B               S(0)    => S(0)
-        # B             S(2)            S(1)    => S(1)
-
-        if self.split_axis == 0:
-            # Forward: P => S(0), Backward: S(0) => B
-            return embeddings.to_global(sbp=flow.sbp.split(0), grad_sbp=flow.sbp.broadcast)
-        elif self.split_axis == 1:
-            # Forward: S(2) => S(0), Backward: S(0) => S(2)
-            return embeddings.to_global(sbp=flow.sbp.split(0), grad_sbp=flow.sbp.split(2))
-        else:
-            return embeddings
-
-
 class OneEmbedding(nn.Module):
     def __init__(self, args):
         assert args.column_size_array is not None
@@ -203,7 +164,7 @@ class DLRMModule(nn.Module):
     def __init__(self, args):
         super(DLRMModule, self).__init__()
         self.bottom_mlp = NameToClass(args.mlp_type)(args.num_dense_fields, args.bottom_mlp)
-        self.embedding = NameToClass(args.embedding_type)(args)
+        self.embedding = OneEmbedding(args)
         self.interaction = Interaction(args.interaction_itself, args.num_sparse_fields,
                                        args.output_padding)
         feature_size = self.interaction.output_feature_size(args.embedding_vec_size,
