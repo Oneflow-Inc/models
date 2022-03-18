@@ -56,6 +56,39 @@ def make_lr_scheduler(args, optimizer):
     return sequential_lr
 
 
+class DLRMValGraph(flow.nn.Graph):
+    def __init__(self, wdl_module, use_fp16=False):
+        super(DLRMValGraph, self).__init__()
+        self.module = wdl_module
+        if use_fp16:
+            self.config.enable_amp(True)
+
+    def build(self, dense_fields, sparse_fields):
+        predicts = self.module(dense_fields.to("cuda"), sparse_fields.to("cuda"))
+        return predicts.to("cpu")
+
+
+class DLRMTrainGraph(flow.nn.Graph):
+    def __init__(self, wdl_module, bce_loss, optimizer, lr_scheduler=None, grad_scaler=None, use_fp16=False):
+        super(DLRMTrainGraph, self).__init__()
+        self.module = wdl_module
+        self.bce_loss = bce_loss
+        self.add_optimizer(optimizer, lr_sch=lr_scheduler)
+        self.config.allow_fuse_model_update_ops(True)
+        self.config.allow_fuse_add_to_output(True)
+        self.config.allow_fuse_cast_scale(True)
+        if use_fp16:
+            self.config.enable_amp(True)
+            self.set_grad_scaler(grad_scaler)
+
+    def build(self, labels, dense_fields, sparse_fields):
+        logits = self.module(dense_fields.to("cuda"), sparse_fields.to("cuda"))
+        loss = self.bce_loss(logits, labels.to("cuda"))
+        reduce_loss = flow.mean(loss)
+        reduce_loss.backward()
+        return reduce_loss.to("cpu")
+
+
 class Trainer(object):
     def __init__(self, args):
         self.args = args
@@ -83,6 +116,22 @@ class Trainer(object):
         self.lr_scheduler = make_lr_scheduler(args, self.opt)
         self.loss = flow.nn.BCEWithLogitsLoss(reduction="none").to("cuda")
 
+        if args.loss_scale_policy == "static":
+            grad_scaler = flow.amp.StaticGradScaler(1024)
+        else:
+            grad_scaler = flow.amp.GradScaler(
+                init_scale=1073741824,
+                growth_factor=2.0,
+                backoff_factor=0.5,
+                growth_interval=2000,
+            )
+
+        self.eval_graph = DLRMValGraph(self.dlrm_module, args.use_fp16)
+        self.train_graph = DLRMTrainGraph(
+            self.dlrm_module, self.loss, self.opt,
+            self.lr_scheduler, grad_scaler, args.use_fp16
+        )
+
     def save_model(self, subdir):
         if self.save_path is None or self.save_path == '':
             return
@@ -101,16 +150,6 @@ class Trainer(object):
         sparse_fields = sparse_fields.to_global(placement=self.placement, sbp=self.sbp)
         return labels, dense_fields, sparse_fields
 
-    def train_one_step(self, labels, dense_fields, sparse_fields):
-        logits = self.dlrm_module(dense_fields.to("cuda"), sparse_fields.to("cuda"))
-        loss = self.loss(logits, labels.to("cuda"))
-        loss = flow.mean(loss)
-        loss.backward()
-        self.opt.step()
-        self.opt.zero_grad()
-        self.lr_scheduler.step()
-        return loss.to("cpu")
-
     def train(self):
         self.dlrm_module.train()
         last_iter, last_time = 0, time.time()
@@ -118,7 +157,7 @@ class Trainer(object):
             for _ in range(self.args.max_iter):
                 self.cur_iter += 1
                 labels, dense_fields, sparse_fields = self.batch_to_global(*next(loader))
-                loss = self.train_one_step(labels, dense_fields, sparse_fields)
+                loss = self.train_graph(labels, dense_fields, sparse_fields)
                 if self.cur_iter % self.args.loss_print_every_n_iter == 0:
                     loss = loss.numpy()
                     if self.rank == 0:
@@ -136,11 +175,6 @@ class Trainer(object):
             if self.eval_interval > 0 and self.cur_iter % self.eval_interval != 0:
                 self.eval()
 
-    def inference(self, dense_fields, sparse_fields):
-        with flow.no_grad():
-            logits = self.dlrm_module(dense_fields.to("cuda"), sparse_fields.to("cuda"))
-            return logits
-
     def eval(self):
         if self.eval_batchs == 0:
             return
@@ -155,7 +189,7 @@ class Trainer(object):
                 if num_eval_batches > self.eval_batchs and self.eval_batchs > 0:
                     break
                 label, dense_fields, sparse_fields = self.batch_to_global(*np_batch)
-                logits = self.inference(dense_fields, sparse_fields)
+                logits = self.eval_graph(dense_fields, sparse_fields)
                 pred = logits.sigmoid()
                 labels.append(label.numpy())
                 preds.append(pred.numpy())
@@ -189,7 +223,6 @@ class Trainer(object):
 if __name__ == "__main__":
     flow.boxing.nccl.enable_all_to_all(True)
     args = get_args()
-    assert args.embedding_type != "OneEmbedding", "Do not support OneEmbedding in Eager Mode!"
 
     trainer = Trainer(args)
     trainer.train()
