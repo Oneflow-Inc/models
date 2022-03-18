@@ -104,31 +104,31 @@ class OneEmbedding(nn.Module):
                     }
                 }
             )
-        if args.cache_type == "device_only":
+        if args.store_type == "device_only":
             store_options = flow.one_embedding.make_device_mem_store_options(
                 device_memory_budget_mb_per_rank=args.cache_memory_budget_mb[0],
                 persistent_path=args.persistent_path,
                 size_factor=1,
             )
-        elif args.cache_type == "host_only":
+        elif args.store_type == "host_only":
             store_options = flow.one_embedding.make_host_mem_store_options(
                 host_memory_budget_mb_per_rank=args.cache_memory_budget_mb[0],
                 persistent_path=args.persistent_path,
                 size_factor=1,
             )
-        elif args.cache_type == "device_ssd":
+        elif args.store_type == "device_ssd":
             store_options = flow.one_embedding.make_device_mem_cached_ssd_store_options(
                 device_memory_budget_mb_per_rank=args.cache_memory_budget_mb[0],
                 persistent_path=args.persistent_path,
                 size_factor=1,
             )
-        elif args.cache_type == "host_ssd":
+        elif args.store_type == "host_ssd":
             store_options = flow.one_embedding.make_host_mem_cached_ssd_store_options(
                 host_memory_budget_mb_per_rank=args.cache_memory_budget_mb[0],
                 persistent_path=args.persistent_path,
                 size_factor=1,
             )
-        elif args.cache_type == "device_host":
+        elif args.store_type == "device_host":
             store_options = flow.one_embedding.make_device_mem_cached_host_mem_store_options(
                 device_memory_budget_mb_per_rank=args.cache_memory_budget_mb[0],
                 host_memory_budget_mb_per_rank=args.cache_memory_budget_mb[1],
@@ -136,7 +136,7 @@ class OneEmbedding(nn.Module):
                 size_factor=1,
             )
         else:
-            raise NotImplementedError("not support", args.cache_type)
+            raise NotImplementedError("not support", args.store_type)
         print("store_options", store_options)
 
         super(OneEmbedding, self).__init__()

@@ -104,11 +104,11 @@ class Trainer(object):
         self.dlrm_module = make_dlrm_module(args)
         self.dlrm_module.to_global(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
 
-        if args.model_load_dir != "":
+        if args.model_load_dir:
             print(f"Loading model from {args.model_load_dir}")
             state_dict = flow.load(args.model_load_dir, global_src_rank=0)
             self.dlrm_module.load_state_dict(state_dict, strict=False)
-        if args.save_initial_model and args.model_save_dir != "":
+        if args.save_initial_model and args.model_save_dir:
             self.save_model("initial_checkpoint")
 
         self.opt = flow.optim.SGD(self.dlrm_module.parameters(), lr=args.learning_rate)

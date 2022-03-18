@@ -31,35 +31,35 @@ def get_args(print_args=True):
                         help="interaction output padding size")
     parser.add_argument("--interaction_itself", action="store_true",
                         help="interaction itself or not")
-    parser.add_argument("--model_load_dir", type=str, default="")
-    parser.add_argument("--model_save_dir", type=str, default="./checkpoint")
+    parser.add_argument("--model_load_dir", type=str, default=None)
+    parser.add_argument("--model_save_dir", type=str, default=None)
     parser.add_argument("--save_initial_model", action="store_true",
                         help="save initial model parameters or not.")
     parser.add_argument("--save_model_after_each_eval", action="store_true",
                         help="save model after each eval.")
-    parser.add_argument("--eval_after_training", action="store_true",
+    parser.add_argument("--not_eval_after_training", action="store_true",
                         help="do eval after_training")
-    parser.add_argument("--data_dir", type=str, default="/dataset/dlrm_parquet")
-    parser.add_argument('--eval_batchs', type=int, default=-1, 
-                        help="<0: whole val ds, 0: do not val, >0: number of eval batches")
-    parser.add_argument('--eval_batch_size', type=int, default=512)
+    parser.add_argument("--data_dir", type=str, required=True)
+    parser.add_argument('--eval_batchs', type=int, default=0,
+                        help="number of eval batches")
+    parser.add_argument('--eval_batch_size', type=int, default=55296)
     parser.add_argument("--eval_batch_size_per_proc", type=int, default=None)
-    parser.add_argument('--eval_interval', type=int, default=1000)    
-    parser.add_argument("--batch_size", type=int, default=16384)
+    parser.add_argument('--eval_interval', type=int, default=10000)
+    parser.add_argument("--batch_size", type=int, default=55296)
     parser.add_argument("--batch_size_per_proc", type=int, default=None)
-    parser.add_argument("--learning_rate", type=float, default=1e-3)
+    parser.add_argument("--learning_rate", type=float, default=24)
     parser.add_argument("--warmup_batches", type=int, default=2750)
     parser.add_argument("--decay_batches", type=int, default=27772)
     parser.add_argument("--decay_start", type=int, default=49315)
     parser.add_argument("--embedding_vec_size", type=int, default=128)
+    parser.add_argument("--max_iter", type=int, default=75000)
+    parser.add_argument("--loss_print_every_n_iter", type=int, default=1000)
     parser.add_argument("--num_dense_fields", type=int, default=13)
-    parser.add_argument("--max_iter", type=int, default=30000)
-    parser.add_argument("--loss_print_every_n_iter", type=int, default=100)
     parser.add_argument("--num_sparse_fields", type=int, default=26)
-    parser.add_argument("--column_size_array", type=int_list, help="column_size_array")
-    parser.add_argument("--persistent_path", type=str, default="", 
+    parser.add_argument("--column_size_array", type=int_list, help="column_size_array", required=True)
+    parser.add_argument("--persistent_path", type=str, required=True,
                         help="path for persistent kv store")
-    parser.add_argument("--cache_type", type=str, default="device_host")
+    parser.add_argument("--store_type", type=str, default="device_host")
     parser.add_argument("--cache_memory_budget_mb", type=int_list, default="8192,16384")
     parser.add_argument("--use_fp16", action="store_true", help="Run model with amp")
     parser.add_argument("--loss_scale_policy", type=str, default="static", 
