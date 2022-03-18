@@ -175,5 +175,5 @@ if __name__ == "__main__":
     relative_speed = oneflow_data_loader_time / pytorch_data_loader_time
 
     print_rank_0(
-        f"Swin transformer relative speed: {relative_speed:.2f} (= {pytorch_data_loader_time:.1f}s / {oneflow_data_loader_time:.1f}s)"
+        f"Swin transformer dataloader relative speed when num_workers = {args.num_workers}: {relative_speed:.2f} (= {pytorch_data_loader_time:.1f}s / {oneflow_data_loader_time:.1f}s)"
     )
