@@ -103,7 +103,6 @@ class Trainer(object):
 
         self.dlrm_module = make_dlrm_module(args)
         self.dlrm_module.to_global(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
-        self.dlrm_module.embedding.set_model_parallel(flow.env.all_device_placement("cuda"))
 
         if args.model_load_dir != "":
             print(f"Loading model from {args.model_load_dir}")

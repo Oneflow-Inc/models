@@ -152,24 +152,26 @@ class OneEmbedding(nn.Module):
     def forward(self, ids):
         return self.one_embedding.forward(ids)
 
-    def set_model_parallel(self, placement=None):
-        pass
 
-
-def NameToClass(classname):
-    return getattr(sys.modules[__name__], classname)
+def make_mlp_module(mlp_type):
+    if mlp_type.lower() == "MLP":
+        return MLP
+    elif mlp_type.lower() == "fusedmlp":
+        return FusedMLP
+    else:
+        assert f"Unsupported MLP type: {mlp_type}"
 
 
 class DLRMModule(nn.Module):
     def __init__(self, args):
         super(DLRMModule, self).__init__()
-        self.bottom_mlp = NameToClass(args.mlp_type)(args.num_dense_fields, args.bottom_mlp)
+        self.bottom_mlp = make_mlp_module(args.mlp_type)(args.num_dense_fields, args.bottom_mlp)
         self.embedding = OneEmbedding(args)
         self.interaction = Interaction(args.interaction_itself, args.num_sparse_fields,
                                        args.output_padding)
         feature_size = self.interaction.output_feature_size(args.embedding_vec_size,
                                                             args.bottom_mlp[-1])
-        self.top_mlp = NameToClass(args.mlp_type)(feature_size, args.top_mlp + [1],
+        self.top_mlp = make_mlp_module(args.mlp_type)(feature_size, args.top_mlp + [1],
                                                   skip_final_activation=True)
 
     def forward(self, dense_fields, sparse_fields) -> flow.Tensor:
