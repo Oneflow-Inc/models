@@ -1,45 +1,16 @@
-# Wide&Deep
-[Wide&Deep](https://ai.googleblog.com/2016/06/wide-deep-learning-better-together-with.html) is an industrial application model for CTR recommendation that combines Deep Neural Network and Linear model. Its model structure is as follows. Based on this structure, this project uses OneFlow distributed deep learning framework to realize training the modle in graph mode and eager mode respectively on Crioteo data set. 
-![1](https://1.bp.blogspot.com/-Dw1mB9am1l8/V3MgtOzp3uI/AAAAAAAABGs/mP-3nZQCjWwdk6qCa5WraSpK8A7rSPj3ACLcB/s1600/image04.png)
+# DLRM
+[DLRM](https://arxiv.org/pdf/1906.00091.pdf) is a deep learning-based recommendation model that exploits categorical data model for CTR recommendation. Its model structure is as follows. Based on this structure, this project uses OneFlow distributed deep learning framework to realize training the modle in graph mode and eager mode respectively on Crioteo data set. 
+![image](https://user-images.githubusercontent.com/63446546/158937131-1a057659-0d49-4bfb-aee2-5568e605fa01.png)
 ## Directory description
 ```
-.
-|-- models
-    |-- dlrm.py     #dlrm model structure
-    |-- data.py         #Read data
-|-- utils
-    |-- logger.py     #Loger info
-|-- config.py                   #Argument configuration
-|-- train.py              #Python script for train mode
-|-- train_global_eager.sh              #Shell script for starting training in eager mode
-|-- train_global_graph.sh              #Shell script for starting training in graph mode
-|-- train_ddp.sh              #Shell script for starting training in ddp mode
-|-- __init__.py
-└── README.md                   #Documentation
+#待补充
 ```
 ## Arguments description
-|Argument Name|Argument Explanation|Default Value|
-|-----|---|------|
-|batch_size|the data batch size in one step training|16384|
-|data_dir|the data file directory|/dataset/wdl_ofrecord/ofrecord|
-|deep_dropout_rate|the argument dropout in the deep part|0.5|
-|deep_embedding_vec_size|the embedding dim in deep part|16|
-|deep_vocab_size|the embedding size in deep part|1603616|
-|wide_vocab_size|the embedding size in wide part|1603616|
-|hidden_size|number of neurons in every nn layer in the deep part|1024|
-|hidden_units_num|number of nn layers in deep part|7|
-|learning_rate|argument learning rate|0.001|
-|max_iter|maximum number of training batch times|30000|
-|model_load_dir|model loading directory||
-|model_save_dir|model saving directory||
-|num_deep_sparse_fields|number of sparse id features|26|
-|num_dense_fields|number of dense features|13|
-|loss_print_every_n_iter|print train loss and validate the model after training every number of batche times|1000|
-|save_initial_model|save the initial arguments of the modelor not|False|
+待补充
 
 ## Prepare running
 ### Environment
-Running Wide&Deep model requires downloading [OneFlow](https://github.com/Oneflow-Inc/oneflow), [scikit-learn](https://scikit-learn.org/stable/install.html) for caculating mertics, and tool package [numpy](https://numpy.org/)。
+Running DLRM model requires downloading [OneFlow](https://github.com/Oneflow-Inc/oneflow), [scikit-learn](https://scikit-learn.org/stable/install.html) for caculating mertics, and tool package [numpy](https://numpy.org/)。
 
 
 ### Dataset
@@ -63,6 +34,10 @@ bash train_global_graph.sh
 bash train_global_eager.sh
 ```
 ## Dataset preparation
+
+```
+本模块待替换
+```
 Currently OneFlow-WDL supports two types of dataset format: ofrecord and onerec, both can be tranformed from HugeCTR parquet format dataset.
 Following two steps to process dataset:
 
