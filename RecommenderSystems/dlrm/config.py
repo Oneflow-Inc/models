@@ -65,7 +65,6 @@ def get_args(print_args=True):
     parser.add_argument("--use_fp16", action="store_true", help="Run model with amp")
     parser.add_argument("--loss_scale_policy", type=str, default="static", 
                         help="static or dynamic")
-    parser.add_argument("--test_name", type=str, default="noname_test")
 
     args = parser.parse_args()
 
