@@ -152,11 +152,13 @@ def train(args):
                 dlrm_module.train()
                 last_time = time.time()
 
-    if args.eval_after_training:
-        if args.eval_interval > 0 and iter % args.eval_interval != 0:
-            auc = eval(args, eval_graph, iter)
-            if args.save_model_after_each_eval:
-                save_model(f"iter_{iter}_val_auc_{auc:0.5f}")
+    if args.not_eval_after_training:
+        return
+
+    if args.eval_interval > 0 and iter % args.eval_interval != 0:
+        auc = eval(args, eval_graph, iter)
+        if args.save_model_after_each_eval:
+            save_model(f"iter_{iter}_val_auc_{auc:0.5f}")
 
 
 def batch_to_global(np_label, np_dense, np_sparse):
