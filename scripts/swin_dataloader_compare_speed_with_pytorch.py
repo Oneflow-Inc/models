@@ -22,7 +22,6 @@ def md5(fname):
         for chunk in iter(lambda: f.read(4096), b""):
             hash_md5.update(chunk)
     result = hash_md5.hexdigest()
-    print("md5", fname, result)
     return result
 
 
@@ -111,7 +110,6 @@ def build_transform():
 def build_dataset(imagenet_path):
     transform = build_transform()
     prefix = "train"
-    print("build_dataset >>>>>> ImageFolder")
     root = os.path.join(imagenet_path, prefix)
     dataset = datasets.ImageFolder(root, transform=transform)
     return dataset
@@ -177,5 +175,5 @@ if __name__ == "__main__":
     relative_speed = oneflow_data_loader_time / pytorch_data_loader_time
 
     print_rank_0(
-        f"Relative speed: {relative_speed:.2f} (= {pytorch_data_loader_time:.1f}s / {oneflow_data_loader_time:.1f}s)"
+        f"Swin transformer relative speed: {relative_speed:.2f} (= {pytorch_data_loader_time:.1f}s / {oneflow_data_loader_time:.1f}s)"
     )
