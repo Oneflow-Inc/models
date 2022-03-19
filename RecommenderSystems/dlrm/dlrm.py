@@ -3,6 +3,7 @@ import oneflow as flow
 import oneflow.nn as nn
 import numpy as np
 
+from dataloader import num_dense_fields, num_sparse_fields
 
 __all__ = ["make_dlrm_module"]
 
@@ -55,13 +56,13 @@ class Interaction(nn.Module):
     def __init__(
         self,
         dense_feature_size,
-        num_sparse_fields=26,
+        num_embedding_fields=26,
         interaction_itself=False,
         interaction_padding=True,
     ):
         super(Interaction, self).__init__()
         self.interaction_itself = interaction_itself
-        n_cols = num_sparse_fields + 2 if self.interaction_itself else num_sparse_fields + 1
+        n_cols = num_embedding_fields + 2 if self.interaction_itself else num_embedding_fields + 1
         output_size = dense_feature_size + sum(range(n_cols))
         self.output_size = ((output_size + 8 - 1) & (-8)) if interaction_padding else output_size
         self.output_padding = self.output_size - output_size
@@ -78,42 +79,49 @@ class Interaction(nn.Module):
 
 
 class OneEmbedding(nn.Module):
-    def __init__(self, args):
-        assert args.column_size_array is not None
-        vocab_size = sum(args.column_size_array)
+    def __init__(
+        self,
+        embedding_vec_size,
+        persistent_path,
+        column_size_array,
+        store_type,
+        device_memory_budget_mb_per_rank,
+    ):
+        assert column_size_array is not None
+        vocab_size = sum(column_size_array)
         capacity_per_rank = (vocab_size // flow.env.get_world_size() + 15) & (-16)
 
-        scales = np.sqrt(1 / np.array(args.column_size_array))
+        scales = np.sqrt(1 / np.array(column_size_array))
         initializer_list = [
             {"initializer": {"type": "uniform", "low": -scales[i], "high": scales[i],}}
             for i in range(scales.size)
         ]
-        if args.store_type == "device_only":
+        if store_type == "device_only":
             store_options = flow.one_embedding.make_device_mem_store_options(
-                args.persistent_path, capacity_per_rank=capacity_per_rank, size_factor=1,
+                persistent_path, capacity_per_rank=capacity_per_rank, size_factor=1,
             )
-        elif args.store_type == "device_host":
-            assert args.device_memory_budget_mb_per_rank > 0
+        elif store_type == "device_host":
+            assert device_memory_budget_mb_per_rank > 0
             store_options = flow.one_embedding.make_device_mem_cached_host_mem_store_options(
-                args.persistent_path,
-                device_memory_budget_mb_per_rank=args.device_memory_budget_mb_per_rank,
+                persistent_path,
+                device_memory_budget_mb_per_rank=device_memory_budget_mb_per_rank,
                 capacity_per_rank=capacity_per_rank,
                 size_factor=1,
             )
-        elif args.store_type == "device_ssd":
-            assert args.device_memory_budget_mb_per_rank > 0
+        elif store_type == "device_ssd":
+            assert device_memory_budget_mb_per_rank > 0
             store_options = flow.one_embedding.make_device_mem_cached_ssd_store_options(
-                args.persistent_path,
-                device_memory_budget_mb_per_rank=args.device_memory_budget_mb_per_rank,
+                persistent_path,
+                device_memory_budget_mb_per_rank=device_memory_budget_mb_per_rank,
                 size_factor=1,
             )
         else:
-            raise NotImplementedError("not support", args.store_type)
+            raise NotImplementedError("not support", store_type)
 
         super(OneEmbedding, self).__init__()
         self.one_embedding = flow.one_embedding.Embedding(
-            "my_embedding",
-            args.embedding_vec_size,
+            "sparse_embedding",
+            embedding_vec_size,
             flow.float,
             flow.int64,
             columns=initializer_list,
@@ -130,11 +138,17 @@ class DLRMModule(nn.Module):
         assert (
             args.embedding_vec_size == args.bottom_mlp[-1]
         ), "Embedding vector size must equle to bottom MLP output size"
-        self.bottom_mlp = MLP(args.num_dense_fields, args.bottom_mlp, fused=args.enable_fusedmlp)
-        self.embedding = OneEmbedding(args)
+        self.bottom_mlp = MLP(num_dense_fields, args.bottom_mlp, fused=args.enable_fusedmlp)
+        self.embedding = OneEmbedding(
+            args.embedding_vec_size,
+            args.persistent_path,
+            args.column_size_array,
+            args.store_type,
+            args.device_memory_budget_mb_per_rank,
+        )
         self.interaction = Interaction(
             args.bottom_mlp[-1],
-            args.num_sparse_fields,
+            num_sparse_fields,
             args.interaction_itself,
             interaction_padding=(not args.disable_interaction_padding),
         )

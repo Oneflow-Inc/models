@@ -24,8 +24,6 @@ def make_criteo_dataloader(data_path, batch_size_per_proc, shuffle=True):
         files,
         batch_size_per_proc,
         None,  # TODO: iterate over all eval dataset
-        num_dense_fields=13,
-        num_sparse_fields=26,
         shuffle_row_groups=shuffle,
         shard_seed=1234,
         shard_count=flow.env.get_world_size(),

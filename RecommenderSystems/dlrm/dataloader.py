@@ -4,6 +4,9 @@ import warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
 from petastorm.reader import make_batch_reader
 
+num_dense_fields = 13
+num_sparse_fields = 26
+
 
 class DLRMDataloader(object):
     """A context manager that manages the creation and termination of a
@@ -15,8 +18,6 @@ class DLRMDataloader(object):
         parquet_file_url_list,
         batch_size,
         num_epochs,
-        num_dense_fields=13,
-        num_sparse_fields=26,
         shuffle_row_groups=True,
         shard_seed=1234,
         shard_count=1,
