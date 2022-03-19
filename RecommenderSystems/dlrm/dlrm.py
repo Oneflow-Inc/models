@@ -46,11 +46,13 @@ class MLP(nn.Module):
 
 
 class Interaction(nn.Module):
-    def __init__(self, interaction_itself=False, num_sparse_fields=26, output_padding=1):
+    def __init__(self, dense_feature_size, num_sparse_fields=26, interaction_itself=False, interaction_padding=True):
         super(Interaction, self).__init__()
         self.interaction_itself = interaction_itself
-        self.num_sparse_fields = num_sparse_fields
-        self.output_padding = output_padding
+        n_cols = num_sparse_fields + 2 if self.interaction_itself else num_sparse_fields + 1
+        output_size = dense_feature_size + sum(range(n_cols))
+        self.output_size = ((output_size + 8 - 1) & (-8)) if interaction_padding else output_size
+        self.output_padding = self.output_size - output_size
 
     def forward(self, x:flow.Tensor, ly:flow.Tensor) -> flow.Tensor:
         # x - dense fields, ly = embedding
@@ -61,13 +63,6 @@ class Interaction(nn.Module):
             self_interaction=self.interaction_itself, 
             output_padding=self.output_padding
         )
-
-    def output_feature_size(self, embedding_vec_size, dense_feature_size):
-        assert embedding_vec_size == dense_feature_size, "Embedding vector size must equle to dense feature size"
-        n_cols = self.num_sparse_fields + 1
-        if self.interaction_itself:
-            n_cols += 1
-        return dense_feature_size + sum(range(n_cols)) + self.output_padding
 
 
 class OneEmbedding(nn.Module):
@@ -134,13 +129,12 @@ class OneEmbedding(nn.Module):
 class DLRMModule(nn.Module):
     def __init__(self, args):
         super(DLRMModule, self).__init__()
+        assert args.embedding_vec_size == args.bottom_mlp[-1], "Embedding vector size must equle to bottom MLP output size"
         self.bottom_mlp = MLP(args.num_dense_fields, args.bottom_mlp, fused=args.enable_fusedmlp)
         self.embedding = OneEmbedding(args)
-        self.interaction = Interaction(args.interaction_itself, args.num_sparse_fields,
-                                       args.output_padding)
-        feature_size = self.interaction.output_feature_size(args.embedding_vec_size,
-                                                            args.bottom_mlp[-1])
-        self.top_mlp = MLP(feature_size, args.top_mlp + [1], skip_final_activation=True, fused=args.enable_fusedmlp)
+        self.interaction = Interaction(args.bottom_mlp[-1], args.num_sparse_fields, args.interaction_itself, 
+                                       interaction_padding=(not args.disable_interaction_padding))
+        self.top_mlp = MLP(self.interaction.output_size, args.top_mlp + [1], skip_final_activation=True, fused=args.enable_fusedmlp)
 
     def forward(self, dense_fields, sparse_fields) -> flow.Tensor:
         dense_fields = flow.log(dense_fields + 1.0)

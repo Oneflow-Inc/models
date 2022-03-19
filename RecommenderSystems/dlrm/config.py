@@ -27,8 +27,8 @@ def get_args(print_args=True):
     parser.add_argument("--enable_fusedmlp", action="store_true", help="enable fused MLP or not")
     parser.add_argument("--bottom_mlp", type=int_list, default="512,256,128")
     parser.add_argument("--top_mlp", type=int_list, default="1024,1024,512,256")
-    parser.add_argument('--output_padding', type=int, default=1,
-                        help="interaction output padding size")
+    parser.add_argument("--disable_interaction_padding", action="store_true", 
+                        help="disenable interaction padding or not")
     parser.add_argument("--interaction_itself", action="store_true",
                         help="interaction itself or not")
     parser.add_argument("--model_load_dir", type=str, default=None)
