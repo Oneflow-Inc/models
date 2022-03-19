@@ -154,7 +154,7 @@ class OneEmbedding(nn.Module):
 
 
 def make_mlp_module(mlp_type):
-    if mlp_type.lower() == "MLP":
+    if mlp_type.lower() == "mlp":
         return MLP
     elif mlp_type.lower() == "fusedmlp":
         return FusedMLP
