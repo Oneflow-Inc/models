@@ -1,4 +1,3 @@
-import sys
 from collections import OrderedDict
 import oneflow as flow
 import oneflow.nn as nn
@@ -26,7 +25,6 @@ class MLP(nn.Module):
         self, in_features: int, hidden_units, skip_final_activation=False, fused=True
     ) -> None:
         super(MLP, self).__init__()
-        units = [in_features] + hidden_units
         if fused:
             self.linear_layers = nn.FusedMLP(
                 in_features,
@@ -35,22 +33,14 @@ class MLP(nn.Module):
                 skip_final_activation=skip_final_activation,
             )
         else:
+            units = [in_features] + hidden_units
             num_layers = len(hidden_units)
-            self.linear_layers = nn.Sequential(
-                OrderedDict(
-                    [
-                        (
-                            f"fc{i}",
-                            Dense(
-                                units[i],
-                                units[i + 1],
-                                not skip_final_activation or (i + 1) < num_layers,
-                            ),
-                        )
-                        for i in range(num_layers)
-                    ]
-                )
-            )
+            denses = [
+                Dense(units[i], units[i + 1], not skip_final_activation or (i + 1) < num_layers)
+                for i in range(num_layers)
+            ]
+            self.linear_layers = nn.Sequential(*denses)
+
         for name, param in self.linear_layers.named_parameters():
             if "weight" in name:
                 nn.init.normal_(param, 0.0, np.sqrt(2 / sum(param.shape)))
