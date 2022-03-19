@@ -20,19 +20,20 @@ def make_criteo_dataloader(data_path, batch_size_per_proc, shuffle=True):
     :return: a context manager when exit the returned context manager, the reader
                 will be closed.
     """
-    files = ['file://' + name for name in glob.glob(f'{data_path}/*.parquet')]
+    files = ["file://" + name for name in glob.glob(f"{data_path}/*.parquet")]
     files.sort()
 
     return ParquetDataloader(
         files,
         batch_size_per_proc,
-        None, # TODO: iterate over all eval dataset
+        None,  # TODO: iterate over all eval dataset
         num_dense_fields=13,
         num_sparse_fields=26,
         shuffle_row_groups=shuffle,
         shard_seed=1234,
         shard_count=flow.env.get_world_size(),
-        cur_shard=flow.env.get_rank())
+        cur_shard=flow.env.get_rank(),
+    )
 
 
 def make_lr_scheduler(args, optimizer):
@@ -68,7 +69,15 @@ class DLRMValGraph(flow.nn.Graph):
 
 
 class DLRMTrainGraph(flow.nn.Graph):
-    def __init__(self, dlrm_module, bce_loss, optimizer, lr_scheduler=None, grad_scaler=None, use_fp16=False):
+    def __init__(
+        self,
+        dlrm_module,
+        bce_loss,
+        optimizer,
+        lr_scheduler=None,
+        grad_scaler=None,
+        use_fp16=False,
+    ):
         super(DLRMTrainGraph, self).__init__()
         self.module = dlrm_module
         self.bce_loss = bce_loss
@@ -127,12 +136,13 @@ def train(args):
 
     eval_graph = DLRMValGraph(dlrm_module, args.use_fp16)
     train_graph = DLRMTrainGraph(
-        dlrm_module, loss, opt,
-        lr_scheduler, grad_scaler, args.use_fp16
+        dlrm_module, loss, opt, lr_scheduler, grad_scaler, args.use_fp16
     )
     dlrm_module.train()
     last_iter, last_time = 0, time.time()
-    with make_criteo_dataloader(f"{args.data_dir}/train", args.batch_size_per_proc) as loader:
+    with make_criteo_dataloader(
+        f"{args.data_dir}/train", args.batch_size_per_proc
+    ) as loader:
         for iter in range(1, args.max_iter + 1):
             labels, dense_fields, sparse_fields = batch_to_global(*next(loader))
             loss = train_graph(labels, dense_fields, sparse_fields)
@@ -142,8 +152,10 @@ def train(args):
                     latency_ms = 1000 * (time.time() - last_time) / (iter - last_iter)
                     last_iter, last_time = iter, time.time()
                     strtime = time.strftime("%Y-%m-%d %H:%M:%S")
-                    print(f'Rank[{rank}], Iter {iter}, Loss {loss:0.4f}, '+
-                          f'Latency {latency_ms:0.3f} ms, {strtime}')
+                    print(
+                        f"Rank[{rank}], Iter {iter}, Loss {loss:0.4f}, "
+                        + f"Latency {latency_ms:0.3f} ms, {strtime}"
+                    )
 
             if args.eval_interval > 0 and iter % args.eval_interval == 0:
                 auc = eval(args, eval_graph, iter)
@@ -179,7 +191,9 @@ def eval(args, eval_graph, cur_iter=0):
     eval_graph.module.eval()
     labels, preds = [], []
     eval_start_time = time.time()
-    with make_criteo_dataloader(f"{args.data_dir}/test", args.eval_batch_size_per_proc, shuffle=False) as loader:
+    with make_criteo_dataloader(
+        f"{args.data_dir}/test", args.eval_batch_size_per_proc, shuffle=False
+    ) as loader:
         num_eval_batches = 0
         for np_batch in loader:
             num_eval_batches += 1
@@ -190,8 +204,8 @@ def eval(args, eval_graph, cur_iter=0):
             pred = logits.sigmoid()
             labels.append(label.numpy())
             preds.append(pred.numpy())
-    
-    auc = 0 # will be updated by rank 0 only
+
+    auc = 0  # will be updated by rank 0 only
     rank = flow.env.get_rank()
     if rank == 0:
         labels = np.concatenate(labels, axis=0)
@@ -200,18 +214,20 @@ def eval(args, eval_graph, cur_iter=0):
         auc_start_time = time.time()
         auc = roc_auc_score(labels, preds)
         auc_time = time.time() - auc_start_time
-    
+
         host_mem_mb = psutil.Process().memory_info().rss // (1024 * 1024)
         stream = os.popen("nvidia-smi --query-gpu=memory.used --format=csv")
         device_mem_str = stream.read().split("\n")[rank + 1]
 
         strtime = time.strftime("%Y-%m-%d %H:%M:%S")
-        print(f'Rank[{rank}], Iter {cur_iter}, AUC {auc:0.5f}, ' +
-            f'Eval_time {eval_time:0.2f} s, AUC_time {auc_time:0.2f} s, ' +
-            f'#Samples {labels.shape[0]}, ' +
-            f'GPU_Memory {device_mem_str}, Host_Memory {host_mem_mb} MiB, ' +
-            f'{strtime}')
-    
+        print(
+            f"Rank[{rank}], Iter {cur_iter}, AUC {auc:0.5f}, "
+            + f"Eval_time {eval_time:0.2f} s, AUC_time {auc_time:0.2f} s, "
+            + f"#Samples {labels.shape[0]}, "
+            + f"GPU_Memory {device_mem_str}, Host_Memory {host_mem_mb} MiB, "
+            + f"{strtime}"
+        )
+
     flow.comm.barrier()
     return auc
 
