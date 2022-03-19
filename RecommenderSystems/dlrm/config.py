@@ -82,7 +82,7 @@ def get_args(print_args=True):
         help="path for persistent kv store",
     )
     parser.add_argument("--store_type", type=str, default="device_host")
-    parser.add_argument("--cache_memory_budget_mb", type=int_list, default="8192,16384")
+    parser.add_argument("--device_memory_budget_mb_per_rank", type=int, default=8192)
     parser.add_argument("--use_fp16", action="store_true", help="Run model with amp")
     parser.add_argument(
         "--loss_scale_policy", type=str, default="static", help="static or dynamic"

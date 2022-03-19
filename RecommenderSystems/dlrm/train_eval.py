@@ -221,11 +221,9 @@ def eval(args, eval_graph, cur_iter=0):
 
         strtime = time.strftime("%Y-%m-%d %H:%M:%S")
         print(
-            f"Rank[{rank}], Iter {cur_iter}, AUC {auc:0.5f}, "
-            + f"Eval_time {eval_time:0.2f} s, AUC_time {auc_time:0.2f} s, "
-            + f"#Samples {labels.shape[0]}, "
-            + f"GPU_Memory {device_mem_str}, Host_Memory {host_mem_mb} MiB, "
-            + f"{strtime}"
+            f"Rank[{rank}], Iter {cur_iter}, AUC {auc:0.5f}, Eval_time {eval_time:0.2f} s, "
+            + f"AUC_time {auc_time:0.2f} s, Eval_samples {labels.shape[0]}, "
+            + f"GPU_Memory {device_mem_str}, Host_Memory {host_mem_mb} MiB, {strtime}"
         )
 
     flow.comm.barrier()
@@ -233,6 +231,7 @@ def eval(args, eval_graph, cur_iter=0):
 
 
 if __name__ == "__main__":
+    os.system(sys.executable + " -m oneflow --doctor")
     flow.boxing.nccl.enable_all_to_all(True)
     args = get_args()
 

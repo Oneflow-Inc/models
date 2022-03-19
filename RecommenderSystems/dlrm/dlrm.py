@@ -94,6 +94,9 @@ class Interaction(nn.Module):
 class OneEmbedding(nn.Module):
     def __init__(self, args):
         assert args.column_size_array is not None
+        vocab_size = sum(args.column_size_array)
+        capacity_per_rank = (vocab_size // flow.env.get_world_size() + 15) & (-16)
+
         scales = np.sqrt(1 / np.array(args.column_size_array))
         initializer_list = [
             {"initializer": {"type": "uniform", "low": -scales[i], "high": scales[i],}}
@@ -101,21 +104,23 @@ class OneEmbedding(nn.Module):
         ]
         if args.store_type == "device_only":
             store_options = flow.one_embedding.make_device_mem_store_options(
-                device_memory_budget_mb_per_rank=args.cache_memory_budget_mb[0],
-                persistent_path=args.persistent_path,
+                args.persistent_path,
+                capacity_per_rank=capacity_per_rank,
                 size_factor=1,
             )
         elif args.store_type == "device_host":
+            assert args.device_memory_budget_mb_per_rank > 0
             store_options = flow.one_embedding.make_device_mem_cached_host_mem_store_options(
-                device_memory_budget_mb_per_rank=args.cache_memory_budget_mb[0],
-                host_memory_budget_mb_per_rank=args.cache_memory_budget_mb[1],
-                persistent_path=args.persistent_path,
+                args.persistent_path,
+                device_memory_budget_mb_per_rank=args.device_memory_budget_mb_per_rank,
+                capacity_per_rank=capacity_per_rank,
                 size_factor=1,
             )
         elif args.store_type == "device_ssd":
+            assert args.device_memory_budget_mb_per_rank > 0
             store_options = flow.one_embedding.make_device_mem_cached_ssd_store_options(
-                device_memory_budget_mb_per_rank=args.cache_memory_budget_mb[0],
-                persistent_path=args.persistent_path,
+                args.persistent_path,
+                device_memory_budget_mb_per_rank=args.device_memory_budget_mb_per_rank,
                 size_factor=1,
             )
         else:
