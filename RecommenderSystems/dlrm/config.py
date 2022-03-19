@@ -29,6 +29,7 @@ def get_args(print_args=True):
     parser.add_argument(
         "--enable_fusedmlp", action="store_true", help="enable fused MLP or not"
     )
+    parser.add_argument("--embedding_vec_size", type=int, default=128)
     parser.add_argument("--bottom_mlp", type=int_list, default="512,256,128")
     parser.add_argument("--top_mlp", type=int_list, default="1024,1024,512,256")
     parser.add_argument(
@@ -56,7 +57,7 @@ def get_args(print_args=True):
     )
     parser.add_argument("--data_dir", type=str, required=True)
     parser.add_argument(
-        "--eval_batchs", type=int, default=0, help="number of eval batches"
+        "--eval_batches", type=int, default=0, help="number of eval batches"
     )
     parser.add_argument("--eval_batch_size", type=int, default=55296)
     parser.add_argument("--eval_batch_size_per_proc", type=int, default=None)
@@ -67,7 +68,6 @@ def get_args(print_args=True):
     parser.add_argument("--warmup_batches", type=int, default=2750)
     parser.add_argument("--decay_batches", type=int, default=27772)
     parser.add_argument("--decay_start", type=int, default=49315)
-    parser.add_argument("--embedding_vec_size", type=int, default=128)
     parser.add_argument("--max_iter", type=int, default=75000)
     parser.add_argument("--loss_print_every_n_iter", type=int, default=1000)
     parser.add_argument("--num_dense_fields", type=int, default=13)
