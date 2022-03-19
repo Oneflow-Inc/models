@@ -15,50 +15,31 @@ class Dense(nn.Module):
             nn.Linear(in_features, out_features),
             nn.ReLU(inplace=True),
         ) if relu else nn.Linear(in_features, out_features)
-        for name, param in self.named_parameters():
-            if name.endswith("weight"):
-                nn.init.normal_(param, 0.0, np.sqrt(2 / (in_features + out_features)))
-            elif name.endswith("bias"):
-                nn.init.normal_(param, 0.0, np.sqrt(1 / out_features))
 
     def forward(self, x: flow.Tensor) -> flow.Tensor:
-        x = self.features(x)
-        return x
-
+        return self.features(x)
 
 class MLP(nn.Module):
-    def __init__(self, in_features: int, hidden_units, skip_final_activation=False) -> None:
+    def __init__(self, in_features: int, hidden_units, skip_final_activation=False, fused=True) -> None:
         super(MLP, self).__init__()
         units = [in_features] + hidden_units
-        num_layers = len(hidden_units)
-        self.linear_layers = nn.Sequential(
-            OrderedDict(
-                [
-                    (
-                        f"fc{i}",
-                        Dense(units[i], units[i+1], not skip_final_activation or (i+1)<num_layers)
-                    )
-                    for i in range(num_layers)
-                ]
-            )
-        )
-    def forward(self, x:flow.Tensor) -> flow.Tensor:
-        return self.linear_layers(x)
-
-
-class FusedMLP(nn.Module):
-    def __init__(self, in_features: int, hidden_units, skip_final_activation=False) -> None:
-        super(FusedMLP, self).__init__()
-        self.linear_layers = nn.FusedMLP(in_features, hidden_units[:-1], hidden_units[-1], 
-                                         skip_final_activation=skip_final_activation)
-        units = [in_features] + hidden_units
-        w_init_factor = [units[i] + units[i + 1] for i in range(len(hidden_units))]
+        if fused:
+            self.linear_layers = nn.FusedMLP(in_features, hidden_units[:-1], hidden_units[-1], 
+                                            skip_final_activation=skip_final_activation)
+        else:
+            num_layers = len(hidden_units)
+            self.linear_layers = nn.Sequential(OrderedDict([
+                (
+                    f"fc{i}",
+                    Dense(units[i], units[i+1], not skip_final_activation or (i+1)<num_layers)
+                )
+                for i in range(num_layers)
+            ]))        
         for name, param in self.linear_layers.named_parameters():
-            idx = int(name.split("_")[1])
-            if name.startswith("weight"):
-                nn.init.normal_(param, 0.0, np.sqrt(2 / w_init_factor[idx]))
-            elif name.startswith("bias"):
-                nn.init.normal_(param, 0.0, np.sqrt(1 / hidden_units[idx]))
+            if "weight" in name:
+                nn.init.normal_(param, 0.0, np.sqrt(2 / sum(param.shape)))
+            elif "bias" in name:
+                nn.init.normal_(param, 0.0, np.sqrt(1 / param.shape[0]))
 
     def forward(self, x:flow.Tensor) -> flow.Tensor:
         return self.linear_layers(x)
@@ -153,26 +134,16 @@ class OneEmbedding(nn.Module):
         return self.one_embedding.forward(ids)
 
 
-def make_mlp_module(mlp_type):
-    if mlp_type.lower() == "mlp":
-        return MLP
-    elif mlp_type.lower() == "fusedmlp":
-        return FusedMLP
-    else:
-        assert f"Unsupported MLP type: {mlp_type}"
-
-
 class DLRMModule(nn.Module):
     def __init__(self, args):
         super(DLRMModule, self).__init__()
-        self.bottom_mlp = make_mlp_module(args.mlp_type)(args.num_dense_fields, args.bottom_mlp)
+        self.bottom_mlp = MLP(args.num_dense_fields, args.bottom_mlp, fused=args.enable_fusedmlp)
         self.embedding = OneEmbedding(args)
         self.interaction = Interaction(args.interaction_itself, args.num_sparse_fields,
                                        args.output_padding)
         feature_size = self.interaction.output_feature_size(args.embedding_vec_size,
                                                             args.bottom_mlp[-1])
-        self.top_mlp = make_mlp_module(args.mlp_type)(feature_size, args.top_mlp + [1],
-                                                  skip_final_activation=True)
+        self.top_mlp = MLP(feature_size, args.top_mlp + [1], skip_final_activation=True, fused=args.enable_fusedmlp)
 
     def forward(self, dense_fields, sparse_fields) -> flow.Tensor:
         dense_fields = flow.log(dense_fields + 1.0)
