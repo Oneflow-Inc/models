@@ -71,13 +71,9 @@ class Interaction(nn.Module):
     ):
         super(Interaction, self).__init__()
         self.interaction_itself = interaction_itself
-        n_cols = (
-            num_sparse_fields + 2 if self.interaction_itself else num_sparse_fields + 1
-        )
+        n_cols = num_sparse_fields + 2 if self.interaction_itself else num_sparse_fields + 1
         output_size = dense_feature_size + sum(range(n_cols))
-        self.output_size = (
-            ((output_size + 8 - 1) & (-8)) if interaction_padding else output_size
-        )
+        self.output_size = ((output_size + 8 - 1) & (-8)) if interaction_padding else output_size
         self.output_padding = self.output_size - output_size
 
     def forward(self, x: flow.Tensor, ly: flow.Tensor) -> flow.Tensor:
@@ -104,9 +100,7 @@ class OneEmbedding(nn.Module):
         ]
         if args.store_type == "device_only":
             store_options = flow.one_embedding.make_device_mem_store_options(
-                args.persistent_path,
-                capacity_per_rank=capacity_per_rank,
-                size_factor=1,
+                args.persistent_path, capacity_per_rank=capacity_per_rank, size_factor=1,
             )
         elif args.store_type == "device_host":
             assert args.device_memory_budget_mb_per_rank > 0
@@ -146,9 +140,7 @@ class DLRMModule(nn.Module):
         assert (
             args.embedding_vec_size == args.bottom_mlp[-1]
         ), "Embedding vector size must equle to bottom MLP output size"
-        self.bottom_mlp = MLP(
-            args.num_dense_fields, args.bottom_mlp, fused=args.enable_fusedmlp
-        )
+        self.bottom_mlp = MLP(args.num_dense_fields, args.bottom_mlp, fused=args.enable_fusedmlp)
         self.embedding = OneEmbedding(args)
         self.interaction = Interaction(
             args.bottom_mlp[-1],

@@ -5,7 +5,7 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 from petastorm.reader import make_batch_reader
 
 
-class ParquetDataloader(object):
+class DLRMDataloader(object):
     """A context manager that manages the creation and termination of a
     :class:`petastorm.Reader`.
     """
@@ -66,9 +66,7 @@ class ParquetDataloader(object):
                 pos = batch_size - len(tail[0])
                 tail = list(
                     [
-                        np.concatenate(
-                            (tail[i], rglist[i][0 : (batch_size - len(tail[i]))])
-                        )
+                        np.concatenate((tail[i], rglist[i][0 : (batch_size - len(tail[i]))]))
                         for i in range(self.C_end)
                     ]
                 )
@@ -83,13 +81,8 @@ class ParquetDataloader(object):
                     continue
             while (pos + batch_size) <= len(rglist[0]):
                 label = rglist[0][pos : pos + batch_size]
-                dense = [
-                    rglist[j][pos : pos + batch_size] for j in range(1, self.I_end)
-                ]
-                sparse = [
-                    rglist[j][pos : pos + batch_size]
-                    for j in range(self.I_end, self.C_end)
-                ]
+                dense = [rglist[j][pos : pos + batch_size] for j in range(1, self.I_end)]
+                sparse = [rglist[j][pos : pos + batch_size] for j in range(self.I_end, self.C_end)]
                 pos += batch_size
                 yield label, np.stack(dense, axis=-1), np.stack(sparse, axis=-1)
             if pos != len(rglist[0]):
@@ -108,19 +101,17 @@ if __name__ == "__main__":
 
     files = []
     for folder in subfolders:
-        files += [
-            "file://" + name for name in glob.glob(f"{data_dir}/{folder}/*.parquet")
-        ]
+        files += ["file://" + name for name in glob.glob(f"{data_dir}/{folder}/*.parquet")]
     files.sort()
     batch_size = 32
     num_epochs = 1
-    with ParquetDataloader(files, batch_size, num_epochs) as dataloader:
+    with DLRMDataloader(files, batch_size, num_epochs) as dataloader:
         for i in range(10):
             labels, dense_fields, sparse_fields = next(dataloader)
             print(i, labels.shape, dense_fields.shape, sparse_fields.shape)
             print(i, type(labels), type(dense_fields), type(sparse_fields))
 
-    with ParquetDataloader(files, batch_size, num_epochs) as dataloader:
+    with DLRMDataloader(files, batch_size, num_epochs) as dataloader:
         i = 0
         for labels, dense_fields, sparse_fields in dataloader:
             i += 1
@@ -132,7 +123,7 @@ if __name__ == "__main__":
     import psutil
 
     for i in range(1000):
-        with ParquetDataloader(files, batch_size, num_epochs) as dataloader:
+        with DLRMDataloader(files, batch_size, num_epochs) as dataloader:
             pass
         # time.sleep(0.5)
         print(i, time.time(), psutil.Process().memory_info().rss // (1024 * 1024))

@@ -26,9 +26,7 @@ def get_args(print_args=True):
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument(
-        "--enable_fusedmlp", action="store_true", help="enable fused MLP or not"
-    )
+    parser.add_argument("--enable_fusedmlp", action="store_true", help="enable fused MLP or not")
     parser.add_argument("--embedding_vec_size", type=int, default=128)
     parser.add_argument("--bottom_mlp", type=int_list, default="512,256,128")
     parser.add_argument("--top_mlp", type=int_list, default="1024,1024,512,256")
@@ -43,22 +41,16 @@ def get_args(print_args=True):
     parser.add_argument("--model_load_dir", type=str, default=None)
     parser.add_argument("--model_save_dir", type=str, default=None)
     parser.add_argument(
-        "--save_initial_model",
-        action="store_true",
-        help="save initial model parameters or not.",
+        "--save_initial_model", action="store_true", help="save initial model parameters or not.",
     )
     parser.add_argument(
-        "--save_model_after_each_eval",
-        action="store_true",
-        help="save model after each eval.",
+        "--save_model_after_each_eval", action="store_true", help="save model after each eval.",
     )
     parser.add_argument(
         "--not_eval_after_training", action="store_true", help="do eval after training"
     )
     parser.add_argument("--data_dir", type=str, required=True)
-    parser.add_argument(
-        "--eval_batches", type=int, default=0, help="number of eval batches"
-    )
+    parser.add_argument("--eval_batches", type=int, default=0, help="number of eval batches")
     parser.add_argument("--eval_batch_size", type=int, default=55296)
     parser.add_argument("--eval_batch_size_per_proc", type=int, default=None)
     parser.add_argument("--eval_interval", type=int, default=10000)
@@ -76,17 +68,12 @@ def get_args(print_args=True):
         "--column_size_array", type=int_list, help="column_size_array", required=True
     )
     parser.add_argument(
-        "--persistent_path",
-        type=str,
-        required=True,
-        help="path for persistent kv store",
+        "--persistent_path", type=str, required=True, help="path for persistent kv store",
     )
     parser.add_argument("--store_type", type=str, default="device_host")
     parser.add_argument("--device_memory_budget_mb_per_rank", type=int, default=8192)
     parser.add_argument("--use_fp16", action="store_true", help="Run model with amp")
-    parser.add_argument(
-        "--loss_scale_policy", type=str, default="static", help="static or dynamic"
-    )
+    parser.add_argument("--loss_scale_policy", type=str, default="static", help="static or dynamic")
 
     args = parser.parse_args()
 

@@ -7,23 +7,20 @@ import numpy as np
 from sklearn.metrics import roc_auc_score
 import psutil
 
-sys.path.append(
-    os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
-)
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
 from config import get_args
-from parquet_dataloader import ParquetDataloader
+from dataloader import DLRMDataloader
 from dlrm import make_dlrm_module
 
 
 def make_criteo_dataloader(data_path, batch_size_per_proc, shuffle=True):
     """Make a Criteo Parquet DataLoader.
-    :return: a context manager when exit the returned context manager, the reader
-                will be closed.
+    :return: a context manager when exit the returned context manager, the reader will be closed.
     """
     files = ["file://" + name for name in glob.glob(f"{data_path}/*.parquet")]
     files.sort()
 
-    return ParquetDataloader(
+    return DLRMDataloader(
         files,
         batch_size_per_proc,
         None,  # TODO: iterate over all eval dataset
@@ -41,11 +38,7 @@ def make_lr_scheduler(args, optimizer):
         optimizer, start_factor=0, total_iters=args.warmup_batches,
     )
     poly_decay_lr = flow.optim.lr_scheduler.PolynomialLR(
-        optimizer,
-        steps=args.decay_batches,
-        end_learning_rate=0,
-        power=2.0,
-        cycle=False,
+        optimizer, steps=args.decay_batches, end_learning_rate=0, power=2.0, cycle=False,
     )
     sequential_lr = flow.optim.lr_scheduler.SequentialLR(
         optimizer=optimizer,
@@ -70,13 +63,7 @@ class DLRMValGraph(flow.nn.Graph):
 
 class DLRMTrainGraph(flow.nn.Graph):
     def __init__(
-        self,
-        dlrm_module,
-        bce_loss,
-        optimizer,
-        lr_scheduler=None,
-        grad_scaler=None,
-        use_fp16=False,
+        self, dlrm_module, bce_loss, optimizer, lr_scheduler=None, grad_scaler=None, use_fp16=False,
     ):
         super(DLRMTrainGraph, self).__init__()
         self.module = dlrm_module
@@ -128,21 +115,14 @@ def train(args):
         grad_scaler = flow.amp.StaticGradScaler(1024)
     else:
         grad_scaler = flow.amp.GradScaler(
-            init_scale=1073741824,
-            growth_factor=2.0,
-            backoff_factor=0.5,
-            growth_interval=2000,
+            init_scale=1073741824, growth_factor=2.0, backoff_factor=0.5, growth_interval=2000,
         )
 
     eval_graph = DLRMValGraph(dlrm_module, args.use_fp16)
-    train_graph = DLRMTrainGraph(
-        dlrm_module, loss, opt, lr_scheduler, grad_scaler, args.use_fp16
-    )
+    train_graph = DLRMTrainGraph(dlrm_module, loss, opt, lr_scheduler, grad_scaler, args.use_fp16)
     dlrm_module.train()
     last_iter, last_time = 0, time.time()
-    with make_criteo_dataloader(
-        f"{args.data_dir}/train", args.batch_size_per_proc
-    ) as loader:
+    with make_criteo_dataloader(f"{args.data_dir}/train", args.batch_size_per_proc) as loader:
         for iter in range(1, args.max_iter + 1):
             labels, dense_fields, sparse_fields = batch_to_global(*next(loader))
             loss = train_graph(labels, dense_fields, sparse_fields)
@@ -186,7 +166,7 @@ def batch_to_global(np_label, np_dense, np_sparse):
 
 
 def eval(args, eval_graph, cur_iter=0):
-    if args.eval_batchs <= 0:
+    if args.eval_batches <= 0:
         return
     eval_graph.module.eval()
     labels, preds = [], []
@@ -197,7 +177,7 @@ def eval(args, eval_graph, cur_iter=0):
         num_eval_batches = 0
         for np_batch in loader:
             num_eval_batches += 1
-            if num_eval_batches > args.eval_batchs:
+            if num_eval_batches > args.eval_batches:
                 break
             label, dense_fields, sparse_fields = batch_to_global(*np_batch)
             logits = eval_graph(dense_fields, sparse_fields)
