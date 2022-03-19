@@ -154,14 +154,13 @@ def train(args):
 
 
 def batch_to_global(np_label, np_dense, np_sparse):
-    placement = flow.env.all_device_placement("cpu")
-    sbp = flow.sbp.split(0)
-    labels = flow.tensor(np_label.reshape(-1, 1), dtype=flow.float)
-    dense_fields = flow.tensor(np_dense, dtype=flow.float)
-    sparse_fields = flow.tensor(np_sparse, dtype=flow.int64)
-    labels = labels.to_global(placement=placement, sbp=sbp)
-    dense_fields = dense_fields.to_global(placement=placement, sbp=sbp)
-    sparse_fields = sparse_fields.to_global(placement=placement, sbp=sbp)
+    def _np_to_global(np, dtype=flow.float):
+        t = flow.tensor(np, dtype=dtype)
+        return t.to_global(placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0))
+
+    labels = _np_to_global(np_label.reshape(-1, 1))
+    dense_fields = _np_to_global(np_dense)
+    sparse_fields = _np_to_global(np_sparse, dtype=flow.int64)
     return labels, dense_fields, sparse_fields
 
 
