@@ -94,36 +94,12 @@ if __name__ == "__main__":
 
     np.set_printoptions(linewidth=100)
     mode = "train"
-    data_dir = "/minio/sdd/dataset/criteo1t/add_slot_size_snappy_true"
-    train_sub_folders = [f"day_{i}" for i in range(23)]
-    val_sub_folders = ["day_23"]
-    subfolders = train_sub_folders if mode == "train" else val_sub_folders
+    data_dir = "/dataset/dlrm_parquet/train"
 
-    files = []
-    for folder in subfolders:
-        files += ["file://" + name for name in glob.glob(f"{data_dir}/{folder}/*.parquet")]
+    files = ["file://" + name for name in glob.glob(f"{data_dir}/*.parquet")]
     files.sort()
-    batch_size = 32
-    num_epochs = 1
-    with DLRMDataloader(files, batch_size, num_epochs) as dataloader:
+    with DLRMDataloader(files, 32, None) as dataloader:
         for i in range(10):
             labels, dense_fields, sparse_fields = next(dataloader)
             print(i, labels.shape, dense_fields.shape, sparse_fields.shape)
             print(i, type(labels), type(dense_fields), type(sparse_fields))
-
-    with DLRMDataloader(files, batch_size, num_epochs) as dataloader:
-        i = 0
-        for labels, dense_fields, sparse_fields in dataloader:
-            i += 1
-            print(i, labels.shape, dense_fields.shape, sparse_fields.shape)
-            print(i, type(labels), type(dense_fields), type(sparse_fields))
-            break
-
-    import time
-    import psutil
-
-    for i in range(1000):
-        with DLRMDataloader(files, batch_size, num_epochs) as dataloader:
-            pass
-        # time.sleep(0.5)
-        print(i, time.time(), psutil.Process().memory_info().rss // (1024 * 1024))
