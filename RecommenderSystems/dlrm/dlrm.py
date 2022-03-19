@@ -74,17 +74,14 @@ class OneEmbedding(nn.Module):
     def __init__(self, args):
         assert args.column_size_array is not None
         scales = np.sqrt(1 / np.array(args.column_size_array))
-        initializer_list = []
-        for i in range(scales.size):
-            initializer_list.append(
-                {
-                    "initializer": {
-                        "type": "uniform",
-                        "low": -scales[i],
-                        "high": scales[i],
-                    }
+        initializer_list = [
+            {
+                "initializer": {
+                    "type": "uniform",
+                    "low": -scales[i],
+                    "high": scales[i],
                 }
-            )
+            } for i in range(scales.size)]
         if args.store_type == "device_only":
             store_options = flow.one_embedding.make_device_mem_store_options(
                 device_memory_budget_mb_per_rank=args.cache_memory_budget_mb[0],
