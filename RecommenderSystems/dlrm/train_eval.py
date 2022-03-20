@@ -61,11 +61,11 @@ class DLRMValGraph(flow.nn.Graph):
 
 class DLRMTrainGraph(flow.nn.Graph):
     def __init__(
-        self, dlrm_module, bce_loss, optimizer, lr_scheduler=None, grad_scaler=None, use_fp16=False,
+        self, dlrm_module, loss, optimizer, lr_scheduler=None, grad_scaler=None, use_fp16=False,
     ):
         super(DLRMTrainGraph, self).__init__()
         self.module = dlrm_module
-        self.bce_loss = bce_loss
+        self.loss = loss
         self.add_optimizer(optimizer, lr_sch=lr_scheduler)
         self.config.allow_fuse_model_update_ops(True)
         self.config.allow_fuse_add_to_output(True)
@@ -76,7 +76,7 @@ class DLRMTrainGraph(flow.nn.Graph):
 
     def build(self, labels, dense_fields, sparse_fields):
         logits = self.module(dense_fields.to("cuda"), sparse_fields.to("cuda"))
-        loss = self.bce_loss(logits, labels.to("cuda"))
+        loss = self.loss(logits, labels.to("cuda"))
         reduce_loss = flow.mean(loss)
         reduce_loss.backward()
         return reduce_loss.to("cpu")
