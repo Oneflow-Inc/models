@@ -133,30 +133,42 @@ class OneEmbedding(nn.Module):
 
 
 class DLRMModule(nn.Module):
-    def __init__(self, args):
+    def __init__(
+        self,
+        embedding_vec_size=128,
+        bottom_mlp=[512, 256, 128],
+        top_mlp=[1024, 1024, 512, 256],
+        use_fusedmlp=True,
+        persistent_path=None,
+        column_size_array=None,
+        one_embedding_store_type="device_host",
+        device_memory_budget_mb_per_rank=8192,
+        interaction_itself=True,
+        interaction_padding=True,
+    ):
         super(DLRMModule, self).__init__()
         assert (
-            args.embedding_vec_size == args.bottom_mlp[-1]
+            embedding_vec_size == bottom_mlp[-1]
         ), "Embedding vector size must equle to bottom MLP output size"
-        self.bottom_mlp = MLP(num_dense_fields, args.bottom_mlp, fused=args.enable_fusedmlp)
+        self.bottom_mlp = MLP(num_dense_fields, bottom_mlp, fused=use_fusedmlp)
         self.embedding = OneEmbedding(
-            args.embedding_vec_size,
-            args.persistent_path,
-            args.column_size_array,
-            args.store_type,
-            args.device_memory_budget_mb_per_rank,
+            embedding_vec_size,
+            persistent_path,
+            column_size_array,
+            one_embedding_store_type,
+            device_memory_budget_mb_per_rank,
         )
         self.interaction = Interaction(
-            args.bottom_mlp[-1],
+            bottom_mlp[-1],
             num_sparse_fields,
-            args.interaction_itself,
-            interaction_padding=(not args.disable_interaction_padding),
+            interaction_itself,
+            interaction_padding=interaction_padding,
         )
         self.top_mlp = MLP(
             self.interaction.output_size,
-            args.top_mlp + [1],
+            top_mlp + [1],
             skip_final_activation=True,
-            fused=args.enable_fusedmlp,
+            fused=use_fusedmlp,
         )
 
     def forward(self, dense_fields, sparse_fields) -> flow.Tensor:
@@ -168,5 +180,16 @@ class DLRMModule(nn.Module):
 
 
 def make_dlrm_module(args):
-    model = DLRMModule(args)
+    model = DLRMModule(
+        embedding_vec_size=args.embedding_vec_size,
+        bottom_mlp=args.bottom_mlp,
+        top_mlp=args.top_mlp,
+        use_fusedmlp=args.use_fusedmlp,
+        persistent_path=args.persistent_path,
+        column_size_array=args.column_size_array,
+        one_embedding_store_type=args.store_type,
+        device_memory_budget_mb_per_rank=args.device_memory_budget_mb_per_rank,
+        interaction_itself=args.interaction_itself,
+        interaction_padding=not args.disable_interaction_padding,
+    )
     return model
