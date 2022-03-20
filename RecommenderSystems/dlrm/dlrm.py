@@ -98,7 +98,7 @@ class OneEmbedding(nn.Module):
         ]
         if store_type == "device_only":
             store_options = flow.one_embedding.make_device_mem_store_options(
-                persistent_path, capacity_per_rank=capacity_per_rank, size_factor=1,
+                persistent_path, capacity_per_rank=capacity_per_rank,
             )
         elif store_type == "device_host":
             assert device_memory_budget_mb_per_rank > 0
@@ -106,14 +106,11 @@ class OneEmbedding(nn.Module):
                 persistent_path,
                 device_memory_budget_mb_per_rank=device_memory_budget_mb_per_rank,
                 capacity_per_rank=capacity_per_rank,
-                size_factor=1,
             )
         elif store_type == "device_ssd":
             assert device_memory_budget_mb_per_rank > 0
             store_options = flow.one_embedding.make_device_mem_cached_ssd_store_options(
-                persistent_path,
-                device_memory_budget_mb_per_rank=device_memory_budget_mb_per_rank,
-                size_factor=1,
+                persistent_path, device_memory_budget_mb_per_rank=device_memory_budget_mb_per_rank,
             )
         else:
             raise NotImplementedError("not support", store_type)
