@@ -93,8 +93,7 @@ class OneEmbedding(nn.Module):
 
         scales = np.sqrt(1 / np.array(column_size_array))
         initializer_list = [
-            {"initializer": {"type": "uniform", "low": -scales[i], "high": scales[i],}}
-            for i in range(scales.size)
+            {"initializer": {"type": "uniform", "low": -scale, "high": scale}} for scale in scales
         ]
         if store_type == "device_only":
             store_options = flow.one_embedding.make_device_mem_store_options(
