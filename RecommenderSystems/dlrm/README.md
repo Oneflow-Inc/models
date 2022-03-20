@@ -1,6 +1,6 @@
 # DLRM
-[Wide&Deep](https://ai.googleblog.com/2016/06/wide-deep-learning-better-together-with.html) is an industrial application model for CTR recommendation that combines Deep Neural Network and Linear model. Its model structure is as follows. Based on this structure, this project uses OneFlow distributed deep learning framework to realize training the modle in graph mode and eager mode respectively on Crioteo data set. 
-![1](https://1.bp.blogspot.com/-Dw1mB9am1l8/V3MgtOzp3uI/AAAAAAAABGs/mP-3nZQCjWwdk6qCa5WraSpK8A7rSPj3ACLcB/s1600/image04.png)
+- [ ] TODO
+
 ## Directory description
 ```
 .
