@@ -44,6 +44,11 @@
 |device_memory_budget_mb_per_rank||8192|
 |use_fp16|Run model with amp||
 |loss_scale_policy|static or dynamic|static|
+|model_load_dir|model loading directory|None|
+|model_save_dir|model saving directory|None|
+|loss_print_interval|print train loss and validate the model after training every number of batche times|1000|
+|save_initial_model|save the initial arguments of the modelor not|False|
+
 
 ## Prepare running
 ### Environment

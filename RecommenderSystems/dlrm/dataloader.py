@@ -8,7 +8,7 @@ num_dense_fields = 13
 num_sparse_fields = 26
 
 
-class DLRMDataloader(object):
+class DLRMDataReader(object):
     """A context manager that manages the creation and termination of a
     :class:`petastorm.Reader`.
     """
@@ -99,7 +99,7 @@ if __name__ == "__main__":
 
     files = ["file://" + name for name in glob.glob(f"{data_dir}/*.parquet")]
     files.sort()
-    with DLRMDataloader(files, 32, None) as dataloader:
+    with DLRMDataReader(files, 32, None) as dataloader:
         for i in range(10):
             labels, dense_fields, sparse_fields = next(dataloader)
             print(i, labels.shape, dense_fields.shape, sparse_fields.shape)

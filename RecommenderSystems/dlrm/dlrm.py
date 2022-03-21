@@ -1,4 +1,3 @@
-from collections import OrderedDict
 import oneflow as flow
 import oneflow.nn as nn
 import numpy as np
@@ -56,7 +55,7 @@ class Interaction(nn.Module):
     def __init__(
         self,
         dense_feature_size,
-        num_embedding_fields=26,
+        num_embedding_fields,
         interaction_itself=False,
         interaction_padding=True,
     ):
@@ -64,14 +63,13 @@ class Interaction(nn.Module):
         self.interaction_itself = interaction_itself
         n_cols = num_embedding_fields + 2 if self.interaction_itself else num_embedding_fields + 1
         output_size = dense_feature_size + sum(range(n_cols))
-        self.output_size = ((output_size + 8 - 1) & (-8)) if interaction_padding else output_size
+        self.output_size = ((output_size + 8 - 1) // 8 * 8) if interaction_padding else output_size
         self.output_padding = self.output_size - output_size
 
-    def forward(self, x: flow.Tensor, ly: flow.Tensor) -> flow.Tensor:
-        # x - dense fields, ly = embedding
+    def forward(self, x: flow.Tensor, y: flow.Tensor) -> flow.Tensor:
         (bsz, d) = x.shape
         return flow._C.fused_dot_feature_interaction(
-            [x.view(bsz, 1, d), ly],
+            [x.view(bsz, 1, d), y],
             output_concat=x,
             self_interaction=self.interaction_itself,
             output_padding=self.output_padding,
@@ -85,14 +83,14 @@ class OneEmbedding(nn.Module):
         persistent_path,
         column_size_array,
         store_type,
-        device_memory_budget_mb_per_rank,
+        cache_memory_budget_mb_per_rank,
     ):
         assert column_size_array is not None
         vocab_size = sum(column_size_array)
-        capacity_per_rank = (vocab_size // flow.env.get_world_size() + 15) & (-16)
+        capacity_per_rank = (vocab_size // flow.env.get_world_size() + 16 - 1) // 16 * 16
 
         scales = np.sqrt(1 / np.array(column_size_array))
-        initializer_list = [
+        columns = [
             {"initializer": {"type": "uniform", "low": -scale, "high": scale}} for scale in scales
         ]
         if store_type == "device_only":
@@ -100,16 +98,16 @@ class OneEmbedding(nn.Module):
                 persistent_path, capacity_per_rank=capacity_per_rank,
             )
         elif store_type == "device_host":
-            assert device_memory_budget_mb_per_rank > 0
+            assert cache_memory_budget_mb_per_rank > 0
             store_options = flow.one_embedding.make_device_mem_cached_host_mem_store_options(
                 persistent_path,
-                device_memory_budget_mb_per_rank=device_memory_budget_mb_per_rank,
+                device_memory_budget_mb_per_rank=cache_memory_budget_mb_per_rank,
                 capacity_per_rank=capacity_per_rank,
             )
         elif store_type == "device_ssd":
-            assert device_memory_budget_mb_per_rank > 0
+            assert cache_memory_budget_mb_per_rank > 0
             store_options = flow.one_embedding.make_device_mem_cached_ssd_store_options(
-                persistent_path, device_memory_budget_mb_per_rank=device_memory_budget_mb_per_rank,
+                persistent_path, device_memory_budget_mb_per_rank=cache_memory_budget_mb_per_rank,
             )
         else:
             raise NotImplementedError("not support", store_type)
@@ -117,10 +115,10 @@ class OneEmbedding(nn.Module):
         super(OneEmbedding, self).__init__()
         self.one_embedding = flow.one_embedding.Embedding(
             "sparse_embedding",
-            embedding_vec_size,
-            flow.float,
-            flow.int64,
-            columns=initializer_list,
+            embedding_dim=embedding_vec_size,
+            dtype=flow.float,
+            key_type=flow.int64,
+            columns=columns,
             store_options=store_options,
         )
 
@@ -138,7 +136,7 @@ class DLRMModule(nn.Module):
         persistent_path=None,
         column_size_array=None,
         one_embedding_store_type="device_host",
-        device_memory_budget_mb_per_rank=8192,
+        cache_memory_budget_mb_per_rank=8192,
         interaction_itself=True,
         interaction_padding=True,
     ):
@@ -152,7 +150,7 @@ class DLRMModule(nn.Module):
             persistent_path,
             column_size_array,
             one_embedding_store_type,
-            device_memory_budget_mb_per_rank,
+            cache_memory_budget_mb_per_rank,
         )
         self.interaction = Interaction(
             bottom_mlp[-1],
@@ -184,7 +182,7 @@ def make_dlrm_module(args):
         persistent_path=args.persistent_path,
         column_size_array=args.column_size_array,
         one_embedding_store_type=args.store_type,
-        device_memory_budget_mb_per_rank=args.device_memory_budget_mb_per_rank,
+        cache_memory_budget_mb_per_rank=args.cache_memory_budget_mb_per_rank,
         interaction_itself=args.interaction_itself,
         interaction_padding=not args.disable_interaction_padding,
     )
