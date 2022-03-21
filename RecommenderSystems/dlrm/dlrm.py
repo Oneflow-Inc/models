@@ -115,9 +115,9 @@ class OneEmbedding(nn.Module):
         super(OneEmbedding, self).__init__()
         self.one_embedding = flow.one_embedding.Embedding(
             "sparse_embedding",
-            embedding_vec_size,
-            flow.float,
-            flow.int64,
+            embedding_dim=embedding_vec_size,
+            dtype=flow.float,
+            key_type=flow.int64,
             columns=columns,
             store_options=store_options,
         )
