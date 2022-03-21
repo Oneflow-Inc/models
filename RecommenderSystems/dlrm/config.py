@@ -49,10 +49,8 @@ def get_args(print_args=True):
     parser.add_argument("--data_dir", type=str, required=True)
     parser.add_argument("--eval_batches", type=int, default=0, help="number of eval batches")
     parser.add_argument("--eval_batch_size", type=int, default=55296)
-    parser.add_argument("--eval_batch_size_per_proc", type=int, default=None)
     parser.add_argument("--eval_interval", type=int, default=10000)
-    parser.add_argument("--batch_size", type=int, default=55296)
-    parser.add_argument("--batch_size_per_proc", type=int, default=None)
+    parser.add_argument("--train_batch_size", type=int, default=55296)
     parser.add_argument("--learning_rate", type=float, default=24)
     parser.add_argument("--warmup_batches", type=int, default=2750)
     parser.add_argument("--decay_batches", type=int, default=27772)
@@ -71,23 +69,6 @@ def get_args(print_args=True):
     parser.add_argument("--loss_scale_policy", type=str, default="static", help="static or dynamic")
 
     args = parser.parse_args()
-
-    world_size = flow.env.get_world_size()
-    if args.batch_size_per_proc is None:
-        assert args.batch_size % world_size == 0
-        args.batch_size_per_proc = args.batch_size // world_size
-    elif args.batch_size is None:
-        args.batch_size = args.batch_size_per_proc * world_size
-    else:
-        assert args.batch_size % args.batch_size_per_proc == 0
-
-    if args.eval_batch_size_per_proc is None:
-        assert args.eval_batch_size % world_size == 0
-        args.eval_batch_size_per_proc = args.eval_batch_size // world_size
-    elif args.eval_batch_size is None:
-        args.eval_batch_size = args.eval_batch_size_per_proc * world_size
-    else:
-        assert args.eval_batch_size % args.eval_batch_size_per_proc == 0
 
     if print_args and flow.env.get_rank() == 0:
         _print_args(args)

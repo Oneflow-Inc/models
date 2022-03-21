@@ -13,12 +13,15 @@ from dataloader import DLRMDataloader
 from dlrm import make_dlrm_module
 
 
-def make_criteo_dataloader(data_path, batch_size_per_proc, shuffle=True):
+def make_criteo_dataloader(data_path, batch_size, shuffle=True):
     """Make a Criteo Parquet DataLoader.
     :return: a context manager when exit the returned context manager, the reader will be closed.
     """
     files = ["file://" + name for name in glob.glob(f"{data_path}/*.parquet")]
     files.sort()
+
+    world_size = flow.env.get_world_size()
+    batch_size_per_proc = batch_size // world_size
 
     return DLRMDataloader(
         files,
@@ -26,7 +29,7 @@ def make_criteo_dataloader(data_path, batch_size_per_proc, shuffle=True):
         None,  # TODO: iterate over all eval dataset
         shuffle_row_groups=shuffle,
         shard_seed=1234,
-        shard_count=flow.env.get_world_size(),
+        shard_count=world_size,
         cur_shard=flow.env.get_rank(),
     )
 
@@ -120,7 +123,7 @@ def train(args):
     train_graph = DLRMTrainGraph(dlrm_module, loss, opt, lr_scheduler, grad_scaler, args.use_fp16)
     dlrm_module.train()
     last_iter, last_time = 0, time.time()
-    with make_criteo_dataloader(f"{args.data_dir}/train", args.batch_size_per_proc) as loader:
+    with make_criteo_dataloader(f"{args.data_dir}/train", args.train_batch_size) as loader:
         for iter in range(1, args.max_iter + 1):
             labels, dense_fields, sparse_fields = batch_to_global(*next(loader))
             loss = train_graph(labels, dense_fields, sparse_fields)
@@ -166,7 +169,7 @@ def eval(args, eval_graph, cur_iter=0):
     labels, preds = [], []
     eval_start_time = time.time()
     with make_criteo_dataloader(
-        f"{args.data_dir}/test", args.eval_batch_size_per_proc, shuffle=False
+        f"{args.data_dir}/test", args.eval_batch_size, shuffle=False
     ) as loader:
         num_eval_batches = 0
         for np_batch in loader:
