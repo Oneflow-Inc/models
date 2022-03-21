@@ -90,7 +90,7 @@ class OneEmbedding(nn.Module):
         capacity_per_rank = (vocab_size // flow.env.get_world_size() + 16 - 1) // 16 * 16
 
         scales = np.sqrt(1 / np.array(column_size_array))
-        initializer_list = [
+        columns = [
             {"initializer": {"type": "uniform", "low": -scale, "high": scale}} for scale in scales
         ]
         if store_type == "device_only":
@@ -118,7 +118,7 @@ class OneEmbedding(nn.Module):
             embedding_vec_size,
             flow.float,
             flow.int64,
-            columns=initializer_list,
+            columns=columns,
             store_options=store_options,
         )
 
