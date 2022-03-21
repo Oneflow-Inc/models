@@ -55,7 +55,7 @@ class Interaction(nn.Module):
     def __init__(
         self,
         dense_feature_size,
-        num_embedding_fields=26,
+        num_embedding_fields,
         interaction_itself=False,
         interaction_padding=True,
     ):
