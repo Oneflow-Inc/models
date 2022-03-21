@@ -66,11 +66,10 @@ class Interaction(nn.Module):
         self.output_size = ((output_size + 8 - 1) // 8 * 8) if interaction_padding else output_size
         self.output_padding = self.output_size - output_size
 
-    def forward(self, x: flow.Tensor, ly: flow.Tensor) -> flow.Tensor:
-        # x - dense fields, ly = embedding
+    def forward(self, x: flow.Tensor, y: flow.Tensor) -> flow.Tensor:
         (bsz, d) = x.shape
         return flow._C.fused_dot_feature_interaction(
-            [x.view(bsz, 1, d), ly],
+            [x.view(bsz, 1, d), y],
             output_concat=x,
             self_interaction=self.interaction_itself,
             output_padding=self.output_padding,
@@ -88,7 +87,7 @@ class OneEmbedding(nn.Module):
     ):
         assert column_size_array is not None
         vocab_size = sum(column_size_array)
-        capacity_per_rank = (vocab_size // flow.env.get_world_size() + 16 -1 ) // 16 * 16
+        capacity_per_rank = (vocab_size // flow.env.get_world_size() + 16 - 1) // 16 * 16
 
         scales = np.sqrt(1 / np.array(column_size_array))
         initializer_list = [
