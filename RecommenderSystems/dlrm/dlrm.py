@@ -1,4 +1,3 @@
-from collections import OrderedDict
 import oneflow as flow
 import oneflow.nn as nn
 import numpy as np
