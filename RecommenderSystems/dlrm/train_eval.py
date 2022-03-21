@@ -51,10 +51,10 @@ def make_lr_scheduler(args, optimizer):
 
 
 class DLRMValGraph(flow.nn.Graph):
-    def __init__(self, dlrm_module, use_fp16=False):
+    def __init__(self, dlrm_module, amp=False):
         super(DLRMValGraph, self).__init__()
         self.module = dlrm_module
-        if use_fp16:
+        if amp:
             self.config.enable_amp(True)
 
     def build(self, dense_fields, sparse_fields):
@@ -64,7 +64,7 @@ class DLRMValGraph(flow.nn.Graph):
 
 class DLRMTrainGraph(flow.nn.Graph):
     def __init__(
-        self, dlrm_module, loss, optimizer, lr_scheduler=None, grad_scaler=None, use_fp16=False,
+        self, dlrm_module, loss, optimizer, lr_scheduler=None, grad_scaler=None, amp=False,
     ):
         super(DLRMTrainGraph, self).__init__()
         self.module = dlrm_module
@@ -73,7 +73,7 @@ class DLRMTrainGraph(flow.nn.Graph):
         self.config.allow_fuse_model_update_ops(True)
         self.config.allow_fuse_add_to_output(True)
         self.config.allow_fuse_cast_scale(True)
-        if use_fp16:
+        if amp:
             self.config.enable_amp(True)
             self.set_grad_scaler(grad_scaler)
 
@@ -119,8 +119,8 @@ def train(args):
             init_scale=1073741824, growth_factor=2.0, backoff_factor=0.5, growth_interval=2000,
         )
 
-    eval_graph = DLRMValGraph(dlrm_module, args.use_fp16)
-    train_graph = DLRMTrainGraph(dlrm_module, loss, opt, lr_scheduler, grad_scaler, args.use_fp16)
+    eval_graph = DLRMValGraph(dlrm_module, args.amp)
+    train_graph = DLRMTrainGraph(dlrm_module, loss, opt, lr_scheduler, grad_scaler, args.amp)
     dlrm_module.train()
     last_iter, last_time = 0, time.time()
     with make_criteo_dataloader(f"{args.data_dir}/train", args.train_batch_size) as loader:
