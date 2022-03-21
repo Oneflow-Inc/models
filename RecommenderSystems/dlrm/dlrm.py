@@ -84,7 +84,7 @@ class OneEmbedding(nn.Module):
         persistent_path,
         column_size_array,
         store_type,
-        device_memory_budget_mb_per_rank,
+        cache_memory_budget_mb_per_rank,
     ):
         assert column_size_array is not None
         vocab_size = sum(column_size_array)
@@ -99,16 +99,16 @@ class OneEmbedding(nn.Module):
                 persistent_path, capacity_per_rank=capacity_per_rank,
             )
         elif store_type == "device_host":
-            assert device_memory_budget_mb_per_rank > 0
+            assert cache_memory_budget_mb_per_rank > 0
             store_options = flow.one_embedding.make_device_mem_cached_host_mem_store_options(
                 persistent_path,
-                device_memory_budget_mb_per_rank=device_memory_budget_mb_per_rank,
+                device_memory_budget_mb_per_rank=cache_memory_budget_mb_per_rank,
                 capacity_per_rank=capacity_per_rank,
             )
         elif store_type == "device_ssd":
-            assert device_memory_budget_mb_per_rank > 0
+            assert cache_memory_budget_mb_per_rank > 0
             store_options = flow.one_embedding.make_device_mem_cached_ssd_store_options(
-                persistent_path, device_memory_budget_mb_per_rank=device_memory_budget_mb_per_rank,
+                persistent_path, device_memory_budget_mb_per_rank=cache_memory_budget_mb_per_rank,
             )
         else:
             raise NotImplementedError("not support", store_type)
@@ -137,7 +137,7 @@ class DLRMModule(nn.Module):
         persistent_path=None,
         column_size_array=None,
         one_embedding_store_type="device_host",
-        device_memory_budget_mb_per_rank=8192,
+        cache_memory_budget_mb_per_rank=8192,
         interaction_itself=True,
         interaction_padding=True,
     ):
@@ -151,7 +151,7 @@ class DLRMModule(nn.Module):
             persistent_path,
             column_size_array,
             one_embedding_store_type,
-            device_memory_budget_mb_per_rank,
+            cache_memory_budget_mb_per_rank,
         )
         self.interaction = Interaction(
             bottom_mlp[-1],
@@ -183,7 +183,7 @@ def make_dlrm_module(args):
         persistent_path=args.persistent_path,
         column_size_array=args.column_size_array,
         one_embedding_store_type=args.store_type,
-        device_memory_budget_mb_per_rank=args.device_memory_budget_mb_per_rank,
+        cache_memory_budget_mb_per_rank=args.cache_memory_budget_mb_per_rank,
         interaction_itself=args.interaction_itself,
         interaction_padding=not args.disable_interaction_padding,
     )
