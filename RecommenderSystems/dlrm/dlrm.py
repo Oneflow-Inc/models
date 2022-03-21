@@ -178,7 +178,7 @@ def make_dlrm_module(args):
         embedding_vec_size=args.embedding_vec_size,
         bottom_mlp=args.bottom_mlp,
         top_mlp=args.top_mlp,
-        use_fusedmlp=args.use_fusedmlp,
+        use_fusedmlp=not args.disable_fusedmlp,
         persistent_path=args.persistent_path,
         column_size_array=args.column_size_array,
         one_embedding_store_type=args.store_type,

@@ -26,7 +26,7 @@ def get_args(print_args=True):
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--use_fusedmlp", action="store_true", help="use fused MLP or not")
+    parser.add_argument("--disable_fusedmlp", action="store_true", help="disable fused MLP or not")
     parser.add_argument("--embedding_vec_size", type=int, default=128)
     parser.add_argument("--bottom_mlp", type=int_list, default="512,256,128")
     parser.add_argument("--top_mlp", type=int_list, default="1024,1024,512,256")
