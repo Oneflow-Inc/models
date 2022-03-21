@@ -56,7 +56,7 @@ def get_args(print_args=True):
     parser.add_argument("--decay_batches", type=int, default=27772)
     parser.add_argument("--decay_start", type=int, default=49315)
     parser.add_argument("--max_iter", type=int, default=75000)
-    parser.add_argument("--loss_print_every_n_iter", type=int, default=1000)
+    parser.add_argument("--loss_print_interval", type=int, default=1000)
     parser.add_argument(
         "--column_size_array", type=int_list, help="column_size_array", required=True
     )

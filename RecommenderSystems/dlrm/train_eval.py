@@ -127,7 +127,7 @@ def train(args):
         for iter in range(1, args.max_iter + 1):
             labels, dense_fields, sparse_fields = batch_to_global(*next(loader))
             loss = train_graph(labels, dense_fields, sparse_fields)
-            if iter % args.loss_print_every_n_iter == 0:
+            if iter % args.loss_print_interval == 0:
                 loss = loss.numpy()
                 if rank == 0:
                     latency_ms = 1000 * (time.time() - last_time) / (iter - last_iter)

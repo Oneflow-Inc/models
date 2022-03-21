@@ -20,7 +20,7 @@
 |max_iter|maximum number of training batch times|75000|
 |model_load_dir|model loading directory|None|
 |model_save_dir|model saving directory|None|
-|loss_print_every_n_iter|print train loss and validate the model after training every number of batche times|1000|
+|loss_print_interval|print train loss and validate the model after training every number of batche times|1000|
 |save_initial_model|save the initial arguments of the modelor not|False|
 
 - [ ] TODO: other parameters
