@@ -50,6 +50,14 @@
 |use_fp16|Run model with amp||
 |loss_scale_policy|static or dynamic|static|
 |test_name||noname_test|
+|data_dir|the data file directory|None|
+|learning_rate|argument learning rate|24|
+|max_iter|maximum number of training batch times|75000|
+|model_load_dir|model loading directory|None|
+|model_save_dir|model saving directory|None|
+|loss_print_interval|print train loss and validate the model after training every number of batche times|1000|
+|save_initial_model|save the initial arguments of the modelor not|False|
+
 
 - [ ] TODO: other parameters
 

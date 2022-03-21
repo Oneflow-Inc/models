@@ -46,22 +46,17 @@ def get_args(print_args=True):
     parser.add_argument(
         "--save_model_after_each_eval", action="store_true", help="save model after each eval.",
     )
-    parser.add_argument(
-        "--not_eval_after_training", action="store_true", help="do eval after training"
-    )
     parser.add_argument("--data_dir", type=str, required=True)
-    parser.add_argument("--eval_batches", type=int, default=0, help="number of eval batches")
+    parser.add_argument("--eval_batches", type=int, default=1612, help="number of eval batches")
     parser.add_argument("--eval_batch_size", type=int, default=55296)
-    parser.add_argument("--eval_batch_size_per_proc", type=int, default=None)
     parser.add_argument("--eval_interval", type=int, default=10000)
-    parser.add_argument("--batch_size", type=int, default=55296)
-    parser.add_argument("--batch_size_per_proc", type=int, default=None)
+    parser.add_argument("--train_batch_size", type=int, default=55296)
     parser.add_argument("--learning_rate", type=float, default=24)
     parser.add_argument("--warmup_batches", type=int, default=2750)
     parser.add_argument("--decay_batches", type=int, default=27772)
     parser.add_argument("--decay_start", type=int, default=49315)
     parser.add_argument("--max_iter", type=int, default=75000)
-    parser.add_argument("--loss_print_every_n_iter", type=int, default=1000)
+    parser.add_argument("--loss_print_interval", type=int, default=1000)
     parser.add_argument(
         "--column_size_array", type=int_list, help="column_size_array", required=True
     )
@@ -69,28 +64,11 @@ def get_args(print_args=True):
         "--persistent_path", type=str, required=True, help="path for persistent kv store",
     )
     parser.add_argument("--store_type", type=str, default="device_host")
-    parser.add_argument("--device_memory_budget_mb_per_rank", type=int, default=8192)
+    parser.add_argument("--cache_memory_budget_mb_per_rank", type=int, default=8192)
     parser.add_argument("--use_fp16", action="store_true", help="Run model with amp")
     parser.add_argument("--loss_scale_policy", type=str, default="static", help="static or dynamic")
 
     args = parser.parse_args()
-
-    world_size = flow.env.get_world_size()
-    if args.batch_size_per_proc is None:
-        assert args.batch_size % world_size == 0
-        args.batch_size_per_proc = args.batch_size // world_size
-    elif args.batch_size is None:
-        args.batch_size = args.batch_size_per_proc * world_size
-    else:
-        assert args.batch_size % args.batch_size_per_proc == 0
-
-    if args.eval_batch_size_per_proc is None:
-        assert args.eval_batch_size % world_size == 0
-        args.eval_batch_size_per_proc = args.eval_batch_size // world_size
-    elif args.eval_batch_size is None:
-        args.eval_batch_size = args.eval_batch_size_per_proc * world_size
-    else:
-        assert args.eval_batch_size % args.eval_batch_size_per_proc == 0
 
     if print_args and flow.env.get_rank() == 0:
         _print_args(args)

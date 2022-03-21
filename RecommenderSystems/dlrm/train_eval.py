@@ -9,24 +9,27 @@ import psutil
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
 from config import get_args
-from dataloader import DLRMDataloader
+from dataloader import DLRMDataReader
 from dlrm import make_dlrm_module
 
 
-def make_criteo_dataloader(data_path, batch_size_per_proc, shuffle=True):
+def make_criteo_dataloader(data_path, batch_size, shuffle=True):
     """Make a Criteo Parquet DataLoader.
     :return: a context manager when exit the returned context manager, the reader will be closed.
     """
     files = ["file://" + name for name in glob.glob(f"{data_path}/*.parquet")]
     files.sort()
 
-    return DLRMDataloader(
+    world_size = flow.env.get_world_size()
+    batch_size_per_proc = batch_size // world_size
+
+    return DLRMDataReader(
         files,
         batch_size_per_proc,
         None,  # TODO: iterate over all eval dataset
         shuffle_row_groups=shuffle,
         shard_seed=1234,
-        shard_count=flow.env.get_world_size(),
+        shard_count=world_size,
         cur_shard=flow.env.get_rank(),
     )
 
@@ -120,11 +123,11 @@ def train(args):
     train_graph = DLRMTrainGraph(dlrm_module, loss, opt, lr_scheduler, grad_scaler, args.use_fp16)
     dlrm_module.train()
     last_iter, last_time = 0, time.time()
-    with make_criteo_dataloader(f"{args.data_dir}/train", args.batch_size_per_proc) as loader:
+    with make_criteo_dataloader(f"{args.data_dir}/train", args.train_batch_size) as loader:
         for iter in range(1, args.max_iter + 1):
             labels, dense_fields, sparse_fields = batch_to_global(*next(loader))
             loss = train_graph(labels, dense_fields, sparse_fields)
-            if iter % args.loss_print_every_n_iter == 0:
+            if iter % args.loss_print_interval == 0:
                 loss = loss.numpy()
                 if rank == 0:
                     latency_ms = 1000 * (time.time() - last_time) / (iter - last_iter)
@@ -141,9 +144,6 @@ def train(args):
                     save_model(f"iter_{iter}_val_auc_{auc:0.5f}")
                 dlrm_module.train()
                 last_time = time.time()
-
-    if args.not_eval_after_training:
-        return
 
     if args.eval_interval > 0 and iter % args.eval_interval != 0:
         auc = eval(args, eval_graph, iter)
@@ -169,7 +169,7 @@ def eval(args, eval_graph, cur_iter=0):
     labels, preds = [], []
     eval_start_time = time.time()
     with make_criteo_dataloader(
-        f"{args.data_dir}/test", args.eval_batch_size_per_proc, shuffle=False
+        f"{args.data_dir}/test", args.eval_batch_size, shuffle=False
     ) as loader:
         num_eval_batches = 0
         for np_batch in loader:
