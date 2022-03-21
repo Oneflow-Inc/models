@@ -14,14 +14,42 @@
 ## Arguments description
 |Argument Name|Argument Explanation|Default Value|
 |-----|---|------|
+|mlp_type|MLP or FusedMLP|FusedMLP|
+|bottom_mlp||512,256,128|
+|top_mlp||1024,1024,512,256|
+|output_padding|interaction output padding size|1|
+|interaction_itself|interaction itself or not||
+|model_load_dir|model loading directory||
+|model_save_dir|model saving directory|./checkpoint|
+|save_initial_model|save initial model parameters or not.||
+|save_model_after_each_eval|save model after each eval||
+|eval_after_training|do eval after_training||
+|data_dir|the data file directory|/dataset/dlrm_parquet|
+|eval_batchs|<0: whole val ds, 0: do not val, >0: number of eval batches|-1|
+|eval_batch_size||512|
+|eval_batch_size_per_proc||None|
+|eval_interval||1000|    
 |batch_size|the data batch size in one step training|16384|
-|data_dir|the data file directory|None|
-|learning_rate|argument learning rate|24|
-|max_iter|maximum number of training batch times|75000|
-|model_load_dir|model loading directory|None|
-|model_save_dir|model saving directory|None|
-|loss_print_every_n_iter|print train loss and validate the model after training every number of batche times|1000|
-|save_initial_model|save the initial arguments of the modelor not|False|
+|batch_size_per_proc||None|
+|learning_rate|argument learning rate|1e-3|
+|warmup_batches||2750|
+|decay_batches||27772|
+|decay_start||49315|
+|vocab_size||-1|
+|embedding_vec_size||128|
+|num_dense_fields||13|
+|max_iter|maximum number of training batch times|30000|
+|loss_print_every_n_iter|print train loss and validate the model after training every number of batche times|100|
+|num_sparse_fields||26|
+|embedding_type|OneEmbedding or Embedding|OneEmbedding|
+|embedding_split_axis|-1: no split|-1|
+|column_size_array|column_size_array||
+|persistent_path|path for persistent kv store||
+|cache_type||device_host|
+|cache_memory_budget_mb||16384,16384|
+|use_fp16|Run model with amp||
+|loss_scale_policy|static or dynamic|static|
+|test_name||noname_test|
 
 - [ ] TODO: other parameters
 
