@@ -46,9 +46,6 @@ def get_args(print_args=True):
     parser.add_argument(
         "--save_model_after_each_eval", action="store_true", help="save model after each eval.",
     )
-    parser.add_argument(
-        "--not_eval_after_training", action="store_true", help="do eval after training"
-    )
     parser.add_argument("--data_dir", type=str, required=True)
     parser.add_argument("--eval_batches", type=int, default=0, help="number of eval batches")
     parser.add_argument("--eval_batch_size", type=int, default=55296)

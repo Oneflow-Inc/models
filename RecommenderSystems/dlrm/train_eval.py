@@ -142,9 +142,6 @@ def train(args):
                 dlrm_module.train()
                 last_time = time.time()
 
-    if args.not_eval_after_training:
-        return
-
     if args.eval_interval > 0 and iter % args.eval_interval != 0:
         auc = eval(args, eval_graph, iter)
         if args.save_model_after_each_eval:
