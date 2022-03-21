@@ -9,7 +9,7 @@ import psutil
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
 from config import get_args
-from dataloader import DLRMDataloader
+from dataloader import DLRMDataReader
 from dlrm import make_dlrm_module
 
 
@@ -23,7 +23,7 @@ def make_criteo_dataloader(data_path, batch_size, shuffle=True):
     world_size = flow.env.get_world_size()
     batch_size_per_proc = batch_size // world_size
 
-    return DLRMDataloader(
+    return DLRMDataReader(
         files,
         batch_size_per_proc,
         None,  # TODO: iterate over all eval dataset
