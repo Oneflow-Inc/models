@@ -78,7 +78,7 @@ def get_args(print_args=True):
         "--persistent_path", type=str, required=True, help="path for persistent kv store",
     )
     parser.add_argument("--store_type", type=str, default="device_host")
-    parser.add_argument("--cache_memory_budget_mb_per_rank", type=int, default=8192)
+    parser.add_argument("--cache_memory_budget_mb", type=int, default=8192)
     parser.add_argument("--amp", action="store_true", help="Run model with amp")
     parser.add_argument("--loss_scale_policy", type=str, default="static", help="static or dynamic")
 
@@ -263,31 +263,32 @@ class OneEmbedding(nn.Module):
         persistent_path,
         column_size_array,
         store_type,
-        cache_memory_budget_mb_per_rank,
+        cache_memory_budget_mb,
     ):
         assert column_size_array is not None
         vocab_size = sum(column_size_array)
-        capacity_per_rank = (vocab_size // flow.env.get_world_size() + 16 - 1) // 16 * 16
 
         scales = np.sqrt(1 / np.array(column_size_array))
         columns = [
-            {"initializer": {"type": "uniform", "low": -scale, "high": scale}} for scale in scales
+            flow.one_embedding.make_column(flow.one_embedding.make_uniform_initializer(low=-scale, high=scale)) for scale in scales
         ]
         if store_type == "device_only":
             store_options = flow.one_embedding.make_device_mem_store_options(
-                persistent_path, capacity_per_rank=capacity_per_rank,
+                persistent_path=persistent_path,
+                capacity=vocab_size
             )
         elif store_type == "device_host":
-            assert cache_memory_budget_mb_per_rank > 0
-            store_options = flow.one_embedding.make_device_mem_cached_host_mem_store_options(
-                persistent_path,
-                device_memory_budget_mb_per_rank=cache_memory_budget_mb_per_rank,
-                capacity_per_rank=capacity_per_rank,
+            assert cache_memory_budget_mb > 0
+            store_options = flow.one_embedding.make_cached_host_mem_store_options(
+                cache_budget_mb=cache_memory_budget_mb,
+                persistent_path=persistent_path,
+                capacity=vocab_size
             )
         elif store_type == "device_ssd":
-            assert cache_memory_budget_mb_per_rank > 0
-            store_options = flow.one_embedding.make_device_mem_cached_ssd_store_options(
-                persistent_path, device_memory_budget_mb_per_rank=cache_memory_budget_mb_per_rank,
+            assert cache_memory_budget_mb > 0
+            store_options = flow.one_embedding.make_cached_ssd_store_options(
+                cache_budget_mb=cache_memory_budget_mb,
+                persistent_path=persistent_path
             )
         else:
             raise NotImplementedError("not support", store_type)
@@ -316,7 +317,7 @@ class DLRMModule(nn.Module):
         persistent_path=None,
         column_size_array=None,
         one_embedding_store_type="device_host",
-        cache_memory_budget_mb_per_rank=8192,
+        cache_memory_budget_mb=8192,
         interaction_itself=True,
         interaction_padding=True,
     ):
@@ -330,7 +331,7 @@ class DLRMModule(nn.Module):
             persistent_path,
             column_size_array,
             one_embedding_store_type,
-            cache_memory_budget_mb_per_rank,
+            cache_memory_budget_mb,
         )
         self.interaction = Interaction(
             bottom_mlp[-1],
@@ -362,7 +363,7 @@ def make_dlrm_module(args):
         persistent_path=args.persistent_path,
         column_size_array=args.column_size_array,
         one_embedding_store_type=args.store_type,
-        cache_memory_budget_mb_per_rank=args.cache_memory_budget_mb_per_rank,
+        cache_memory_budget_mb=args.cache_memory_budget_mb,
         interaction_itself=args.interaction_itself,
         interaction_padding=not args.disable_interaction_padding,
     )
