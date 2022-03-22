@@ -1,5 +1,5 @@
 # DLRM
-[DLRM](https://arxiv.org/pdf/1906.00091.pdf) is a deep learning-based recommendation model that exploits categorical data model for CTR recommendation. Its model structure is as follows. Based on this structure, this project uses OneFlow distributed deep learning framework to realize training the modle in graph mode and eager mode respectively on Crioteo data set.
+[DLRM](https://arxiv.org/pdf/1906.00091.pdf) is a deep learning-based recommendation model that exploits categorical data model for CTR recommendation. Its model structure is as follows. Based on this structure, this project uses OneFlow distributed deep learning framework to realize training the modle in graph mode respectively on Crioteo data set.
 ![image](https://user-images.githubusercontent.com/63446546/158937131-1a057659-0d49-4bfb-aee2-5568e605fa01.png)
 
 ## Directory description
@@ -14,16 +14,34 @@
 ## Arguments description
 |Argument Name|Argument Explanation|Default Value|
 |-----|---|------|
-|batch_size|the data batch size in one step training|16384|
-|data_dir|the data file directory|None|
+|disable_fusedmlp|use fused MLP or not||
+|embedding_vec_size||128|
+|bottom_mlp||512,256,128|
+|top_mlp||1024,1024,512,256|
+|disable_interaction_padding|disenable interaction padding or not||
+|interaction_itself|interaction itself or not||
+|model_load_dir|model loading directory||
+|model_save_dir|model saving directory||
+|save_initial_model|save initial model parameters or not.||
+|save_model_after_each_eval|save model after each eval||
+|data_dir|the data file directory|/dataset/dlrm_parquet|
+|eval_batches|number of eval batches|1612|
+|eval_batch_size||55296|
+|eval_interval||10000|    
+|train_batch_size|the data batch size in one step training|55296|
 |learning_rate|argument learning rate|24|
+|warmup_batches||2750|
+|decay_batches||27772|
+|decay_start||49315|
 |max_iter|maximum number of training batch times|75000|
-|model_load_dir|model loading directory|None|
-|model_save_dir|model saving directory|None|
 |loss_print_interval|print train loss and validate the model after training every number of batche times|1000|
-|save_initial_model|save the initial arguments of the modelor not|False|
+|column_size_array|column_size_array||
+|persistent_path|path for persistent kv store||
+|store_type||device_host|
+|cache_memory_budget_mb||8192|
+|amp|Run model with amp||
+|loss_scale_policy|static or dynamic|static|
 
-- [ ] TODO: other parameters
 
 ## Prepare running
 ### Environment
