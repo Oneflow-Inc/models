@@ -14,40 +14,33 @@
 ## Arguments description
 |Argument Name|Argument Explanation|Default Value|
 |-----|---|------|
-|use_fusedmlp|use fused MLP or not||
+|disable_fusedmlp|use fused MLP or not||
 |embedding_vec_size||128|
 |bottom_mlp||512,256,128|
 |top_mlp||1024,1024,512,256|
 |disable_interaction_padding|disenable interaction padding or not||
 |interaction_itself|interaction itself or not||
 |model_load_dir|model loading directory||
-|model_save_dir|model saving directory|./checkpoint|
+|model_save_dir|model saving directory||
 |save_initial_model|save initial model parameters or not.||
 |save_model_after_each_eval|save model after each eval||
-|not_eval_after_training|do eval after_training||
 |data_dir|the data file directory|/dataset/dlrm_parquet|
-|eval_batchs|<0: whole val ds, 0: do not val, >0: number of eval batches|-1|
+|eval_batches|number of eval batches|1612|
 |eval_batch_size||55296|
-|eval_batch_size_per_proc||None|
 |eval_interval||10000|    
-|batch_size|the data batch size in one step training|55296|
-|batch_size_per_proc||None|
+|train_batch_size|the data batch size in one step training|55296|
 |learning_rate|argument learning rate|24|
 |warmup_batches||2750|
 |decay_batches||27772|
 |decay_start||49315|
 |max_iter|maximum number of training batch times|75000|
-|loss_print_every_n_iter|print train loss and validate the model after training every number of batche times|100|
+|loss_print_interval|print train loss and validate the model after training every number of batche times|1000|
 |column_size_array|column_size_array||
 |persistent_path|path for persistent kv store||
-|store_type|||
-|device_memory_budget_mb_per_rank||8192|
-|use_fp16|Run model with amp||
+|store_type||device_host|
+|cache_memory_budget_mb||8192|
+|amp|Run model with amp||
 |loss_scale_policy|static or dynamic|static|
-|model_load_dir|model loading directory|None|
-|model_save_dir|model saving directory|None|
-|loss_print_interval|print train loss and validate the model after training every number of batche times|1000|
-|save_initial_model|save the initial arguments of the modelor not|False|
 
 
 ## Prepare running
