@@ -288,7 +288,8 @@ class OneEmbedding(nn.Module):
             assert cache_memory_budget_mb > 0
             store_options = flow.one_embedding.make_cached_ssd_store_options(
                 cache_budget_mb=cache_memory_budget_mb,
-                persistent_path=persistent_path
+                persistent_path=persistent_path,
+                capacity=vocab_size
             )
         else:
             raise NotImplementedError("not support", store_type)
