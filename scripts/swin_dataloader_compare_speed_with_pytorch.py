@@ -166,14 +166,17 @@ if __name__ == "__main__":
     args = parser.parse_args()
     if not args.imagenet_path:
         args.imagenet_path = ensure_dataset()
-    oneflow_data_loader_time = run(
+    oneflow_data_loader_total_time = run(
         "oneflow", args.imagenet_path, args.batch_size, args.num_workers
     )
-    pytorch_data_loader_time = run(
+    pytorch_data_loader_total_time = run(
         "torch", args.imagenet_path, args.batch_size, args.num_workers
     )
+    oneflow_data_loader_time = oneflow_data_loader_total_time / 200.0
+    pytorch_data_loader_time = pytorch_data_loader_total_time / 200.0
+
     relative_speed = oneflow_data_loader_time / pytorch_data_loader_time
 
-    print_rank_0(
-        f"Swin Transformer dataloader relative speed when num_workers = {args.num_workers}: {relative_speed:.2f} (= {pytorch_data_loader_time:.1f}s / {oneflow_data_loader_time:.1f}s)"
-    )
+    print_rank_0(f"OneFlow swin dataloader time: {oneflow_data_loader_time:.3f}s (= {oneflow_data_loader_total_time:.3f}s / 200, num_workers={args.num_workers})")
+    print_rank_0(f"PyTorch swin dataloader time: {pytorch_data_loader_time:.3f}s (= {pytorch_data_loader_total_time:.3f}s / 200, num_workers={args.num_workers})")
+    print_rank_0(f"Relative speed: {pytorch_data_loader_time / oneflow_data_loader_time:.3f} (= {pytorch_data_loader_time:.3f}s / {oneflow_data_loader_time:.3f}s)")
