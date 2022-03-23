@@ -60,7 +60,7 @@ python3 -m oneflow.distributed.launch \
     --nnodes 1 \
     --node_rank 0 \
     --master_addr 127.0.0.1 \
-    train_eval.py \
+    dlrm_train_eval.py \
       --data_dir /path/to/dlrm_parquet \
       --persistent_path /path/to/persistent \
       --table_size_array "39884407,39043,17289,7420,20263,3,7120,1543,63,38532952,2953546,403346,10,2208,11938,155,4,976,14,39979772,25641295,39664985,585935,12972,108,36"
