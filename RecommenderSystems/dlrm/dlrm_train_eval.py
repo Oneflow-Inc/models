@@ -72,7 +72,10 @@ def get_args(print_args=True):
     parser.add_argument("--max_iter", type=int, default=75000)
     parser.add_argument("--loss_print_interval", type=int, default=1000)
     parser.add_argument(
-        "--column_size_array", type=int_list, help="column_size_array", required=True
+        "--table_size_array",
+        type=int_list,
+        help="Embedding table size array for sparse fields",
+        required=True,
     )
     parser.add_argument(
         "--persistent_path", type=str, required=True, help="path for persistent kv store",
@@ -261,35 +264,37 @@ class OneEmbedding(nn.Module):
         self,
         embedding_vec_size,
         persistent_path,
-        column_size_array,
+        table_size_array,
         store_type,
         cache_memory_budget_mb,
     ):
-        assert column_size_array is not None
-        vocab_size = sum(column_size_array)
+        assert table_size_array is not None
+        vocab_size = sum(table_size_array)
 
-        scales = np.sqrt(1 / np.array(column_size_array))
-        columns = [
-            flow.one_embedding.make_column(flow.one_embedding.make_uniform_initializer(low=-scale, high=scale)) for scale in scales
+        scales = np.sqrt(1 / np.array(table_size_array))
+        tables = [
+            flow.one_embedding.make_column(
+                flow.one_embedding.make_uniform_initializer(low=-scale, high=scale)
+            )
+            for scale in scales
         ]
         if store_type == "device_only":
             store_options = flow.one_embedding.make_device_mem_store_options(
-                persistent_path=persistent_path,
-                capacity=vocab_size
+                persistent_path=persistent_path, capacity=vocab_size
             )
         elif store_type == "device_host":
             assert cache_memory_budget_mb > 0
             store_options = flow.one_embedding.make_cached_host_mem_store_options(
                 cache_budget_mb=cache_memory_budget_mb,
                 persistent_path=persistent_path,
-                capacity=vocab_size
+                capacity=vocab_size,
             )
         elif store_type == "device_ssd":
             assert cache_memory_budget_mb > 0
             store_options = flow.one_embedding.make_cached_ssd_store_options(
                 cache_budget_mb=cache_memory_budget_mb,
                 persistent_path=persistent_path,
-                capacity=vocab_size
+                capacity=vocab_size,
             )
         else:
             raise NotImplementedError("not support", store_type)
@@ -300,7 +305,7 @@ class OneEmbedding(nn.Module):
             embedding_dim=embedding_vec_size,
             dtype=flow.float,
             key_type=flow.int64,
-            columns=columns,
+            tables=tables,
             store_options=store_options,
         )
 
@@ -316,7 +321,7 @@ class DLRMModule(nn.Module):
         top_mlp=[1024, 1024, 512, 256],
         use_fusedmlp=True,
         persistent_path=None,
-        column_size_array=None,
+        table_size_array=None,
         one_embedding_store_type="device_host",
         cache_memory_budget_mb=8192,
         interaction_itself=True,
@@ -330,7 +335,7 @@ class DLRMModule(nn.Module):
         self.embedding = OneEmbedding(
             embedding_vec_size,
             persistent_path,
-            column_size_array,
+            table_size_array,
             one_embedding_store_type,
             cache_memory_budget_mb,
         )
@@ -362,7 +367,7 @@ def make_dlrm_module(args):
         top_mlp=args.top_mlp,
         use_fusedmlp=not args.disable_fusedmlp,
         persistent_path=args.persistent_path,
-        column_size_array=args.column_size_array,
+        table_size_array=args.table_size_array,
         one_embedding_store_type=args.store_type,
         cache_memory_budget_mb=args.cache_memory_budget_mb,
         interaction_itself=args.interaction_itself,

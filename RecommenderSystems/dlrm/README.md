@@ -35,7 +35,7 @@
 |decay_start||49315|
 |max_iter|maximum number of training batch times|75000|
 |loss_print_interval|print train loss and validate the model after training every number of batche times|1000|
-|column_size_array|column_size_array||
+|table_size_array|table_size_array||
 |persistent_path|path for persistent kv store||
 |store_type||device_host|
 |cache_memory_budget_mb||8192|
@@ -63,7 +63,7 @@ python3 -m oneflow.distributed.launch \
     train_eval.py \
       --persistent_path /path/to/persistent \
       --data_dir /path/to/dlrm_parquet \
-      --column_size_array "39884407,39043,17289,7420,20263,3,7120,1543,63,38532952,2953546,403346,10,2208,11938,155,4,976,14,39979772,25641295,39664985,585935,12972,108,36" \
+      --table_size_array "39884407,39043,17289,7420,20263,3,7120,1543,63,38532952,2953546,403346,10,2208,11938,155,4,976,14,39979772,25641295,39664985,585935,12972,108,36" \
       --use_fulsedmlp
 ```
 
