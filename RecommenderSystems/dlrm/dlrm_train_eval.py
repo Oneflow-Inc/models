@@ -300,7 +300,7 @@ class OneEmbedding(nn.Module):
             raise NotImplementedError("not support", store_type)
 
         super(OneEmbedding, self).__init__()
-        self.one_embedding = flow.one_embedding.Embedding(
+        self.one_embedding = flow.one_embedding.MultiTableEmbedding(
             "sparse_embedding",
             embedding_dim=embedding_vec_size,
             dtype=flow.float,
