@@ -278,18 +278,18 @@ class OneEmbedding(nn.Module):
             )
             for scale in scales
         ]
-        if store_type == "device_only":
+        if store_type == "device_mem":
             store_options = flow.one_embedding.make_device_mem_store_options(
                 persistent_path=persistent_path, capacity=vocab_size
             )
-        elif store_type == "device_host":
+        elif store_type == "cached_host_mem":
             assert cache_memory_budget_mb > 0
             store_options = flow.one_embedding.make_cached_host_mem_store_options(
                 cache_budget_mb=cache_memory_budget_mb,
                 persistent_path=persistent_path,
                 capacity=vocab_size,
             )
-        elif store_type == "device_ssd":
+        elif store_type == "cached_ssd":
             assert cache_memory_budget_mb > 0
             store_options = flow.one_embedding.make_cached_ssd_store_options(
                 cache_budget_mb=cache_memory_budget_mb,
