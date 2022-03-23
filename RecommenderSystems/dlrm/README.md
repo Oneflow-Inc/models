@@ -5,42 +5,40 @@
 ## Directory description
 ```
 .
-|-- config.py            #Argument configuration
-|-- dataloader.py        #Read data
-|-- dlrm.py              #dlrm model structure
-|-- train_eval.py        #Shell script for starting training in graph mode
+|-- dlrm_train_eval.py   #OneFlow DLRM training and evaluation scripts with OneEmbedding module. 
+|-- requirements.txt     #python package configuration file
 └── README.md            #Documentation
 ```
 ## Arguments description
 |Argument Name|Argument Explanation|Default Value|
 |-----|---|------|
-|disable_fusedmlp|use fused MLP or not||
-|embedding_vec_size||128|
-|bottom_mlp||512,256,128|
-|top_mlp||1024,1024,512,256|
-|disable_interaction_padding|disenable interaction padding or not||
-|interaction_itself|interaction itself or not||
-|model_load_dir|model loading directory||
-|model_save_dir|model saving directory||
-|save_initial_model|save initial model parameters or not.||
-|save_model_after_each_eval|save model after each eval||
-|data_dir|the data file directory|/dataset/dlrm_parquet|
-|eval_batches|number of eval batches|1612|
-|eval_batch_size||55296|
-|eval_interval||10000|    
-|train_batch_size|the data batch size in one step training|55296|
-|learning_rate|argument learning rate|24|
-|warmup_batches||2750|
-|decay_batches||27772|
-|decay_start||49315|
-|max_iter|maximum number of training batch times|75000|
-|loss_print_interval|print train loss and validate the model after training every number of batche times|1000|
-|table_size_array|table_size_array||
-|persistent_path|path for persistent kv store||
-|store_type||device_host|
-|cache_memory_budget_mb||8192|
-|amp|Run model with amp||
-|loss_scale_policy|static or dynamic|static|
+|data_dir|the data file directory|*Required Argument*|
+|persistent_path|path for OneEmbeddig persistent kv store|*Required Argument*|
+|table_size_array|table size array for sparse fields|*Required Argument*|
+|store_type|OneEmbeddig persistent kv store type: `device_mem`, `cached_host_mem` or `cached_ssd` |cached_ssd|
+|cache_memory_budget_mb|size of cache memory budget on each device in megabytes when `store_type` is `cached_host_mem` or `cached_ssd`|8192|
+|embedding_vec_size|embedding vector dimention size|128|
+|bottom_mlp|bottom MLPs hidden units number|512,256,128|
+|top_mlp|top MLPs hidden units number|1024,1024,512,256|
+|disable_interaction_padding|disable interaction output padding or not|False|
+|interaction_itself|interaction itself or not|False|
+|disable_fusedmlp|disable fused MLP or not|False|
+|train_batch_size|training batch size|55296|
+|max_iter|number of minibatch training interations|75000|
+|learning_rate|basic learning rate for training|24|
+|warmup_batches|learning rate warmup batches|2750|
+|decay_start|learning rate decay start iteration|49315|
+|decay_batches|number of learning rate decay iterations|27772|
+|loss_print_interval|training loss print interval|1000|
+|eval_interval|evaluation interval|10000|
+|eval_batches|number of evaluation batches|1612|
+|eval_batch_size|evaluation batch size|55296|
+|model_load_dir|model loading directory|None|
+|model_save_dir|model saving directory|None|
+|save_model_after_each_eval|save model or not after each evaluation|False|
+|save_initial_model|save initial model parameters or not|False|
+|amp|enable Automatic Mixed Precision(AMP) training|False|
+|loss_scale_policy|loss scale policy for AMP training: `static` or `dynamic`|static|
 
 
 ## Prepare running
