@@ -1,0 +1,2 @@
+# Deep&Cross
+ [Deep & Cross Network](https://arxiv.org/abs/1708.05123) (DCN) can not only keep the advantages of DNN model, but also learn specific bounded feature crossover more effectively. In particular, DCN can explicitly learn cross features for each layer without the need for manual feature engineering, and the increased algorithm complexity is almost negligible compared with DNN model.
