@@ -24,7 +24,7 @@
 |interaction_itself|interaction itself or not|False|
 |disable_fusedmlp|disable fused MLP or not|False|
 |train_batch_size|training batch size|55296|
-|max_iter|number of minibatch training interations|75000|
+|train_batches|number of minibatch training interations|75000|
 |learning_rate|basic learning rate for training|24|
 |warmup_batches|learning rate warmup batches|2750|
 |decay_start|learning rate decay start iteration|49315|
@@ -54,6 +54,10 @@ python3 -m pip install -r requirements.txt
 - [ ] TODO: scala or pyspark scripts
 
 ## Start training by Oneflow
+Following command will launch 8 oneflow dlrm training and evaluation processes on a node with 8 GPU devices, by specify `data_dir` for data input and `persistent_path` for OneEmbedding persistent store path.
+
+`table_size_array` is close related to sparse features of data input. each sparse field such as `C1` or other `C*` field in criteo dataset corresponds to a embedding table and has its own capacity of unique feature ids, this capacity is also called `number of rows` or `size of embedding table`, the embedding table will be initialized by this value. `table_size_array` holds all sparse fields' `size of embedding table`. `table_size_array` is also used to estimate capacity for OneEmbedding. 
+
 ```python
 python3 -m oneflow.distributed.launch \
     --nproc_per_node 8 \
@@ -65,9 +69,3 @@ python3 -m oneflow.distributed.launch \
       --persistent_path /path/to/persistent \
       --table_size_array "39884407,39043,17289,7420,20263,3,7120,1543,63,38532952,2953546,403346,10,2208,11938,155,4,976,14,39979772,25641295,39664985,585935,12972,108,36"
 ```
-
-
-
-
-
-
