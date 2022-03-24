@@ -69,7 +69,7 @@ def get_args(print_args=True):
     parser.add_argument("--warmup_batches", type=int, default=2750)
     parser.add_argument("--decay_batches", type=int, default=27772)
     parser.add_argument("--decay_start", type=int, default=49315)
-    parser.add_argument("--max_iter", type=int, default=75000)
+    parser.add_argument("--train_batches", type=int, default=75000)
     parser.add_argument("--loss_print_interval", type=int, default=1000)
     parser.add_argument(
         "--table_size_array",
@@ -80,7 +80,7 @@ def get_args(print_args=True):
     parser.add_argument(
         "--persistent_path", type=str, required=True, help="path for persistent kv store",
     )
-    parser.add_argument("--store_type", type=str, default="device_host")
+    parser.add_argument("--store_type", type=str, default="cached_host_mem")
     parser.add_argument("--cache_memory_budget_mb", type=int, default=8192)
     parser.add_argument("--amp", action="store_true", help="Run model with amp")
     parser.add_argument("--loss_scale_policy", type=str, default="static", help="static or dynamic")
@@ -322,7 +322,7 @@ class DLRMModule(nn.Module):
         use_fusedmlp=True,
         persistent_path=None,
         table_size_array=None,
-        one_embedding_store_type="device_host",
+        one_embedding_store_type="cached_host_mem",
         cache_memory_budget_mb=8192,
         interaction_itself=True,
         interaction_padding=True,
@@ -485,33 +485,33 @@ def train(args):
     eval_graph = DLRMValGraph(dlrm_module, args.amp)
     train_graph = DLRMTrainGraph(dlrm_module, loss, opt, lr_scheduler, grad_scaler, args.amp)
     dlrm_module.train()
-    last_iter, last_time = 0, time.time()
+    step, last_step, last_time = -1, 0, time.time()
     with make_criteo_dataloader(f"{args.data_dir}/train", args.train_batch_size) as loader:
-        for iter in range(1, args.max_iter + 1):
+        for step in range(1, args.train_batches + 1):
             labels, dense_fields, sparse_fields = batch_to_global(*next(loader))
             loss = train_graph(labels, dense_fields, sparse_fields)
-            if iter % args.loss_print_interval == 0:
+            if step % args.loss_print_interval == 0:
                 loss = loss.numpy()
                 if rank == 0:
-                    latency_ms = 1000 * (time.time() - last_time) / (iter - last_iter)
-                    last_iter, last_time = iter, time.time()
+                    latency_ms = 1000 * (time.time() - last_time) / (step - last_step)
+                    last_step, last_time = step, time.time()
                     strtime = time.strftime("%Y-%m-%d %H:%M:%S")
                     print(
-                        f"Rank[{rank}], Iter {iter}, Loss {loss:0.4f}, "
+                        f"Rank[{rank}], Step {step}, Loss {loss:0.4f}, "
                         + f"Latency {latency_ms:0.3f} ms, {strtime}"
                     )
 
-            if args.eval_interval > 0 and iter % args.eval_interval == 0:
-                auc = eval(args, eval_graph, iter)
+            if args.eval_interval > 0 and step % args.eval_interval == 0:
+                auc = eval(args, eval_graph, step)
                 if args.save_model_after_each_eval:
-                    save_model(f"iter_{iter}_val_auc_{auc:0.5f}")
+                    save_model(f"step_{step}_val_auc_{auc:0.5f}")
                 dlrm_module.train()
                 last_time = time.time()
 
-    if args.eval_interval > 0 and iter % args.eval_interval != 0:
-        auc = eval(args, eval_graph, iter)
+    if args.eval_interval > 0 and step % args.eval_interval != 0:
+        auc = eval(args, eval_graph, step)
         if args.save_model_after_each_eval:
-            save_model(f"iter_{iter}_val_auc_{auc:0.5f}")
+            save_model(f"step_{step}_val_auc_{auc:0.5f}")
 
 
 def batch_to_global(np_label, np_dense, np_sparse):
@@ -525,7 +525,7 @@ def batch_to_global(np_label, np_dense, np_sparse):
     return labels, dense_fields, sparse_fields
 
 
-def eval(args, eval_graph, cur_iter=0):
+def eval(args, eval_graph, cur_step=0):
     if args.eval_batches <= 0:
         return
     eval_graph.module.eval()
@@ -561,7 +561,7 @@ def eval(args, eval_graph, cur_iter=0):
 
         strtime = time.strftime("%Y-%m-%d %H:%M:%S")
         print(
-            f"Rank[{rank}], Iter {cur_iter}, AUC {auc:0.5f}, Eval_time {eval_time:0.2f} s, "
+            f"Rank[{rank}], Step {cur_step}, AUC {auc:0.5f}, Eval_time {eval_time:0.2f} s, "
             + f"AUC_time {auc_time:0.2f} s, Eval_samples {labels.shape[0]}, "
             + f"GPU_Memory {device_mem_str}, Host_Memory {host_mem_mb} MiB, {strtime}"
         )
