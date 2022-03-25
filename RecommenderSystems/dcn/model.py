@@ -63,9 +63,9 @@ class DCN(BaseModel):
         self.add_regularization_weight(self.crossnet.kernels, l2=l2_reg_cross)
         self.to(device)
 
+    ## DCN
     def forward(self, X):
-
-        logit = self.linear_model(X)
+        
         sparse_embedding_list, dense_value_list = self.input_from_feature_columns(X, self.dnn_feature_columns,
                                                                                   self.embedding_dict)
 
@@ -75,17 +75,40 @@ class DCN(BaseModel):
             deep_out = self.dnn(dnn_input)
             cross_out = self.crossnet(dnn_input)
             stack_out = flow.cat((cross_out, deep_out), dim=-1)
-            logit += self.dnn_linear(stack_out)
+            logit = self.dnn_linear(stack_out)
         elif len(self.dnn_hidden_units) > 0:  # Only Deep
             deep_out = self.dnn(dnn_input)
-            logit += self.dnn_linear(deep_out)
+            logit = self.crossnet(deep_out)
         elif self.cross_num > 0:  # Only Cross
             cross_out = self.crossnet(dnn_input)
-            logit += self.dnn_linear(cross_out)
+            logit = self.crossnet(dnn_input)
         else:  # Error
             raise Exception('Model must be Deep & Cross, Only Deep or Only Cross.')
         y_pred = self.out(logit)
         return y_pred
 
 
- 
+    ### origin DCN + FC
+    # def forward(self, X):
+
+    #     logit = self.linear_model(X)
+    #     sparse_embedding_list, dense_value_list = self.input_from_feature_columns(X, self.dnn_feature_columns,
+    #                                                                               self.embedding_dict)
+
+    #     dnn_input = combined_dnn_input(sparse_embedding_list, dense_value_list)
+
+    #     if len(self.dnn_hidden_units) > 0 and self.cross_num > 0:  # Deep & Cross
+    #         deep_out = self.dnn(dnn_input)
+    #         cross_out = self.crossnet(dnn_input)
+    #         stack_out = flow.cat((cross_out, deep_out), dim=-1)
+    #         logit += self.dnn_linear(stack_out)
+    #     elif len(self.dnn_hidden_units) > 0:  # Only Deep
+    #         deep_out = self.dnn(dnn_input)
+    #         logit += self.dnn_linear(deep_out)
+    #     elif self.cross_num > 0:  # Only Cross
+    #         cross_out = self.crossnet(dnn_input)
+    #         logit += self.dnn_linear(cross_out)
+    #     else:  # Error
+    #         raise Exception('Model must be Deep & Cross, Only Deep or Only Cross.')
+    #     y_pred = self.out(logit)
+    #     return y_pred

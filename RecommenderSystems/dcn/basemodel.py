@@ -6,6 +6,7 @@ import oneflow.utils.data as Data
 from oneflow.utils.data import DataLoader
 from sklearn.metrics import *
 from tqdm import tqdm
+import matplotlib.pyplot as plt
 
 from layers import *
 from utils import *
@@ -104,8 +105,12 @@ class BaseModel(nn.Module):
         self._is_graph_network = True  # used for ModelCheckpoint in tf2
         self._ckpt_saved_epoch = False  # used for EarlyStopping in tf1.14
 
+        self.loss_recorder = []
+
+
+
     def fit(self, x=None, y=None, batch_size=None, epochs=1, verbose=1, initial_epoch=0, validation_split=0.,
-            validation_data=None, shuffle=True, callbacks=None):
+            validation_data=None, shuffle=True, callbacks=None, model_dir=None):
         """
         :param x: Numpy array of training data (if the model has a single input), or list of Numpy arrays (if the model has multiple inputs).If input layers in the model are named, you can also pass a
             dictionary mapping input names to Numpy arrays.
@@ -228,6 +233,11 @@ class BaseModel(nn.Module):
 
             # Add epoch_logs
             epoch_logs["loss"] = total_loss_epoch / sample_num
+
+            ### yzy
+            self.loss_recorder.append(epoch_logs["loss"])
+
+
             for name, result in train_result.items():
                 epoch_logs[name] = np.sum(result) / steps_per_epoch
 
@@ -253,6 +263,14 @@ class BaseModel(nn.Module):
                                     ": {0: .4f}".format(epoch_logs["val_" + name])
                 print(eval_str)
 
+        ### yzy for end
+        plt.plot(range(len(self.loss_recorder)), self.loss_recorder)
+        # plt.show()
+        plt.savefig('./log/loss_curve.jpg')
+
+        if model_dir:
+            flow.save(model.state_dict(), model_dir)
+            print('save model ...')
 
     def evaluate(self, x, y, batch_size=256):
         """
@@ -381,6 +399,7 @@ class BaseModel(nn.Module):
     def compile(self, optimizer,
                 loss=None,
                 metrics=None,
+                lr = 0.01
                 ):
         """
         :param optimizer: String (name of optimizer) or optimizer instance. See [optimizers](https://pytorch.org/docs/stable/optim.html).
@@ -388,20 +407,20 @@ class BaseModel(nn.Module):
         :param metrics: List of metrics to be evaluated by the model during training and testing. Typically you will use `metrics=['accuracy']`.
         """
         self.metrics_names = ["loss"]
-        self.optim = self._get_optim(optimizer)
+        self.optim = self._get_optim(optimizer, lr)
         self.loss_func = self._get_loss_func(loss)
         self.metrics = self._get_metrics(metrics)
 
-    def _get_optim(self, optimizer):
+    def _get_optim(self, optimizer, lr=0.01):
         if isinstance(optimizer, str):
             if optimizer == "sgd":
-                optim = flow.optim.SGD(self.parameters(), lr=0.01)
+                optim = flow.optim.SGD(self.parameters(), lr=lr)
             elif optimizer == "adam":
-                optim = flow.optim.Adam(self.parameters())  # 0.001
+                optim = flow.optim.Adam(self.parameters(), lr=lr)
             elif optimizer == "adagrad":
-                optim = flow.optim.Adagrad(self.parameters())  # 0.01
+                optim = flow.optim.Adagrad(self.parameters(), lr=lr)
             elif optimizer == "rmsprop":
-                optim = flow.optim.RMSprop(self.parameters())
+                optim = flow.optim.RMSprop(self.parameters(),lr=lr)
             else:
                 raise NotImplementedError
         else:
