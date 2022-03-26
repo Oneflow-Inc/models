@@ -76,7 +76,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # split day_23() to test.csv and val.csv
-    # 178274637 89137319 89137318
+    # total 178274637, test 89137319, val 89137318
     num_test_examples = 89137319
     day_23 = os.path.join(args.input_dir, "day_23")
     test_csv = os.path.join(args.output_dir, "test.csv")

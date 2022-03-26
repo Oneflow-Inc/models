@@ -50,8 +50,34 @@ Please check `requirements.txt` to install dependencies manually or execute:
 ```bash
 python3 -m pip install -r requirements.txt
 ```
-### Preparing dataset 
-- [ ] TODO: scala or pyspark scripts
+
+### Preparing dataset
+[Terabyte Click Logs dataset of CriteoLabs (Criteo1t)](https://labs.criteo.com/2013/12/download-terabyte-click-logs/) contains feature values and click feedback for millions of display ads. Criteo1t contains 24 files, each one corresponding to one day of data.
+
+Each sample contains:
+- a label, 0 if the ad wasn't clicked and 1 if the ad was clicked
+- 13 dense features taking integer values, some values are `-1`
+- 26 categorical features, some features may have missing values
+
+In our data preprocess, the label is mapped to integer, literal `1` is added to dense features, there are two options for categorical features:
+1. The index count of each features is limited to `mod_idx`(40 million as default), and offset `mod_idx * i` is added to the limited value to make sure each column has different ids, `i` stands for column id.
+2. The original 32 bits hashed value is hashed onto 64 bits alone with column id `i` to make sure each column has different ids.
+
+Please find `tools/criteo1t_parquet.py` for more information. Except `input_dir` and `output_dir`, there are a few more arguments to run `tools/criteo1t_parquet.py`:
+- `spark_tmp_dir`: change the tmp directory used by pyspark, SSD of 2T or above is recommended
+- `spark_driver_memory_gb`: amount of gigabyte memory to use for the driver process, 360 as default
+- `mod_idx`, limited value of index count of each features, `0` or less stands for no limit
+- `export_dataset_info`, export `README.md` file in `output_dir` contains subsets count and table size array
+
+Please install `pyspark` before running.
+
+```bash
+python tools/criteo1t_parquet.py \
+    --input_dir=/path/to/criteo1t/day0-day23 \
+    --output_dir=/path/to/dlrm_parquet \
+    --spark_tmp_dir=/spark_tmp_dir \
+    --export_dataset_info
+```
 
 ## Start training by Oneflow
 Following command will launch 8 oneflow dlrm training and evaluation processes on a node with 8 GPU devices, by specify `data_dir` for data input and `persistent_path` for OneEmbedding persistent store path.
