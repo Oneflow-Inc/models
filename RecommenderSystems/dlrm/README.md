@@ -1,14 +1,17 @@
 # DLRM
-[DLRM](https://arxiv.org/pdf/1906.00091.pdf) is a deep learning-based recommendation model that exploits categorical data model for CTR recommendation. Its model structure is as follows. Based on this structure, this project uses OneFlow distributed deep learning framework to realize training the modle in graph mode respectively on Crioteo data set.
+[DLRM](https://arxiv.org/pdf/1906.00091.pdf) is a deep learning-based recommendation model that exploits categorical data for click-through rate (CTR) prediction and rankings. Its model structure is as follows. Based on this structure, this project uses OneFlow distributed deep learning framework to realize training the model in graph mode on the Criteo data set.
 ![image](https://user-images.githubusercontent.com/63446546/158937131-1a057659-0d49-4bfb-aee2-5568e605fa01.png)
 
 ## Directory description
 ```
 .
-|-- dlrm_train_eval.py   #OneFlow DLRM training and evaluation scripts with OneEmbedding module. 
-|-- requirements.txt     #python package configuration file
-└── README.md            #Documentation
+|-- tools
+  |-- criteo1t_parquet.py    # Read Criteo1T data and export it as parquet data format
+|-- dlrm_train_eval.py       # OneFlow DLRM training and evaluation scripts with OneEmbedding module
+|-- requirements.txt         # python package configuration file
+└── README.md                # Documentation
 ```
+
 ## Arguments description
 |Argument Name|Argument Explanation|Default Value|
 |-----|---|------|
@@ -47,6 +50,8 @@ To install nightly release of OneFlow with CUDA 11.5 support:
 ```
 python3 -m pip install --pre oneflow -f https://staging.oneflow.info/branch/master/cu115
 ```
+For more information how to install Oneflow, please refer to [Oneflow Installation Tutorial](
+https://github.com/Oneflow-Inc/oneflow#install-oneflow).
 
 Please check `requirements.txt` to install dependencies manually or execute:
 ```bash
@@ -57,7 +62,7 @@ python3 -m pip install -r requirements.txt
 [Terabyte Click Logs dataset of CriteoLabs (Criteo1t)](https://labs.criteo.com/2013/12/download-terabyte-click-logs/) contains feature values and click feedback for millions of display ads. Criteo1t contains 24 files, each one corresponding to one day of data.
 
 Each sample contains:
-- a label, 0 if the ad wasn't clicked and 1 if the ad was clicked
+- 1 label, 0 if the ad wasn't clicked and 1 if the ad was clicked
 - 13 dense features taking integer values, some values are `-1`
 - 26 categorical features, some features may have missing values
 
