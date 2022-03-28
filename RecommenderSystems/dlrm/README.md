@@ -43,8 +43,10 @@
 ## Getting Started
 If you'd like to quickly train a OneFlow DLRM model, please follow steps below:
 ### Installing OneFlow and Dependencies
-For more information how to install OneFlow, refer to [OneFlow github](
-https://github.com/Oneflow-Inc/oneflow#install-oneflow).
+To install nightly release of OneFlow with CUDA 11.5 support:
+```
+python3 -m pip install --pre oneflow -f https://staging.oneflow.info/branch/master/cu115
+```
 
 Please check `requirements.txt` to install dependencies manually or execute:
 ```bash
