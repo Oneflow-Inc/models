@@ -596,3 +596,5 @@ class BaseModel(nn.Module):
                 "embedding_dim of SparseFeat and VarlenSparseFeat must be same in this model!"
             )
         return list(embedding_size_set)[0]
+
+

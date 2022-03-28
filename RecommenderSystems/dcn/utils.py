@@ -272,3 +272,5 @@ def compute_input_dim(
     if include_dense:
         input_dim += dense_input_dim
     return input_dim
+
+
