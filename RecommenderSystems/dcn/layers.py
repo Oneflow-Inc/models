@@ -3,7 +3,6 @@ import oneflow as flow
 import oneflow.nn as nn
 
 
-
 class Dice(nn.Module):
     """The Data Adaptive Activation Function in DIN,which can be viewed as a generalization of PReLu and can adaptively adjust the rectified point according to distribution of input data.
     Input shape:
@@ -16,7 +15,7 @@ class Dice(nn.Module):
         - https://github.com/zhougr1993/DeepInterestNetwork, https://github.com/fanoping/DIN-pytorch
     """
 
-    def __init__(self, emb_size, dim=2, epsilon=1e-8, device='cpu'):
+    def __init__(self, emb_size, dim=2, epsilon=1e-8, device="cpu"):
         super(Dice, self).__init__()
         assert dim == 2 or dim == 3
 
@@ -44,7 +43,6 @@ class Dice(nn.Module):
 
 
 class Identity(nn.Module):
-
     def __init__(self, **kwargs):
         super(Identity, self).__init__()
 
@@ -62,16 +60,16 @@ def activation_layer(act_name, hidden_size=None, dice_dim=2):
         act_layer: activation layer
     """
     if isinstance(act_name, str):
-        if act_name.lower() == 'sigmoid':
+        if act_name.lower() == "sigmoid":
             act_layer = nn.Sigmoid()
-        elif act_name.lower() == 'linear':
+        elif act_name.lower() == "linear":
             act_layer = Identity()
-        elif act_name.lower() == 'relu':
+        elif act_name.lower() == "relu":
             act_layer = nn.ReLU(inplace=True)
-        elif act_name.lower() == 'dice':
+        elif act_name.lower() == "dice":
             assert dice_dim
             act_layer = Dice(hidden_size, dice_dim)
-        elif act_name.lower() == 'prelu':
+        elif act_name.lower() == "prelu":
             act_layer = nn.PReLU()
     elif issubclass(act_name, nn.Module):
         act_layer = act_name()
@@ -97,8 +95,19 @@ class DNN(nn.Module):
         - **seed**: A Python integer to use as random seed.
     """
 
-    def __init__(self, inputs_dim, hidden_units, activation='relu', l2_reg=0, dropout_rate=0, use_bn=False,
-                 init_std=0.0001, dice_dim=3, seed=1024, device='cpu'):
+    def __init__(
+        self,
+        inputs_dim,
+        hidden_units,
+        activation="relu",
+        l2_reg=0,
+        dropout_rate=0,
+        use_bn=False,
+        init_std=0.0001,
+        dice_dim=3,
+        seed=1024,
+        device="cpu",
+    ):
         super(DNN, self).__init__()
         self.dropout_rate = dropout_rate
         self.dropout = nn.Dropout(dropout_rate)
@@ -110,17 +119,29 @@ class DNN(nn.Module):
         hidden_units = [inputs_dim] + list(hidden_units)
 
         self.linears = nn.ModuleList(
-            [nn.Linear(hidden_units[i], hidden_units[i + 1]) for i in range(len(hidden_units) - 1)])
+            [
+                nn.Linear(hidden_units[i], hidden_units[i + 1])
+                for i in range(len(hidden_units) - 1)
+            ]
+        )
 
         if self.use_bn:
             self.bn = nn.ModuleList(
-                [nn.BatchNorm1d(hidden_units[i + 1]) for i in range(len(hidden_units) - 1)])
+                [
+                    nn.BatchNorm1d(hidden_units[i + 1])
+                    for i in range(len(hidden_units) - 1)
+                ]
+            )
 
         self.activation_layers = nn.ModuleList(
-            [activation_layer(activation, hidden_units[i + 1], dice_dim) for i in range(len(hidden_units) - 1)])
+            [
+                activation_layer(activation, hidden_units[i + 1], dice_dim)
+                for i in range(len(hidden_units) - 1)
+            ]
+        )
 
         for name, tensor in self.linears.named_parameters():
-            if 'weight' in name:
+            if "weight" in name:
                 nn.init.normal_(tensor, mean=0, std=init_std)
 
         self.to(device)
@@ -161,16 +182,25 @@ class CrossNet(nn.Module):
         - [Wang R, Shivanna R, Cheng D Z, et al. DCN-M: Improved Deep & Cross Network for Feature Cross Learning in Web-scale Learning to Rank Systems[J]. 2020.](https://arxiv.org/abs/2008.13535)
     """
 
-    def __init__(self, in_features, layer_num=2, parameterization='vector', seed=1024, device='cpu'):
+    def __init__(
+        self,
+        in_features,
+        layer_num=2,
+        parameterization="vector",
+        seed=1024,
+        device="cpu",
+    ):
         super(CrossNet, self).__init__()
         self.layer_num = layer_num
         self.parameterization = parameterization
-        if self.parameterization == 'vector':
+        if self.parameterization == "vector":
             # weight in DCN.  (in_features, 1)
             self.kernels = nn.Parameter(flow.Tensor(self.layer_num, in_features, 1))
-        elif self.parameterization == 'matrix':
+        elif self.parameterization == "matrix":
             # weight matrix in DCN-M.  (in_features, in_features)
-            self.kernels = nn.Parameter(flow.Tensor(self.layer_num, in_features, in_features))
+            self.kernels = nn.Parameter(
+                flow.Tensor(self.layer_num, in_features, in_features)
+            )
         else:  # error
             raise ValueError("parameterization should be 'vector' or 'matrix'")
 
@@ -187,11 +217,11 @@ class CrossNet(nn.Module):
         x_0 = inputs.unsqueeze(2)
         x_l = x_0
         for i in range(self.layer_num):
-            if self.parameterization == 'vector':
-                xl_w = flow.einsum('abc,bd->acd', x_l, self.kernels[i])
+            if self.parameterization == "vector":
+                xl_w = flow.einsum("abc,bd->acd", x_l, self.kernels[i])
                 dot_ = flow.matmul(x_0, xl_w)
                 x_l = dot_ + self.bias[i] + x_l
-            elif self.parameterization == 'matrix':
+            elif self.parameterization == "matrix":
                 xl_w = flow.matmul(self.kernels[i], x_l)  # W * xi  (bs, in_features, 1)
                 dot_ = xl_w + self.bias[i]  # W * xi + b
                 x_l = x_0 * dot_ + x_l  # x0 · (W * xi + b) +xl  Hadamard-product
@@ -213,11 +243,11 @@ class SequencePoolingLayer(nn.Module):
         - **mode**:str.Pooling operation to be used,can be sum,mean or max.
     """
 
-    def __init__(self, mode='mean', supports_masking=False, device='cpu'):
+    def __init__(self, mode="mean", supports_masking=False, device="cpu"):
 
         super(SequencePoolingLayer, self).__init__()
-        if mode not in ['sum', 'mean', 'max']:
-            raise ValueError('parameter mode should in [sum, mean, max]')
+        if mode not in ["sum", "mean", "max"]:
+            raise ValueError("parameter mode should in [sum, mean, max]")
         self.supports_masking = supports_masking
         self.mode = mode
         self.device = device
@@ -242,31 +272,37 @@ class SequencePoolingLayer(nn.Module):
             user_behavior_length = flow.sum(mask, dim=-1, keepdim=True)
             mask = mask.unsqueeze(2)
         else:
-            uiseq_embed_list, user_behavior_length = seq_value_len_list  # [B, T, E], [B, 1]
-            mask = self._sequence_mask(user_behavior_length, maxlen=uiseq_embed_list.shape[1],
-                                       dtype=flow.float32)  # [B, 1, maxlen]
+            (
+                uiseq_embed_list,
+                user_behavior_length,
+            ) = seq_value_len_list  # [B, T, E], [B, 1]
+            mask = self._sequence_mask(
+                user_behavior_length,
+                maxlen=uiseq_embed_list.shape[1],
+                dtype=flow.float32,
+            )  # [B, 1, maxlen]
             mask = flow.transpose(mask, 1, 2)  # [B, maxlen, 1]
 
         embedding_size = uiseq_embed_list.shape[-1]
 
         # mask = torch.repeat_interleave(mask, embedding_size, dim=2)  # [B, maxlen, E]
 
-        repeat_list = [1]*len(mask.shape)
-        if len(mask.shape)<3:
-            print('error')
+        repeat_list = [1] * len(mask.shape)
+        if len(mask.shape) < 3:
+            print("error")
         else:
-            repeat_list[2]=embedding_size
+            repeat_list[2] = embedding_size
 
-        mask = mask.repeat(repeat_list) # repeat_list: [1, 1, embedding_size]
+        mask = mask.repeat(repeat_list)  # repeat_list: [1, 1, embedding_size]
 
-        if self.mode == 'max':
+        if self.mode == "max":
             hist = uiseq_embed_list - (1 - mask) * 1e9
             hist = flow.max(hist, dim=1, keepdim=True)[0]
             return hist
         hist = uiseq_embed_list * mask.float()
         hist = flow.sum(hist, dim=1, keepdim=False)
 
-        if self.mode == 'mean':
+        if self.mode == "mean":
             self.eps = self.eps.to(user_behavior_length.device)
             hist = flow.div(hist, user_behavior_length.type(flow.float32) + self.eps)
 
@@ -300,12 +336,13 @@ def slice_arrays(arrays, start=None, stop=None):
         arrays = [arrays]
 
     if isinstance(start, list) and stop is not None:
-        raise ValueError('The stop argument has to be None if the value of start '
-                         'is a list.')
+        raise ValueError(
+            "The stop argument has to be None if the value of start " "is a list."
+        )
     elif isinstance(arrays, list):
-        if hasattr(start, '__len__'):
+        if hasattr(start, "__len__"):
             # hdf5 datasets only support list objects as indices
-            if hasattr(start, 'shape'):
+            if hasattr(start, "shape"):
                 start = start.tolist()
             return [None if x is None else x[start] for x in arrays]
         else:
@@ -313,11 +350,11 @@ def slice_arrays(arrays, start=None, stop=None):
                 return arrays[0][start:stop]
             return [None if x is None else x[start:stop] for x in arrays]
     else:
-        if hasattr(start, '__len__'):
-            if hasattr(start, 'shape'):
+        if hasattr(start, "__len__"):
+            if hasattr(start, "shape"):
                 start = start.tolist()
             return arrays[start]
-        elif hasattr(start, '__getitem__'):
+        elif hasattr(start, "__getitem__"):
             return arrays[start:stop]
         else:
             return [None]
@@ -330,7 +367,7 @@ class PredictionLayer(nn.Module):
          - **use_bias**: bool.Whether add bias term or not.
     """
 
-    def __init__(self, task='binary', use_bias=True, **kwargs):
+    def __init__(self, task="binary", use_bias=True, **kwargs):
         if task not in ["binary", "multiclass", "regression"]:
             raise ValueError("task must be binary,multiclass or regression")
 
@@ -347,6 +384,3 @@ class PredictionLayer(nn.Module):
         if self.task == "binary":
             output = flow.sigmoid(output)
         return output
-
-
-        

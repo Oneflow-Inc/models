@@ -3,8 +3,14 @@
 
 
 
+## Pretrained Model
+Pretrained DCN model was trained on pytorch, and then converted to onflow.
 
- ## frappe dataset
+download link: [pretrained](https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/RecommenderSystems/dcn/frappe-pretrained.zip)
+
+## frappe dataset
+
+Frappe dataset can be downloaded [here](https://www.baltrunas.info/context-aware)
 
 |model|logloss|auc|
 |-|-|-|
