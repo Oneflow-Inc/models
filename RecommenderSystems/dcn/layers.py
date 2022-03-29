@@ -206,10 +206,8 @@ class CrossNet(nn.Module):
 
         self.bias = nn.Parameter(flow.Tensor(self.layer_num, in_features, 1))
 
-        for i in range(self.kernels.shape[0]):
-            nn.init.xavier_normal_(self.kernels[i])
-        for i in range(self.bias.shape[0]):
-            nn.init.zeros_(self.bias[i])
+        nn.init.xavier_normal_(self.kernels)
+        nn.init.zeros_(self.bias)
 
         self.to(device)
 
