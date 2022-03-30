@@ -10,7 +10,7 @@ download link: [pretrained](https://oneflow-public.oss-cn-beijing.aliyuncs.com/m
 
 ## frappe dataset
 
-Frappe dataset can be downloaded [here](https://www.baltrunas.info/context-aware)
+Frappe dataset can be downloaded [here](https://zenodo.org/record/6324454/files/Frappe_x1.zip?download=1)
 
 |model|logloss|auc|
 |-|-|-|
