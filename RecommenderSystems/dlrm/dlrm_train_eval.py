@@ -420,9 +420,11 @@ class DLRMValGraph(flow.nn.Graph):
         if amp:
             self.config.enable_amp(True)
 
-    def build(self, dense_fields, sparse_fields):
+    def build(self, labels, dense_fields, sparse_fields):
         predicts = self.module(dense_fields.to("cuda"), sparse_fields.to("cuda"))
-        return predicts.to("cpu")
+        predicts = predicts.sigmoid().to_global(sbp=flow.sbp.broadcast())
+        labels = labels.to("cuda").to_global(sbp=flow.sbp.broadcast())
+        return labels.to("cpu"), predicts.to("cpu")
 
 
 class DLRMTrainGraph(flow.nn.Graph):
@@ -515,13 +517,13 @@ def train(args):
 
 
 def batch_to_global(np_label, np_dense, np_sparse):
-    def _np_to_global(np, dtype=flow.float):
-        t = flow.tensor(np, dtype=dtype)
+    def _np_to_global(np):
+        t = flow.flow.from_numpy(np)
         return t.to_global(placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0))
 
-    labels = _np_to_global(np_label.reshape(-1, 1))
-    dense_fields = _np_to_global(np_dense)
-    sparse_fields = _np_to_global(np_sparse, dtype=flow.int64)
+    labels = _np_to_global(np_label.reshape(-1, 1)) # float
+    dense_fields = _np_to_global(np_dense) # float
+    sparse_fields = _np_to_global(np_sparse) # int64
     return labels, dense_fields, sparse_fields
 
 
@@ -540,8 +542,7 @@ def eval(args, eval_graph, cur_step=0):
             if num_eval_batches > args.eval_batches:
                 break
             label, dense_fields, sparse_fields = batch_to_global(*np_batch)
-            logits = eval_graph(dense_fields, sparse_fields)
-            pred = logits.sigmoid()
+            label, pred = eval_graph(label, dense_fields, sparse_fields)
             labels.append(label.numpy())
             preds.append(pred.numpy())
 
