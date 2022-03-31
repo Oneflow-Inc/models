@@ -521,9 +521,9 @@ def batch_to_global(np_label, np_dense, np_sparse):
         t = flow.from_numpy(np)
         return t.to_global(placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0))
 
-    labels = _np_to_global(np_label.reshape(-1, 1)) # float
-    dense_fields = _np_to_global(np_dense) # float
-    sparse_fields = _np_to_global(np_sparse) # int64
+    labels = _np_to_global(np_label.reshape(-1, 1))  # float
+    dense_fields = _np_to_global(np_dense)  # float
+    sparse_fields = _np_to_global(np_sparse)  # int64
     return labels, dense_fields, sparse_fields
 
 
@@ -536,15 +536,13 @@ def eval(args, eval_graph, cur_step=0):
     with make_criteo_dataloader(
         f"{args.data_dir}/test", args.eval_batch_size, shuffle=False
     ) as loader:
-        num_eval_batches = 0
-        for np_batch in loader:
-            num_eval_batches += 1
-            if num_eval_batches > args.eval_batches:
-                break
-            label, dense_fields, sparse_fields = batch_to_global(*np_batch)
+        label, dense_fields, sparse_fields = batch_to_global(*next(loader))
+        for _ in range(args.eval_batches):
             label, pred = eval_graph(label, dense_fields, sparse_fields)
+            next_label, next_dense_fields, next_sparse_fields = batch_to_global(*next(loader))
             labels.append(label.numpy())
             preds.append(pred.numpy())
+            label, dense_fields, sparse_fields = next_label, next_dense_fields, next_sparse_fields
 
     auc = 0  # will be updated by rank 0 only
     rank = flow.env.get_rank()
