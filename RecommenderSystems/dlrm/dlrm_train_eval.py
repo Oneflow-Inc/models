@@ -420,11 +420,9 @@ class DLRMValGraph(flow.nn.Graph):
         if amp:
             self.config.enable_amp(True)
 
-    def build(self, labels, dense_fields, sparse_fields):
+    def build(self, dense_fields, sparse_fields):
         predicts = self.module(dense_fields.to("cuda"), sparse_fields.to("cuda"))
-        predicts = predicts.sigmoid().to_global(sbp=flow.sbp.broadcast())
-        labels = labels.to("cuda").to_global(sbp=flow.sbp.broadcast())
-        return labels.to("cpu"), predicts.to("cpu")
+        return predicts.sigmoid()
 
 
 class DLRMTrainGraph(flow.nn.Graph):
@@ -516,14 +514,19 @@ def train(args):
             save_model(f"step_{step}_val_auc_{auc:0.5f}")
 
 
-def batch_to_global(np_label, np_dense, np_sparse):
-    def _np_to_global(np):
-        t = flow.from_numpy(np)
-        return t.to_global(placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0))
+def np_to_global(np, dtype=None):
+    t = flow.from_numpy(np) if dtype is None else flow.tensor(np, dtype=dtype)
+    return t.to_global(placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0))
 
-    labels = _np_to_global(np_label.reshape(-1, 1))  # float
-    dense_fields = _np_to_global(np_dense)  # float
-    sparse_fields = _np_to_global(np_sparse)  # int64
+
+def batch_to_global(np_label, np_dense, np_sparse, is_train=True):
+    labels = (
+        np_to_global(np_label.reshape(-1, 1), dtype=flow.float)
+        if is_train
+        else np_label.reshape(-1, 1)
+    )
+    dense_fields = np_to_global(np_dense, dtype=flow.float)
+    sparse_fields = np_to_global(np_sparse)
     return labels, dense_fields, sparse_fields
 
 
@@ -536,19 +539,26 @@ def eval(args, eval_graph, cur_step=0):
     with make_criteo_dataloader(
         f"{args.data_dir}/test", args.eval_batch_size, shuffle=False
     ) as loader:
-        label, dense_fields, sparse_fields = batch_to_global(*next(loader))
+        label, dense_fields, sparse_fields = batch_to_global(*next(loader), is_train=False)
         for _ in range(args.eval_batches):
-            label, pred = eval_graph(label, dense_fields, sparse_fields)
-            next_label, next_dense_fields, next_sparse_fields = batch_to_global(*next(loader))
-            labels.append(label.numpy())
-            preds.append(pred.numpy())
+            pred = eval_graph(dense_fields, sparse_fields)
+            next_label, next_dense_fields, next_sparse_fields = batch_to_global(
+                *next(loader), is_train=False
+            )
+            labels.append(label)
+            preds.append(pred.to_local())
             label, dense_fields, sparse_fields = next_label, next_dense_fields, next_sparse_fields
+
+    labels = np_to_global(np.concatenate(labels, axis=0))
+    preds = flow.cat(preds, dim=0).to_global(
+        placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0)
+    )
+    labels = labels.numpy()
+    preds = preds.numpy()
 
     auc = 0  # will be updated by rank 0 only
     rank = flow.env.get_rank()
     if rank == 0:
-        labels = np.concatenate(labels, axis=0)
-        preds = np.concatenate(preds, axis=0)
         eval_time = time.time() - eval_start_time
         auc_start_time = time.time()
         auc = roc_auc_score(labels, preds)
