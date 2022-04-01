@@ -19,7 +19,7 @@ import argparse
 from pyspark.sql import SparkSession
 from pyspark.conf import SparkConf
 from pyspark.sql.functions import rand, udf, lit, xxhash64
-from pyspark.sql.types import IntegerType, LongType
+from pyspark.sql.types import FloatType, LongType
 
 
 def make_dlrm_parquet(
@@ -29,10 +29,10 @@ def make_dlrm_parquet(
     dense_names = [f"I{i}" for i in range(1, 14)]
     column_names = ["label"] + dense_names + sparse_names
 
-    make_label = udf(lambda s: int(s), IntegerType())
+    make_label = udf(lambda s: int(s), FloatType())
     label_col = make_label("label").alias("label")
 
-    make_dense = udf(lambda s: int(1) if s is None else int(s) + 1, IntegerType())
+    make_dense = udf(lambda s: int(1) if s is None else int(s) + 1, FloatType())
     dense_cols = [make_dense(Ii).alias(Ii) for i, Ii in enumerate(dense_names)]
 
     if mod_idx <= 0:
