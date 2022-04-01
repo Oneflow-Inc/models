@@ -1,276 +1,141 @@
-from collections import OrderedDict, namedtuple
+import numpy as np
 import oneflow as flow
 import oneflow.nn as nn
-from layers import SequencePoolingLayer
+from sklearn.metrics import *
 
+class Dice(nn.Module):
+    """The Data Adaptive Activation Function in DIN,which can be viewed as a generalization of PReLu and can adaptively adjust the rectified point according to distribution of input data.
+    Input shape:
+        - 2 dims: [batch_size, embedding_size(features)]
+        - 3 dims: [batch_size, num_features, embedding_size(features)]
+    Output shape:
+        - Same shape as input.
+    References
+        - [Zhou G, Zhu X, Song C, et al. Deep interest network for click-through rate prediction[C]//Proceedings of the 24th ACM SIGKDD International Conference on Knowledge Discovery & Data Mining. ACM, 2018: 1059-1068.](https://arxiv.org/pdf/1706.06978.pdf)
+        - https://github.com/zhougr1993/DeepInterestNetwork, https://github.com/fanoping/DIN-pytorch
+    """
 
-DEFAULT_GROUP_NAME = "default_group"
+    def __init__(self, emb_size, dim=2, epsilon=1e-8, device="cpu"):
+        super(Dice, self).__init__()
+        assert dim == 2 or dim == 3
 
+        self.bn = nn.BatchNorm1d(emb_size, eps=epsilon)
+        self.sigmoid = nn.Sigmoid()
+        self.dim = dim
 
-class SparseFeat(
-    namedtuple(
-        "SparseFeat",
-        [
-            "name",
-            "vocabulary_size",
-            "embedding_dim",
-            "use_hash",
-            "dtype",
-            "embedding_name",
-            "group_name",
-        ],
-    )
-):
-    __slots__ = ()
-
-    def __new__(
-        cls,
-        name,
-        vocabulary_size,
-        embedding_dim=4,
-        use_hash=False,
-        dtype="int32",
-        embedding_name=None,
-        group_name=DEFAULT_GROUP_NAME,
-    ):
-        if embedding_name is None:
-            embedding_name = name
-        if embedding_dim == "auto":
-            embedding_dim = 6 * int(pow(vocabulary_size, 0.25))
-        if use_hash:
-            print(
-                "Notice! Feature Hashing on the fly currently is not supported in torch version,you can use tensorflow version!"
-            )
-        return super(SparseFeat, cls).__new__(
-            cls,
-            name,
-            vocabulary_size,
-            embedding_dim,
-            use_hash,
-            dtype,
-            embedding_name,
-            group_name,
-        )
-
-    def __hash__(self):
-        return hash(self.name)
-
-
-class VarLenSparseFeat(
-    namedtuple("VarLenSparseFeat", ["sparsefeat", "maxlen", "combiner", "length_name"])
-):
-    __slots__ = ()
-
-    def __new__(cls, sparsefeat, maxlen, combiner="mean", length_name=None):
-        return super(VarLenSparseFeat, cls).__new__(
-            cls, sparsefeat, maxlen, combiner, length_name
-        )
-
-    @property
-    def name(self):
-        return self.sparsefeat.name
-
-    @property
-    def vocabulary_size(self):
-        return self.sparsefeat.vocabulary_size
-
-    @property
-    def embedding_dim(self):
-        return self.sparsefeat.embedding_dim
-
-    @property
-    def use_hash(self):
-        return self.sparsefeat.use_hash
-
-    @property
-    def dtype(self):
-        return self.sparsefeat.dtype
-
-    @property
-    def embedding_name(self):
-        return self.sparsefeat.embedding_name
-
-    @property
-    def group_name(self):
-        return self.sparsefeat.group_name
-
-    def __hash__(self):
-        return hash(self.name)
-
-
-class DenseFeat(namedtuple("DenseFeat", ["name", "dimension", "dtype"])):
-    __slots__ = ()
-
-    def __new__(cls, name, dimension=1, dtype="float32"):
-        return super(DenseFeat, cls).__new__(cls, name, dimension, dtype)
-
-    def __hash__(self):
-        return hash(self.name)
-
-
-def get_feature_names(feature_columns):
-    features = build_input_features(feature_columns)
-    return list(features.keys())
-
-
-def build_input_features(feature_columns):
-    # Return OrderedDict: {feature_name:(start, start+dimension)}
-
-    features = OrderedDict()
-
-    start = 0
-    for feat in feature_columns:
-        feat_name = feat.name
-        if feat_name in features:
-            continue
-        if isinstance(feat, SparseFeat):
-            features[feat_name] = (start, start + 1)
-            start += 1
-        elif isinstance(feat, DenseFeat):
-            features[feat_name] = (start, start + feat.dimension)
-            start += feat.dimension
-        elif isinstance(feat, VarLenSparseFeat):
-            features[feat_name] = (start, start + feat.maxlen)
-            start += feat.maxlen
-            if feat.length_name is not None and feat.length_name not in features:
-                features[feat.length_name] = (start, start + 1)
-                start += 1
+        # wrap alpha in nn.Parameter to make it trainable
+        if self.dim == 2:
+            self.alpha = nn.Parameter(flow.zeros((emb_size,)).to(device))
         else:
-            raise TypeError("Invalid feature column type,got", type(feat))
-    return features
+            self.alpha = nn.Parameter(flow.zeros((emb_size, 1)).to(device))
+
+    def forward(self, x):
+        assert x.dim() == self.dim
+        if self.dim == 2:
+            x_p = self.sigmoid(self.bn(x))
+            out = self.alpha * (1 - x_p) * x + x_p * x
+        else:
+            x = flow.transpose(x, 1, 2)
+            x_p = self.sigmoid(self.bn(x))
+            out = self.alpha * (1 - x_p) * x + x_p * x
+            out = flow.transpose(out, 1, 2)
+        return out
 
 
-def concat_fun(inputs, axis=-1):
-    if len(inputs) == 1:
-        return inputs[0]
-    else:
-        return flow.cat(inputs, dim=axis)
+class Identity(nn.Module):
+    def __init__(self, **kwargs):
+        super(Identity, self).__init__()
+
+    def forward(self, inputs):
+        return inputs
 
 
-def combined_dnn_input(sparse_embedding_list, dense_value_list):
-    if len(sparse_embedding_list) > 0 and len(dense_value_list) > 0:
-        sparse_dnn_input = flow.flatten(
-            flow.cat(sparse_embedding_list, dim=-1), start_dim=1
-        )
-        dense_dnn_input = flow.flatten(flow.cat(dense_value_list, dim=-1), start_dim=1)
-        return concat_fun([sparse_dnn_input, dense_dnn_input])
-    elif len(sparse_embedding_list) > 0:
-        return flow.flatten(flow.cat(sparse_embedding_list, dim=-1), start_dim=1)
-    elif len(dense_value_list) > 0:
-        return flow.flatten(flow.cat(dense_value_list, dim=-1), start_dim=1)
+def activation_layer(act_name, hidden_size=None, dice_dim=2):
+    """Construct activation layers
+    Args:
+        act_name: str or nn.Module, name of activation function
+        hidden_size: int, used for Dice activation
+        dice_dim: int, used for Dice activation
+    Return:
+        act_layer: activation layer
+    """
+    if isinstance(act_name, str):
+        if act_name.lower() == "sigmoid":
+            act_layer = nn.Sigmoid()
+        elif act_name.lower() == "linear":
+            act_layer = Identity()
+        elif act_name.lower() == "relu":
+            act_layer = nn.ReLU(inplace=True)
+        elif act_name.lower() == "dice":
+            assert dice_dim
+            act_layer = Dice(hidden_size, dice_dim)
+        elif act_name.lower() == "prelu":
+            act_layer = nn.PReLU()
+    elif issubclass(act_name, nn.Module):
+        act_layer = act_name()
     else:
         raise NotImplementedError
 
+    return act_layer
 
-def get_varlen_pooling_list(
-    embedding_dict, features, feature_index, varlen_sparse_feature_columns, device
-):
-    varlen_sparse_embedding_list = []
-    for feat in varlen_sparse_feature_columns:
-        seq_emb = embedding_dict[feat.name]
-        if feat.length_name is None:
-            seq_mask = (
-                features[
-                    :, feature_index[feat.name][0] : feature_index[feat.name][1]
-                ].long()
-                != 0
-            )
 
-            emb = SequencePoolingLayer(
-                mode=feat.combiner, supports_masking=True, device=device
-            )([seq_emb, seq_mask])
+
+def get_optim(model,optimizer, lr=0.01):
+    if isinstance(optimizer, str):
+        if optimizer == "sgd":
+            optim = flow.optim.SGD(model.parameters(), lr=lr)
+        elif optimizer == "adam":
+            optim = flow.optim.Adam(model.parameters(), lr=lr)
+        elif optimizer == "adagrad":
+            optim = flow.optim.Adagrad(model.parameters(), lr=lr)
+        elif optimizer == "rmsprop":
+            optim = flow.optim.RMSprop(model.parameters(),lr=lr)
         else:
-            seq_length = features[
-                :,
-                feature_index[feat.length_name][0] : feature_index[feat.length_name][1],
-            ].long()
-            emb = SequencePoolingLayer(
-                mode=feat.combiner, supports_masking=False, device=device
-            )([seq_emb, seq_length])
-        varlen_sparse_embedding_list.append(emb)
-    return varlen_sparse_embedding_list
-
-
-def create_embedding_matrix(
-    feature_columns, init_std=0.0001, linear=False, sparse=False, device="cpu"
-):
-    # Return nn.ModuleDict: for sparse features, {embedding_name: nn.Embedding}
-    # for varlen sparse features, {embedding_name: nn.EmbeddingBag}
-    sparse_feature_columns = (
-        list(filter(lambda x: isinstance(x, SparseFeat), feature_columns))
-        if len(feature_columns)
-        else []
-    )
-
-    varlen_sparse_feature_columns = (
-        list(filter(lambda x: isinstance(x, VarLenSparseFeat), feature_columns))
-        if len(feature_columns)
-        else []
-    )
-
-    embedding_dict = nn.ModuleDict(
-        {
-            feat.embedding_name: nn.Embedding(
-                feat.vocabulary_size,
-                feat.embedding_dim if not linear else 1,
-                sparse=sparse,
-            )
-            for feat in sparse_feature_columns + varlen_sparse_feature_columns
-        }
-    )
-
-    for tensor in embedding_dict.values():
-        nn.init.normal_(tensor.weight, mean=0, std=init_std)
-
-    return embedding_dict.to(device)
-
-
-def varlen_embedding_lookup(
-    X, embedding_dict, sequence_input_dict, varlen_sparse_feature_columns
-):
-    varlen_embedding_vec_dict = {}
-    for fc in varlen_sparse_feature_columns:
-        feature_name = fc.name
-        embedding_name = fc.embedding_name
-        if fc.use_hash:
-            lookup_idx = sequence_input_dict[feature_name]
-        else:
-            lookup_idx = sequence_input_dict[feature_name]
-        varlen_embedding_vec_dict[feature_name] = embedding_dict[embedding_name](
-            X[:, lookup_idx[0] : lookup_idx[1]].long()
-        )  # (lookup_idx)
-
-    return varlen_embedding_vec_dict
-
-
-def compute_input_dim(
-    feature_columns, include_sparse=True, include_dense=True, feature_group=False
-):
-    sparse_feature_columns = (
-        list(
-            filter(
-                lambda x: isinstance(x, (SparseFeat, VarLenSparseFeat)), feature_columns
-            )
-        )
-        if len(feature_columns)
-        else []
-    )
-    dense_feature_columns = (
-        list(filter(lambda x: isinstance(x, DenseFeat), feature_columns))
-        if len(feature_columns)
-        else []
-    )
-
-    dense_input_dim = sum(map(lambda x: x.dimension, dense_feature_columns))
-    if feature_group:
-        sparse_input_dim = len(sparse_feature_columns)
+            raise NotImplementedError
     else:
-        sparse_input_dim = sum(feat.embedding_dim for feat in sparse_feature_columns)
-    input_dim = 0
-    if include_sparse:
-        input_dim += sparse_input_dim
-    if include_dense:
-        input_dim += dense_input_dim
-    return input_dim
+        optim = optimizer
+    return optim
+
+def get_loss_func(loss):
+    if isinstance(loss, str):
+        if loss == "binary_crossentropy":
+            loss_func = nn.BCELoss(reduction="sum")
+        elif loss == "mse":
+            loss_func = nn.MSELoss(reduction="sum")
+        elif loss == "mae":
+            loss_func = nn.L1Loss(reduction="sum")
+        else:
+            raise NotImplementedError
+    else:
+        loss_func = loss
+    return loss_func
 
 
+def get_log_loss(y_true, y_pred, eps=1e-7, normalize=True, sample_weight=None, labels=None):
+    # change eps to improve calculation accuracy
+    return log_loss(y_true,
+                    y_pred,
+                    eps,
+                    normalize,
+                    sample_weight,
+                    labels)
+
+def get_metrics(metrics_names, metrics, set_eps=False):
+    metrics_ = {}
+    metrics_names = metrics_names
+    if metrics:
+        for metric in metrics:
+            if metric == "binary_crossentropy" or metric == "logloss":
+                if set_eps:
+                    metrics_[metric] = get_log_loss
+                else:
+                    metrics_[metric] = log_loss
+            if metric == "auc":
+                metrics_[metric] = roc_auc_score
+            if metric == "mse":
+                metrics_[metric] = mean_squared_error
+            if metric == "accuracy" or metric == "acc":
+                metrics_[metric] = lambda y_true, y_pred: accuracy_score(
+                    y_true, np.where(y_pred > 0.5, 1, 0))
+            metrics_names.append(metric)
+    return metrics_, metrics_names

@@ -19,7 +19,7 @@ from pyspark.sql.functions import rand, udf, lit, hash
 from pyspark.sql.types import IntegerType, LongType
 
 def make_frappe_parquet(
-    spark, input_files, output_dir, mod_idx=40000000, part_num=None, shuffle=False
+    spark, input_files, output_dir, mod_idx=5000, part_num=None, shuffle=False
 ):
 
     sparse_names = ["user","item","daytime","weekday","isweekend","homework","cost","weather","country","city"]
@@ -63,7 +63,7 @@ if __name__ == '__main__':
     parser.add_argument("--output_dir", type=str, required=True)
     parser.add_argument("--spark_tmp_dir", type=str, default=None)
     parser.add_argument("--spark_driver_memory_gb", type=int, default=360)
-    parser.add_argument("--mod_idx", type=int, default=40000000)
+    parser.add_argument("--mod_idx", type=int, default=5000)
     parser.add_argument(
         "--export_dataset_info", action="store_true", help="export dataset infomation or not"
     )
