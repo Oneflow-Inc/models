@@ -26,14 +26,6 @@ def get_args(print_args=True):
     parser.add_argument("--disable_fusedmlp", action="store_true", help="disable fused MLP or not")
     parser.add_argument("--embedding_vec_size", type=int, default=128)
     parser.add_argument("--dnn", type=int_list, default="1024,1024,512,256")
-    parser.add_argument(
-        "--disable_interaction_padding",
-        action="store_true",
-        help="disable interaction padding or not",
-    )
-    parser.add_argument(
-        "--interaction_itself", action="store_true", help="interaction itself or not"
-    )
     parser.add_argument("--model_load_dir", type=str, default=None)
     parser.add_argument("--model_save_dir", type=str, default=None)
     parser.add_argument(
@@ -61,6 +53,9 @@ def get_args(print_args=True):
     )
     parser.add_argument(
         "--persistent_path", type=str, required=True, help="path for persistent kv store",
+    )
+    parser.add_argument(
+        "--persistent_path_fm", type=str, required=True, help="path for persistent kv store(FM component)",
     )
     parser.add_argument("--store_type", type=str, default="cached_host_mem")
     parser.add_argument("--cache_memory_budget_mb", type=int, default=8192)
@@ -90,7 +85,6 @@ num_dense_fields = 13
 num_sparse_fields = 26
 
 
-# ----------- Data Reader/Loader -----------
 class DeepFMDataReader(object):
     """A context manager that manages the creation and termination of a
     :class:`petastorm.Reader`.
@@ -198,6 +192,7 @@ def make_criteo_dataloader(data_path, batch_size, shuffle=True):
 class OneEmbedding(nn.Module):
     def __init__(
         self,
+        table_name,
         embedding_vec_size,
         persistent_path,
         table_size_array,
@@ -237,7 +232,7 @@ class OneEmbedding(nn.Module):
 
         super(OneEmbedding, self).__init__()
         self.one_embedding = flow.one_embedding.MultiTableEmbedding(
-            "sparse_embedding",
+            name=table_name,
             embedding_dim=embedding_vec_size,
             dtype=flow.float,
             key_type=flow.int64,
@@ -270,7 +265,7 @@ class DNN(nn.Module):
                 in_features,
                 hidden_units[:-1],
                 hidden_units[-1],
-                skip_final_activation=skip_final_activation,
+                skip_final_activation=skip_final_activation
             )
         else:
             units = [in_features] + hidden_units
@@ -291,9 +286,73 @@ class DNN(nn.Module):
         return self.linear_layers(x)
 
 
+class LR(nn.Module):
+    def __init__(
+        self,
+        persistent_path=None,
+        table_size_array=None,
+        one_embedding_store_type="cached_host_mem",
+        cache_memory_budget_mb=8192,
+        use_bias=True
+    ):
+        super(LR, self).__init__()
+        self.bias = nn.Parameter(flow.tensor([1], dtype=flow.float32)) if use_bias else None
+        self.embedding_layer = OneEmbedding(
+            table_name="fm_lr_embedding",
+            embedding_vec_size=1,
+            persistent_path=persistent_path,
+            table_size_array=table_size_array,
+            store_type=one_embedding_store_type,
+            cache_memory_budget_mb=cache_memory_budget_mb
+        )
+
+    def forward(self, x):
+        # x = original ids
+        # order-1 feature interaction
+        embedded_x = self.embedding_layer(x)
+        output = flow.sum(embedded_x, dim=1)
+        if self.bias is not None:
+            output += self.bias
+        return output
+
+
+class Interaction(nn.Module):
+    def __init__(self, interaction_itself=False, num_fields=26):
+        super(Interaction, self).__init__()
+        self.interaction_itself = interaction_itself
+        self.num_fields = num_fields
+        
+    def forward(self, embedded_x:flow.Tensor) -> flow.Tensor:
+        sum_of_square = flow.sum(embedded_x, dim=1) ** 2
+        square_of_sum = flow.sum(embedded_x ** 2, dim=1)
+        bi_interaction = (sum_of_square - square_of_sum) * 0.5
+        return flow.sum(bi_interaction, dim=-1).view(-1, 1)
+
+
 class FM(nn.Module):
-    def __init__(self) -> None:
+    def __init__(
+        self, 
+        persistent_path=None,
+        table_size_array=None,
+        one_embedding_store_type="cached_host_mem",
+        cache_memory_budget_mb=8192,
+        use_bias=True
+    ):
         super(FM, self).__init__()
+        self.interaction = Interaction(num_fields=num_dense_fields+num_sparse_fields)
+        self.lr = LR(
+            persistent_path=persistent_path,
+            table_size_array=table_size_array,
+            one_embedding_store_type=one_embedding_store_type,
+            cache_memory_budget_mb=cache_memory_budget_mb,
+            use_bias=use_bias
+        )
+    
+    def forward(self, x:flow.Tensor, embedded_x:flow.Tensor) -> flow.Tensor:
+        lr_out = self.lr(x)
+        dot_sum = self.interaction(embedded_x)
+        output = lr_out + dot_sum
+        return output
 
 
 class DeepFMModule(nn.Module):
@@ -303,27 +362,33 @@ class DeepFMModule(nn.Module):
         dnn=[1024, 1024, 512, 256],
         use_fusedmlp=True,
         persistent_path=None,
+        persistent_path_fm=None,
         table_size_array=None,
         one_embedding_store_type="cached_host_mem",
         cache_memory_budget_mb=8192,
-        interaction_itself=True,
-        interaction_padding=True,
     ):
         super(DeepFMModule, self).__init__()
 
         self.embedding_layer = OneEmbedding(
-            embedding_vec_size,
-            persistent_path,
-            table_size_array,
-            one_embedding_store_type,
-            cache_memory_budget_mb,
+            table_name="sparse_embedding",
+            embedding_vec_size=embedding_vec_size,
+            persistent_path=persistent_path,
+            table_size_array=table_size_array,
+            store_type=one_embedding_store_type,
+            cache_memory_budget_mb=cache_memory_budget_mb
         )
 
-        # self.fm_layer = FM()
+        self.fm_layer = FM(
+            persistent_path=persistent_path_fm,
+            table_size_array=table_size_array,
+            one_embedding_store_type=one_embedding_store_type,
+            cache_memory_budget_mb=cache_memory_budget_mb,
+            use_bias=True
+        )
 
         self.dnn_layer = DNN(
-            embedding_vec_size * (num_dense_fields + num_sparse_fields),
-            dnn + [1],
+            in_features=embedding_vec_size * (num_dense_fields + num_sparse_fields),
+            hidden_units=dnn + [1],
             skip_final_activation=True,
             fused=use_fusedmlp
         )
@@ -331,10 +396,9 @@ class DeepFMModule(nn.Module):
 
     def forward(self, inputs) -> flow.Tensor:
         embedded_x = self.embedding_layer(inputs)
-        # fm_pred = self.fm_layer(inputs, embedded_x)
+        fm_pred = self.fm_layer(inputs, embedded_x)
         dnn_pred = self.dnn_layer(embedded_x.flatten(start_dim=1))
-        # y_pred = self.sigmoid(fm_pred + dnn_pred)
-        y_pred = self.sigmoid(dnn_pred)
+        y_pred = self.sigmoid(fm_pred + dnn_pred)
         return y_pred
 
 
@@ -344,11 +408,10 @@ def make_deepfm_module(args):
         dnn=args.dnn,
         use_fusedmlp=not args.disable_fusedmlp,
         persistent_path=args.persistent_path,
+        persistent_path_fm=args.persistent_path_fm,
         table_size_array=args.table_size_array,
         one_embedding_store_type=args.store_type,
         cache_memory_budget_mb=args.cache_memory_budget_mb,
-        interaction_itself=args.interaction_itself,
-        interaction_padding=not args.disable_interaction_padding,
     )
     return model
 

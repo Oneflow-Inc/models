@@ -3,7 +3,8 @@ NUM_NODES=1
 NODE_RANK=0
 MASTER_ADDR=127.0.0.1
 DATA_DIR=/minio/sdb/liuxinman/criteo_sample/deepfm_parquet
-PERSISTENT_PATH=/minio/sdb/liuxinman/persistent
+PERSISTENT_PATH=/minio/sdb/liuxinman/persistent1
+PERSISTENT_PATH_FM=/minio/sdb/liuxinman/persistent2
 
 python3 -m oneflow.distributed.launch \
     --nproc_per_node $DEVICE_NUM_PER_NODE \
@@ -13,8 +14,9 @@ python3 -m oneflow.distributed.launch \
     deepfm_train_eval.py \
       --data_dir $DATA_DIR \
       --persistent_path $PERSISTENT_PATH \
+      --persistent_path_fm $PERSISTENT_PATH_FM \
       --table_size_array "14, 68, 55, 35, 172, 92, 42, 41, 113, 4, 15, 5, 43, 27, 92, 172, 157, 12, 7, 183, 19, 2, 142, 173, 170, 166, 14, 170, 168, 9, 127, 44, 4, 169, 6, 10, 125, 20, 90" \
-      --cache_memory_budget_mb 2048 \
+      --cache_memory_budget_mb 1024 \
       --train_batch_size 2 \
       --train_batches 100 \
       --loss_print_interval 2 \
