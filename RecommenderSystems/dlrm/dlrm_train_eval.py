@@ -492,12 +492,13 @@ def train(args):
             if step % args.loss_print_interval == 0:
                 loss = loss.numpy()
                 if rank == 0:
-                    latency_ms = 1000 * (time.time() - last_time) / (step - last_step)
+                    latency = (time.time() - last_time) / (step - last_step)
+                    throughput = args.train_batch_size / latency
                     last_step, last_time = step, time.time()
                     strtime = time.strftime("%Y-%m-%d %H:%M:%S")
                     print(
-                        f"Rank[{rank}], Step {step}, Loss {loss:0.4f}, "
-                        + f"Latency {latency_ms:0.3f} ms, {strtime}"
+                        f"Rank[{rank}], Step {step}, Loss {loss:0.4f}, Latency "
+                        + f"{(latency * 1000):0.3f} ms, Throughput {throughput:0.1f}, {strtime}"
                     )
 
             if args.eval_interval > 0 and step % args.eval_interval == 0:
