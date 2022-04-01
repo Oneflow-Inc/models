@@ -23,7 +23,6 @@ import psutil
 import warnings
 import oneflow as flow
 import oneflow.nn as nn
-from sklearn.metrics import roc_auc_score
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 from petastorm.reader import make_batch_reader
@@ -549,21 +548,17 @@ def eval(args, eval_graph, cur_step=0):
             preds.append(pred.to_local())
             label, dense_fields, sparse_fields = next_label, next_dense_fields, next_sparse_fields
 
+    eval_time = time.time() - eval_start_time
+    auc_start_time = time.time()
     labels = np_to_global(np.concatenate(labels, axis=0))
     preds = flow.cat(preds, dim=0).to_global(
         placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0)
     )
-    labels = labels.numpy()
-    preds = preds.numpy()
+    auc = flow.roc_auc_score(labels, preds).numpy()[0]
+    auc_time = time.time() - auc_start_time
 
-    auc = 0  # will be updated by rank 0 only
     rank = flow.env.get_rank()
     if rank == 0:
-        eval_time = time.time() - eval_start_time
-        auc_start_time = time.time()
-        auc = roc_auc_score(labels, preds)
-        auc_time = time.time() - auc_start_time
-
         host_mem_mb = psutil.Process().memory_info().rss // (1024 * 1024)
         stream = os.popen("nvidia-smi --query-gpu=memory.used --format=csv")
         device_mem_str = stream.read().split("\n")[rank + 1]
