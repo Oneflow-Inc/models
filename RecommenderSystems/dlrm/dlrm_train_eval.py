@@ -140,7 +140,7 @@ class DLRMDataReader(object):
     def __enter__(self):
         self.reader = make_batch_reader(
             self.parquet_file_url_list,
-            workers_count=2,
+            workers_count=1,
             shuffle_row_groups=self.shuffle_row_groups,
             num_epochs=self.num_epochs,
             shard_seed=self.shard_seed,
