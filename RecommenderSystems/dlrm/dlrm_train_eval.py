@@ -23,6 +23,7 @@ import psutil
 import warnings
 import oneflow as flow
 import oneflow.nn as nn
+from sklearn.metrics import roc_auc_score
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 from petastorm.reader import make_batch_reader
@@ -572,7 +573,7 @@ def eval(cached_eval_batches, eval_graph, cur_step=0):
     auc = 0
     if rank == 0:
         auc_start_time = time.time()
-        auc = flow.roc_auc_score(labels, preds).numpy()[0]
+        auc = roc_auc_score(labels.numpy(), preds.numpy())
         auc_time = time.time() - auc_start_time
         host_mem_mb = psutil.Process().memory_info().rss // (1024 * 1024)
         stream = os.popen("nvidia-smi --query-gpu=memory.used --format=csv")
