@@ -16,7 +16,7 @@
 |Argument Name|Argument Explanation|Default Value|
 |-----|---|------|
 |data_dir|the data file directory|*Required Argument*|
-|persistent_path|path for OneEmbeddig persistent kv store|*Required Argument*|
+|persistent_path|path for OneEmbedding persistent kv store|*Required Argument*|
 |table_size_array|table size array for sparse fields|*Required Argument*|
 |store_type|OneEmbeddig persistent kv store type: `device_mem`, `cached_host_mem` or `cached_ssd` |cached_ssd|
 |cache_memory_budget_mb|size of cache memory budget on each device in megabytes when `store_type` is `cached_host_mem` or `cached_ssd`|8192|
@@ -99,6 +99,5 @@ python3 -m oneflow.distributed.launch \
     --master_addr 127.0.0.1 \
     dlrm_train_eval.py \
       --data_dir /path/to/dlrm_parquet \
-      --persistent_path /path/to/persistent \
-      --table_size_array "39884407,39043,17289,7420,20263,3,7120,1543,63,38532952,2953546,403346,10,2208,11938,155,4,976,14,39979772,25641295,39664985,585935,12972,108,36"
+      --persistent_path /path/to/persistent
 ```
