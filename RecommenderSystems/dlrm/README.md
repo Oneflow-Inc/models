@@ -16,7 +16,7 @@
 |Argument Name|Argument Explanation|Default Value|
 |-----|---|------|
 |data_dir|the data file directory|*Required Argument*|
-|persistent_path|path for OneEmbeddig persistent kv store|*Required Argument*|
+|persistent_path|path for OneEmbedding persistent kv store|*Required Argument*|
 |table_size_array|table size array for sparse fields|*Required Argument*|
 |store_type|OneEmbeddig persistent kv store type: `device_mem`, `cached_host_mem` or `cached_ssd` |cached_ssd|
 |cache_memory_budget_mb|size of cache memory budget on each device in megabytes when `store_type` is `cached_host_mem` or `cached_ssd`|8192|
