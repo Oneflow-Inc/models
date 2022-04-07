@@ -10,6 +10,7 @@ import oneflow as flow
 import oneflow.nn as nn
 from sklearn.metrics import roc_auc_score
 from petastorm.reader import make_batch_reader
+import matplotlib.pyplot as plt
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
 
@@ -23,7 +24,7 @@ def get_args(print_args=True):
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--disable_fusedmlp", action="store_true", help="disable fused MLP or not")
+    parser.add_argument("--disable_fusedmlp", default=False, help="disable fused MLP or not")
     parser.add_argument("--embedding_vec_size", type=int, default=128)
     parser.add_argument("--dnn", type=int_list, default="1024,1024,512,256")
     parser.add_argument("--model_load_dir", type=str, default=None)
@@ -45,6 +46,7 @@ def get_args(print_args=True):
     parser.add_argument("--decay_start", type=int, default=49315)
     parser.add_argument("--train_batches", type=int, default=75000)
     parser.add_argument("--loss_print_interval", type=int, default=1000)
+    parser.add_argument("--weight_decay", type=float, default=1e-5)
     parser.add_argument(
         "--table_size_array",
         type=int_list,
@@ -153,16 +155,21 @@ class DeepFMDataReader(object):
                     label = tail[0]
                     features = tail[1:]
                     tail = None
-                    yield label, np.stack(features, axis=-1)
+                    features = np.stack(features, axis=-1)
+                    yield label, features
                 else:
                     pos = 0
                     continue
 
             while (pos + batch_size) <= len(rglist[0]):
                 label = rglist[0][pos : pos + batch_size]
-                features = rglist[1:][pos: pos + batch_size]
+                # TODO: check list slicing failed problem
+                tmp = np.array(rglist)
+                # features = rglist[1:][pos: pos + batch_size]
+                features = tmp[1:, pos: pos + batch_size]
                 pos += batch_size
-                yield label, np.stack(features, axis=-1)
+                features = np.stack(features, axis=-1)
+                yield label, features
 
             if pos != len(rglist[0]):
                 tail = [rglist[i][pos:] for i in range(self.num_fields)]
@@ -209,9 +216,17 @@ class OneEmbedding(nn.Module):
             )
             for scale in scales
         ]
+        # tables = [
+        #     flow.one_embedding.make_table(
+        #         flow.one_embedding.make_normal_initializer(mean=0.0, std=1e-4)
+        #     )
+        #     for _ in range(len(table_size_array))
+        # ]
         if store_type == "device_mem":
             store_options = flow.one_embedding.make_device_mem_store_options(
-                persistent_path=persistent_path, capacity=vocab_size
+                persistent_path=persistent_path, 
+                capacity=vocab_size,
+                size_factor=3
             )
         elif store_type == "cached_host_mem":
             assert cache_memory_budget_mb > 0
@@ -219,6 +234,7 @@ class OneEmbedding(nn.Module):
                 cache_budget_mb=cache_memory_budget_mb,
                 persistent_path=persistent_path,
                 capacity=vocab_size,
+                size_factor=3,
             )
         elif store_type == "cached_ssd":
             assert cache_memory_budget_mb > 0
@@ -226,6 +242,7 @@ class OneEmbedding(nn.Module):
                 cache_budget_mb=cache_memory_budget_mb,
                 persistent_path=persistent_path,
                 capacity=vocab_size,
+                size_factor=3,
             )
         else:
             raise NotImplementedError("not support", store_type)
@@ -267,6 +284,11 @@ class DNN(nn.Module):
                 hidden_units[-1],
                 skip_final_activation=skip_final_activation
             )
+            for name, param in self.linear_layers.named_parameters():
+                if "weight" in name:
+                    nn.init.normal_(param, 0.0, np.sqrt(2 / sum(param.shape)))
+                elif "bias" in name:
+                    nn.init.normal_(param, 0.0, np.sqrt(1 / param.shape[0]))
         else:
             units = [in_features] + hidden_units
             num_layers = len(hidden_units)
@@ -275,12 +297,11 @@ class DNN(nn.Module):
                 for i in range(num_layers)
             ]
             self.linear_layers = nn.Sequential(*denses)
-
-        for name, param in self.linear_layers.named_parameters():
-            if "weight" in name:
-                nn.init.normal_(param, 0.0, np.sqrt(2 / sum(param.shape)))
-            elif "bias" in name:
-                nn.init.normal_(param, 0.0, np.sqrt(1 / param.shape[0]))
+            for name, param in self.linear_layers.named_parameters():
+                if "weight" in name:
+                    nn.init.xavier_normal_(param)
+                elif "bias" in name:
+                    param.data.fill_(0.0)
 
     def forward(self, x: flow.Tensor) -> flow.Tensor:
         return self.linear_layers(x)
@@ -383,7 +404,7 @@ class DeepFMModule(nn.Module):
             table_size_array=table_size_array,
             one_embedding_store_type=one_embedding_store_type,
             cache_memory_budget_mb=cache_memory_budget_mb,
-            use_bias=True
+            use_bias=False
         )
 
         self.dnn_layer = DNN(
@@ -392,14 +413,12 @@ class DeepFMModule(nn.Module):
             skip_final_activation=True,
             fused=use_fusedmlp
         )
-        self.sigmoid = nn.Sigmoid()
 
     def forward(self, inputs) -> flow.Tensor:
         embedded_x = self.embedding_layer(inputs)
         fm_pred = self.fm_layer(inputs, embedded_x)
         dnn_pred = self.dnn_layer(embedded_x.flatten(start_dim=1))
-        y_pred = self.sigmoid(fm_pred + dnn_pred)
-        return y_pred
+        return fm_pred + dnn_pred
 
 
 def make_deepfm_module(args):
@@ -435,6 +454,7 @@ class DeepFMTrainGraph(flow.nn.Graph):
         super(DeepFMTrainGraph, self).__init__()
         self.module = deepfm_module
         self.loss = loss
+        # TODO: implement lr decay
         self.add_optimizer(optimizer, lr_sch=lr_scheduler)
         self.config.allow_fuse_model_update_ops(True)
         self.config.allow_fuse_add_to_output(True)
@@ -453,10 +473,10 @@ class DeepFMTrainGraph(flow.nn.Graph):
 
 def make_lr_scheduler(args, optimizer):
     warmup_lr = flow.optim.lr_scheduler.LinearLR(
-        optimizer, start_factor=0, total_iters=args.warmup_batches,
+        optimizer, start_factor=0, total_iters=args.warmup_batches
     )
     poly_decay_lr = flow.optim.lr_scheduler.PolynomialLR(
-        optimizer, steps=args.decay_batches, end_learning_rate=0, power=2.0, cycle=False,
+        optimizer, steps=args.decay_batches, end_learning_rate=1e-6, power=2.0, cycle=False,
     )
     sequential_lr = flow.optim.lr_scheduler.SequentialLR(
         optimizer=optimizer,
@@ -473,7 +493,7 @@ def train(args):
     deepfm_module = make_deepfm_module(args)
     deepfm_module.to_global(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
 
-    opt = flow.optim.SGD(deepfm_module.parameters(), lr=args.learning_rate)
+    opt = flow.optim.Adam(deepfm_module.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay)
     lr_scheduler = make_lr_scheduler(args, opt)
     loss = flow.nn.BCEWithLogitsLoss(reduction="none").to("cuda")
 
@@ -487,6 +507,7 @@ def train(args):
     eval_graph = DeepFMValGraph(deepfm_module, args.amp)
     train_graph = DeepFMTrainGraph(deepfm_module, loss, opt, lr_scheduler, grad_scaler, args.amp)
 
+    train_losses = []
     deepfm_module.train()
     step, last_step, last_time = -1, 0, time.time()
     with make_criteo_dataloader(f"{args.data_dir}/train", args.train_batch_size) as loader:
@@ -495,6 +516,7 @@ def train(args):
             loss = train_graph(labels, features)
             if step % args.loss_print_interval == 0:
                 loss = loss.numpy()
+                train_losses.append(loss)
                 if rank == 0:
                     latency_ms = 1000 * (time.time() - last_time) / (step - last_step)
                     last_step, last_time = step, time.time()
@@ -515,6 +537,8 @@ def train(args):
         auc = eval(args, eval_graph, step)
         if args.save_model_after_each_eval:
             save_model(f"step_{step}_val_auc_{auc:0.5f}")
+    
+    plot_train_curve(args,train_losses)
 
 
 def batch_to_global(np_label, np_features):
@@ -541,7 +565,8 @@ def eval(args, eval_graph, cur_step=0):
             if num_eval_batches > args.eval_batches:
                 break
             label, features = batch_to_global(*np_batch)
-            pred = eval_graph(features) # Caution: sigmoid in module or only in eval?
+            logits = eval_graph(features)
+            pred = logits.sigmoid()
             labels.append(label.numpy())
             preds.append(pred.numpy())
 
@@ -568,6 +593,14 @@ def eval(args, eval_graph, cur_step=0):
 
     flow.comm.barrier()
     return auc
+
+
+def plot_train_curve(args, train_losses):
+    plt.plot(range(1, len(train_losses) + 1), train_losses)
+    plt.ylabel("Training Logloss")
+    plt.xlabel(f"batch number (per {args.loss_print_interval} batches)")
+    plt.savefig('training_curve.png')
+
 
 if __name__ == "__main__":
     os.system(sys.executable + " -m oneflow --doctor")

@@ -92,7 +92,7 @@ if __name__ == "__main__":
     # create test dataset
     test_output_dir = os.path.join(args.output_dir, "test")
     test_count = make_deepfm_parquet(
-        spark, [test_csv], test_output_dir, part_num=256, mod_idx=args.mod_idx
+        spark, test_csv, test_output_dir, part_num=256, mod_idx=args.mod_idx
     )
 
     # create validation dataset
