@@ -26,16 +26,14 @@ python3 -m oneflow.distributed.launch \
       --cache_memory_budget_mb 1024 \
       --train_batch_size 10000 \
       --train_batches 35000 \
-      --loss_print_interval 500 \
+      --loss_print_interval 100 \
       --eval_interval 5000 \
       --eval_batch_size 10000 \
       --eval_batches 1000 \
       --dnn "1000,1000,1000,1000,1000" \
-      --learning_rate 1 \
+      --learning_rate 0.001 \
       --embedding_vec_size 16 \
-      --disable_fusedmlp True \
-      --warmup_batches 10000 \
-      --decay_batches 15000 \
-      --decay_start 20000 \
+      --disable_fusedmlp False \
       --weight_decay 1.0e-5 \
+      --num_train_samples 36672493 \
       > run.log & tail -f run.log

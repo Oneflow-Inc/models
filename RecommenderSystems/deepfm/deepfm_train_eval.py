@@ -3,6 +3,7 @@ import os
 import sys
 import glob
 import time
+import math
 import numpy as np
 import psutil
 import warnings
@@ -24,43 +25,42 @@ def get_args(print_args=True):
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--disable_fusedmlp", default=False, help="disable fused MLP or not")
-    parser.add_argument("--embedding_vec_size", type=int, default=128)
-    parser.add_argument("--dnn", type=int_list, default="1024,1024,512,256")
+    parser.add_argument("--data_dir", type=str, required=True)
+    parser.add_argument("--num_train_samples", type=int, required=True, help="the number of training samples")
+
     parser.add_argument("--model_load_dir", type=str, default=None)
     parser.add_argument("--model_save_dir", type=str, default=None)
-    parser.add_argument(
-        "--save_initial_model", action="store_true", help="save initial model parameters or not.",
-    )
-    parser.add_argument(
-        "--save_model_after_each_eval", action="store_true", help="save model after each eval.",
-    )
-    parser.add_argument("--data_dir", type=str, required=True)
+    parser.add_argument("--save_initial_model", action="store_true", help="save initial model parameters or not.")
+    parser.add_argument("--save_model_after_each_eval", action="store_true", help="save model after each eval.")
+
+    parser.add_argument("--disable_fusedmlp", default=False, help="disable fused MLP or not")
+    parser.add_argument("--embedding_vec_size", type=int, default=16)
+    parser.add_argument("--dnn", type=int_list, default="1000,1000,1000,1000,1000")
+
+    parser.add_argument("--lr_factor", type=float, default=0.1)
+    parser.add_argument("--min_lr", type=float, default=1.0e-6)
+    parser.add_argument("--learning_rate", type=float, default=0.001)
+
+    parser.add_argument("--weight_decay", type=float, default=1e-5)
+
     parser.add_argument("--eval_batches", type=int, default=1612, help="number of eval batches")
     parser.add_argument("--eval_batch_size", type=int, default=55296)
     parser.add_argument("--eval_interval", type=int, default=10000)
     parser.add_argument("--train_batch_size", type=int, default=55296)
-    parser.add_argument("--learning_rate", type=float, default=24)
-    parser.add_argument("--warmup_batches", type=int, default=2750)
-    parser.add_argument("--decay_batches", type=int, default=27772)
-    parser.add_argument("--decay_start", type=int, default=49315)
     parser.add_argument("--train_batches", type=int, default=75000)
     parser.add_argument("--loss_print_interval", type=int, default=1000)
-    parser.add_argument("--weight_decay", type=float, default=1e-5)
+    
     parser.add_argument(
         "--table_size_array",
         type=int_list,
         help="Embedding table size array for sparse fields",
         required=True,
     )
-    parser.add_argument(
-        "--persistent_path", type=str, required=True, help="path for persistent kv store",
-    )
-    parser.add_argument(
-        "--persistent_path_fm", type=str, required=True, help="path for persistent kv store(FM component)",
-    )
+    parser.add_argument("--persistent_path", type=str, required=True, help="path for persistent kv store")
+    parser.add_argument("--persistent_path_fm", type=str, required=True, help="path for persistent kv store of FM")
     parser.add_argument("--store_type", type=str, default="cached_host_mem")
     parser.add_argument("--cache_memory_budget_mb", type=int, default=8192)
+
     parser.add_argument("--amp", action="store_true", help="Run model with amp")
     parser.add_argument("--loss_scale_policy", type=str, default="static", help="static or dynamic")
 
@@ -225,24 +225,21 @@ class OneEmbedding(nn.Module):
         if store_type == "device_mem":
             store_options = flow.one_embedding.make_device_mem_store_options(
                 persistent_path=persistent_path, 
-                capacity=vocab_size,
-                size_factor=3
+                capacity=vocab_size
             )
         elif store_type == "cached_host_mem":
             assert cache_memory_budget_mb > 0
             store_options = flow.one_embedding.make_cached_host_mem_store_options(
                 cache_budget_mb=cache_memory_budget_mb,
                 persistent_path=persistent_path,
-                capacity=vocab_size,
-                size_factor=3,
+                capacity=vocab_size
             )
         elif store_type == "cached_ssd":
             assert cache_memory_budget_mb > 0
             store_options = flow.one_embedding.make_cached_ssd_store_options(
                 cache_budget_mb=cache_memory_budget_mb,
                 persistent_path=persistent_path,
-                capacity=vocab_size,
-                size_factor=3,
+                capacity=vocab_size
             )
         else:
             raise NotImplementedError("not support", store_type)
@@ -284,11 +281,6 @@ class DNN(nn.Module):
                 hidden_units[-1],
                 skip_final_activation=skip_final_activation
             )
-            for name, param in self.linear_layers.named_parameters():
-                if "weight" in name:
-                    nn.init.normal_(param, 0.0, np.sqrt(2 / sum(param.shape)))
-                elif "bias" in name:
-                    nn.init.normal_(param, 0.0, np.sqrt(1 / param.shape[0]))
         else:
             units = [in_features] + hidden_units
             num_layers = len(hidden_units)
@@ -297,11 +289,11 @@ class DNN(nn.Module):
                 for i in range(num_layers)
             ]
             self.linear_layers = nn.Sequential(*denses)
-            for name, param in self.linear_layers.named_parameters():
-                if "weight" in name:
-                    nn.init.xavier_normal_(param)
-                elif "bias" in name:
-                    param.data.fill_(0.0)
+        for name, param in self.linear_layers.named_parameters():
+            if "weight" in name:
+                nn.init.xavier_normal_(param)
+            elif "bias" in name:
+                param.data.fill_(0.0)
 
     def forward(self, x: flow.Tensor) -> flow.Tensor:
         return self.linear_layers(x)
@@ -472,19 +464,14 @@ class DeepFMTrainGraph(flow.nn.Graph):
 
 
 def make_lr_scheduler(args, optimizer):
-    warmup_lr = flow.optim.lr_scheduler.LinearLR(
-        optimizer, start_factor=0, total_iters=args.warmup_batches
-    )
-    poly_decay_lr = flow.optim.lr_scheduler.PolynomialLR(
-        optimizer, steps=args.decay_batches, end_learning_rate=1e-6, power=2.0, cycle=False,
-    )
-    sequential_lr = flow.optim.lr_scheduler.SequentialLR(
+    batches_per_epoch = math.ceil(args.num_train_samples / args.train_batch_size)
+    milestones = [batches_per_epoch * (i + 1) for i in range(math.floor(math.log(args.min_lr / args.learning_rate, args.lr_factor)))]
+    multistep_lr = flow.optim.lr_scheduler.MultiStepLR(
         optimizer=optimizer,
-        schedulers=[warmup_lr, poly_decay_lr],
-        milestones=[args.decay_start],
-        interval_rescaling=True,
+        gamma=args.lr_factor,
+        milestones=milestones,
     )
-    return sequential_lr
+    return multistep_lr
 
 
 def train(args): 
@@ -493,7 +480,7 @@ def train(args):
     deepfm_module = make_deepfm_module(args)
     deepfm_module.to_global(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
 
-    opt = flow.optim.Adam(deepfm_module.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay)
+    opt = flow.optim.SGD(deepfm_module.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay)
     lr_scheduler = make_lr_scheduler(args, opt)
     loss = flow.nn.BCEWithLogitsLoss(reduction="none").to("cuda")
 
