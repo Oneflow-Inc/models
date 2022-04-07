@@ -74,8 +74,8 @@ def get_args(print_args=True):
     parser.add_argument(
         "--table_size_array",
         type=int_list,
+        default="39884406,39043,17289,7420,20263,3,7120,1543,63,38532951,2953546,403346,10,2208,11938,155,4,976,14,39979771,25641295,39664984,585935,12972,108,36",
         help="Embedding table size array for sparse fields",
-        required=True,
     )
     parser.add_argument(
         "--persistent_path", type=str, required=True, help="path for persistent kv store",
