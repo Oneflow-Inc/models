@@ -529,18 +529,14 @@ def train(args):
             save_model(f"step_{step}_val_auc_{auc:0.5f}")
 
 
-def np_to_global(np, dtype=None):
-    t = flow.from_numpy(np) if dtype is None else flow.tensor(np, dtype=dtype)
+def np_to_global(np):
+    t = flow.from_numpy(np)
     return t.to_global(placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0))
 
 
 def batch_to_global(np_label, np_dense, np_sparse, is_train=True):
-    labels = (
-        np_to_global(np_label.reshape(-1, 1), dtype=flow.float)
-        if is_train
-        else np_label.reshape(-1, 1)
-    )
-    dense_fields = np_to_global(np_dense, dtype=flow.float)
+    labels = np_to_global(np_label.reshape(-1, 1)) if is_train else np_label.reshape(-1, 1)
+    dense_fields = np_to_global(np_dense)
     sparse_fields = np_to_global(np_sparse)
     return labels, dense_fields, sparse_fields
 
