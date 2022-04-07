@@ -530,7 +530,9 @@ def train(args):
 
 def np_to_global(np):
     t = flow.from_numpy(np)
-    return t.to_global(placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0))
+    return t.to_global(
+        placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0), is_balanced=True
+    )
 
 
 def batch_to_global(np_label, np_dense, np_sparse, is_train=True):
