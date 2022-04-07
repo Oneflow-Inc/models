@@ -429,6 +429,8 @@ class InnerProductLayer(nn.Module):
             inner_product = flow.sum(
                 inner_product, dim=2, keepdim=True)
         return inner_product
+
+
 class OutterProductLayer(nn.Module):
     def __init__(self, field_size, embedding_size, seed=1024, device='cpu'):
         super(OutterProductLayer, self).__init__()
@@ -468,7 +470,7 @@ class OutterProductLayer(nn.Module):
         #if self.kernel_type == 'mat':
         if True:         
 
-   # p.unsqueeze_(dim=1)
+    # p.unsqueeze_(dim=1)
             # k     k* pair* k
             # batch * pair
             kp = flow.sum(
@@ -518,7 +520,6 @@ class PNNModule(nn.Module):
         dnn=[1024, 1024, 512, 256],
         use_fusedmlp=True,
         persistent_path=None,
-        persistent_path_fm=None,
         table_size_array=None,
         one_embedding_store_type="cached_host_mem",
         cache_memory_budget_mb=8192,
@@ -534,14 +535,6 @@ class PNNModule(nn.Module):
             cache_memory_budget_mb=cache_memory_budget_mb
         )
 
-        self.fm_layer = FM(
-            persistent_path=persistent_path_fm,
-            table_size_array=table_size_array,
-            one_embedding_store_type=one_embedding_store_type,
-            cache_memory_budget_mb=cache_memory_budget_mb,
-            use_bias=True
-        )
-
         self.dnn_layer = DNN(
             in_features=embedding_vec_size * (num_dense_fields + num_sparse_fields),
             hidden_units=dnn + [1],
@@ -553,14 +546,14 @@ class PNNModule(nn.Module):
         self.outterproduct = OutterProductLayer(num_dense_fields + num_sparse_fields, embedding_vec_size)
 
     def forward(self, inputs) -> flow.Tensor:
-        
+
 
         embedded_x = self.embedding_layer(inputs)
         print(embedded_x.shape)
 #        sparse_embedding_list, dense_value_list = self.input_from_feature_columns(X, self.dnn_feature_columns,                                                                                  self.embedding_dict)
 #        linear_signal = flow.flatten(flow.cat(sparse_embedding_list), start_dim=1)
 
-      #  inner_product = flow.flatten(self.innerproduct(embedded_x), start_dim=1)
+        inner_product = flow.flatten(self.innerproduct(embedded_x), start_dim=1)
 
        # outer_product = self.outterproduct(embedded_x)
 
