@@ -581,7 +581,7 @@ def make_pnn_module(args):
         dnn=args.dnn,
         use_fusedmlp=not args.disable_fusedmlp,
         persistent_path=args.persistent_path,
-        persistent_path_fm=args.persistent_path_fm,
+        # persistent_path_fm=args.persistent_path_fm,
         table_size_array=args.table_size_array,
         one_embedding_store_type=args.store_type,
         cache_memory_budget_mb=args.cache_memory_budget_mb,
