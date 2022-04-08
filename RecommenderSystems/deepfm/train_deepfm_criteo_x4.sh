@@ -31,9 +31,10 @@ python3 -m oneflow.distributed.launch \
       --eval_batch_size 10000 \
       --eval_batches 1000 \
       --dnn "1000,1000,1000,1000,1000" \
+      --net_dropout 0.2 \
       --learning_rate 0.001 \
       --embedding_vec_size 16 \
-      --disable_fusedmlp False \
-      --weight_decay 1.0e-5 \
+      --disable_fusedmlp True \
+      --max_gradient_norm 1.0 \
       --num_train_samples 36672493 \
       > run.log & tail -f run.log

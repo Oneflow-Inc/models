@@ -36,12 +36,14 @@ def get_args(print_args=True):
     parser.add_argument("--disable_fusedmlp", default=False, help="disable fused MLP or not")
     parser.add_argument("--embedding_vec_size", type=int, default=16)
     parser.add_argument("--dnn", type=int_list, default="1000,1000,1000,1000,1000")
+    parser.add_argument("--net_dropout", type=float, default=0.0)
+    parser.add_argument("--embedding_regularizer", type=float, default=None)
+    parser.add_argument("--net_regularizer", type=float, default=None)
+    parser.add_argument("--max_gradient_norm", type=float, default=10.0)
 
     parser.add_argument("--lr_factor", type=float, default=0.1)
     parser.add_argument("--min_lr", type=float, default=1.0e-6)
     parser.add_argument("--learning_rate", type=float, default=0.001)
-
-    parser.add_argument("--weight_decay", type=float, default=1e-5)
 
     parser.add_argument("--eval_batches", type=int, default=1612, help="number of eval batches")
     parser.add_argument("--eval_batch_size", type=int, default=55296)
@@ -210,6 +212,7 @@ class OneEmbedding(nn.Module):
         vocab_size = sum(table_size_array)
 
         scales = np.sqrt(1 / np.array(table_size_array))
+        # TODO: embedding initialization uniform2normal
         tables = [
             flow.one_embedding.make_table(
                 flow.one_embedding.make_uniform_initializer(low=-scale, high=scale)
@@ -259,22 +262,24 @@ class OneEmbedding(nn.Module):
 
 
 class DenseLayer(nn.Module):
-    def __init__(self, in_features: int, out_features: int, relu=True) -> None:
+    def __init__(self, in_features: int, out_features: int, relu=True, dropout=0.0) -> None:
         super(DenseLayer, self).__init__()
-        self.features = (
-            nn.Sequential(nn.Linear(in_features, out_features), nn.ReLU(inplace=True))
-            if relu
-            else nn.Linear(in_features, out_features)
-        )
+        denses = []
+        denses.append(nn.Linear(in_features, out_features))
+        if relu:
+            denses.append(nn.ReLU(inplace=True))
+        if dropout > 0:
+            denses.append(nn.Dropout(p=dropout))
+        self.features = nn.Sequential(*denses)
 
     def forward(self, x: flow.Tensor) -> flow.Tensor:
         return self.features(x)
 
 
 class DNN(nn.Module):
-    def __init__(self, in_features: int, hidden_units, skip_final_activation=False, fused=True) -> None:
+    def __init__(self, in_features: int, hidden_units, skip_final_activation=False, fused=True, dropout=0.0) -> None:
         super(DNN, self).__init__()
-        if fused:
+        if fused: # TODO: add dropout in Fused MLP
             self.linear_layers = nn.FusedMLP(
                 in_features,
                 hidden_units[:-1],
@@ -282,13 +287,16 @@ class DNN(nn.Module):
                 skip_final_activation=skip_final_activation
             )
         else:
+            # TODO: support different dropout rates for each layer
+            dropout_rates = [dropout] * (len(hidden_units) - 1) + [0.0]
+            use_relu = [True] * (len(hidden_units) - 1) + [not skip_final_activation]
             units = [in_features] + hidden_units
-            num_layers = len(hidden_units)
             denses = [
-                DenseLayer(units[i], units[i + 1], not skip_final_activation or (i + 1) < num_layers)
-                for i in range(num_layers)
+                DenseLayer(units[i], units[i + 1], relu=use_relu[i], dropout=dropout_rates[i]) 
+                for i in range(len(units) - 1)
             ]
             self.linear_layers = nn.Sequential(*denses)
+
         for name, param in self.linear_layers.named_parameters():
             if "weight" in name:
                 nn.init.xavier_normal_(param)
@@ -401,7 +409,7 @@ class DeepFMModule(nn.Module):
 
         self.dnn_layer = DNN(
             in_features=embedding_vec_size * (num_dense_fields + num_sparse_fields),
-            hidden_units=dnn + [1],
+            hidden_units=dnn+[1],
             skip_final_activation=True,
             fused=use_fusedmlp
         )
@@ -441,12 +449,12 @@ class DeepFMValGraph(flow.nn.Graph):
 
 class DeepFMTrainGraph(flow.nn.Graph):
     def __init__(
-        self, deepfm_module, loss, optimizer, lr_scheduler=None, grad_scaler=None, amp=False,
+        self, deepfm_module, loss, optimizer, lr_scheduler=None, grad_scaler=None, amp=False, max_norm=10,
     ):
         super(DeepFMTrainGraph, self).__init__()
         self.module = deepfm_module
         self.loss = loss
-        # TODO: implement lr decay
+        self.max_norm = max_norm
         self.add_optimizer(optimizer, lr_sch=lr_scheduler)
         self.config.allow_fuse_model_update_ops(True)
         self.config.allow_fuse_add_to_output(True)
@@ -458,6 +466,7 @@ class DeepFMTrainGraph(flow.nn.Graph):
     def build(self, labels, features):
         logits = self.module(features.to("cuda"))
         loss = self.loss(logits, labels.to("cuda"))
+        # TODO: add regularization for embedding
         reduce_loss = flow.mean(loss)
         reduce_loss.backward()
         return reduce_loss.to("cpu")
@@ -480,7 +489,18 @@ def train(args):
     deepfm_module = make_deepfm_module(args)
     deepfm_module.to_global(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
 
-    opt = flow.optim.SGD(deepfm_module.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay)
+    # TODO: clip gradient norm
+    # opt = flow.optim.SGD(deepfm_module.parameters(), lr=args.learning_rate)
+    opt = flow.optim.SGD(
+            [
+                {
+                    "params": deepfm_module.parameters(),
+                    "lr": args.learning_rate,
+                    "clip_grad_max_norm": args.max_gradient_norm,
+                    "clip_grad_norm_type": 2.0,
+                }
+            ],
+        )
     lr_scheduler = make_lr_scheduler(args, opt)
     loss = flow.nn.BCEWithLogitsLoss(reduction="none").to("cuda")
 
