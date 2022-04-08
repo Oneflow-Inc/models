@@ -564,6 +564,7 @@ def eval(cached_eval_batches, eval_graph, cur_step=0):
         .to_global(sbp=flow.sbp.broadcast())
         .to_local()
     )
+    flow.comm.barrier()
     eval_time = time.time() - eval_start_time
 
     rank = flow.env.get_rank()
@@ -583,7 +584,6 @@ def eval(cached_eval_batches, eval_graph, cur_step=0):
             + f"GPU_Memory {device_mem_str}, Host_Memory {host_mem_mb} MiB, {strtime}"
         )
 
-    flow.comm.barrier()
     return auc
 
 
