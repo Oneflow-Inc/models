@@ -27,7 +27,6 @@ python3 -m oneflow.distributed.launch \
       --train_batch_size 10000 \
       --train_batches 35000 \
       --loss_print_interval 100 \
-      --eval_interval 5000 \
       --eval_batch_size 10000 \
       --eval_batches 1000 \
       --dnn "1000,1000,1000,1000,1000" \

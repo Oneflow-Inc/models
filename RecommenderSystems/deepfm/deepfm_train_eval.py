@@ -46,9 +46,8 @@ def get_args(print_args=True):
     parser.add_argument("--learning_rate", type=float, default=0.001)
 
     parser.add_argument("--eval_batches", type=int, default=1612, help="number of eval batches")
-    parser.add_argument("--eval_batch_size", type=int, default=55296)
-    parser.add_argument("--eval_interval", type=int, default=10000)
-    parser.add_argument("--train_batch_size", type=int, default=55296)
+    parser.add_argument("--eval_batch_size", type=int, default=10000)
+    parser.add_argument("--train_batch_size", type=int, default=10000)
     parser.add_argument("--train_batches", type=int, default=75000)
     parser.add_argument("--loss_print_interval", type=int, default=1000)
     
@@ -100,7 +99,7 @@ class DeepFMDataReader(object):
         batch_size,
         num_epochs=1,
         shuffle_row_groups=True,
-        shard_seed=1234,
+        shard_seed=2019,
         shard_count=1,
         cur_shard=0,
     ):
@@ -192,7 +191,7 @@ def make_criteo_dataloader(data_path, batch_size, shuffle=True):
         batch_size_per_proc,
         None,  # TODO: iterate over all eval dataset
         shuffle_row_groups=shuffle,
-        shard_seed=1234,
+        shard_seed=2019,
         shard_count=world_size,
         cur_shard=flow.env.get_rank(),
     )
@@ -302,7 +301,7 @@ class DNN(nn.Module):
                 nn.init.xavier_normal_(param)
             elif "bias" in name:
                 param.data.fill_(0.0)
-
+                
     def forward(self, x: flow.Tensor) -> flow.Tensor:
         return self.linear_layers(x)
 
@@ -483,24 +482,74 @@ def make_lr_scheduler(args, optimizer):
     return multistep_lr
 
 
+class Monitor(object):
+    def __init__(self, kv, patience=2, min_delta=1e-6):
+        if isinstance(kv, str):
+            kv = {kv: 1}
+        self.kv_pairs = kv
+        self.best_metric = -np.inf
+        self.patience = patience
+        self.stop_training = False
+        self.min_delta = min_delta
+        self.stopping_steps = 0
+    
+    def get_value(self, logs):
+        value = 0
+        for k, v in self.kv_pairs.items():
+            value += logs.get(k, 0) * v
+        return value
+    
+    def update_best(self, best):
+        self.best_metric = best
+
+    def earlystop(self, epoch, logs):
+        monitor_value = self.get_value(logs)
+        if monitor_value < self.best_metric + self.min_delta:
+            self.stopping_steps += 1
+            print("Monitor(max) STOP: {:.6f}!".format(monitor_value))
+        else:
+            self.stopping_steps = 0
+            self.best_metric = monitor_value
+        if self.stopping_steps >= self.patience:
+            self.stop_training = True
+            print(f"Early stopping at epoch={epoch}!")
+        return self.stop_training
+
 def train(args): 
     rank = flow.env.get_rank()
 
     deepfm_module = make_deepfm_module(args)
     deepfm_module.to_global(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
 
+    if args.model_load_dir:
+        print(f"Loading model from {args.model_load_dir}")
+        state_dict = flow.load(args.model_load_dir, global_src_rank=0)
+        deepfm_module.load_state_dict(state_dict, strict=False)
+
+    def save_model(subdir):
+        if not args.model_save_dir:
+            return
+        save_path = os.path.join(args.model_save_dir, subdir)
+        if rank == 0:
+            print(f"Saving model to {save_path}")
+        state_dict = deepfm_module.state_dict()
+        flow.save(state_dict, save_path, global_dst_rank=0)
+
+    if args.save_initial_model:
+        save_model("initial_checkpoint")
+
     # TODO: clip gradient norm
-    # opt = flow.optim.SGD(deepfm_module.parameters(), lr=args.learning_rate)
-    opt = flow.optim.SGD(
-            [
-                {
-                    "params": deepfm_module.parameters(),
-                    "lr": args.learning_rate,
-                    "clip_grad_max_norm": args.max_gradient_norm,
-                    "clip_grad_norm_type": 2.0,
-                }
-            ],
-        )
+    opt = flow.optim.SGD(deepfm_module.parameters(), lr=args.learning_rate)
+    # opt = flow.optim.SGD(
+    #         [
+    #             {
+    #                 "params": deepfm_module.parameters(),
+    #                 "lr": args.learning_rate,
+    #                 "clip_grad_max_norm": args.max_gradient_norm,
+    #                 "clip_grad_norm_type": 2.0,
+    #             }
+    #         ],
+    #     )
     lr_scheduler = make_lr_scheduler(args, opt)
     loss = flow.nn.BCEWithLogitsLoss(reduction="none").to("cuda")
 
@@ -514,9 +563,13 @@ def train(args):
     eval_graph = DeepFMValGraph(deepfm_module, args.amp)
     train_graph = DeepFMTrainGraph(deepfm_module, loss, opt, lr_scheduler, grad_scaler, args.amp)
 
+    monitor = Monitor(kv='auc')
+
     train_losses = []
+    batches_per_epoch = math.ceil(args.num_train_samples / args.train_batch_size)
     deepfm_module.train()
     step, last_step, last_time = -1, 0, time.time()
+    epoch = 0
     with make_criteo_dataloader(f"{args.data_dir}/train", args.train_batch_size) as loader:
         for step in range(1, args.train_batches + 1):
             labels, features = batch_to_global(*next(loader))
@@ -533,14 +586,18 @@ def train(args):
                         + f"Latency {latency_ms:0.3f} ms, {strtime}"
                     )
 
-            if args.eval_interval > 0 and step % args.eval_interval == 0:
-                auc = eval(args, eval_graph, step)
+            if step % batches_per_epoch == 0:
+                epoch += 1
+                auc = eval(args, eval_graph, step, epoch)
                 if args.save_model_after_each_eval:
                     save_model(f"step_{step}_val_auc_{auc:0.5f}")
+                stop_training = monitor.earlystop(epoch, logs={'auc': auc})
+                if stop_training:
+                    break
                 deepfm_module.train()
                 last_time = time.time()
 
-    if args.eval_interval > 0 and step % args.eval_interval != 0:
+    if step % batches_per_epoch != 0:
         auc = eval(args, eval_graph, step)
         if args.save_model_after_each_eval:
             save_model(f"step_{step}_val_auc_{auc:0.5f}")
@@ -557,15 +614,13 @@ def batch_to_global(np_label, np_features):
     return labels, features
 
 
-def eval(args, eval_graph, cur_step=0):
+def eval(args, eval_graph, cur_step=0, epoch=0):
     if args.eval_batches <= 0:
         return
     eval_graph.module.eval()
     labels, preds = [], []
     eval_start_time = time.time()
-    with make_criteo_dataloader(
-        f"{args.data_dir}/test", args.eval_batch_size, shuffle=False
-    ) as loader:
+    with make_criteo_dataloader(f"{args.data_dir}/test", args.eval_batch_size, shuffle=False) as loader:
         num_eval_batches = 0
         for np_batch in loader:
             num_eval_batches += 1
@@ -593,7 +648,7 @@ def eval(args, eval_graph, cur_step=0):
 
         strtime = time.strftime("%Y-%m-%d %H:%M:%S")
         print(
-            f"Rank[{rank}], Step {cur_step}, AUC {auc:0.5f}, Eval_time {eval_time:0.2f} s, "
+            f"Rank[{rank}], Epoch {epoch}, Step {cur_step}, AUC {auc:0.5f}, Eval_time {eval_time:0.2f} s, "
             + f"AUC_time {auc_time:0.2f} s, Eval_samples {labels.shape[0]}, "
             + f"GPU_Memory {device_mem_str}, Host_Memory {host_mem_mb} MiB, {strtime}"
         )
