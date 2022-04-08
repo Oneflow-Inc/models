@@ -5,8 +5,8 @@ sys.path.append(
     os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
 )
 import numpy as np
-from sklearn.metrics import roc_auc_score
 import oneflow as flow
+from sklearn.metrics import roc_auc_score
 from config import get_args
 from models.data import make_data_loader
 from models.wide_and_deep import make_wide_and_deep_module
@@ -35,7 +35,7 @@ class Trainer(object):
                 UserWarning,
             )
             self.execution_mode = "eager"
-        self.is_consistent = (
+        self.is_global = (
             flow.env.get_world_size() > 1 and not args.ddp
         ) or args.execution_mode == "graph"
         self.rank = flow.env.get_rank()
@@ -45,12 +45,12 @@ class Trainer(object):
         self.eval_batchs = args.eval_batchs
         self.init_logger()
         self.train_dataloader = make_data_loader(
-            args, "train", self.is_consistent, self.dataset_format
+            args, "train", self.is_global, self.dataset_format
         )
         self.val_dataloader = make_data_loader(
-            args, "val", self.is_consistent, self.dataset_format
+            args, "val", self.is_global, self.dataset_format
         )
-        self.wdl_module = make_wide_and_deep_module(args, self.is_consistent)
+        self.wdl_module = make_wide_and_deep_module(args, self.is_global)
         self.init_model()
         self.opt = flow.optim.Adam(self.wdl_module.parameters(), lr=args.learning_rate)
 
@@ -64,7 +64,6 @@ class Trainer(object):
 
             self.opt = flow.optim.Adam(params, lr=args.learning_rate)
             sparse_opt = flow.optim.Adam(sparse_params, lr=args.learning_rate)
-            sparse_opt = flow.optim.utils.SparseOptimizer(sparse_opt)
 
             self.eval_graph = WideAndDeepValGraph(self.wdl_module, self.val_dataloader)
             self.train_graph = WideAndDeepTrainGraph(
@@ -119,8 +118,8 @@ class Trainer(object):
 
     def load_state_dict(self):
         print(f"Loading model from {self.args.model_load_dir}")
-        if self.is_consistent:
-            state_dict = flow.load(self.args.model_load_dir, consistent_src_rank=0)
+        if self.is_global:
+            state_dict = flow.load(self.args.model_load_dir, global_src_rank=0)
         elif self.rank == 0:
             state_dict = flow.load(self.args.model_load_dir)
         else:
@@ -134,8 +133,8 @@ class Trainer(object):
         if self.rank == 0:
             print(f"Saving model to {save_path}")
         state_dict = self.wdl_module.state_dict()
-        if self.is_consistent:
-            flow.save(state_dict, save_path, consistent_dst_rank=0)
+        if self.is_global:
+            flow.save(state_dict, save_path, global_dst_rank=0)
         elif self.rank == 0:
             flow.save(state_dict, save_path)
         else:
@@ -232,11 +231,11 @@ class Trainer(object):
 
 def tol(tensor, pure_local=True):
     """ to local """
-    if tensor.is_consistent:
+    if tensor.is_global:
         if pure_local:
             tensor = tensor.to_local()
         else:
-            tensor = tensor.to_consistent(sbp=flow.sbp.broadcast).to_local()
+            tensor = tensor.to_global(sbp=flow.sbp.broadcast).to_local()
 
     return tensor
 

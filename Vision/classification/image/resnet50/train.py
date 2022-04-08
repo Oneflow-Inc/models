@@ -35,7 +35,7 @@ class Trainer(object):
         self.cur_epoch = 0
         self.cur_iter = 0
         self.cur_batch = 0
-        self.is_consistent = (self.world_size > 1 and not self.ddp) or self.graph
+        self.is_global = (self.world_size > 1 and not self.ddp) or self.graph
         self.is_train = False
         self.meter_lr = self.graph is False
 
@@ -56,10 +56,10 @@ class Trainer(object):
         self.cross_entropy = make_cross_entropy(args)
 
         self.train_data_loader = make_data_loader(
-            args, "train", self.is_consistent, self.synthetic_data
+            args, "train", self.is_global, self.synthetic_data
         )
         self.val_data_loader = make_data_loader(
-            args, "validation", self.is_consistent, self.synthetic_data
+            args, "validation", self.is_global, self.synthetic_data
         )
 
         self.optimizer = make_optimizer(args, self.model)
@@ -88,9 +88,9 @@ class Trainer(object):
         self.logger.print("***** Model Init *****", print_ranks=[0])
         start_t = time.perf_counter()
 
-        if self.is_consistent:
+        if self.is_global:
             placement = flow.env.all_device_placement("cuda")
-            self.model = self.model.to_consistent(
+            self.model = self.model.to_global(
                 placement=placement, sbp=flow.sbp.broadcast
             )
         else:
@@ -138,8 +138,8 @@ class Trainer(object):
 
     def load_state_dict(self):
         self.logger.print(f"Loading model from {self.load_path}", print_ranks=[0])
-        if self.is_consistent:
-            state_dict = flow.load(self.load_path, consistent_src_rank=0)
+        if self.is_global:
+            state_dict = flow.load(self.load_path, global_src_rank=0)
         elif self.rank == 0:
             state_dict = flow.load(self.load_path)
         else:
@@ -266,9 +266,9 @@ class Trainer(object):
     def train_eager(self):
         loss, pred, label = self.forward()
 
-        if loss.is_consistent and self.scale_grad:
+        if loss.is_global and self.scale_grad:
             # NOTE(zwx): scale init grad with world_size
-            # because consistent_tensor.mean() include dividor numel * world_size
+            # because global_tensor.mean() include dividor numel * world_size
             loss = loss / self.world_size
             loss.backward()
             for param_group in self.optimizer.param_groups:
@@ -339,8 +339,8 @@ class Trainer(object):
         self.logger.print(f"Saving model to {save_path}", print_ranks=[0])
         state_dict = self.model.state_dict()
 
-        if self.is_consistent:
-            flow.save(state_dict, save_path, consistent_dst_rank=0)
+        if self.is_global:
+            flow.save(state_dict, save_path, global_dst_rank=0)
         elif self.rank == 0:
             flow.save(state_dict, save_path)
         else:
@@ -349,22 +349,22 @@ class Trainer(object):
 
 def tol(tensor, pure_local=True):
     """ to local """
-    if tensor.is_consistent:
+    if tensor.is_global:
         if pure_local:
             tensor = tensor.to_local()
         else:
-            tensor = tensor.to_consistent(sbp=flow.sbp.broadcast).to_local()
+            tensor = tensor.to_global(sbp=flow.sbp.broadcast).to_local()
 
     return tensor
 
 
 def tton(tensor, local_only=True):
     """ tensor to numpy """
-    if tensor.is_consistent:
+    if tensor.is_global:
         if local_only:
             tensor = tensor.to_local().numpy()
         else:
-            tensor = tensor.to_consistent(sbp=flow.sbp.broadcast).to_local().numpy()
+            tensor = tensor.to_global(sbp=flow.sbp.broadcast).to_local().numpy()
     else:
         tensor = tensor.numpy()
 
