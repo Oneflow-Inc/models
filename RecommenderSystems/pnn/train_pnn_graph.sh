@@ -1,10 +1,10 @@
 DEVICE_NUM_PER_NODE=1
 NUM_NODES=1
-NODE_RANK=0
+NODE_RANK=3
 MASTER_ADDR=127.0.0.1
-DATA_DIR=/minio/sdd/sunbowen/liuxinman/criteo_sample/pnn_parquet
-PERSISTENT_PATH=/minio/sdd/sunbowen/liuxinman/persistent1
-PERSISTENT_PATH_FM=/minio/sdd/sunbowen/liuxinman/persistent2
+DATA_DIR=/minio/sdd/sunbowen/data/criteo_sample/pnn_parquet
+PERSISTENT_PATH=/minio/sdd/sunbowen/data/persistent1
+PERSISTENT_PATH_FM=/minio/sdd/sunbowen/data/persistent2
 
 python3 -m oneflow.distributed.launch \
     --nproc_per_node $DEVICE_NUM_PER_NODE \
