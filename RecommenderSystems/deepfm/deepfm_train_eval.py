@@ -50,6 +50,9 @@ def get_args(print_args=True):
     parser.add_argument("--train_batch_size", type=int, default=10000)
     parser.add_argument("--train_batches", type=int, default=75000)
     parser.add_argument("--loss_print_interval", type=int, default=1000)
+
+    parser.add_argument("--patience", type=int, default=2)
+    parser.add_argument("--min_delta", type=float, default=1.0e-6)
     
     parser.add_argument(
         "--table_size_array",
@@ -301,7 +304,7 @@ class DNN(nn.Module):
                 nn.init.xavier_normal_(param)
             elif "bias" in name:
                 param.data.fill_(0.0)
-                
+
     def forward(self, x: flow.Tensor) -> flow.Tensor:
         return self.linear_layers(x)
 
@@ -482,38 +485,24 @@ def make_lr_scheduler(args, optimizer):
     return multistep_lr
 
 
-class Monitor(object):
-    def __init__(self, kv, patience=2, min_delta=1e-6):
-        if isinstance(kv, str):
-            kv = {kv: 1}
-        self.kv_pairs = kv
-        self.best_metric = -np.inf
-        self.patience = patience
-        self.stop_training = False
-        self.min_delta = min_delta
-        self.stopping_steps = 0
-    
-    def get_value(self, logs):
-        value = 0
-        for k, v in self.kv_pairs.items():
-            value += logs.get(k, 0) * v
-        return value
-    
-    def update_best(self, best):
-        self.best_metric = best
+def early_stop(epoch, logs, best_metric, stopping_steps, patience=2, min_delta=1e-6):
+    kv = {'auc': 1, 'logloss': -1}
+    monitor_value = 0
+    for k, v in kv.items():
+        monitor_value += logs.get(k, 0) * v
 
-    def earlystop(self, epoch, logs):
-        monitor_value = self.get_value(logs)
-        if monitor_value < self.best_metric + self.min_delta:
-            self.stopping_steps += 1
+    stop_training = False
+    if monitor_value < best_metric + min_delta:
+            stopping_steps += 1
             print("Monitor(max) STOP: {:.6f}!".format(monitor_value))
-        else:
-            self.stopping_steps = 0
-            self.best_metric = monitor_value
-        if self.stopping_steps >= self.patience:
-            self.stop_training = True
-            print(f"Early stopping at epoch={epoch}!")
-        return self.stop_training
+    else:
+        stopping_steps = 0
+        best_metric = monitor_value
+    if stopping_steps >= patience:
+        stop_training = True
+        print(f"Early stopping at epoch={epoch}!")
+    return stop_training, best_metric, stopping_steps
+
 
 def train(args): 
     rank = flow.env.get_rank()
@@ -563,10 +552,12 @@ def train(args):
     eval_graph = DeepFMValGraph(deepfm_module, args.amp)
     train_graph = DeepFMTrainGraph(deepfm_module, loss, opt, lr_scheduler, grad_scaler, args.amp)
 
-    monitor = Monitor(kv='auc')
-
     train_losses = []
     batches_per_epoch = math.ceil(args.num_train_samples / args.train_batch_size)
+
+    best_metric = -np.inf
+    stopping_steps = 0
+
     deepfm_module.train()
     step, last_step, last_time = -1, 0, time.time()
     epoch = 0
@@ -591,9 +582,18 @@ def train(args):
                 auc = eval(args, eval_graph, step, epoch)
                 if args.save_model_after_each_eval:
                     save_model(f"step_{step}_val_auc_{auc:0.5f}")
-                stop_training = monitor.earlystop(epoch, logs={'auc': auc})
+
+                stop_training, best_metric, stopping_steps = early_stop(
+                    epoch, 
+                    logs={'auc': auc}, 
+                    best_metric=best_metric, 
+                    stopping_steps=stopping_steps, 
+                    patience=args.patience, 
+                    min_delta=args.min_delta,
+                )
                 if stop_training:
                     break
+
                 deepfm_module.train()
                 last_time = time.time()
 
