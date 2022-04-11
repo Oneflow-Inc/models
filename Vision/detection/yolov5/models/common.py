@@ -37,7 +37,8 @@ class Conv(nn.Module):
         super().__init__()
         self.conv = nn.Conv2d(c1, c2, k, s, autopad(k, p), groups=g, bias=False)
         self.bn = nn.BatchNorm2d(c2)
-        self.act = nn.SiLU() if act is True else (act if isinstance(act, nn.Module) else nn.Identity())
+        self.act = nn.ReLU() if act is True else (act if isinstance(act, nn.Module) else nn.Identity())
+        # self.act = nn.SiLU() if act is True else (act if isinstance(act, nn.Module) else nn.Identity())
 
     def forward(self, x):
         flow._oneflow_internal.profiler.RangePush('conv')
@@ -46,7 +47,8 @@ class Conv(nn.Module):
         flow._oneflow_internal.profiler.RangePush('bn')
         bn_res = self.bn(conv_res)
         flow._oneflow_internal.profiler.RangePop()
-        flow._oneflow_internal.profiler.RangePush('silu')
+        flow._oneflow_internal.profiler.RangePush('relu')
+        # flow._oneflow_internal.profiler.RangePush('silu')
         res = self.act(bn_res)
         flow._oneflow_internal.profiler.RangePop()
         return res
@@ -137,7 +139,8 @@ class BottleneckCSP(nn.Module):
         self.cv3 = nn.Conv2d(c_, c_, 1, 1, bias=False)
         self.cv4 = Conv(2 * c_, c2, 1, 1)
         self.bn = nn.BatchNorm2d(2 * c_)  # applied to cat(cv2, cv3)
-        self.act = nn.SiLU()
+        self.act = nn.ReLU()
+        # self.act = nn.SiLU()
         self.m = nn.Sequential(*(Bottleneck(c_, c_, shortcut, g, e=1.0) for _ in range(n)))
 
     def forward(self, x):

@@ -22,17 +22,17 @@ model = model.eval()
 
 # t1 = time_sync()
 np.random.seed(0)
-im = torch.tensor(np.random.rand(4, 3, 640, 640)).to('cuda:0')
+im = torch.tensor(np.random.rand(1, 3, 640, 640)).to('cuda:0')
 im = im.float()
 with torch.no_grad():
     # 预热
     for i in range(5):
         pred = model(im, augment=False, visualize=False)
-    out = pred.cpu().numpy()
+        out = pred.cpu().numpy()
     t1 = time_sync()
     # 埋点
     torch.cuda.nvtx.range_push("torch-yolov5-infer")
-    for i in range(20):
+    for i in range(8000):
         torch.cuda.nvtx.range_push("forward")
         pred = model(im, augment=False, visualize=False)
         torch.cuda.nvtx.range_pop()
