@@ -9,7 +9,7 @@ import psutil
 import warnings
 import oneflow as flow
 import oneflow.nn as nn
-from sklearn.metrics import roc_auc_score
+from sklearn.metrics import roc_auc_score, log_loss
 from petastorm.reader import make_batch_reader
 import matplotlib.pyplot as plt
 
@@ -569,13 +569,13 @@ def train(args):
 
             if step % batches_per_epoch == 0:
                 epoch += 1
-                auc = eval(args, eval_graph, step, epoch)
+                auc, logloss = eval(args, eval_graph, step, epoch)
                 if args.save_model_after_each_eval:
                     save_model(f"step_{step}_val_auc_{auc:0.5f}")
 
                 stop_training, best_metric, stopping_steps = early_stop(
                     epoch, 
-                    logs={'auc': auc}, 
+                    logs={'auc': auc, 'logloss': logloss}, 
                     best_metric=best_metric, 
                     stopping_steps=stopping_steps, 
                     patience=args.patience, 
@@ -588,7 +588,7 @@ def train(args):
                 last_time = time.time()
 
     if step % batches_per_epoch != 0:
-        auc = eval(args, eval_graph, step)
+        auc, logloss = eval(args, eval_graph, step)
         if args.save_model_after_each_eval:
             save_model(f"step_{step}_val_auc_{auc:0.5f}")
     
@@ -631,6 +631,9 @@ def eval(args, eval_graph, cur_step=0, epoch=0):
         auc_start_time = time.time()
         auc = roc_auc_score(labels, preds)
         auc_time = time.time() - auc_start_time
+        log_loss_start_time = time.time()
+        logloss = log_loss(labels, preds, eps=1e-7)
+        log_loss_time = time.time() - log_loss_start_time
 
         host_mem_mb = psutil.Process().memory_info().rss // (1024 * 1024)
         stream = os.popen("nvidia-smi --query-gpu=memory.used --format=csv")
@@ -638,13 +641,13 @@ def eval(args, eval_graph, cur_step=0, epoch=0):
 
         strtime = time.strftime("%Y-%m-%d %H:%M:%S")
         print(
-            f"Rank[{rank}], Epoch {epoch}, Step {cur_step}, AUC {auc:0.5f}, Eval_time {eval_time:0.2f} s, "
-            + f"AUC_time {auc_time:0.2f} s, Eval_samples {labels.shape[0]}, "
+            f"Rank[{rank}], Epoch {epoch}, Step {cur_step}, AUC {auc:0.5f}, LogLoss {logloss:0.5f}, Eval_time {eval_time:0.2f} s, "
+            + f"AUC_time {auc_time:0.2f} s, LogLoss_time {log_loss_time: 0.2f} s, Eval_samples {labels.shape[0]}, "
             + f"GPU_Memory {device_mem_str}, Host_Memory {host_mem_mb} MiB, {strtime}"
         )
 
     flow.comm.barrier()
-    return auc
+    return auc, logloss
 
 
 def plot_train_curve(args, train_losses):
