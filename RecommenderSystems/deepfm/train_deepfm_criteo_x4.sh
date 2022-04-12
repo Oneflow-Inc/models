@@ -1,6 +1,6 @@
 #!/bin/bash
-rm -r /minio/sdb/liuxinman/persistent1/*
-rm -r /minio/sdb/liuxinman/persistent2/*
+rm -r /minio/sdb/sunbowen/persistent1/*
+rm -r /minio/sdb/sunbowen/persistent2/*
 
 export CUDA_VISIBLE_DEVICES=1,3
 
@@ -8,9 +8,9 @@ DEVICE_NUM_PER_NODE=1
 NUM_NODES=1
 NODE_RANK=0
 MASTER_ADDR=127.0.0.1
-DATA_DIR=/minio/sdb/liuxinman/criteo_x4_9ea3bdfc/deepfm_parquet
-PERSISTENT_PATH=/minio/sdb/liuxinman/persistent1
-PERSISTENT_PATH_FM=/minio/sdb/liuxinman/persistent2
+DATA_DIR=/minio/sdb/sunbowen/criteo_x4_9ea3bdfc/deepfm_parquet
+PERSISTENT_PATH=/minio/sdb/sunbowen/persistent1
+PERSISTENT_PATH_FM=/minio/sdb/sunbowen/persistent2
 
 python3 -m oneflow.distributed.launch \
     --nproc_per_node $DEVICE_NUM_PER_NODE \
