@@ -64,6 +64,7 @@ def ensure_dataset():
     shutil.unpack_archive(absolute_file_path)
     return str(pathlib.Path.cwd() / "nanodataset")
 
+swin_dataloader_loop_count = 200
 
 def print_rank_0(*args, **kwargs):
     rank = int(os.getenv("RANK", "0"))
@@ -152,7 +153,7 @@ def run(mode, imagenet_path, batch_size, num_wokers):
         samples, targets = data_loader_train_iter.__next__()
 
     start_time = time.time()
-    for idx in range(200):
+    for idx in range(swin_dataloader_loop_count):
         samples, targets = data_loader_train_iter.__next__()
     total_time = time.time() - start_time
     return total_time
@@ -166,14 +167,17 @@ if __name__ == "__main__":
     args = parser.parse_args()
     if not args.imagenet_path:
         args.imagenet_path = ensure_dataset()
-    oneflow_data_loader_time = run(
+    oneflow_data_loader_total_time = run(
         "oneflow", args.imagenet_path, args.batch_size, args.num_workers
     )
-    pytorch_data_loader_time = run(
+    pytorch_data_loader_total_time = run(
         "torch", args.imagenet_path, args.batch_size, args.num_workers
     )
+    oneflow_data_loader_time = oneflow_data_loader_total_time / swin_dataloader_loop_count
+    pytorch_data_loader_time = pytorch_data_loader_total_time / swin_dataloader_loop_count
+
     relative_speed = oneflow_data_loader_time / pytorch_data_loader_time
 
-    print_rank_0(
-        f"Swin Transformer dataloader relative speed when num_workers = {args.num_workers}: {relative_speed:.2f} (= {pytorch_data_loader_time:.1f}s / {oneflow_data_loader_time:.1f}s)"
-    )
+    print_rank_0(f"OneFlow swin dataloader time: {oneflow_data_loader_time:.3f}s (= {oneflow_data_loader_total_time:.3f}s / {swin_dataloader_loop_count}, num_workers={args.num_workers})")
+    print_rank_0(f"PyTorch swin dataloader time: {pytorch_data_loader_time:.3f}s (= {pytorch_data_loader_total_time:.3f}s / {swin_dataloader_loop_count}, num_workers={args.num_workers})")
+    print_rank_0(f"Relative speed: {pytorch_data_loader_time / oneflow_data_loader_time:.3f} (= {pytorch_data_loader_time:.3f}s / {oneflow_data_loader_time:.3f}s)")

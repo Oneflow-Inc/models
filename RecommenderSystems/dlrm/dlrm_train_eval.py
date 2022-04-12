@@ -74,8 +74,8 @@ def get_args(print_args=True):
     parser.add_argument(
         "--table_size_array",
         type=int_list,
+        default="39884406,39043,17289,7420,20263,3,7120,1543,63,38532951,2953546,403346,10,2208,11938,155,4,976,14,39979771,25641295,39664984,585935,12972,108,36",
         help="Embedding table size array for sparse fields",
-        required=True,
     )
     parser.add_argument(
         "--persistent_path", type=str, required=True, help="path for persistent kv store",
@@ -141,7 +141,7 @@ class DLRMDataReader(object):
     def __enter__(self):
         self.reader = make_batch_reader(
             self.parquet_file_url_list,
-            workers_count=2,
+            workers_count=1,
             shuffle_row_groups=self.shuffle_row_groups,
             num_epochs=self.num_epochs,
             shard_seed=self.shard_seed,
@@ -422,7 +422,7 @@ class DLRMValGraph(flow.nn.Graph):
 
     def build(self, dense_fields, sparse_fields):
         predicts = self.module(dense_fields.to("cuda"), sparse_fields.to("cuda"))
-        return predicts.to("cpu")
+        return predicts.sigmoid()
 
 
 class DLRMTrainGraph(flow.nn.Graph):
@@ -446,6 +446,15 @@ class DLRMTrainGraph(flow.nn.Graph):
         reduce_loss = flow.mean(loss)
         reduce_loss.backward()
         return reduce_loss.to("cpu")
+
+
+def prefetch_eval_batches(data_dir, batch_size, num_batches):
+    cached_eval_batches = []
+    with make_criteo_dataloader(data_dir, batch_size, shuffle=False) as loader:
+        for _ in range(num_batches):
+            label, dense_fields, sparse_fields = batch_to_global(*next(loader), is_train=False)
+            cached_eval_batches.append((label, dense_fields, sparse_fields))
+    return cached_eval_batches
 
 
 def train(args):
@@ -484,6 +493,11 @@ def train(args):
 
     eval_graph = DLRMValGraph(dlrm_module, args.amp)
     train_graph = DLRMTrainGraph(dlrm_module, loss, opt, lr_scheduler, grad_scaler, args.amp)
+
+    cached_eval_batches = prefetch_eval_batches(
+        f"{args.data_dir}/test", args.eval_batch_size, args.eval_batches
+    )
+
     dlrm_module.train()
     step, last_step, last_time = -1, 0, time.time()
     with make_criteo_dataloader(f"{args.data_dir}/train", args.train_batch_size) as loader:
@@ -493,68 +507,70 @@ def train(args):
             if step % args.loss_print_interval == 0:
                 loss = loss.numpy()
                 if rank == 0:
-                    latency_ms = 1000 * (time.time() - last_time) / (step - last_step)
+                    latency = (time.time() - last_time) / (step - last_step)
+                    throughput = args.train_batch_size / latency
                     last_step, last_time = step, time.time()
                     strtime = time.strftime("%Y-%m-%d %H:%M:%S")
                     print(
-                        f"Rank[{rank}], Step {step}, Loss {loss:0.4f}, "
-                        + f"Latency {latency_ms:0.3f} ms, {strtime}"
+                        f"Rank[{rank}], Step {step}, Loss {loss:0.4f}, Latency "
+                        + f"{(latency * 1000):0.3f} ms, Throughput {throughput:0.1f}, {strtime}"
                     )
 
             if args.eval_interval > 0 and step % args.eval_interval == 0:
-                auc = eval(args, eval_graph, step)
+                auc = eval(cached_eval_batches, eval_graph, step)
                 if args.save_model_after_each_eval:
                     save_model(f"step_{step}_val_auc_{auc:0.5f}")
                 dlrm_module.train()
                 last_time = time.time()
 
     if args.eval_interval > 0 and step % args.eval_interval != 0:
-        auc = eval(args, eval_graph, step)
+        auc = eval(cached_eval_batches, eval_graph, step)
         if args.save_model_after_each_eval:
             save_model(f"step_{step}_val_auc_{auc:0.5f}")
 
 
-def batch_to_global(np_label, np_dense, np_sparse):
-    def _np_to_global(np, dtype=flow.float):
-        t = flow.tensor(np, dtype=dtype)
-        return t.to_global(placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0))
+def np_to_global(np):
+    t = flow.from_numpy(np)
+    return t.to_global(placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0))
 
-    labels = _np_to_global(np_label.reshape(-1, 1))
-    dense_fields = _np_to_global(np_dense)
-    sparse_fields = _np_to_global(np_sparse, dtype=flow.int64)
+
+def batch_to_global(np_label, np_dense, np_sparse, is_train=True):
+    labels = np_to_global(np_label.reshape(-1, 1)) if is_train else np_label.reshape(-1, 1)
+    dense_fields = np_to_global(np_dense)
+    sparse_fields = np_to_global(np_sparse)
     return labels, dense_fields, sparse_fields
 
 
-def eval(args, eval_graph, cur_step=0):
-    if args.eval_batches <= 0:
+def eval(cached_eval_batches, eval_graph, cur_step=0):
+    num_eval_batches = len(cached_eval_batches)
+    if num_eval_batches <= 0:
         return
     eval_graph.module.eval()
     labels, preds = [], []
     eval_start_time = time.time()
-    with make_criteo_dataloader(
-        f"{args.data_dir}/test", args.eval_batch_size, shuffle=False
-    ) as loader:
-        num_eval_batches = 0
-        for np_batch in loader:
-            num_eval_batches += 1
-            if num_eval_batches > args.eval_batches:
-                break
-            label, dense_fields, sparse_fields = batch_to_global(*np_batch)
-            logits = eval_graph(dense_fields, sparse_fields)
-            pred = logits.sigmoid()
-            labels.append(label.numpy())
-            preds.append(pred.numpy())
+    for i in range(num_eval_batches):
+        label, dense_fields, sparse_fields = cached_eval_batches[i]
+        pred = eval_graph(dense_fields, sparse_fields)
+        labels.append(label)
+        preds.append(pred.to_local())
 
-    auc = 0  # will be updated by rank 0 only
+    labels = (
+        np_to_global(np.concatenate(labels, axis=0)).to_global(sbp=flow.sbp.broadcast()).to_local()
+    )
+    preds = (
+        flow.cat(preds, dim=0)
+        .to_global(placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0))
+        .to_global(sbp=flow.sbp.broadcast())
+        .to_local()
+    )
+    eval_time = time.time() - eval_start_time
+
     rank = flow.env.get_rank()
+    auc = 0
     if rank == 0:
-        labels = np.concatenate(labels, axis=0)
-        preds = np.concatenate(preds, axis=0)
-        eval_time = time.time() - eval_start_time
         auc_start_time = time.time()
-        auc = roc_auc_score(labels, preds)
+        auc = roc_auc_score(labels.numpy(), preds.numpy())
         auc_time = time.time() - auc_start_time
-
         host_mem_mb = psutil.Process().memory_info().rss // (1024 * 1024)
         stream = os.popen("nvidia-smi --query-gpu=memory.used --format=csv")
         device_mem_str = stream.read().split("\n")[rank + 1]
