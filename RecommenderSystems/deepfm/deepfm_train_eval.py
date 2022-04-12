@@ -145,17 +145,12 @@ class DeepFMDataReader(object):
 
         for rg in reader:
             rgdict = rg._asdict()
-            rglist = [rgdict[field] for field in self.fields]
+            rglist = np.array([rgdict[field] for field in self.fields])
             pos = 0
             if tail is not None:
-                pos = batch_size - len(tail[0])
-                tail = list(
-                    [
-                        np.concatenate((tail[i], rglist[i][0 : (batch_size - len(tail[i]))]))
-                        for i in range(self.num_fields)
-                    ]
-                )
-                if len(tail[0]) == batch_size:
+                pos = batch_size - tail.shape[1]
+                tail = np.concatenate((tail, rglist[:, 0 : (batch_size - tail.shape[1])]), axis=1)
+                if tail.shape[1] == batch_size:
                     label = tail[0]
                     features = tail[1:]
                     tail = None
@@ -166,17 +161,14 @@ class DeepFMDataReader(object):
                     continue
 
             while (pos + batch_size) <= len(rglist[0]):
-                label = rglist[0][pos : pos + batch_size]
-                # TODO: check list slicing failed problem
-                tmp = np.array(rglist)
-                # features = rglist[1:][pos: pos + batch_size]
-                features = tmp[1:, pos: pos + batch_size]
+                label = rglist[0, pos : pos + batch_size]
+                features = rglist[1:, pos: pos + batch_size]
                 pos += batch_size
                 features = np.stack(features, axis=-1)
                 yield label, features
 
-            if pos != len(rglist[0]):
-                tail = [rglist[i][pos:] for i in range(self.num_fields)]
+            if pos != rglist.shape[1]:
+                tail = rglist[:, pos:]
 
 
 def make_criteo_dataloader(data_path, batch_size, shuffle=True):
