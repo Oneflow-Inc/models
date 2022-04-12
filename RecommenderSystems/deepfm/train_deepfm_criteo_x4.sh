@@ -2,13 +2,13 @@
 rm -r /minio/sdb/liuxinman/persistent1/*
 rm -r /minio/sdb/liuxinman/persistent2/*
 
-export CUDA_VISIBLE_DEVICES=2,3
+export CUDA_VISIBLE_DEVICES=1,3
 
 DEVICE_NUM_PER_NODE=1
 NUM_NODES=1
 NODE_RANK=0
 MASTER_ADDR=127.0.0.1
-DATA_DIR=/minio/sdb/liuxinman/criteo_x4/deepfm_parquet
+DATA_DIR=/minio/sdb/liuxinman/criteo_x4_9ea3bdfc/deepfm_parquet
 PERSISTENT_PATH=/minio/sdb/liuxinman/persistent1
 PERSISTENT_PATH_FM=/minio/sdb/liuxinman/persistent2
 
@@ -21,7 +21,7 @@ python3 -m oneflow.distributed.launch \
       --data_dir $DATA_DIR \
       --persistent_path $PERSISTENT_PATH \
       --persistent_path_fm $PERSISTENT_PATH_FM \
-      --table_size_array "648, 9364, 14745, 489, 476706, 11617, 4141, 1372, 7274, 12, 168, 406, 1375, 1460, 583, 8959674, 2143424, 305, 24, 12516, 633, 3, 93051, 5682, 7544449, 3193, 27, 14989, 5107195, 10, 5652, 2173, 4, 6466377, 18, 15, 285147, 105, 142348" \
+      --table_size_array "36, 91, 112, 29, 211, 94, 70, 46, 83, 5, 24, 30, 42, 799, 544, 22916, 25358, 200, 13, 10126, 383, 3, 16872, 4508, 23375, 3106, 27, 7077, 24371, 10, 3307, 1628, 4, 23796, 13, 15, 15846, 61, 12817" \
       --store_type 'cached_host_mem' \
       --cache_memory_budget_mb 1024 \
       --train_batch_size 10000 \
@@ -34,6 +34,5 @@ python3 -m oneflow.distributed.launch \
       --learning_rate 0.001 \
       --embedding_vec_size 16 \
       --disable_fusedmlp True \
-      --max_gradient_norm 1.0 \
       --num_train_samples 36672493 \
       > run.log & tail -f run.log

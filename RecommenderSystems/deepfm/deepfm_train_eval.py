@@ -36,7 +36,7 @@ def get_args(print_args=True):
     parser.add_argument("--disable_fusedmlp", default=False, help="disable fused MLP or not")
     parser.add_argument("--embedding_vec_size", type=int, default=16)
     parser.add_argument("--dnn", type=int_list, default="1000,1000,1000,1000,1000")
-    parser.add_argument("--net_dropout", type=float, default=0.0)
+    parser.add_argument("--net_dropout", type=float, default=0.2)
     parser.add_argument("--embedding_regularizer", type=float, default=None)
     parser.add_argument("--net_regularizer", type=float, default=None)
     parser.add_argument("--max_gradient_norm", type=float, default=10.0)
@@ -209,42 +209,38 @@ class OneEmbedding(nn.Module):
         table_size_array,
         store_type,
         cache_memory_budget_mb,
+        size_factor,
     ):
         assert table_size_array is not None
         vocab_size = sum(table_size_array)
 
-        scales = np.sqrt(1 / np.array(table_size_array))
-        # TODO: embedding initialization uniform2normal
         tables = [
             flow.one_embedding.make_table(
-                flow.one_embedding.make_uniform_initializer(low=-scale, high=scale)
+                flow.one_embedding.make_normal_initializer(mean=0.0, std=1e-4)
             )
-            for scale in scales
+            for _ in range(len(table_size_array))
         ]
-        # tables = [
-        #     flow.one_embedding.make_table(
-        #         flow.one_embedding.make_normal_initializer(mean=0.0, std=1e-4)
-        #     )
-        #     for _ in range(len(table_size_array))
-        # ]
         if store_type == "device_mem":
             store_options = flow.one_embedding.make_device_mem_store_options(
                 persistent_path=persistent_path, 
-                capacity=vocab_size
+                capacity=vocab_size,
+                size_factor=size_factor,
             )
         elif store_type == "cached_host_mem":
             assert cache_memory_budget_mb > 0
             store_options = flow.one_embedding.make_cached_host_mem_store_options(
                 cache_budget_mb=cache_memory_budget_mb,
                 persistent_path=persistent_path,
-                capacity=vocab_size
+                capacity=vocab_size,
+                size_factor=size_factor,
             )
         elif store_type == "cached_ssd":
             assert cache_memory_budget_mb > 0
             store_options = flow.one_embedding.make_cached_ssd_store_options(
                 cache_budget_mb=cache_memory_budget_mb,
                 persistent_path=persistent_path,
-                capacity=vocab_size
+                capacity=vocab_size,
+                size_factor=size_factor,
             )
         else:
             raise NotImplementedError("not support", store_type)
@@ -326,7 +322,8 @@ class LR(nn.Module):
             persistent_path=persistent_path,
             table_size_array=table_size_array,
             store_type=one_embedding_store_type,
-            cache_memory_budget_mb=cache_memory_budget_mb
+            cache_memory_budget_mb=cache_memory_budget_mb,
+            size_factor=3,
         )
 
     def forward(self, x):
@@ -368,7 +365,7 @@ class FM(nn.Module):
             table_size_array=table_size_array,
             one_embedding_store_type=one_embedding_store_type,
             cache_memory_budget_mb=cache_memory_budget_mb,
-            use_bias=use_bias
+            use_bias=use_bias,
         )
     
     def forward(self, x:flow.Tensor, embedded_x:flow.Tensor) -> flow.Tensor:
@@ -389,6 +386,7 @@ class DeepFMModule(nn.Module):
         table_size_array=None,
         one_embedding_store_type="cached_host_mem",
         cache_memory_budget_mb=8192,
+        dropout=0.2,
     ):
         super(DeepFMModule, self).__init__()
 
@@ -398,7 +396,8 @@ class DeepFMModule(nn.Module):
             persistent_path=persistent_path,
             table_size_array=table_size_array,
             store_type=one_embedding_store_type,
-            cache_memory_budget_mb=cache_memory_budget_mb
+            cache_memory_budget_mb=cache_memory_budget_mb,
+            size_factor=3,
         )
 
         self.fm_layer = FM(
@@ -406,14 +405,15 @@ class DeepFMModule(nn.Module):
             table_size_array=table_size_array,
             one_embedding_store_type=one_embedding_store_type,
             cache_memory_budget_mb=cache_memory_budget_mb,
-            use_bias=False
+            use_bias=False,
         )
 
         self.dnn_layer = DNN(
             in_features=embedding_vec_size * (num_dense_fields + num_sparse_fields),
             hidden_units=dnn+[1],
             skip_final_activation=True,
-            fused=use_fusedmlp
+            fused=use_fusedmlp,
+            dropout=dropout,
         )
 
     def forward(self, inputs) -> flow.Tensor:
@@ -433,6 +433,7 @@ def make_deepfm_module(args):
         table_size_array=args.table_size_array,
         one_embedding_store_type=args.store_type,
         cache_memory_budget_mb=args.cache_memory_budget_mb,
+        dropout=args.net_dropout,
     )
     return model
 
@@ -451,13 +452,12 @@ class DeepFMValGraph(flow.nn.Graph):
 
 class DeepFMTrainGraph(flow.nn.Graph):
     def __init__(
-        self, deepfm_module, loss, optimizer, lr_scheduler=None, grad_scaler=None, amp=False, max_norm=10,
+        self, deepfm_module, loss, optimizer, lr_scheduler=None, grad_scaler=None, amp=False,
     ):
         super(DeepFMTrainGraph, self).__init__()
         self.module = deepfm_module
         self.loss = loss
-        self.max_norm = max_norm
-        self.add_optimizer(optimizer, lr_sch=lr_scheduler)
+        self.add_optimizer(optimizer) # , lr_sch=lr_scheduler
         self.config.allow_fuse_model_update_ops(True)
         self.config.allow_fuse_add_to_output(True)
         self.config.allow_fuse_cast_scale(True)
@@ -493,8 +493,8 @@ def early_stop(epoch, logs, best_metric, stopping_steps, patience=2, min_delta=1
 
     stop_training = False
     if monitor_value < best_metric + min_delta:
-            stopping_steps += 1
-            print("Monitor(max) STOP: {:.6f}!".format(monitor_value))
+        stopping_steps += 1
+        print("Monitor(max) STOP: {:.6f}!".format(monitor_value))
     else:
         stopping_steps = 0
         best_metric = monitor_value
@@ -528,17 +528,7 @@ def train(args):
         save_model("initial_checkpoint")
 
     # TODO: clip gradient norm
-    opt = flow.optim.SGD(deepfm_module.parameters(), lr=args.learning_rate)
-    # opt = flow.optim.SGD(
-    #         [
-    #             {
-    #                 "params": deepfm_module.parameters(),
-    #                 "lr": args.learning_rate,
-    #                 "clip_grad_max_norm": args.max_gradient_norm,
-    #                 "clip_grad_norm_type": 2.0,
-    #             }
-    #         ],
-    #     )
+    opt = flow.optim.Adam(deepfm_module.parameters(), lr=args.learning_rate)
     lr_scheduler = make_lr_scheduler(args, opt)
     loss = flow.nn.BCEWithLogitsLoss(reduction="none").to("cuda")
 
