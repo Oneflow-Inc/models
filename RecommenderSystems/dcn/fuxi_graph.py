@@ -8,9 +8,8 @@ import numpy as np
 import oneflow as flow
 import oneflow.nn as nn
 from sklearn.metrics import roc_auc_score
-
-from utils import *
-
+import math
+import matplotlib.pyplot as plt
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
 from petastorm.reader import make_batch_reader
@@ -18,8 +17,23 @@ from petastorm.reader import make_batch_reader
 from tqdm import tqdm
 
 
+
+
 num_dense_fields = 0
 num_sparse_fields = 10
+
+def get_activation(activation):
+    if isinstance(activation, str):
+        if activation.lower() == "relu":
+            return nn.ReLU()
+        elif activation.lower() == "sigmoid":
+            return nn.Sigmoid()
+        elif activation.lower() == "tanh":
+            return nn.Tanh()
+        else:
+            return getattr(nn, activation)()
+    else:
+        return activation
 
 def get_args(print_args=True):
     def int_list(x):
@@ -30,13 +44,15 @@ def get_args(print_args=True):
 
     parser = argparse.ArgumentParser()
 
+
     parser.add_argument("--disable_fusedmlp", action="store_true", help="disable fused MLP or not")
     parser.add_argument("--embedding_vec_size", type=int, default=10)
-    parser.add_argument("--dnn_use_bn", type=bool, default=True)
+    parser.add_argument("--batch_norm", type=bool, default=True)
     # parser.add_argument("--batch_size", type=int, default=4096)
-    parser.add_argument("--cross_num", type=int, default=3)
+    parser.add_argument("--crossing_layers", type=int, default=3)
     parser.add_argument("--cross_parameterization", type=str, default="vector")
-    parser.add_argument("--dnn_activation", type=str, default="relu")
+    parser.add_argument("--net_dropout", type=float, default=0.2)
+    parser.add_argument("--dnn_activations", type=str, default="relu")
     parser.add_argument("--dnn_hidden_units", type=int_list, default="400,400,400")
     parser.add_argument("--embedding_dim", type=int, default=10)
     # parser.add_argument("--epochs", type=int, default=100)
@@ -78,6 +94,13 @@ def get_args(print_args=True):
     parser.add_argument("--decay_start", type=int, default=2500)
     parser.add_argument("--train_batches", type=int, default=5000)
     parser.add_argument("--loss_print_interval", type=int, default=50)
+
+    parser.add_argument("--reduce_lr_on_plateau", type=bool, default=True)
+    parser.add_argument("--patience", type=int, default=2)
+    parser.add_argument("--min_delta", type=float, default=1.0e-6)
+    parser.add_argument("--lr_factor", type=float, default=0.1)
+    parser.add_argument("--min_lr", type=float, default=1.0e-6)
+
     parser.add_argument(
         "--table_size_array",
         type=int_list,
@@ -91,6 +114,7 @@ def get_args(print_args=True):
     parser.add_argument("--cache_memory_budget_mb", type=int, default=2048)
     parser.add_argument("--amp", action="store_true", help="Run model with amp")
     parser.add_argument("--loss_scale_policy", type=str, default="static", help="static or dynamic")
+    parser.add_argument("--size_factor", type=int, default=1)
 
     args = parser.parse_args()
 
@@ -109,9 +133,6 @@ def _print_args(args):
     for arg in sorted(str_list, key=lambda x: x.lower()):
         print(arg, flush=True)
     print("-------------------- end of arguments ---------------------", flush=True)
-
-
-
 class FrappeDataReader(object):
     """A context manager that manages the creation and termination of a
     :class:`petastorm.Reader`.
@@ -238,20 +259,17 @@ class OneEmbedding(nn.Module):
         table_size_array,
         store_type,
         cache_memory_budget_mb,
+        size_factor,
     ):
         assert table_size_array is not None
         vocab_size = sum(table_size_array)
 
-        scales = np.sqrt(1 / np.array(table_size_array))
-        tables = [
-            flow.one_embedding.make_table(
-                flow.one_embedding.make_uniform_initializer(low=-scale, high=scale)
-            )
-            for scale in scales
-        ]
+        for i in range(len(table_size_array)):
+            tables = [flow.one_embedding.make_table(flow.one_embedding.make_normal_initializer(0, 1e-4))]
+            # tables = [flow.one_embedding.make_table(flow.one_embedding.make_normal_initializer(0, 1))]
         if store_type == "device_mem":
             store_options = flow.one_embedding.make_device_mem_store_options(
-                persistent_path=persistent_path, capacity=vocab_size
+                persistent_path=persistent_path, capacity=vocab_size, size_factor=size_factor
             )
         elif store_type == "cached_host_mem":
             assert cache_memory_budget_mb > 0
@@ -259,6 +277,7 @@ class OneEmbedding(nn.Module):
                 cache_budget_mb=cache_memory_budget_mb,
                 persistent_path=persistent_path,
                 capacity=vocab_size,
+                size_factor=size_factor,
             )
         elif store_type == "cached_ssd":
             assert cache_memory_budget_mb > 0
@@ -266,6 +285,7 @@ class OneEmbedding(nn.Module):
                 cache_budget_mb=cache_memory_budget_mb,
                 persistent_path=persistent_path,
                 capacity=vocab_size,
+                size_factor=size_factor,
             )
         else:
             raise NotImplementedError("not support", store_type)
@@ -283,263 +303,145 @@ class OneEmbedding(nn.Module):
     def forward(self, ids):
         return self.one_embedding.forward(ids)
 
+class CrossInteractionLayer(nn.Module):
+    def __init__(self, input_dim):
+        super(CrossInteractionLayer, self).__init__()
+        self.weight = nn.Linear(input_dim, 1, bias=False)
+        self.bias = nn.Parameter(flow.zeros(input_dim))
+
+    def forward(self, X_0, X_i):
+        interaction_out = self.weight(X_i) * X_0 + self.bias
+        return interaction_out
+
+
 class CrossNet(nn.Module):
-    def __init__(
-        self,
-        in_features,
-        layer_num=2,
-        parameterization="vector",
-    ):
+    def __init__(self, input_dim, num_layers):
         super(CrossNet, self).__init__()
+        self.num_layers = num_layers
+        self.cross_net = nn.ModuleList(CrossInteractionLayer(input_dim)
+                                       for _ in range(self.num_layers))
 
-        self.layer_num = layer_num
-        self.parameterization = parameterization
-
-        if self.parameterization == "vector":
-            # weight in DCN.  (in_features, 1)
-            self.kernels = nn.Parameter(flow.Tensor(self.layer_num, in_features, 1))
-        elif self.parameterization == "matrix":
-            # weight matrix in DCN-M.  (in_features, in_features)
-            self.kernels = nn.Parameter(
-                flow.Tensor(self.layer_num, in_features, in_features)
-            )
-        else:  # error
-            raise ValueError("parameterization should be 'vector' or 'matrix'")
-
-        self.bias = nn.Parameter(flow.Tensor(self.layer_num, in_features, 1))
-
-        nn.init.xavier_normal_(self.kernels)
-        nn.init.zeros_(self.bias)
-
-
-    def forward(self, inputs):
-        x_0 = inputs.unsqueeze(2)
-        x_l = x_0
-        for i in range(self.layer_num):
-            if self.parameterization == "vector":
-                xl_w = flow.einsum("abc,bd->acd", x_l, self.kernels[i])
-                dot_ = flow.matmul(x_0, xl_w)
-                x_l = dot_ + self.bias[i] + x_l
-            elif self.parameterization == "matrix":
-                xl_w = flow.matmul(self.kernels[i], x_l)  # W * xi  (bs, in_features, 1)
-                dot_ = xl_w + self.bias[i]  # W * xi + b
-                x_l = x_0 * dot_ + x_l  # x0 · (W * xi + b) +xl  Hadamard-product
-            else:  # error
-                raise ValueError("parameterization should be 'vector' or 'matrix'")
-        x_l = flow.squeeze(x_l, dim=2)
-        return x_l
-
+    def forward(self, X_0):
+        X_i = X_0 # b x dim
+        for i in range(self.num_layers):
+            X_i = X_i + self.cross_net[i](X_0, X_i)
+        return X_i
 
 
 class DNN(nn.Module):
-    def __init__(
-        self,
-        inputs_dim,
-        hidden_units,
-        activation="relu",
-        l2_reg=0,
-        dropout_rate=0,
-        use_bn=False,
-        init_std=0.0001,
-        dice_dim=3,
-    ):
+    def __init__(self, 
+                 input_dim, 
+                 output_dim=None, 
+                 hidden_units=[], 
+                 hidden_activations="ReLU",
+                 output_activation=None, 
+                 dropout_rates=[], 
+                 batch_norm=False, 
+                 use_bias=True):
         super(DNN, self).__init__()
-        self.dropout_rate = dropout_rate
-        self.dropout = nn.Dropout(dropout_rate)
-        self.l2_reg = l2_reg
-        self.use_bn = use_bn
-        if len(hidden_units) == 0:
-            raise ValueError("hidden_units is empty!!")
-        hidden_units = [inputs_dim] + list(hidden_units)
-
-        self.linears = nn.ModuleList(
-            [
-                nn.Linear(hidden_units[i], hidden_units[i + 1])
-                for i in range(len(hidden_units) - 1)
-            ]
-        )
-
-        if self.use_bn:
-            self.bn = nn.ModuleList(
-                [
-                    nn.BatchNorm1d(hidden_units[i + 1])
-                    for i in range(len(hidden_units) - 1)
-                ]
-            )
-
-        self.activation_layers = nn.ModuleList(
-            [
-                activation_layer(activation, hidden_units[i + 1], dice_dim)
-                for i in range(len(hidden_units) - 1)
-            ]
-        )
-
-        for name, tensor in self.linears.named_parameters():
-            if "weight" in name:
-                nn.init.normal_(tensor, mean=0, std=init_std)
-
-
+        dense_layers = []
+        if not isinstance(dropout_rates, list):
+            dropout_rates = [dropout_rates] * len(hidden_units)
+        if not isinstance(hidden_activations, list):
+            hidden_activations = [hidden_activations] * len(hidden_units)
+        hidden_activations = [get_activation(x) for x in hidden_activations]
+        hidden_units = [input_dim] + hidden_units
+        for idx in range(len(hidden_units) - 1):
+            dense_layers.append(nn.Linear(hidden_units[idx], hidden_units[idx + 1], bias=use_bias))
+            if batch_norm:
+                print("batch_normbatch_normbatch_normbatch_normbatch_normbatch_normbatch_normbatch_norm")
+                dense_layers.append(nn.BatchNorm1d(hidden_units[idx + 1]))
+            if hidden_activations[idx]:
+                dense_layers.append(hidden_activations[idx])
+            if dropout_rates[idx] > 0:
+                dense_layers.append(nn.Dropout(p=dropout_rates[idx]))
+        if output_dim is not None:
+            dense_layers.append(nn.Linear(hidden_units[-1], output_dim, bias=use_bias))
+        if output_activation is not None:
+            dense_layers.append(get_activation(output_activation))
+        self.dnn = nn.Sequential(*dense_layers) # * used to unpack list
+    
     def forward(self, inputs):
-        deep_input = inputs
-
-        for i in range(len(self.linears)):
-
-            fc = self.linears[i](deep_input)
-
-            if self.use_bn:
-                fc = self.bn[i](fc)
-
-            fc = self.activation_layers[i](fc)
-
-            fc = self.dropout(fc)
-            deep_input = fc
-
-        return deep_input
-
+        return self.dnn(inputs)
 
 
 class DCNModule(nn.Module):
-    def __init__(
-        self,
+    def __init__(self, 
         embedding_vec_size,
-
         persistent_path,
         table_size_array,
         one_embedding_store_type,
         cache_memory_budget_mb,
+        size_factor,
 
-        cross_num=2,
-        cross_parameterization="vector",
-        dnn_hidden_units=(128, 128),
-        l2_reg_linear=0.00001,
-        l2_reg_cross=0.00001,
-        l2_reg_dnn=0,
-        init_std=0.0001,
-        dnn_dropout=0,
-        dnn_activation="relu",
-        dnn_use_bn=False,
-    ):
+        dnn_hidden_units=[128, 128],
 
+        crossing_layers = 3,
+        net_dropout = 0.2,
+        dnn_activations="relu",
+        batch_norm=False,
+        ):
         super(DCNModule, self).__init__()
 
-        self.reg_loss = flow.zeros((1,))
-        self.aux_loss = flow.zeros((1,))
 
-        self.dnn_hidden_units = dnn_hidden_units
-        self.cross_num = cross_num
-
-        ### 
+        # self.embedding_layer = EmbeddingLayer(feature_map, embedding_dim)
         self.embedding_layer = OneEmbedding(
             embedding_vec_size,
             persistent_path,
             table_size_array,
             one_embedding_store_type,
             cache_memory_budget_mb,
+            size_factor=size_factor
         )
-        ###
 
-
-        # self.compute_input_dim = compute_input_dim
-        # 10*(0+10) = 100
         input_dim = embedding_vec_size * (num_dense_fields + num_sparse_fields) 
-        # print(input_dim) 
 
-        self.dnn = DNN(
-            input_dim,
-            dnn_hidden_units,
-            activation=dnn_activation,
-            use_bn=dnn_use_bn,
-            l2_reg=l2_reg_dnn,
-            dropout_rate=dnn_dropout,
-            init_std=init_std,
-        )
+        self.dnn = DNN(input_dim=input_dim,
+                             output_dim=None, # output hidden layer
+                             hidden_units=dnn_hidden_units,
+                             hidden_activations=dnn_activations,
+                             output_activation=None, 
+                             dropout_rates=net_dropout, 
+                             batch_norm=batch_norm, 
+                             use_bias=True) \
+                   if dnn_hidden_units else None # in case of only crossing net used
 
-
-        if len(self.dnn_hidden_units) > 0 and self.cross_num > 0:
-            last_linear_in_feature = input_dim + dnn_hidden_units[-1]
-        elif len(self.dnn_hidden_units) > 0:
-            last_linear_in_feature = dnn_hidden_units[-1]
-        elif self.cross_num > 0:
-            last_linear_in_feature = input_dim
-
-        # self.last_linear = nn.Linear(last_linear_in_feature, 1, bias=False).to(device)
-        self.last_linear = nn.Linear(last_linear_in_feature, 1, bias=False)
-
-        self.crossnet = CrossNet(
-            in_features=input_dim,
-            layer_num=cross_num,
-            parameterization=cross_parameterization,
-        )
+        self.crossnet = CrossNet(input_dim, crossing_layers)
 
 
-        self.regularization_weight = []
-        self.add_regularization_weight(
-            filter(
-                lambda x: "weight" in x[0] and "bn" not in x[0],
-                self.dnn.named_parameters(),
-            ),
-            l2=l2_reg_dnn,
-        )
-        self.add_regularization_weight(self.last_linear.weight, l2=l2_reg_linear)
-        self.add_regularization_weight(self.crossnet.kernels, l2=l2_reg_cross)
+        final_dim = input_dim
+        if isinstance(dnn_hidden_units, list) and len(dnn_hidden_units) > 0: # if use dnn
+            final_dim += dnn_hidden_units[-1]
+        self.fc = nn.Linear(final_dim, 1) # [cross_part, dnn_part] -> logit
 
-        # self.to(device)
+        self.output_activation = nn.Sigmoid()
+        self.reset_parameters()
+        # self.model_to_device()
 
+    def forward(self, X):
 
-    def forward(self, X) -> flow.Tensor:
-
-        embedded_x = self.embedding_layer(X)
-        if len(self.dnn_hidden_units) > 0 and self.cross_num > 0:  # Deep & Cross
-            # print("aaaaaaaaaaaaaaaaaa")
-            deep_out = self.dnn(embedded_x.flatten(start_dim=1))
-            # print(deep_out.shape)
-            cross_out = self.crossnet(embedded_x.flatten(start_dim=1))
-            # print(cross_out.shape)
-            stack_out = flow.cat((cross_out, deep_out), dim=-1)
-            logit = self.last_linear(stack_out)
-        elif len(self.dnn_hidden_units) > 0:  # Only Deep
-            deep_out = self.dnn(embedded_x.flatten(start_dim=1))
-            logit = self.last_linear(deep_out)
-        elif self.cross_num > 0:  # Only Cross
-            cross_out = self.crossnet(embedded_x.flatten(start_dim=1))
-            logit = self.last_linear(cross_out)
-        else:  # Error
-            raise Exception("Model must be Deep & Cross, Only Deep or Only Cross.")
-        y_pred = activation_layer("sigmoid")(logit)
-        return y_pred
-    def add_regularization_weight(self, weight_list, l1=0.0, l2=0.0):
-        # For a Parameter, put it in a list to keep Compatible with get_regularization_loss()
-        if isinstance(weight_list, flow.nn.Parameter):
-        # if isinstance(weight_list, torch.nn.parameter.Parameter):
-            weight_list = [weight_list]
-        # For generators, filters and ParameterLists, convert them to a list of tensors to avoid bugs.
-        # e.g., we can't pickle generator objects when we save the model.
+        feature_emb = self.embedding_layer(X)
+        flat_feature_emb = feature_emb.flatten(start_dim=1)
+        cross_out = self.crossnet(flat_feature_emb)
+        if self.dnn is not None:
+            dnn_out = self.dnn(flat_feature_emb)
+            final_out = flow.cat([cross_out, dnn_out], dim=-1)
         else:
-            weight_list = list(weight_list)
-        self.regularization_weight.append((weight_list, l1, l2))
+            final_out = cross_out
+        y_pred = self.fc(final_out)
+        y_pred = self.output_activation(y_pred)
+        return y_pred
 
-    def get_regularization_loss(self, ):
-        # total_reg_loss = flow.zeros((1,), device=self.device)
-        total_reg_loss = flow.zeros((1,))   
-        for weight_list, l1, l2 in self.regularization_weight:
-            for w in weight_list:
-                if isinstance(w, tuple):
-                    parameter = w[1]  # named_parameters
-                else:
-                    parameter = w
-                if l1 > 0:
-                    total_reg_loss += flow.sum(l1 * flow.abs(parameter))
-                if l2 > 0:
-                    try:
-                        total_reg_loss += flow.sum(l2 * flow.square(parameter))
-                    except AttributeError:
-                        total_reg_loss += flow.sum(l2 * parameter * parameter)
-
-        return total_reg_loss
+    def reset_parameters(self):
+        def reset_param(m):
+            if type(m) == nn.Linear:
+                nn.init.xavier_normal_(m.weight)
+                if m.bias is not None:
+                    m.bias.data.fill_(0)
+        self.apply(reset_param)
 
 
-    def add_auxiliary_loss(self, aux_loss, alpha):
-        self.aux_loss = aux_loss * alpha
+
 
 def make_dcn_module(args):
     model = DCNModule(
@@ -549,16 +451,18 @@ def make_dcn_module(args):
                 table_size_array=args.table_size_array,
                 one_embedding_store_type=args.store_type,
                 cache_memory_budget_mb=args.cache_memory_budget_mb,
-
-                cross_num=args.cross_num, 
-                cross_parameterization=args.cross_parameterization,               
-                dnn_hidden_units=args.dnn_hidden_units,  
-                l2_reg_cross=args.l2_reg_cross,
-                l2_reg_dnn=args.l2_reg_dnn, 
-                dnn_dropout=args.dnn_dropout, 
-                dnn_activation=args.dnn_activation, 
-                dnn_use_bn=args.dnn_use_bn,                 
+                dnn_hidden_units = args.dnn_hidden_units,
+                crossing_layers=args.crossing_layers, 
+                net_dropout = args.net_dropout,
+                dnn_activations=args.dnn_activations, 
+                batch_norm=args.batch_norm,   
+                size_factor=args.size_factor         
             )
+    # print(model)
+    # print(model.state_dict())
+    for key in model.state_dict():
+        print(key)
+        # print(model.state_dict()[key])
     return model
 
 class DCNValGraph(flow.nn.Graph):
@@ -592,47 +496,81 @@ class DCNTrainGraph(flow.nn.Graph):
         
         logits = self.module(features.to("cuda")).squeeze()
         loss = self.loss(logits, labels.squeeze().to("cuda"))
-
-        # reg_loss = self.module.get_regularization_loss().to("cuda")
-
-        # total_loss = loss + reg_loss + self.module.aux_loss.to("cuda")
-        total_loss = loss
+        total_loss = loss 
+        # total_loss = loss + self.add_regularization()
 
         reduce_loss = flow.mean(total_loss)
         reduce_loss.backward()
+
         return reduce_loss.to("cpu")
+#     def add_regularization(self):
+#         reg_loss = 0
+
+#         net_reg = get_regularizer(0.001)
+#         print("==================================")
+#         for name, param in self.module.named_parameters():
+#             if "embedding" in name :
+#                 continue
+#             print(name)
+#             print(type(param))
+#             print(param)
+#             for i in param:
+#                 print(i)
+#             if param.requires_grad:
+#                 for net_p, net_lambda in net_reg:
+#                     reg_loss += (net_lambda / net_p) * flow.norm(param, net_p) ** net_p
+#         return reg_loss
+
+# def get_regularizer(reg):
+#     reg_pair = [] # of tuples (p_norm, weight)
+#     if isinstance(reg, float):
+#         reg_pair.append((2, reg))
+#     elif isinstance(reg, str):
+#         try:
+#             if reg.startswith("l1(") or reg.startswith("l2("):
+#                 reg_pair.append((int(reg[1]), float(reg.rstrip(")").split("(")[-1])))
+#             elif reg.startswith("l1_l2"):
+#                 l1_reg, l2_reg = reg.rstrip(")").split("(")[-1].split(",")
+#                 reg_pair.append((1, float(l1_reg)))
+#                 reg_pair.append((2, float(l2_reg)))
+#             else:
+#                 raise NotImplementedError
+#         except:
+#             raise NotImplementedError("regularizer={} is not supported.".format(reg))
+#     return reg_pair
+
 
 def make_lr_scheduler(args, optimizer):
-    warmup_lr = flow.optim.lr_scheduler.LinearLR(
-        optimizer, start_factor=0, total_iters=args.warmup_batches,
-    )
-    poly_decay_lr = flow.optim.lr_scheduler.PolynomialLR(
-        optimizer, steps=args.decay_batches, end_learning_rate=0, power=2.0, cycle=False,
-    )
-    sequential_lr = flow.optim.lr_scheduler.SequentialLR(
+    batches_per_epoch = math.ceil(args.num_train_samples / args.train_batch_size)
+    milestones = [batches_per_epoch * (i + 1) for i in range(math.floor(math.log(args.min_lr / args.learning_rate, args.lr_factor)))]
+    multistep_lr = flow.optim.lr_scheduler.MultiStepLR(
         optimizer=optimizer,
-        schedulers=[warmup_lr, poly_decay_lr],
-        milestones=[args.decay_start],
-        interval_rescaling=True,
+        gamma=args.lr_factor,
+        milestones=milestones,
     )
-    return sequential_lr
+    return multistep_lr
 
 
-def eval(args, eval_graph, cur_step=0):
+
+
+
+
+def eval(args, eval_graph, cur_step=0, epoch=0):
     if args.eval_batches <= 0:
         return
     eval_graph.module.eval()
     labels, preds = [], []
     eval_start_time = time.time()
-    with make_frappe_dataloader(f"{args.data_dir}/test", args.eval_batch_size, shuffle=False) as loader:
-
+    # with make_frappe_dataloader(f"{args.data_dir}/test", args.eval_batch_size, shuffle=False) as loader:
+    with make_frappe_dataloader(f"{args.data_dir}/val", args.eval_batch_size, shuffle=False) as loader:
         num_eval_batches = 0
         for np_batch in loader:
             num_eval_batches += 1
             if num_eval_batches > args.eval_batches:
                 break
             label, features = batch_to_global(*np_batch)
-            pred = eval_graph(features) # Caution: sigmoid in module or only in eval?
+            logits = eval_graph(features)
+            pred = logits
             labels.append(label.numpy())
             preds.append(pred.numpy())
 
@@ -652,7 +590,7 @@ def eval(args, eval_graph, cur_step=0):
 
         strtime = time.strftime("%Y-%m-%d %H:%M:%S")
         print(
-            f"Rank[{rank}], Step {cur_step}, AUC {auc:0.5f}, Eval_time {eval_time:0.2f} s, "
+            f"Rank[{rank}], Epoch {epoch}, Step {cur_step}, AUC {auc:0.5f}, Eval_time {eval_time:0.2f} s, "
             + f"AUC_time {auc_time:0.2f} s, Eval_samples {labels.shape[0]}, "
             + f"GPU_Memory {device_mem_str}, Host_Memory {host_mem_mb} MiB, {strtime}"
         )
@@ -661,14 +599,60 @@ def eval(args, eval_graph, cur_step=0):
     return auc
 
 
+
+
 def train(args):
     rank = flow.env.get_rank()
     dcn_module = make_dcn_module(args)
     dcn_module.to_global(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
 
+    if args.model_load_dir:
+        print(f"Loading model from {args.model_load_dir}")
+        state_dict = flow.load(args.model_load_dir, global_src_rank=0)
+        dcn_module.load_state_dict(state_dict, strict=False)
+    def save_model(subdir):
+        if not args.model_save_dir:
+            return
+        save_path = os.path.join(args.model_save_dir, subdir)
+        if rank == 0:
+            print(f"Saving model to {save_path}")
+        state_dict = dcn_module.state_dict()
+        flow.save(state_dict, save_path, global_dst_rank=0)
+    # optim = flow.optim.SGD(dcn_module.parameters(), lr=args.learning_rate)
+    optim = flow.optim.Adam(dcn_module.parameters(), lr=args.learning_rate)
 
-    optim = flow.optim.SGD(dcn_module.parameters(), lr=args.learning_rate)
-    lr_scheduler = make_lr_scheduler(args, optim)
+    def lr_decay(factor=0.1, min_lr=1e-6):
+            for param_group in optim.param_groups:
+                reduced_lr = max(param_group["lr"] * factor, min_lr)
+                param_group["lr"] = reduced_lr
+            print("lr_decay: {}".format(reduced_lr))
+            return reduced_lr
+
+    def early_stop(epoch, logs, best_metric, stopping_steps, 
+                    patience=2, min_delta=1e-6, _reduce_lr_on_plateau=True):
+        kv = {'auc': 1, 'logloss': -1}
+        monitor_value = 0
+        for k, v in kv.items():
+            monitor_value += logs.get(k, 0) * v
+
+        stop_training = False
+        if monitor_value < best_metric + min_delta:
+                stopping_steps += 1
+                print("Monitor(max) STOP: {:.6f}!".format(monitor_value))
+                if _reduce_lr_on_plateau:
+                    lr_decay(factor=0.1, min_lr=1e-6)
+        else:
+            stopping_steps = 0
+            best_metric = monitor_value
+        # if stopping_steps >= patience:
+        #     stop_training = False
+        #     print(f"Early stopping at epoch={epoch}!")
+        return stop_training, best_metric, stopping_steps
+
+    # lr_scheduler = make_lr_scheduler(args, optim)
+    lr_scheduler = None
+    args.num_train_samples = 202027
+    # lr_scheduler = make_lr_scheduler(args, optim)
     loss_func = nn.BCELoss(reduction="none").to("cuda")
 
     if args.loss_scale_policy == "static":
@@ -680,19 +664,38 @@ def train(args):
     
     eval_graph = DCNValGraph(dcn_module, args.amp)
     train_graph = DCNTrainGraph(dcn_module, loss_func, optim, lr_scheduler, grad_scaler, args.amp)
-    
-    dcn_module.train()
 
+
+
+    train_losses = []
+    batches_per_epoch = math.ceil(args.num_train_samples / args.train_batch_size)
+
+    batches_per_epoch = 25  
+    best_metric = -np.inf
+    stopping_steps = 0
+
+    dcn_module.train()
     step, last_step, last_time = -1, 0, time.time()
+    epoch = 0
     with make_frappe_dataloader(f"{args.data_dir}/train", args.train_batch_size) as loader:
         for step in range(1, args.train_batches + 1):
             # labels, dense_fields, sparse_fields = batch_to_global(*next(loader))
             labels, sparse_fields = batch_to_global(*next(loader))
+            # if step==2:
+            #     labels = labels[:10]
+            #     sparse_fields = sparse_fields[:10]
+            # print(labels.shape)
+            # print(sparse_fields.shape)
+
+            # if step ==2:
+            #     break
             loss = train_graph(labels, sparse_fields)
 
-            if step % args.loss_print_interval == 0:
 
+
+            if step % args.loss_print_interval == 0:
                 loss = loss.numpy()
+                train_losses.append(loss)
                 if rank == 0:
                     latency_ms = 1000 * (time.time() - last_time) / (step - last_step)
                     last_step, last_time = step, time.time()
@@ -702,19 +705,56 @@ def train(args):
                         + f"Latency {latency_ms:0.3f} ms, {strtime}"
                     )
 
-            if args.eval_interval > 0 and step % args.eval_interval == 0:
-                auc = eval(args, eval_graph, step)
+
+            if step % batches_per_epoch == 0:
+                print(optim.state_dict()['param_groups'][0]['_options']["lr"] )
+                epoch += 1
+                auc = eval(args, eval_graph, step, epoch)
                 if args.save_model_after_each_eval:
                     save_model(f"step_{step}_val_auc_{auc:0.5f}")
+
+                stop_training, best_metric, stopping_steps = early_stop(
+                    epoch, 
+                    logs={'auc': auc}, 
+                    best_metric=best_metric, 
+                    stopping_steps=stopping_steps,
+
+
+                    patience=args.patience, 
+                    min_delta=args.min_delta,
+                    _reduce_lr_on_plateau = args.reduce_lr_on_plateau
+                )
+                
+                if stop_training:
+                    break
+
                 dcn_module.train()
                 last_time = time.time()
 
-
-    if args.eval_interval > 0 and step % args.eval_interval != 0:
+    if step % batches_per_epoch != 0:
         auc = eval(args, eval_graph, step)
         if args.save_model_after_each_eval:
             save_model(f"step_{step}_val_auc_{auc:0.5f}")
 
+    plot_train_curve(args,train_losses)
+    #         if args.eval_interval > 0 and step % args.eval_interval == 0:
+    #             auc = eval(args, eval_graph, step)
+    #             if args.save_model_after_each_eval:
+    #                 save_model(f"step_{step}_val_auc_{auc:0.5f}")
+    #             dcn_module.train()
+    #             last_time = time.time()
+
+
+    # if args.eval_interval > 0 and step % args.eval_interval != 0:
+    #     auc = eval(args, eval_graph, step)
+    #     if args.save_model_after_each_eval:
+    #         save_model(f"step_{step}_val_auc_{auc:0.5f}")
+
+def plot_train_curve(args, train_losses):
+    plt.plot(range(1, len(train_losses) + 1), train_losses)
+    plt.ylabel("Training Logloss")
+    plt.xlabel(f"batch number (per {args.loss_print_interval} batches)")
+    plt.savefig('training_curve.png')
 
 if __name__ == "__main__":
     os.system(sys.executable + " -m oneflow --doctor")

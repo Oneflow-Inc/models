@@ -1,0 +1,30 @@
+frappe_x1_04e961e9:
+    data_format: csv
+    data_root: ../Frappe/
+    feature_cols:
+    -   active: true
+        dtype: float
+        name: [user, item, daytime, weekday, isweekend, homework, cost, weather, country,
+            city]
+        type: categorical
+    label_col: {dtype: float, name: label}
+    min_categr_count: 1
+    test_data: ../Frappe_x1/test.csv
+    train_data: ../Frappe_x1/train.csv
+    valid_data: ../Frappe_x1/valid.csv
+
+# frappe_x1_04e961e9:
+#     data_format: h5
+#     data_root: ../data/Frappe/
+#     feature_cols:
+#     -   active: true
+#         dtype: float
+#         name: [user, item, daytime, weekday, isweekend, homework, cost, weather, country,
+#             city]
+#         type: categorical
+#     label_col: {dtype: float, name: label}
+#     min_categr_count: 1
+#     test_data: ../data/Frappe/frappe_x1_04e961e9/test.h5
+#     train_data: ../data/Frappe/frappe_x1_04e961e9/train.h5
+#     valid_data: ../data/Frappe/frappe_x1_04e961e9/valid.h5
+
