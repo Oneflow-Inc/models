@@ -5,7 +5,7 @@ DEVICE_NUM_PER_NODE=1
 NUM_NODES=1
 NODE_RANK=0
 MASTER_ADDR=127.0.0.1
-DATA_DIR=/home/yuanziyang/yzywork/dcn-test-dir/frappe_parquet_temp 
+DATA_DIR=/home/yuanziyang/yzywork/dcn-test-dir/frappe_temp_parquet
 PERSISTENT_PATH=./persistent
 
 
@@ -18,7 +18,7 @@ python3 -m oneflow.distributed.launch \
     fuxi_graph.py \
       --data_dir $DATA_DIR \
       --persistent_path $PERSISTENT_PATH \
-      --table_size_array "957, 4082, 7, 7, 2, 3, 2, 9, 80, 233" \
+      --table_size_array "955, 4082, 7, 7, 2, 3, 2, 9, 80, 233" \
       --cache_memory_budget_mb 2048 \
       --train_batch_size 4096 \
       --train_batches 10000 \
