@@ -14,7 +14,7 @@ import oneflow.distributed as dist
 import oneflow.nn as nn
 import yaml
 from oneflow.nn.parallel import DistributedDataParallel as DDP
-from flow.optim import SGD, Adam, lr_scheduler
+from oneflow.optim import SGD, Adam, lr_scheduler
 from tqdm import tqdm
 
 FILE = Path(__file__).resolve()
