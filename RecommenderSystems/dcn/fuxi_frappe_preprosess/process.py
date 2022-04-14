@@ -1,15 +1,3 @@
-"""
-Copyright 2020 The OneFlow Authors. All rights reserved.
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-    http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-"""
 import os
 import time
 import argparse
@@ -165,7 +153,7 @@ if __name__ == '__main__':
     target = ['label']
 
 
-    # num_list = [957, 4082, 7, 7, 2, 3, 2, 9, 80, 233] 
+    # num_list = [955, 4082, 7, 7, 2, 3, 2, 9, 80, 233] 
 
     num_list = []
     for i in range(all_data.shape[1]):
@@ -173,9 +161,9 @@ if __name__ == '__main__':
             continue
         num_list.append(len(all_data.iloc[:,i].unique()))
         print(len(all_data.iloc[:,i].unique()))
+    print("")
 
-
-    make_accum_feat(all_data)
+    make_accum_feat(all_data,num_list)
 
     train_ddf = all_data.iloc[:train_nums,:]
     valid_ddf = all_data.iloc[train_nums:train_nums+valid_nums,:]
@@ -186,12 +174,20 @@ if __name__ == '__main__':
     test_ddf.to_csv('../frappe_temp_accum/test.csv',index=False)
 
 
+    all_data = train_ddf.append(valid_ddf.append(test_ddf)).reset_index(drop=True).copy()
+    for i in range(all_data.shape[1]):
+        if i==0:
+            continue
+        print(len(all_data.iloc[:,i].unique()))
+
 
     ### make parquet frappe ###
     # frappe dataset path
     train_csv = os.path.join(args['input_accum_dir'],"train.csv")
     valid_csv = os.path.join(args['input_accum_dir'],"valid.csv")
     test_csv = os.path.join(args['input_accum_dir'],"test.csv")
+
+
 
     # start spark session
     conf = SparkConf()

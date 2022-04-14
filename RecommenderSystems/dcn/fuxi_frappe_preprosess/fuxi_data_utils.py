@@ -74,7 +74,7 @@ def build_dataset(feature_encoder, train_data=None, valid_data=None, test_data=N
     train_csv.iloc[:,1:] = ff
     
     train_csv.to_csv("../frappe_temp/train.csv",index=False)   
-
+    print("save processed data by fuxi to ../frappe_temp/train.csv ")
     del train_array, train_ddf
     gc.collect()
 
@@ -88,7 +88,8 @@ def build_dataset(feature_encoder, train_data=None, valid_data=None, test_data=N
         valid_csv = pd.DataFrame(columns = ["label", "user","item","daytime","weekday","isweekend","homework","cost","weather","country","city"])
         valid_csv.iloc[:,0] = la
         valid_csv.iloc[:,1:] = ff
-        valid_csv.to_csv("../frappe_temp/train.csv",index=False)   
+        valid_csv.to_csv("../frappe_temp/valid.csv",index=False)
+        print("save processed data by fuxi to ../frappe_temp/valid.csv")   
         del valid_array, valid_ddf
         gc.collect()
 
@@ -102,7 +103,8 @@ def build_dataset(feature_encoder, train_data=None, valid_data=None, test_data=N
         test_csv = pd.DataFrame(columns = ["label", "user","item","daytime","weekday","isweekend","homework","cost","weather","country","city"])
         test_csv.iloc[:,0] = la
         test_csv.iloc[:,1:] = ff
-        test_csv.to_csv("../frappe_temp/train.csv",index=False)   
+        test_csv.to_csv("../frappe_temp/test.csv",index=False)
+        print("save processed data by fuxi to ../frappe_temp/test.csv ")   
         del test_array, test_ddf
         gc.collect()
     logging.info("Transform csv data save .")
