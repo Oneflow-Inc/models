@@ -2,7 +2,7 @@ import argparse
 from collections import OrderedDict
 import pandas as pd
 import torch
-import oneflow as flow
+# import oneflow as flow
 from sklearn.metrics import log_loss, roc_auc_score
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder, MinMaxScaler
@@ -228,11 +228,11 @@ if __name__ == "__main__":
     model.fit(train_model_input,
             train[target].values,
             batch_size=args.batch_size,
-                                                                    epochs=10,
+            epochs=1,
             verbose=args.verbose,
             validation_data=(valid_model_input,valid[target].values),
             shuffle=args.shuffle,
-                                                                                model_path=None)
+            model_path=None)
 
     
 

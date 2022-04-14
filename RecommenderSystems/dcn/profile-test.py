@@ -98,6 +98,7 @@ def test_with_time(model, args):
     x = train_model_input
     y = train[target].values
 
+
     if isinstance(x, dict):
         x = [x[feature] for feature in model.feature_index]
 
@@ -105,10 +106,11 @@ def test_with_time(model, args):
         if len(x[i].shape) == 1:
             x[i] = np.expand_dims(x[i], axis=1)
 
-    train_tensor_data = Data.TensorDataset(
-        flow.from_numpy(
-            np.concatenate(x, axis=-1)),
-        flow.from_numpy(y))
+    tmp_x = flow.from_numpy(np.concatenate(x, axis=-1))
+    tmp_y = flow.from_numpy(y)
+    print(tmp_x.size())
+    print(tmp_y.size())
+    train_tensor_data = Data.TensorDataset(tmp_x, tmp_y)
 
     train_loader = DataLoader(
     dataset=train_tensor_data, shuffle=args.shuffle, batch_size=args.batch_size)
@@ -127,59 +129,60 @@ def test_with_time(model, args):
     loss_epoch = 0
     total_loss_epoch = 0
 
-    start_1 =time.time()
-    for idx in range(20):
+    # start_1 =time.time()
+    for idx in range(50):
+        start_1 = time.time()
         x_train, y_train = iter(train_loader).__next__()
-
+        # print(x_train.size())
+        # print(y_train.size())
         end_1 = time.time()
         time_dict['load data']+=(end_1-start_1)
-        x = x_train.to(device).float()
-        y = y_train.to(device).float()
+        # x = x_train.to(device).float()
+        # y = y_train.to(device).float()
 
  
-        start_2 = time.time()
-        y_pred = model(x).squeeze()
-        end_2 = time.time()
-        time_dict['forward']+=(end_2-start_2)
+        # start_2 = time.time()
+        # y_pred = model(x).squeeze()
+        # end_2 = time.time()
+        # time_dict['forward']+=(end_2-start_2)
 
 
         
-        start_3 = time.time()
-        optim.zero_grad()
-        end_3 = time.time()
-        time_dict['zero grad']+=(end_3-start_3)
+        # start_3 = time.time()
+        # optim.zero_grad()
+        # end_3 = time.time()
+        # time_dict['zero grad']+=(end_3-start_3)
 
-        start_4 = time.time()
-        loss = loss_func(y_pred, y.squeeze())
+        # start_4 = time.time()
+        # loss = loss_func(y_pred, y.squeeze())
 
-        reg_loss = model.get_regularization_loss()
+        # reg_loss = model.get_regularization_loss()
 
-        total_loss = loss + reg_loss + model.aux_loss
-        end_4 = time.time()
-        time_dict['loss']+=(end_4-start_4)
+        # total_loss = loss + reg_loss + model.aux_loss
+        # end_4 = time.time()
+        # time_dict['loss']+=(end_4-start_4)
 
-        start_5 = time.time()
-        loss_epoch += loss.item()
-        total_loss_epoch += total_loss.item()
-        end_5 = time.time()
-        time_dict['loss.item']+=(end_5-start_5)
+        # start_5 = time.time()
+        # loss_epoch += loss.item()
+        # total_loss_epoch += total_loss.item()
+        # end_5 = time.time()
+        # time_dict['loss.item']+=(end_5-start_5)
 
-        start_6 = time.time()
-        total_loss.backward()
-        end_6 = time.time()
-        time_dict['backward']+=(end_6-start_6)
+        # start_6 = time.time()
+        # total_loss.backward()
+        # end_6 = time.time()
+        # time_dict['backward']+=(end_6-start_6)
 
 
-        start_7 = time.time()
-        optim.step()
-        end_7 = time.time()
-        time_dict['optimizer step']+=(end_7-start_7)  
+        # start_7 = time.time()
+        # optim.step()
+        # end_7 = time.time()
+        # time_dict['optimizer step']+=(end_7-start_7)  
 
-        start_1 = time.time()
 
 
     for time_key in time_dict:
-        print('=====',time_key,'=====',time_dict[time_key]*(5/2))
+        print('=====',time_key,'=====',time_dict[time_key])
 
 
 def test_with_profile(model, args):
@@ -210,7 +213,7 @@ def test_with_profile(model, args):
     total_loss_epoch = 0
 
     flow._oneflow_internal.profiler.RangePush('train DCN begin')
-    for idx in range(20):
+    for idx in range(50):
 
         flow._oneflow_internal.profiler.RangePush('load data')
         x_train, y_train = iter(train_loader).__next__()
@@ -314,7 +317,7 @@ if __name__ == "__main__":
 
     test_with_time(model, args)
 
-    test_with_profile(model, args)
+    # test_with_profile(model, args)
 
 
 
