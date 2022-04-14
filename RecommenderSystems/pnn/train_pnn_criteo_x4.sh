@@ -10,7 +10,6 @@ NODE_RANK=0
 MASTER_ADDR=127.0.0.1
 DATA_DIR=/minio/sdb/sunbowen/criteo_x4_9ea3bdfc/deepfm_parquet
 PERSISTENT_PATH=/minio/sdb/sunbowen/persistent1
-PERSISTENT_PATH_FM=/minio/sdb/sunbowen/persistent2
 
 python3 -m oneflow.distributed.launch \
     --nproc_per_node $DEVICE_NUM_PER_NODE \
@@ -20,7 +19,6 @@ python3 -m oneflow.distributed.launch \
     pnn_train_eval.py \
       --data_dir $DATA_DIR \
       --persistent_path $PERSISTENT_PATH \
-      --persistent_path_fm $PERSISTENT_PATH_FM \
       --table_size_array "36, 91, 112, 29, 211, 94, 70, 46, 83, 5, 24, 30, 42, 799, 544, 22916, 25358, 200, 13, 10126, 383, 3, 16872, 4508, 23375, 3106, 27, 7077, 24371, 10, 3307, 1628, 4, 23796, 13, 15, 15846, 61, 12817" \
       --store_type 'cached_host_mem' \
       --cache_memory_budget_mb 1024 \

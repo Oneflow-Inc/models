@@ -61,7 +61,6 @@ def get_args(print_args=True):
         required=True,
     )
     parser.add_argument("--persistent_path", type=str, required=True, help="path for persistent kv store")
-    parser.add_argument("--persistent_path_fm", type=str, required=True, help="path for persistent kv store of FM")
     parser.add_argument("--store_type", type=str, default="cached_host_mem")
     parser.add_argument("--cache_memory_budget_mb", type=int, default=8192)
 
@@ -91,7 +90,7 @@ num_dense_fields = 13
 num_sparse_fields = 26
 
 
-class DeepFMDataReader(object):
+class PNNDataReader(object):
     """A context manager that manages the creation and termination of a
     :class:`petastorm.Reader`.
     """
@@ -189,7 +188,7 @@ def make_criteo_dataloader(data_path, batch_size, shuffle=True):
     world_size = flow.env.get_world_size()
     batch_size_per_proc = batch_size // world_size
 
-    return DeepFMDataReader(
+    return PNNDataReader(
         files,
         batch_size_per_proc,
         None,  # TODO: iterate over all eval dataset
@@ -380,7 +379,7 @@ class FM(nn.Module):
 
 class InnerProductLayer(nn.Module):
     def __init__(self, interaction_type='dot', interaction_itself=False, num_sparse_fields=26):
-        super(Interaction, self).__init__()
+        super(InnerProductLayer, self).__init__()
         self.interaction_type = interaction_type
         self.interaction_itself = interaction_itself
         self.num_sparse_fields = num_sparse_fields
@@ -440,7 +439,7 @@ class InnerProductLayer(nn.Module):
     #         assert 0, 'dot or cat'
 
 
-class DeepFMModule(nn.Module):
+class PNNModule(nn.Module):
     def __init__(
         self,
         embedding_vec_size=128,
@@ -453,7 +452,7 @@ class DeepFMModule(nn.Module):
         interaction_type = 'dot',
         interaction_itself = False,
     ):
-        super(DeepFMModule, self).__init__()
+        super(PNNModule, self).__init__()
 
         self.embedding_layer = OneEmbedding(
             table_name="sparse_embedding",
@@ -464,13 +463,6 @@ class DeepFMModule(nn.Module):
             cache_memory_budget_mb=cache_memory_budget_mb
         )
 
-        # self.fm_layer = FM(
-        #     persistent_path=persistent_path_fm,
-        #     table_size_array=table_size_array,
-        #     one_embedding_store_type=one_embedding_store_type,
-        #     cache_memory_budget_mb=cache_memory_budget_mb,
-        #     use_bias=False
-        # )
         self.inner_product_layer = InnerProductLayer(interaction_type, interaction_itself, num_sparse_fields + num_sparse_fields)
 
         self.dnn_layer = DNN(
@@ -482,7 +474,7 @@ class DeepFMModule(nn.Module):
 
     def forward(self, inputs) -> flow.Tensor:
         T = self.embedding_layer(inputs)
-        Z = self.interaction(T)
+        Z = self.inner_product_layer(T)
         print(Z.shape)
         dense_input = flow.cat([T.flatten(start_dim=1), Z], dim=1)
         print(dense_input.shape)
@@ -490,13 +482,12 @@ class DeepFMModule(nn.Module):
         return dnn_pred
 
 
-def make_deepfm_module(args):
-    model = DeepFMModule(
+def make_pnn_module(args):
+    model = PNNModule(
         embedding_vec_size=args.embedding_vec_size,
         dnn=args.dnn,
         use_fusedmlp=not args.disable_fusedmlp,
         persistent_path=args.persistent_path,
-        persistent_path_fm=args.persistent_path_fm,
         table_size_array=args.table_size_array,
         one_embedding_store_type=args.store_type,
         cache_memory_budget_mb=args.cache_memory_budget_mb,
@@ -504,10 +495,10 @@ def make_deepfm_module(args):
     return model
 
 
-class DeepFMValGraph(flow.nn.Graph):
-    def __init__(self, deepfm_module, amp=False):
-        super(DeepFMValGraph, self).__init__()
-        self.module = deepfm_module
+class PNNValGraph(flow.nn.Graph):
+    def __init__(self, pnn_module, amp=False):
+        super(PNNValGraph, self).__init__()
+        self.module = pnn_module
         if amp:
             self.config.enable_amp(True)
 
@@ -516,12 +507,12 @@ class DeepFMValGraph(flow.nn.Graph):
         return predicts.to("cpu")
 
 
-class DeepFMTrainGraph(flow.nn.Graph):
+class PNNTrainGraph(flow.nn.Graph):
     def __init__(
-        self, deepfm_module, loss, optimizer, lr_scheduler=None, grad_scaler=None, amp=False, max_norm=10,
+        self, pnn_module, loss, optimizer, lr_scheduler=None, grad_scaler=None, amp=False, max_norm=10,
     ):
-        super(DeepFMTrainGraph, self).__init__()
-        self.module = deepfm_module
+        super(PNNTrainGraph, self).__init__()
+        self.module = pnn_module
         self.loss = loss
         self.max_norm = max_norm
         self.add_optimizer(optimizer, lr_sch=lr_scheduler)
@@ -574,13 +565,13 @@ def early_stop(epoch, logs, best_metric, stopping_steps, patience=2, min_delta=1
 def train(args): 
     rank = flow.env.get_rank()
 
-    deepfm_module = make_deepfm_module(args)
-    deepfm_module.to_global(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
+    pnn_module = make_pnn_module(args)
+    pnn_module.to_global(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
 
     if args.model_load_dir:
         print(f"Loading model from {args.model_load_dir}")
         state_dict = flow.load(args.model_load_dir, global_src_rank=0)
-        deepfm_module.load_state_dict(state_dict, strict=False)
+        pnn_module.load_state_dict(state_dict, strict=False)
 
     def save_model(subdir):
         if not args.model_save_dir:
@@ -588,18 +579,18 @@ def train(args):
         save_path = os.path.join(args.model_save_dir, subdir)
         if rank == 0:
             print(f"Saving model to {save_path}")
-        state_dict = deepfm_module.state_dict()
+        state_dict = pnn_module.state_dict()
         flow.save(state_dict, save_path, global_dst_rank=0)
 
     if args.save_initial_model:
         save_model("initial_checkpoint")
 
     # TODO: clip gradient norm
-    opt = flow.optim.SGD(deepfm_module.parameters(), lr=args.learning_rate)
+    opt = flow.optim.SGD(pnn_module.parameters(), lr=args.learning_rate)
     # opt = flow.optim.SGD(
     #         [
     #             {
-    #                 "params": deepfm_module.parameters(),
+    #                 "params": pnn_module.parameters(),
     #                 "lr": args.learning_rate,
     #                 "clip_grad_max_norm": args.max_gradient_norm,
     #                 "clip_grad_norm_type": 2.0,
@@ -616,8 +607,8 @@ def train(args):
             init_scale=1073741824, growth_factor=2.0, backoff_factor=0.5, growth_interval=2000,
         )
     
-    eval_graph = DeepFMValGraph(deepfm_module, args.amp)
-    train_graph = DeepFMTrainGraph(deepfm_module, loss, opt, lr_scheduler, grad_scaler, args.amp)
+    eval_graph = PNNValGraph(pnn_module, args.amp)
+    train_graph = PNNTrainGraph(pnn_module, loss, opt, lr_scheduler, grad_scaler, args.amp)
 
     train_losses = []
     batches_per_epoch = math.ceil(args.num_train_samples / args.train_batch_size)
@@ -625,7 +616,7 @@ def train(args):
     best_metric = -np.inf
     stopping_steps = 0
 
-    deepfm_module.train()
+    pnn_module.train()
     step, last_step, last_time = -1, 0, time.time()
     epoch = 0
     with make_criteo_dataloader(f"{args.data_dir}/train", args.train_batch_size) as loader:
@@ -661,7 +652,7 @@ def train(args):
                 if stop_training:
                     break
 
-                deepfm_module.train()
+                pnn_module.train()
                 last_time = time.time()
 
     if step % batches_per_epoch != 0:

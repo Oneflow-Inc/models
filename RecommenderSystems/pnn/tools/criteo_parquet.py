@@ -22,7 +22,7 @@ from pyspark.sql.functions import rand, udf, lit, xxhash64
 from pyspark.sql.types import IntegerType, LongType
 
 
-def make_deepfm_parquet(
+def make_pnn_parquet(
     spark, input_files, output_dir, mod_idx=40000000, part_num=None, shuffle=False
 ):
     sparse_names = [f"C{i}" for i in range(1, 27)]
@@ -91,19 +91,19 @@ if __name__ == "__main__":
 
     # create test dataset
     test_output_dir = os.path.join(args.output_dir, "test")
-    test_count = make_deepfm_parquet(
+    test_count = make_pnn_parquet(
         spark, test_csv, test_output_dir, part_num=256, mod_idx=args.mod_idx
     )
 
     # create validation dataset
     val_output_dir = os.path.join(args.output_dir, "val")
-    val_count = make_deepfm_parquet(
+    val_count = make_pnn_parquet(
         spark, val_csv, val_output_dir, part_num=256, mod_idx=args.mod_idx
     )
 
     # create train dataset
     train_output_dir = os.path.join(args.output_dir, "train")
-    train_count = make_deepfm_parquet(
+    train_count = make_pnn_parquet(
         spark, train_csv, train_output_dir, part_num=1024, shuffle=True, mod_idx=args.mod_idx
     )
 
