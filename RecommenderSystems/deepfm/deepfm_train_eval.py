@@ -444,12 +444,12 @@ class DeepFMValGraph(flow.nn.Graph):
 
 class DeepFMTrainGraph(flow.nn.Graph):
     def __init__(
-        self, deepfm_module, loss, optimizer, lr_scheduler=None, grad_scaler=None, amp=False,
+        self, deepfm_module, loss, optimizer, grad_scaler=None, amp=False, lr_scheduler=None,
     ):
         super(DeepFMTrainGraph, self).__init__()
         self.module = deepfm_module
         self.loss = loss
-        self.add_optimizer(optimizer) # , lr_sch=lr_scheduler
+        self.add_optimizer(optimizer)
         self.config.allow_fuse_model_update_ops(True)
         self.config.allow_fuse_add_to_output(True)
         self.config.allow_fuse_cast_scale(True)
@@ -467,22 +467,30 @@ class DeepFMTrainGraph(flow.nn.Graph):
 
 
 def make_lr_scheduler(args, optimizer):
-    batches_per_epoch = math.ceil(args.num_train_samples / args.train_batch_size)
-    milestones = [batches_per_epoch * (i + 1) for i in range(math.floor(math.log(args.min_lr / args.learning_rate, args.lr_factor)))]
-    multistep_lr = flow.optim.lr_scheduler.MultiStepLR(
+    reduce_lr_on_plateau = flow.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer=optimizer,
-        gamma=args.lr_factor,
-        milestones=milestones,
+        mode="max",
+        factor=args.lr_factor,
+        patience=0,
+        threshold=args.min_delta,
+        threshold_mode="abs",
+        cooldown=0,
+        min_lr=args.min_lr,
+        verbose=True,
     )
-    return multistep_lr
+
+    return reduce_lr_on_plateau
 
 
-def early_stop(epoch, logs, best_metric, stopping_steps, patience=2, min_delta=1e-6):
+def get_metrics(logs):
     kv = {'auc': 1, 'logloss': -1}
     monitor_value = 0
     for k, v in kv.items():
         monitor_value += logs.get(k, 0) * v
+    return monitor_value
 
+
+def early_stop(epoch, monitor_value, best_metric, stopping_steps, patience=2, min_delta=1e-6):
     stop_training = False
     if monitor_value < best_metric + min_delta:
         stopping_steps += 1
@@ -532,7 +540,7 @@ def train(args):
         )
     
     eval_graph = DeepFMValGraph(deepfm_module, args.amp)
-    train_graph = DeepFMTrainGraph(deepfm_module, loss, opt, lr_scheduler, grad_scaler, args.amp)
+    train_graph = DeepFMTrainGraph(deepfm_module, loss, opt, grad_scaler, args.amp)
 
     train_losses = []
     batches_per_epoch = math.ceil(args.num_train_samples / args.train_batch_size)
@@ -565,9 +573,13 @@ def train(args):
                 if args.save_model_after_each_eval:
                     save_model(f"step_{step}_val_auc_{auc:0.5f}")
 
+                monitor_value = get_metrics(logs={'auc': auc, 'logloss': logloss})
+                
+                lr_scheduler.step(monitor_value)
+
                 stop_training, best_metric, stopping_steps = early_stop(
                     epoch, 
-                    logs={'auc': auc, 'logloss': logloss}, 
+                    monitor_value, 
                     best_metric=best_metric, 
                     stopping_steps=stopping_steps, 
                     patience=args.patience, 
