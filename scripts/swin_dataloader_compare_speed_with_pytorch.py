@@ -57,13 +57,14 @@ def ensure_dataset():
     shutil.unpack_archive(absolute_file_path)
     return str(pathlib.Path.cwd() / "nanodataset")
 
+
 swin_dataloader_loop_count = 200
+
 
 def print_rank_0(*args, **kwargs):
     rank = int(os.getenv("RANK", "0"))
     if rank == 0:
         print(*args, **kwargs)
-
 
 
 def run(mode, imagenet_path, batch_size, num_wokers):
@@ -79,6 +80,7 @@ def run(mode, imagenet_path, batch_size, num_wokers):
 
         from flowvision import datasets, transforms
         from flowvision.data import create_transform
+
     class SubsetRandomSampler(flow.utils.data.Sampler):
         r"""Samples elements randomly from a given list of indices, without replacement.
         Arguments:
@@ -112,7 +114,6 @@ def run(mode, imagenet_path, batch_size, num_wokers):
         )
         return transform
 
-
     # swin-transformer imagenet dataloader
     def build_dataset(imagenet_path):
         transform = build_transform()
@@ -120,7 +121,6 @@ def run(mode, imagenet_path, batch_size, num_wokers):
         root = os.path.join(imagenet_path, prefix)
         dataset = datasets.ImageFolder(root, transform=transform)
         return dataset
-
 
     def build_loader(imagenet_path, batch_size, num_wokers):
         dataset_train = build_dataset(imagenet_path=imagenet_path)
@@ -156,6 +156,7 @@ def run(mode, imagenet_path, batch_size, num_wokers):
 
     return get_time()
 
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--batch_size", type=int, default=1)
@@ -170,11 +171,21 @@ if __name__ == "__main__":
     pytorch_data_loader_total_time = run(
         "torch", args.imagenet_path, args.batch_size, args.num_workers
     )
-    oneflow_data_loader_time = oneflow_data_loader_total_time / swin_dataloader_loop_count
-    pytorch_data_loader_time = pytorch_data_loader_total_time / swin_dataloader_loop_count
+    oneflow_data_loader_time = (
+        oneflow_data_loader_total_time / swin_dataloader_loop_count
+    )
+    pytorch_data_loader_time = (
+        pytorch_data_loader_total_time / swin_dataloader_loop_count
+    )
 
     relative_speed = oneflow_data_loader_time / pytorch_data_loader_time
 
-    print_rank_0(f"OneFlow swin dataloader time: {oneflow_data_loader_time:.3f}s (= {oneflow_data_loader_total_time:.3f}s / {swin_dataloader_loop_count}, num_workers={args.num_workers})")
-    print_rank_0(f"PyTorch swin dataloader time: {pytorch_data_loader_time:.3f}s (= {pytorch_data_loader_total_time:.3f}s / {swin_dataloader_loop_count}, num_workers={args.num_workers})")
-    print_rank_0(f"Relative speed: {pytorch_data_loader_time / oneflow_data_loader_time:.3f} (= {pytorch_data_loader_time:.3f}s / {oneflow_data_loader_time:.3f}s)")
+    print_rank_0(
+        f"OneFlow swin dataloader time: {oneflow_data_loader_time:.3f}s (= {oneflow_data_loader_total_time:.3f}s / {swin_dataloader_loop_count}, num_workers={args.num_workers})"
+    )
+    print_rank_0(
+        f"PyTorch swin dataloader time: {pytorch_data_loader_time:.3f}s (= {pytorch_data_loader_total_time:.3f}s / {swin_dataloader_loop_count}, num_workers={args.num_workers})"
+    )
+    print_rank_0(
+        f"Relative speed: {pytorch_data_loader_time / oneflow_data_loader_time:.3f} (= {pytorch_data_loader_time:.3f}s / {oneflow_data_loader_time:.3f}s)"
+    )
