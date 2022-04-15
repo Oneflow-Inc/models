@@ -79,7 +79,6 @@ def run(mode, imagenet_path, batch_size, num_wokers):
 
         from flowvision import datasets, transforms
         from flowvision.data import create_transform
-    print(flow.__file__)
     class SubsetRandomSampler(flow.utils.data.Sampler):
         r"""Samples elements randomly from a given list of indices, without replacement.
         Arguments:
