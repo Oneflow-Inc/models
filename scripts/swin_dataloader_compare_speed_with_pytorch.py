@@ -81,25 +81,6 @@ def run(mode, imagenet_path, batch_size, num_wokers):
         from flowvision import datasets, transforms
         from flowvision.data import create_transform
 
-    class SubsetRandomSampler(flow.utils.data.Sampler):
-        r"""Samples elements randomly from a given list of indices, without replacement.
-        Arguments:
-            indices (sequence): a sequence of indices
-        """
-
-        def __init__(self, indices):
-            self.epoch = 0
-            self.indices = indices
-
-        def __iter__(self):
-            return (self.indices[i] for i in flow.randperm(len(self.indices)).tolist())
-
-        def __len__(self):
-            return len(self.indices)
-
-        def set_epoch(self, epoch):
-            self.epoch = epoch
-
     def build_transform():
         # this should always dispatch to transforms_imagenet_train
         transform = create_transform(
@@ -126,11 +107,10 @@ def run(mode, imagenet_path, batch_size, num_wokers):
         dataset_train = build_dataset(imagenet_path=imagenet_path)
 
         indices = np.arange(0, len(dataset_train), 1)
-        sampler_train = SubsetRandomSampler(indices)
 
         data_loader_train = DataLoader(
             dataset_train,
-            sampler=sampler_train,
+            shuffle=True,
             batch_size=batch_size,
             num_workers=num_wokers,
             drop_last=True,
