@@ -498,8 +498,8 @@ def train(args):
     )
 
     dlrm_module.train()
-    step, last_step, last_time = -1, 0, time.time()
     with make_criteo_dataloader(f"{args.data_dir}/train", args.train_batch_size) as loader:
+        step, last_step, last_time = -1, 0, time.time()
         for step in range(1, args.train_batches + 1):
             labels, dense_fields, sparse_fields = batch_to_global(*next(loader))
             loss = train_graph(labels, dense_fields, sparse_fields)
