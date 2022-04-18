@@ -1,8 +1,7 @@
 #!/bin/bash
 rm -r /minio/sdb/sunbowen/persistent1/*
-rm -r /minio/sdb/sunbowen/persistent2/*
 
-export CUDA_VISIBLE_DEVICES=1,3
+export CUDA_VISIBLE_DEVICES=3
 
 DEVICE_NUM_PER_NODE=1
 NUM_NODES=1
