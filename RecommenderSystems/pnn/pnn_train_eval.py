@@ -308,73 +308,73 @@ class DNN(nn.Module):
         return self.linear_layers(x)
 
 
-class LR(nn.Module):
-    def __init__(
-        self,
-        persistent_path=None,
-        table_size_array=None,
-        one_embedding_store_type="cached_host_mem",
-        cache_memory_budget_mb=8192,
-        use_bias=True
-    ):
-        super(LR, self).__init__()
-        self.bias = nn.Parameter(flow.tensor([1], dtype=flow.float32)) if use_bias else None
-        self.embedding_layer = OneEmbedding(
-            table_name="fm_lr_embedding",
-            embedding_vec_size=1,
-            persistent_path=persistent_path,
-            table_size_array=table_size_array,
-            store_type=one_embedding_store_type,
-            cache_memory_budget_mb=cache_memory_budget_mb
-        )
+# class LR(nn.Module):
+#     def __init__(
+#         self,
+#         persistent_path=None,
+#         table_size_array=None,
+#         one_embedding_store_type="cached_host_mem",
+#         cache_memory_budget_mb=8192,
+#         use_bias=True
+#     ):
+#         super(LR, self).__init__()
+#         self.bias = nn.Parameter(flow.tensor([1], dtype=flow.float32)) if use_bias else None
+#         self.embedding_layer = OneEmbedding(
+#             table_name="fm_lr_embedding",
+#             embedding_vec_size=1,
+#             persistent_path=persistent_path,
+#             table_size_array=table_size_array,
+#             store_type=one_embedding_store_type,
+#             cache_memory_budget_mb=cache_memory_budget_mb
+#         )
 
-    def forward(self, x):
-        # x = original ids
-        # order-1 feature interaction
-        embedded_x = self.embedding_layer(x)
-        output = flow.sum(embedded_x, dim=1)
-        if self.bias is not None:
-            output += self.bias
-        return output
+#     def forward(self, x):
+#         # x = original ids
+#         # order-1 feature interaction
+#         embedded_x = self.embedding_layer(x)
+#         output = flow.sum(embedded_x, dim=1)
+#         if self.bias is not None:
+#             output += self.bias
+#         return output
 
 
-class Interaction(nn.Module):
-    def __init__(self, interaction_itself=False, num_fields=26):
-        super(Interaction, self).__init__()
-        self.interaction_itself = interaction_itself
-        self.num_fields = num_fields
+# class Interaction(nn.Module):
+#     def __init__(self, interaction_itself=False, num_fields=26):
+#         super(Interaction, self).__init__()
+#         self.interaction_itself = interaction_itself
+#         self.num_fields = num_fields
         
-    def forward(self, embedded_x:flow.Tensor) -> flow.Tensor:
-        sum_of_square = flow.sum(embedded_x, dim=1) ** 2
-        square_of_sum = flow.sum(embedded_x ** 2, dim=1)
-        bi_interaction = (sum_of_square - square_of_sum) * 0.5
-        return flow.sum(bi_interaction, dim=-1).view(-1, 1)
+#     def forward(self, embedded_x:flow.Tensor) -> flow.Tensor:
+#         sum_of_square = flow.sum(embedded_x, dim=1) ** 2
+#         square_of_sum = flow.sum(embedded_x ** 2, dim=1)
+#         bi_interaction = (sum_of_square - square_of_sum) * 0.5
+#         return flow.sum(bi_interaction, dim=-1).view(-1, 1)
 
 
-class FM(nn.Module):
-    def __init__(
-        self, 
-        persistent_path=None,
-        table_size_array=None,
-        one_embedding_store_type="cached_host_mem",
-        cache_memory_budget_mb=8192,
-        use_bias=True
-    ):
-        super(FM, self).__init__()
-        self.interaction = Interaction(num_fields=num_dense_fields+num_sparse_fields)
-        self.lr = LR(
-            persistent_path=persistent_path,
-            table_size_array=table_size_array,
-            one_embedding_store_type=one_embedding_store_type,
-            cache_memory_budget_mb=cache_memory_budget_mb,
-            use_bias=use_bias
-        )
+# class FM(nn.Module):
+#     def __init__(
+#         self, 
+#         persistent_path=None,
+#         table_size_array=None,
+#         one_embedding_store_type="cached_host_mem",
+#         cache_memory_budget_mb=8192,
+#         use_bias=True
+#     ):
+#         super(FM, self).__init__()
+#         self.interaction = Interaction(num_fields=num_dense_fields+num_sparse_fields)
+#         self.lr = LR(
+#             persistent_path=persistent_path,
+#             table_size_array=table_size_array,
+#             one_embedding_store_type=one_embedding_store_type,
+#             cache_memory_budget_mb=cache_memory_budget_mb,
+#             use_bias=use_bias
+#         )
     
-    def forward(self, x:flow.Tensor, embedded_x:flow.Tensor) -> flow.Tensor:
-        lr_out = self.lr(x)
-        dot_sum = self.interaction(embedded_x)
-        output = lr_out + dot_sum
-        return output
+#     def forward(self, x:flow.Tensor, embedded_x:flow.Tensor) -> flow.Tensor:
+#         lr_out = self.lr(x)
+#         dot_sum = self.interaction(embedded_x)
+#         output = lr_out + dot_sum
+#         return output
 
 
 class InnerProductLayer(nn.Module):
