@@ -388,8 +388,8 @@ class InnerProductLayer(nn.Module):
         offset = 1 if self.interaction_itself else 0
         # indices = flow.tensor([i * 27 + j for i in range(27) for j in range(i + offset)])
         # self.register_buffer("indices", indices)
-        li = flow.tensor([i for i in range(40) for j in range(i + offset)])
-        lj = flow.tensor([j for i in range(40) for j in range(i + offset)])
+        li = flow.tensor([i for i in range(39) for j in range(i + offset)])
+        lj = flow.tensor([j for i in range(39) for j in range(i + offset)])
         self.register_buffer("li", li)
         self.register_buffer("lj", lj)
         
@@ -403,6 +403,23 @@ class InnerProductLayer(nn.Module):
             T = flow.cat([x], dim=1).view((batch_size, -1, d))
             # perform a dot product
             Z = flow.matmul(T, T, transpose_b=True)
+            print("Z.shape: ", Z.shape)
+            Zflat = Z[:, self.li, self.lj]
+            print("Zflat.shape: ", Zflat.shape)
+            R = flow.cat([Zflat], dim=1)       
+        else:
+            assert 0, 'dot or cat'
+        return R
+
+    def forward(self, x:flow.Tensor) -> flow.Tensor:
+        # x - dense fields, ly = embedding
+        # if self.interaction_type == 'cat':
+        #     R = flow.cat([x, ly], dim=1)
+        if self.interaction_type == 'dot': # slice
+            # (batch_size, fields, d) = x.shape
+            # T = flow.cat([x], dim=1).view((batch_size, -1, d))
+            # perform a dot product
+            Z = flow.matmul(x, x, transpose_b=True)
             print("Z.shape: ", Z.shape)
             Zflat = Z[:, self.li, self.lj]
             print("Zflat.shape: ", Zflat.shape)
@@ -466,7 +483,7 @@ class PNNModule(nn.Module):
         self.inner_product_layer = InnerProductLayer(interaction_type, interaction_itself, num_sparse_fields + num_sparse_fields)
 
         self.dnn_layer = DNN(
-            in_features=embedding_vec_size * (num_dense_fields + num_sparse_fields) + sum(range(num_dense_fields + num_sparse_fields + 1)),
+            in_features=embedding_vec_size * (num_dense_fields + num_sparse_fields) + sum(range(num_dense_fields + num_sparse_fields)),
             hidden_units=dnn+[1],
             skip_final_activation=True,
             fused=use_fusedmlp
