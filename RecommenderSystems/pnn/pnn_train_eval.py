@@ -9,7 +9,7 @@ import psutil
 import warnings
 import oneflow as flow
 import oneflow.nn as nn
-from sklearn.metrics import roc_auc_score
+from sklearn.metrics import roc_auc_score, log_loss
 from petastorm.reader import make_batch_reader
 import matplotlib.pyplot as plt
 
@@ -36,7 +36,7 @@ def get_args(print_args=True):
     parser.add_argument("--disable_fusedmlp", default=False, help="disable fused MLP or not")
     parser.add_argument("--embedding_vec_size", type=int, default=16)
     parser.add_argument("--dnn", type=int_list, default="1000,1000,1000,1000,1000")
-    parser.add_argument("--net_dropout", type=float, default=0.0)
+    parser.add_argument("--net_dropout", type=float, default=0.2)
     parser.add_argument("--embedding_regularizer", type=float, default=None)
     parser.add_argument("--net_regularizer", type=float, default=None)
     parser.add_argument("--max_gradient_norm", type=float, default=10.0)
@@ -44,7 +44,7 @@ def get_args(print_args=True):
     parser.add_argument("--lr_factor", type=float, default=0.1)
     parser.add_argument("--min_lr", type=float, default=1.0e-6)
     parser.add_argument("--learning_rate", type=float, default=0.001)
-
+    
     parser.add_argument("--eval_batches", type=int, default=1612, help="number of eval batches")
     parser.add_argument("--eval_batch_size", type=int, default=10000)
     parser.add_argument("--train_batch_size", type=int, default=10000)
@@ -208,6 +208,7 @@ class OneEmbedding(nn.Module):
         table_size_array,
         store_type,
         cache_memory_budget_mb,
+        size_factor,
     ):
         assert table_size_array is not None
         vocab_size = sum(table_size_array)
@@ -216,9 +217,11 @@ class OneEmbedding(nn.Module):
         # TODO: embedding initialization uniform2normal
         tables = [
             flow.one_embedding.make_table(
-                flow.one_embedding.make_uniform_initializer(low=-scale, high=scale)
+                # flow.one_embedding.make_uniform_initializer(low=-scale, high=scale)
+                flow.one_embedding.make_normal_initializer(mean=0.0, std=1e-4)
             )
-            for scale in scales
+            # for scale in scales
+            for _ in range(len(table_size_array))
         ]
         # tables = [
         #     flow.one_embedding.make_table(
@@ -229,21 +232,24 @@ class OneEmbedding(nn.Module):
         if store_type == "device_mem":
             store_options = flow.one_embedding.make_device_mem_store_options(
                 persistent_path=persistent_path, 
-                capacity=vocab_size
+                capacity=vocab_size,
+                size_factor=size_factor,
             )
         elif store_type == "cached_host_mem":
             assert cache_memory_budget_mb > 0
             store_options = flow.one_embedding.make_cached_host_mem_store_options(
                 cache_budget_mb=cache_memory_budget_mb,
                 persistent_path=persistent_path,
-                capacity=vocab_size
+                capacity=vocab_size,
+                size_factor=size_factor,
             )
         elif store_type == "cached_ssd":
             assert cache_memory_budget_mb > 0
             store_options = flow.one_embedding.make_cached_ssd_store_options(
                 cache_budget_mb=cache_memory_budget_mb,
                 persistent_path=persistent_path,
-                capacity=vocab_size
+                capacity=vocab_size,
+                size_factor=size_factor,
             )
         else:
             raise NotImplementedError("not support", store_type)
@@ -394,22 +400,22 @@ class InnerProductLayer(nn.Module):
         self.register_buffer("lj", lj)
         
 
-    def forward(self, x:flow.Tensor) -> flow.Tensor:
-        # x - dense fields, ly = embedding
-        # if self.interaction_type == 'cat':
-        #     R = flow.cat([x, ly], dim=1)
-        if self.interaction_type == 'dot': # slice
-            (batch_size, fields, d) = x.shape
-            T = flow.cat([x], dim=1).view((batch_size, -1, d))
-            # perform a dot product
-            Z = flow.matmul(T, T, transpose_b=True)
-            print("Z.shape: ", Z.shape)
-            Zflat = Z[:, self.li, self.lj]
-            print("Zflat.shape: ", Zflat.shape)
-            R = flow.cat([Zflat], dim=1)       
-        else:
-            assert 0, 'dot or cat'
-        return R
+    # def forward(self, x:flow.Tensor) -> flow.Tensor:
+    #     # x - dense fields, ly = embedding
+    #     # if self.interaction_type == 'cat':
+    #     #     R = flow.cat([x, ly], dim=1)
+    #     if self.interaction_type == 'dot': # slice
+    #         (batch_size, fields, d) = x.shape
+    #         T = flow.cat([x], dim=1).view((batch_size, -1, d))
+    #         # perform a dot product
+    #         Z = flow.matmul(T, T, transpose_b=True)
+    #         print("Z.shape: ", Z.shape)
+    #         Zflat = Z[:, self.li, self.lj]
+    #         print("Zflat.shape: ", Zflat.shape)
+    #         R = flow.cat([Zflat], dim=1)       
+    #     else:
+    #         assert 0, 'dot or cat'
+    #     return R
 
     def forward(self, x:flow.Tensor) -> flow.Tensor:
         # x - dense fields, ly = embedding
@@ -468,6 +474,7 @@ class PNNModule(nn.Module):
         cache_memory_budget_mb=8192,
         interaction_type = 'dot',
         interaction_itself = False,
+        dropout=0.2,
     ):
         super(PNNModule, self).__init__()
 
@@ -477,7 +484,8 @@ class PNNModule(nn.Module):
             persistent_path=persistent_path,
             table_size_array=table_size_array,
             store_type=one_embedding_store_type,
-            cache_memory_budget_mb=cache_memory_budget_mb
+            cache_memory_budget_mb=cache_memory_budget_mb,
+            size_factor=3,
         )
 
         self.inner_product_layer = InnerProductLayer(interaction_type, interaction_itself, num_sparse_fields + num_sparse_fields)
@@ -508,6 +516,7 @@ def make_pnn_module(args):
         table_size_array=args.table_size_array,
         one_embedding_store_type=args.store_type,
         cache_memory_budget_mb=args.cache_memory_budget_mb,
+        dropout=args.net_dropout,
     )
     return model
 
@@ -526,12 +535,12 @@ class PNNValGraph(flow.nn.Graph):
 
 class PNNTrainGraph(flow.nn.Graph):
     def __init__(
-        self, pnn_module, loss, optimizer, lr_scheduler=None, grad_scaler=None, amp=False, max_norm=10,
+        self, pnn_module, loss, optimizer, lr_scheduler=None, grad_scaler=None, amp=False
     ):
         super(PNNTrainGraph, self).__init__()
         self.module = pnn_module
         self.loss = loss
-        self.max_norm = max_norm
+        # self.max_norm = max_norm
         self.add_optimizer(optimizer, lr_sch=lr_scheduler)
         self.config.allow_fuse_model_update_ops(True)
         self.config.allow_fuse_add_to_output(True)
@@ -603,7 +612,7 @@ def train(args):
         save_model("initial_checkpoint")
 
     # TODO: clip gradient norm
-    opt = flow.optim.SGD(pnn_module.parameters(), lr=args.learning_rate)
+    # opt = flow.optim.SGD(pnn_module.parameters(), lr=args.learning_rate)
     # opt = flow.optim.SGD(
     #         [
     #             {
@@ -614,6 +623,10 @@ def train(args):
     #             }
     #         ],
     #     )
+
+    opt = flow.optim.Adam(pnn_module.parameters(), lr=args.learning_rate)
+
+
     lr_scheduler = make_lr_scheduler(args, opt)
     loss = flow.nn.BCEWithLogitsLoss(reduction="none").to("cuda")
 
@@ -654,13 +667,13 @@ def train(args):
 
             if step % batches_per_epoch == 0:
                 epoch += 1
-                auc = eval(args, eval_graph, step, epoch)
+                auc, logloss = eval(args, eval_graph, step, epoch)
                 if args.save_model_after_each_eval:
                     save_model(f"step_{step}_val_auc_{auc:0.5f}")
 
                 stop_training, best_metric, stopping_steps = early_stop(
                     epoch, 
-                    logs={'auc': auc}, 
+                    logs={'auc': auc, 'logloss': logloss}, 
                     best_metric=best_metric, 
                     stopping_steps=stopping_steps, 
                     patience=args.patience, 
@@ -716,20 +729,22 @@ def eval(args, eval_graph, cur_step=0, epoch=0):
         auc_start_time = time.time()
         auc = roc_auc_score(labels, preds)
         auc_time = time.time() - auc_start_time
-
+        log_loss_start_time = time.time()
+        logloss = log_loss(labels, preds, eps=1e-7)
+        log_loss_time = time.time() - log_loss_start_time
         host_mem_mb = psutil.Process().memory_info().rss // (1024 * 1024)
         stream = os.popen("nvidia-smi --query-gpu=memory.used --format=csv")
         device_mem_str = stream.read().split("\n")[rank + 1]
 
         strtime = time.strftime("%Y-%m-%d %H:%M:%S")
         print(
-            f"Rank[{rank}], Epoch {epoch}, Step {cur_step}, AUC {auc:0.5f}, Eval_time {eval_time:0.2f} s, "
-            + f"AUC_time {auc_time:0.2f} s, Eval_samples {labels.shape[0]}, "
+            f"Rank[{rank}], Epoch {epoch}, Step {cur_step}, AUC {auc:0.5f}, LogLoss {logloss:0.5f}, Eval_time {eval_time:0.2f} s, "
+            + f"AUC_time {auc_time:0.2f} s, LogLoss_time {log_loss_time: 0.2f} s, Eval_samples {labels.shape[0]}, "
             + f"GPU_Memory {device_mem_str}, Host_Memory {host_mem_mb} MiB, {strtime}"
         )
 
     flow.comm.barrier()
-    return auc
+    return auc, logloss
 
 
 def plot_train_curve(args, train_losses):
