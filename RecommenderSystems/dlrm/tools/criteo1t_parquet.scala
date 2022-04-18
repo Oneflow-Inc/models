@@ -19,11 +19,11 @@ val test_csv = s"${tmp_dir}/test.csv"
 val val_csv = s"${tmp_dir}/val.csv"
 
 val make_label = udf((str:String) => str.toFloat)
-val make_dense = udf((str:String) => if (str == null) 1  else str.toFloat + 1)
-val make_sparse = udf((str:String, i:Long) => (if (str == null) i * 40000000L else Math.floorMod(Integer.parseUnsignedInt(str, 16).toLong, 40000000L)) +  i * 40000000L)
+val make_dense = udf((str:String) => if (str == null) 1 else str.toFloat + 1)
+val make_sparse = udf((str:String, i:Long) => (if (str == null) (i+1) * 40000000L else Math.floorMod(Integer.parseUnsignedInt(str, 16).toLong, 40000000L)) +  i * 40000000L)
 val label_cols = Seq(make_label($"label").as("label"))
 val dense_cols = 1.to(13).map{i=>make_dense(col(s"I$i")).as(s"I${i}")}
-val sparse_cols = 1.to(26).map{i=>make_sparse(col(s"C$i"), lit(i)).as(s"C${i}")}
+val sparse_cols = 1.to(26).map{i=>make_sparse(col(s"C$i"), lit(i-1)).as(s"C${i}")}
 val cols = label_cols ++ dense_cols ++ sparse_cols
 
 spark.read.option("delimiter", "\t").csv(test_csv).toDF(col_names: _*).select(cols:_*).repartition(256).write.parquet(s"${dst_dir}/test")
