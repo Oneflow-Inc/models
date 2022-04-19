@@ -26,10 +26,19 @@ from utils.metrics import fitness
 cv2.setNumThreads(0) # prevent OpenCV from multithreading
 
 
-def set_logging(rank=-1, verbose=True):
-    logging.basicConfig(
-        format="%(message)s",
-        level=logging.INFO if (verbose and rank in [-1, 0]) else logging.WARN)
+def set_logging(name=None, verbose=True):
+    # Sets level and returns logger
+    rank = int(os.getenv('RANK', -1))  # rank in world for Multi-GPU trainings
+    logging.basicConfig(format="%(message)s", level=logging.INFO if (verbose and rank in (-1, 0)) else logging.WARNING)
+    return logging.getLogger(name)
+
+
+LOGGER = set_logging(__name__)  # define globally (used in train.py, val.py, detect.py, etc.)
+
+
+def print_args(name, opt):
+    # Print argparser arguments
+    LOGGER.info(colorstr(f'{name}: ') + ', '.join(f'{k}={v}' for k, v in vars(opt).items()))
 
 
 def init_seeds(seed=0):
