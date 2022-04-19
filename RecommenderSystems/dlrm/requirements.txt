@@ -1,3 +1,2 @@
 petastorm
 psutil
-scikit-learn
