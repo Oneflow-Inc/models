@@ -5,25 +5,28 @@ val dense_names = (1 to 13).map{id=>s"I$id"}
 val integer_names = Seq("label") ++ dense_names
 val col_names = integer_names ++ categorical_names
 
+val mod_idx = 40000000L
 val src_dir = "/path/to/unziped/criteo1t"
 val dst_dir = "/path/to/output"
 val tmp_dir = "/path/to/tmp_spark"
-
-// split day_23() to test.csv and val.csv
-// # head -n 89137319 src/day_23 > dst/test.csv
-// # tail -n +89137320 src/day_23 > dst/val.csv
-// total 178274637, test 89137319, val 89137318
 
 val day_23 = s"${src_dir}/day_23"
 val test_csv = s"${tmp_dir}/test.csv"
 val val_csv = s"${tmp_dir}/val.csv"
 
 val make_label = udf((str:String) => str.toFloat)
-val make_dense = udf((str:String) => if (str == null) 1 else str.toFloat + 1)
-val make_sparse = udf((str:String, i:Long) => (if (str == null) (i+1) * 40000000L else Math.floorMod(Integer.parseUnsignedInt(str, 16).toLong, 40000000L)) +  i * 40000000L)
 val label_cols = Seq(make_label($"label").as("label"))
+
+val make_dense = udf((str:String) => if (str == null) 1 else str.toFloat + 1)
 val dense_cols = 1.to(13).map{i=>make_dense(col(s"I$i")).as(s"I${i}")}
-val sparse_cols = 1.to(26).map{i=>make_sparse(col(s"C$i"), lit(i-1)).as(s"C${i}")}
+
+var sparse_cols = if (mod_idx > 0){
+    val make_sparse = udf((str:String, i:Long) => (if (str == null) (i+1) * mod_idx else Math.floorMod(Integer.parseUnsignedInt(str, 16).toLong, mod_idx)) +  i * mod_idx)
+    1.to(26).map{i=>make_sparse(col(s"C$i"), lit(i-1)).as(s"C${i}")}
+} else {
+    1.to(26).map{i=>xxhash64(lit(i), col(s"C$i")).as(s"C${i}")}
+}
+
 val cols = label_cols ++ dense_cols ++ sparse_cols
 
 spark.read.option("delimiter", "\t").csv(test_csv).toDF(col_names: _*).select(cols:_*).repartition(256).write.parquet(s"${dst_dir}/test")
