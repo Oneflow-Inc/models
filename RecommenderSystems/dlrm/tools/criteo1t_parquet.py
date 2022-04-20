@@ -36,13 +36,13 @@ def make_dlrm_parquet(
     dense_cols = [make_dense(Ii).alias(Ii) for i, Ii in enumerate(dense_names)]
 
     if mod_idx <= 0:
-        sparse_cols = [xxhash64(Ci, lit(i - 1)).alias(Ci) for i, Ci in enumerate(sparse_names)]
+        sparse_cols = [xxhash64(Ci, lit(i)).alias(Ci) for i, Ci in enumerate(sparse_names)]
     else:
         make_sparse = udf(
-            lambda s, i: mod_idx * i if s is None else int(s, 16) % mod_idx + mod_idx * i,
+            lambda s, i: mod_idx * (i + 1) if s is None else int(s, 16) % mod_idx + mod_idx * i,
             LongType(),
         )
-        sparse_cols = [make_sparse(Ci, lit(i - 1)).alias(Ci) for i, Ci in enumerate(sparse_names)]
+        sparse_cols = [make_sparse(Ci, lit(i)).alias(Ci) for i, Ci in enumerate(sparse_names)]
 
     cols = [label_col] + dense_cols + sparse_cols
 
