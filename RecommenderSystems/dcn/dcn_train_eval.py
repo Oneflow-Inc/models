@@ -107,7 +107,7 @@ num_dense_fields = 13
 num_sparse_fields = 26
 
 
-class DeepFMDataReader(object):
+class DCNDataReader(object):
     """A context manager that manages the creation and termination of a
     :class:`petastorm.Reader`.
     """
@@ -197,7 +197,7 @@ def make_criteo_dataloader(data_path, batch_size, shuffle=True):
     world_size = flow.env.get_world_size()
     batch_size_per_proc = batch_size // world_size
 
-    return DeepFMDataReader(
+    return DCNDataReader(
         files,
         batch_size_per_proc,
         None,  # TODO: iterate over all eval dataset
@@ -420,9 +420,9 @@ def make_dcn_module(args):
     return model
 
 class DCNValGraph(flow.nn.Graph):
-    def __init__(self, deepfm_module, amp=False):
+    def __init__(self, dcn_module, amp=False):
         super(DCNValGraph, self).__init__()
-        self.module = deepfm_module
+        self.module = dcn_module
         if amp:
             self.config.enable_amp(True)
 
@@ -433,10 +433,10 @@ class DCNValGraph(flow.nn.Graph):
 
 class DCNTrainGraph(flow.nn.Graph):
     def __init__(
-        self, deepfm_module, loss, optimizer, lr_scheduler=None, grad_scaler=None, amp=False,
+        self, dcn_module, loss, optimizer, lr_scheduler=None, grad_scaler=None, amp=False,
     ):
         super(DCNTrainGraph, self).__init__()
-        self.module = deepfm_module
+        self.module = dcn_module
         self.loss = loss
         self.add_optimizer(optimizer, lr_sch=lr_scheduler)
         self.config.allow_fuse_model_update_ops(True)
