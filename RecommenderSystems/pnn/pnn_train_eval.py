@@ -101,7 +101,7 @@ class PNNDataReader(object):
         batch_size,
         num_epochs=1,
         shuffle_row_groups=True,
-        shard_seed=2019,
+        shard_seed=2020,
         shard_count=1,
         cur_shard=0,
     ):
@@ -193,7 +193,7 @@ def make_criteo_dataloader(data_path, batch_size, shuffle=True):
         batch_size_per_proc,
         None,  # TODO: iterate over all eval dataset
         shuffle_row_groups=shuffle,
-        shard_seed=2019,
+        shard_seed=2020,
         shard_count=world_size,
         cur_shard=flow.env.get_rank(),
     )

@@ -7,7 +7,7 @@ DEVICE_NUM_PER_NODE=1
 NUM_NODES=1
 NODE_RANK=0
 MASTER_ADDR=127.0.0.1
-DATA_DIR=/minio/sdb/sunbowen/criteo_x4_9ea3bdfc/deepfm_parquet
+DATA_DIR=/minio/sdb/sunbowen/criteo_x4_9ea3bdfc/pnn_parquet
 PERSISTENT_PATH=/minio/sdb/sunbowen/persistent1
 
 python3 -m oneflow.distributed.launch \
