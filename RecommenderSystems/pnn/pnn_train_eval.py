@@ -462,6 +462,93 @@ class InnerProductLayer(nn.Module):
     #         assert 0, 'dot or cat'
 
 
+class OutterProductLayer(nn.Module):
+    """OutterProduct Layer used in PNN.This implemention is
+    adapted from code that the author of the paper published on https://github.com/Atomu2014/product-nets.
+      Input shape
+            - A list of N 3D tensor with shape: ``(batch_size,1,embedding_size)``.
+      Output shape
+            - 2D tensor with shape:``(batch_size,N*(N-1)/2 )``.
+      Arguments
+            - **filed_size** : Positive integer, number of feature groups.
+            - **kernel_type**: str. The kernel weight matrix type to use,can be mat,vec or num
+            - **seed**: A Python integer to use as random seed.
+      References
+            - [Qu Y, Cai H, Ren K, et al. Product-based neural networks for user response prediction[C]//Data Mining (ICDM), 2016 IEEE 16th International Conference on. IEEE, 2016: 1149-1154.](https://arxiv.org/pdf/1611.00144.pdf)
+    """
+
+    def __init__(self, field_size, embedding_size, kernel_type='mat'):
+        super(OutterProductLayer, self).__init__()
+        self.kernel_type = kernel_type
+
+        num_inputs = field_size
+        num_pairs = int(num_inputs * (num_inputs - 1) / 2)
+        embed_size = embedding_size
+        if self.kernel_type == 'mat':
+
+            self.kernel = nn.Parameter(flow.Tensor(
+                embed_size, num_pairs, embed_size))
+
+        elif self.kernel_type == 'vec':
+            self.kernel = nn.Parameter(flow.Tensor(num_pairs, embed_size))
+
+        elif self.kernel_type == 'num':
+            self.kernel = nn.Parameter(flow.Tensor(num_pairs, 1))
+        nn.init.xavier_uniform_(self.kernel)
+
+        # self.to(device)
+
+    def forward(self, inputs):
+        print(inputs.shape)
+        embed_list = [field_emb for field_emb in inputs]
+        row = []
+        col = []
+        num_inputs = inputs.shape[0]
+        for i in range(num_inputs - 1):
+            for j in range(i + 1, num_inputs):
+                row.append(i)
+                col.append(j)
+        p = flow.cat([embed_list[idx]
+                       for idx in row], dim=1)  # batch num_pairs k
+        q = flow.cat([embed_list[idx] for idx in col], dim=1)
+
+        print("# -------------------------")
+        if self.kernel_type == 'mat':
+            # kp = flow.sum(
+            #     flow.mul(
+            #         flow.transpose(
+            #             flow.sum(
+            #                 flow.mul(
+            #                     p.unsqueeze(dim=1), self.kernel),
+            #                 dim=-1),
+            #             2, 1),
+            #         q),
+            #     dim=-1)
+            print("0")
+            print("p.unsqueeze(dim=1).shape: ", p.unsqueeze(dim=1).shape)
+            print("self.kernel.shape: ", self.kernel.shape)
+            tmp = flow.mul(p.unsqueeze(dim=1), self.kernel)
+            print("1")
+            tmp = flow.sum(tmp, dim=-1)
+            print("2")
+            tmp = flow.transpose(tmp, 2, 1)
+            print("3")
+            tmp = flow.mul(tmp, q)
+            print("4")
+            kp = flow.sum(tmp, dim=-1)
+        else:
+            # 1 * pair * (k or 1)
+
+            k = flow.unsqueeze(self.kernel, 0)
+
+            # batch * pair
+
+            kp = flow.sum(p * q * k, dim=-1)
+
+            # p q # b * p * k
+
+        return kp
+
 class PNNModule(nn.Module):
     def __init__(
         self,
@@ -475,9 +562,10 @@ class PNNModule(nn.Module):
         interaction_type = 'dot',
         interaction_itself = False,
         dropout=0.2,
+        kernel_type = 'mat',
     ):
         super(PNNModule, self).__init__()
-
+        self.embedding_vec_size = embedding_vec_size
         self.embedding_layer = OneEmbedding(
             table_name="sparse_embedding",
             embedding_vec_size=embedding_vec_size,
@@ -488,10 +576,10 @@ class PNNModule(nn.Module):
             size_factor=3,
         )
 
-        self.inner_product_layer = InnerProductLayer(interaction_type, interaction_itself, num_sparse_fields + num_sparse_fields)
-
+        self.inner_product_layer = InnerProductLayer(interaction_type, interaction_itself, num_sparse_fields + num_dense_fields)
+        self.outter_product_layer = OutterProductLayer(num_sparse_fields + num_dense_fields, embedding_vec_size, kernel_type='mat')
         self.dnn_layer = DNN(
-            in_features=embedding_vec_size * (num_dense_fields + num_sparse_fields) + sum(range(num_dense_fields + num_sparse_fields)),
+            in_features=embedding_vec_size * (num_dense_fields + num_sparse_fields) + sum(range(num_dense_fields + num_sparse_fields)) + sum(range(num_dense_fields + num_sparse_fields)),
             hidden_units=dnn+[1],
             skip_final_activation=True,
             fused=use_fusedmlp
@@ -500,9 +588,11 @@ class PNNModule(nn.Module):
     def forward(self, inputs) -> flow.Tensor:
         T = self.embedding_layer(inputs)
         Z = self.inner_product_layer(T)
-        print(Z.shape)
-        dense_input = flow.cat([T.flatten(start_dim=1), Z], dim=1)
-        print(dense_input.shape)
+        # print(Z.shape)
+        O = self.outter_product_layer(T.reshape(39, -1, 1, self.embedding_vec_size))
+        print("O.shape: ", O.shape)
+        dense_input = flow.cat([T.flatten(start_dim=1), Z, O], dim=1)
+        # print(dense_input.shape)
         dnn_pred = self.dnn_layer(dense_input)
         return dnn_pred
 
