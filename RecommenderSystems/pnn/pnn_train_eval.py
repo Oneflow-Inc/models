@@ -66,6 +66,8 @@ def get_args(print_args=True):
 
     parser.add_argument("--amp", action="store_true", help="Run model with amp")
     parser.add_argument("--loss_scale_policy", type=str, default="static", help="static or dynamic")
+    parser.add_argument("--use_inner", type=bool, default=True, help="Use inner_product_layer")
+    parser.add_argument("--use_outter", type=bool, default=False, help="Use outter_product_layer")
 
     args = parser.parse_args()
 
@@ -217,18 +219,12 @@ class OneEmbedding(nn.Module):
         # TODO: embedding initialization uniform2normal
         tables = [
             flow.one_embedding.make_table(
-                # flow.one_embedding.make_uniform_initializer(low=-scale, high=scale)
                 flow.one_embedding.make_normal_initializer(mean=0.0, std=1e-4)
             )
             # for scale in scales
             for _ in range(len(table_size_array))
         ]
-        # tables = [
-        #     flow.one_embedding.make_table(
-        #         flow.one_embedding.make_normal_initializer(mean=0.0, std=1e-4)
-        #     )
-        #     for _ in range(len(table_size_array))
-        # ]
+
         if store_type == "device_mem":
             store_options = flow.one_embedding.make_device_mem_store_options(
                 persistent_path=persistent_path, 
@@ -314,169 +310,27 @@ class DNN(nn.Module):
         return self.linear_layers(x)
 
 
-# class LR(nn.Module):
-#     def __init__(
-#         self,
-#         persistent_path=None,
-#         table_size_array=None,
-#         one_embedding_store_type="cached_host_mem",
-#         cache_memory_budget_mb=8192,
-#         use_bias=True
-#     ):
-#         super(LR, self).__init__()
-#         self.bias = nn.Parameter(flow.tensor([1], dtype=flow.float32)) if use_bias else None
-#         self.embedding_layer = OneEmbedding(
-#             table_name="fm_lr_embedding",
-#             embedding_vec_size=1,
-#             persistent_path=persistent_path,
-#             table_size_array=table_size_array,
-#             store_type=one_embedding_store_type,
-#             cache_memory_budget_mb=cache_memory_budget_mb
-#         )
-
-#     def forward(self, x):
-#         # x = original ids
-#         # order-1 feature interaction
-#         embedded_x = self.embedding_layer(x)
-#         output = flow.sum(embedded_x, dim=1)
-#         if self.bias is not None:
-#             output += self.bias
-#         return output
-
-
-# class Interaction(nn.Module):
-#     def __init__(self, interaction_itself=False, num_fields=26):
-#         super(Interaction, self).__init__()
-#         self.interaction_itself = interaction_itself
-#         self.num_fields = num_fields
-        
-#     def forward(self, embedded_x:flow.Tensor) -> flow.Tensor:
-#         sum_of_square = flow.sum(embedded_x, dim=1) ** 2
-#         square_of_sum = flow.sum(embedded_x ** 2, dim=1)
-#         bi_interaction = (sum_of_square - square_of_sum) * 0.5
-#         return flow.sum(bi_interaction, dim=-1).view(-1, 1)
-
-
-# class FM(nn.Module):
-#     def __init__(
-#         self, 
-#         persistent_path=None,
-#         table_size_array=None,
-#         one_embedding_store_type="cached_host_mem",
-#         cache_memory_budget_mb=8192,
-#         use_bias=True
-#     ):
-#         super(FM, self).__init__()
-#         self.interaction = Interaction(num_fields=num_dense_fields+num_sparse_fields)
-#         self.lr = LR(
-#             persistent_path=persistent_path,
-#             table_size_array=table_size_array,
-#             one_embedding_store_type=one_embedding_store_type,
-#             cache_memory_budget_mb=cache_memory_budget_mb,
-#             use_bias=use_bias
-#         )
-    
-#     def forward(self, x:flow.Tensor, embedded_x:flow.Tensor) -> flow.Tensor:
-#         lr_out = self.lr(x)
-#         dot_sum = self.interaction(embedded_x)
-#         output = lr_out + dot_sum
-#         return output
-
-
 class InnerProductLayer(nn.Module):
-    def __init__(self, interaction_type='dot', interaction_itself=False, num_sparse_fields=26):
+    def __init__(self, field_size, interaction_type='dot', interaction_itself=False):
         super(InnerProductLayer, self).__init__()
         self.interaction_type = interaction_type
         self.interaction_itself = interaction_itself
-        self.num_sparse_fields = num_sparse_fields
+        self.field_size = field_size
 
-        # slice
         offset = 1 if self.interaction_itself else 0
-        # indices = flow.tensor([i * 27 + j for i in range(27) for j in range(i + offset)])
-        # self.register_buffer("indices", indices)
-        li = flow.tensor([i for i in range(39) for j in range(i + offset)])
-        lj = flow.tensor([j for i in range(39) for j in range(i + offset)])
+        li = flow.tensor([i for i in range(field_size) for j in range(i + offset)])
+        lj = flow.tensor([j for i in range(field_size) for j in range(i + offset)])
         self.register_buffer("li", li)
         self.register_buffer("lj", lj)
-        
-
-    # def forward(self, x:flow.Tensor) -> flow.Tensor:
-    #     # x - dense fields, ly = embedding
-    #     # if self.interaction_type == 'cat':
-    #     #     R = flow.cat([x, ly], dim=1)
-    #     if self.interaction_type == 'dot': # slice
-    #         (batch_size, fields, d) = x.shape
-    #         T = flow.cat([x], dim=1).view((batch_size, -1, d))
-    #         # perform a dot product
-    #         Z = flow.matmul(T, T, transpose_b=True)
-    #         print("Z.shape: ", Z.shape)
-    #         Zflat = Z[:, self.li, self.lj]
-    #         print("Zflat.shape: ", Zflat.shape)
-    #         R = flow.cat([Zflat], dim=1)       
-    #     else:
-    #         assert 0, 'dot or cat'
-    #     return R
 
     def forward(self, x:flow.Tensor) -> flow.Tensor:
-        # x - dense fields, ly = embedding
-        # if self.interaction_type == 'cat':
-        #     R = flow.cat([x, ly], dim=1)
-        if self.interaction_type == 'dot': # slice
-            # (batch_size, fields, d) = x.shape
-            # T = flow.cat([x], dim=1).view((batch_size, -1, d))
-            # perform a dot product
-            Z = flow.matmul(x, x, transpose_b=True)
-            print("Z.shape: ", Z.shape)
-            Zflat = Z[:, self.li, self.lj]
-            print("Zflat.shape: ", Zflat.shape)
-            R = flow.cat([Zflat], dim=1)       
-        else:
-            assert 0, 'dot or cat'
+        Z = flow.matmul(x, x, transpose_b=True)
+        Zflat = Z[:, self.li, self.lj]
+        R = flow.cat([Zflat], dim=1)       
         return R
-    # def forward(self, x:flow.Tensor, ly:flow.Tensor) -> flow.Tensor:
-    #     # x - dense fields, ly = embedding
-    #     if self.interaction_type == 'cat':
-    #         R = flow.cat([x, ly], dim=1)
-    #     elif self.interaction_type == 'dot': # slice
-    #         (batch_size, d) = x.shape
-    #         T = flow.cat([x, ly], dim=1).view((batch_size, -1, d))
-    #         # perform a dot product
-    #         Z = flow.matmul(T, T, transpose_b=True)
-    #         Zflat = Z[:, self.li, self.lj]
-    #         R = flow.cat([x, Zflat], dim=1)       
-    #     else:
-    #         assert 0, 'dot or cat'
-    #     return R
-
-    # def output_feature_size(self, embedding_vec_size, dense_feature_size):
-    #     if self.interaction_type == 'dot':
-    #         # assert 0, 'dot is not supported yet'
-    #         assert embedding_vec_size == dense_feature_size, "Embedding vector size must equle to dense feature size"
-    #         n_cols = self.num_sparse_fields + 1
-    #         if self.interaction_itself:
-    #             n_cols += 1
-    #         return dense_feature_size + sum(range(n_cols))
-    #     elif self.interaction_type == 'cat':
-    #         return embedding_vec_size * self.num_sparse_fields + dense_feature_size
-    #     else:
-    #         assert 0, 'dot or cat'
 
 
 class OutterProductLayer(nn.Module):
-    """OutterProduct Layer used in PNN.This implemention is
-    adapted from code that the author of the paper published on https://github.com/Atomu2014/product-nets.
-      Input shape
-            - A list of N 3D tensor with shape: ``(batch_size,1,embedding_size)``.
-      Output shape
-            - 2D tensor with shape:``(batch_size,N*(N-1)/2 )``.
-      Arguments
-            - **filed_size** : Positive integer, number of feature groups.
-            - **kernel_type**: str. The kernel weight matrix type to use,can be mat,vec or num
-            - **seed**: A Python integer to use as random seed.
-      References
-            - [Qu Y, Cai H, Ren K, et al. Product-based neural networks for user response prediction[C]//Data Mining (ICDM), 2016 IEEE 16th International Conference on. IEEE, 2016: 1149-1154.](https://arxiv.org/pdf/1611.00144.pdf)
-    """
-
     def __init__(self, field_size, embedding_size, kernel_type='mat'):
         super(OutterProductLayer, self).__init__()
         self.kernel_type = kernel_type
@@ -496,10 +350,7 @@ class OutterProductLayer(nn.Module):
             self.kernel = nn.Parameter(flow.Tensor(num_pairs, 1))
         nn.init.xavier_uniform_(self.kernel)
 
-        # self.to(device)
-
     def forward(self, inputs):
-        print(inputs.shape)
         embed_list = [field_emb for field_emb in inputs]
         row = []
         col = []
@@ -512,30 +363,12 @@ class OutterProductLayer(nn.Module):
                        for idx in row], dim=1)  # batch num_pairs k
         q = flow.cat([embed_list[idx] for idx in col], dim=1)
 
-        print("# -------------------------")
         if self.kernel_type == 'mat':
-            # kp = flow.sum(
-            #     flow.mul(
-            #         flow.transpose(
-            #             flow.sum(
-            #                 flow.mul(
-            #                     p.unsqueeze(dim=1), self.kernel),
-            #                 dim=-1),
-            #             2, 1),
-            #         q),
-            #     dim=-1)
-            print("0")
-            print("p.unsqueeze(dim=1).shape: ", p.unsqueeze(dim=1).shape)
-            print("self.kernel.shape: ", self.kernel.shape)
-            tmp = flow.mul(p.unsqueeze(dim=1), self.kernel)
-            print("1")
-            tmp = flow.sum(tmp, dim=-1)
-            print("2")
-            tmp = flow.transpose(tmp, 2, 1)
-            print("3")
-            tmp = flow.mul(tmp, q)
-            print("4")
-            kp = flow.sum(tmp, dim=-1)
+            res = flow.mul(p.unsqueeze(dim=1), self.kernel)
+            res = flow.sum(res, dim=-1)
+            res = flow.transpose(res, 2, 1)
+            res = flow.mul(res, q)
+            res = flow.sum(res, dim=-1)
         else:
             # 1 * pair * (k or 1)
 
@@ -543,11 +376,11 @@ class OutterProductLayer(nn.Module):
 
             # batch * pair
 
-            kp = flow.sum(p * q * k, dim=-1)
+            res = flow.sum(p * q * k, dim=-1)
 
             # p q # b * p * k
 
-        return kp
+        return res
 
 class PNNModule(nn.Module):
     def __init__(
@@ -563,6 +396,8 @@ class PNNModule(nn.Module):
         interaction_itself = False,
         dropout=0.2,
         kernel_type = 'mat',
+        use_inner = True,
+        use_outter = False
     ):
         super(PNNModule, self).__init__()
         self.embedding_vec_size = embedding_vec_size
@@ -575,24 +410,40 @@ class PNNModule(nn.Module):
             cache_memory_budget_mb=cache_memory_budget_mb,
             size_factor=3,
         )
-
-        self.inner_product_layer = InnerProductLayer(interaction_type, interaction_itself, num_sparse_fields + num_dense_fields)
-        self.outter_product_layer = OutterProductLayer(num_sparse_fields + num_dense_fields, embedding_vec_size, kernel_type='mat')
+        self.use_inner = use_inner
+        self.use_outter = use_outter
+        self.fields = num_sparse_fields + num_dense_fields
+        self.input_dim = embedding_vec_size * self.fields
+        if self.use_inner:
+            self.input_dim += sum(range(self.fields))
+            self.inner_product_layer = InnerProductLayer(self.fields, interaction_type, interaction_itself)
+        if self.use_outter:
+            self.input_dim += sum(range(self.fields))
+            self.outter_product_layer = OutterProductLayer(self.fields, embedding_vec_size, kernel_type)
         self.dnn_layer = DNN(
-            in_features=embedding_vec_size * (num_dense_fields + num_sparse_fields) + sum(range(num_dense_fields + num_sparse_fields)) + sum(range(num_dense_fields + num_sparse_fields)),
+            in_features=self.input_dim,
             hidden_units=dnn+[1],
             skip_final_activation=True,
             fused=use_fusedmlp
         )
 
     def forward(self, inputs) -> flow.Tensor:
-        T = self.embedding_layer(inputs)
-        Z = self.inner_product_layer(T)
-        # print(Z.shape)
-        O = self.outter_product_layer(T.reshape(39, -1, 1, self.embedding_vec_size))
-        print("O.shape: ", O.shape)
-        dense_input = flow.cat([T.flatten(start_dim=1), Z, O], dim=1)
-        # print(dense_input.shape)
+        E = self.embedding_layer(inputs)
+        print("self.use_inner: ", self.use_inner)
+        print("self.use_outter: ", self.use_outter)
+        if self.use_inner:
+            I = self.inner_product_layer(E)
+        if self.use_outter:
+            O = self.outter_product_layer(E.reshape(self.fields, -1, 1, self.embedding_vec_size))
+
+        if self.use_inner and self.use_outter:
+            dense_input = flow.cat([E.flatten(start_dim=1), I, O], dim=1)
+        elif self.use_inner:
+            dense_input = flow.cat([E.flatten(start_dim=1), I], dim=1)
+        elif self.use_outter:
+            dense_input = flow.cat([E.flatten(start_dim=1), O], dim=1)
+        else:
+            dense_input = flow.cat([E.flatten(start_dim=1)], dim=1)
         dnn_pred = self.dnn_layer(dense_input)
         return dnn_pred
 
@@ -607,6 +458,8 @@ def make_pnn_module(args):
         one_embedding_store_type=args.store_type,
         cache_memory_budget_mb=args.cache_memory_budget_mb,
         dropout=args.net_dropout,
+        use_inner=args.use_inner,
+        use_outter=args.use_outter
     )
     return model
 

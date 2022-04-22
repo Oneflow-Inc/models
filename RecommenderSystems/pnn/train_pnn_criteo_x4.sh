@@ -32,4 +32,6 @@ python3 -m oneflow.distributed.launch \
       --embedding_vec_size 16 \
       --disable_fusedmlp True \
       --num_train_samples 36672493 \
+      --use_inner True \
+      --use_outter False 
       > run.log & tail -f run.log
