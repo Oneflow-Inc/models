@@ -609,6 +609,8 @@ def train(args):
                     min_delta=args.min_delta,
                     _reduce_lr_on_plateau = args.reduce_lr_on_plateau,
                 )
+
+                train_graph = DCNTrainGraph(dcn_module, loss_func, opt, lr_scheduler, grad_scaler, args.amp)
                 if stop_training:
                     break
 
