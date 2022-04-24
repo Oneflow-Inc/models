@@ -1,1 +1,5 @@
-ining_curve.png
+*ining_curve.png
+draw.py
+eval_aucs.npy
+run.sh
+train_losses.npy

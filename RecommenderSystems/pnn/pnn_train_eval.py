@@ -584,6 +584,7 @@ def train(args):
     train_graph = PNNTrainGraph(pnn_module, loss, opt, lr_scheduler, grad_scaler, args.amp)
 
     train_losses = []
+    eval_aucs = []
     batches_per_epoch = math.ceil(args.num_train_samples / args.train_batch_size)
 
     best_metric = -np.inf
@@ -611,6 +612,7 @@ def train(args):
             if step % batches_per_epoch == 0:
                 epoch += 1
                 auc, logloss = eval(args, eval_graph, step, epoch)
+                eval_aucs.append(auc)
                 if args.save_model_after_each_eval:
                     save_model(f"step_{step}_val_auc_{auc:0.5f}")
 
@@ -629,11 +631,18 @@ def train(args):
                 last_time = time.time()
 
     if step % batches_per_epoch != 0:
-        auc = eval(args, eval_graph, step)
+        auc, logloss = eval(args, eval_graph, step)
         if args.save_model_after_each_eval:
             save_model(f"step_{step}_val_auc_{auc:0.5f}")
-    
-    plot_train_curve(args,train_losses)
+    save_curve(train_losses, 'train_losses')
+    save_curve(eval_aucs, 'eval_aucs')
+    # plot_train_curve(args,train_losses)
+    # plot_eval_auc_curve(args,eval_aucs)
+
+
+def save_curve(lst, name):
+    lst=np.array(lst)
+    np.save('./{}.npy'.format(name),lst)
 
 
 def batch_to_global(np_label, np_features):
@@ -691,6 +700,12 @@ def eval(args, eval_graph, cur_step=0, epoch=0):
 
 
 def plot_train_curve(args, train_losses):
+    plt.plot(range(1, len(train_losses) + 1), train_losses)
+    plt.ylabel("Training Logloss")
+    plt.xlabel(f"batch number (per {args.loss_print_interval} batches)")
+    plt.savefig('training_curve.png')
+
+def plot_eval_auc_curve(args, train_losses):
     plt.plot(range(1, len(train_losses) + 1), train_losses)
     plt.ylabel("Training Logloss")
     plt.xlabel(f"batch number (per {args.loss_print_interval} batches)")

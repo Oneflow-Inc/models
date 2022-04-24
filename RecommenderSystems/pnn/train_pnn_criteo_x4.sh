@@ -21,9 +21,9 @@ python3 -m oneflow.distributed.launch \
       --table_size_array "36, 91, 112, 29, 211, 94, 70, 46, 83, 5, 24, 30, 42, 799, 544, 22916, 25358, 200, 13, 10126, 383, 3, 16872, 4508, 23375, 3106, 27, 7077, 24371, 10, 3307, 1628, 4, 23796, 13, 15, 15846, 61, 12817" \
       --store_type 'cached_host_mem' \
       --cache_memory_budget_mb 1024 \
-      --train_batch_size 3000 \
-      --train_batches 122240 \
-      --loss_print_interval 100 \
+      --train_batch_size 10000 \
+      --train_batches 35000 \
+      --loss_print_interval 1 \
       --eval_batch_size 3000 \
       --eval_batches 1000 \
       --dnn "1000,1000" \
@@ -32,6 +32,4 @@ python3 -m oneflow.distributed.launch \
       --embedding_vec_size 16 \
       --disable_fusedmlp True \
       --num_train_samples 36672493 \
-      --use_inner True \
-      --use_outter False 
       > run.log & tail -f run.log
