@@ -77,7 +77,6 @@ def get_args(print_args=True):
         required=True,
     )
     parser.add_argument("--persistent_path", type=str, required=True, help="path for persistent kv store")
-    parser.add_argument("--persistent_path_fm", type=str, required=True, help="path for persistent kv store of FM")
     parser.add_argument("--store_type", type=str, default="cached_host_mem")
     parser.add_argument("--cache_memory_budget_mb", type=int, default=8192)
 
