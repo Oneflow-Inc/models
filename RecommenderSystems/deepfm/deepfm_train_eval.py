@@ -12,6 +12,7 @@ import oneflow.nn as nn
 from sklearn.metrics import roc_auc_score, log_loss
 from petastorm.reader import make_batch_reader
 import matplotlib.pyplot as plt
+import pickle
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
 
@@ -27,6 +28,8 @@ def get_args(print_args=True):
 
     parser.add_argument("--data_dir", type=str, required=True)
     parser.add_argument("--num_train_samples", type=int, required=True, help="the number of training samples")
+    parser.add_argument("--num_val_samples", type=int, required=True, help="the number of training samples")
+    parser.add_argument("--num_test_samples", type=int, required=True, help="the number of training samples")
 
     parser.add_argument("--model_load_dir", type=str, default=None)
     parser.add_argument("--model_save_dir", type=str, default=None)
@@ -45,9 +48,7 @@ def get_args(print_args=True):
     parser.add_argument("--min_lr", type=float, default=1.0e-6)
     parser.add_argument("--learning_rate", type=float, default=0.001)
 
-    parser.add_argument("--eval_batches", type=int, default=1612, help="number of eval batches")
-    parser.add_argument("--eval_batch_size", type=int, default=10000)
-    parser.add_argument("--train_batch_size", type=int, default=10000)
+    parser.add_argument("--batch_size", type=int, default=10000)
     parser.add_argument("--train_batches", type=int, default=75000)
     parser.add_argument("--loss_print_interval", type=int, default=1000)
 
@@ -251,25 +252,10 @@ class OneEmbedding(nn.Module):
         return self.one_embedding.forward(ids)
 
 
-class DenseLayer(nn.Module):
-    def __init__(self, in_features: int, out_features: int, relu=True, dropout=0.0) -> None:
-        super(DenseLayer, self).__init__()
-        denses = []
-        denses.append(nn.Linear(in_features, out_features))
-        if relu:
-            denses.append(nn.ReLU(inplace=True))
-        if dropout > 0:
-            denses.append(nn.Dropout(p=dropout))
-        self.features = nn.Sequential(*denses)
-
-    def forward(self, x: flow.Tensor) -> flow.Tensor:
-        return self.features(x)
-
-
 class DNN(nn.Module):
     def __init__(self, in_features: int, hidden_units, skip_final_activation=False, fused=True, dropout=0.0) -> None:
         super(DNN, self).__init__()
-        if fused: # TODO: add dropout in Fused MLP
+        if fused:
             self.linear_layers = nn.FusedMLP(
                 in_features,
                 hidden_units[:-1],
@@ -277,15 +263,18 @@ class DNN(nn.Module):
                 skip_final_activation=skip_final_activation
             )
         else:
-            # TODO: support different dropout rates for each layer
+            denses = []
             dropout_rates = [dropout] * (len(hidden_units) - 1) + [0.0]
             use_relu = [True] * (len(hidden_units) - 1) + [not skip_final_activation]
-            units = [in_features] + hidden_units
-            denses = [
-                DenseLayer(units[i], units[i + 1], relu=use_relu[i], dropout=dropout_rates[i]) 
-                for i in range(len(units) - 1)
-            ]
+            hidden_units = [in_features] + hidden_units
+            for idx in range(len(hidden_units) - 1):
+                denses.append(nn.Linear(hidden_units[idx], hidden_units[idx + 1], bias=True))
+                if use_relu[idx]:
+                    denses.append(nn.ReLU())
+                if dropout_rates[idx] > 0:
+                    denses.append(nn.Dropout(p=dropout_rates[idx]))
             self.linear_layers = nn.Sequential(*denses)
+            
 
         for name, param in self.linear_layers.named_parameters():
             if "weight" in name:
@@ -439,6 +428,7 @@ class DeepFMValGraph(flow.nn.Graph):
 
     def build(self, features):
         predicts = self.module(features.to("cuda"))
+        predicts = predicts.sigmoid()
         return predicts.to("cpu")
 
 
@@ -460,7 +450,6 @@ class DeepFMTrainGraph(flow.nn.Graph):
     def build(self, labels, features):
         logits = self.module(features.to("cuda"))
         loss = self.loss(logits, labels.to("cuda"))
-        # TODO: add regularization for embedding
         reduce_loss = flow.mean(loss)
         reduce_loss.backward()
         return reduce_loss.to("cpu")
@@ -492,16 +481,18 @@ def get_metrics(logs):
 
 def early_stop(epoch, monitor_value, best_metric, stopping_steps, patience=2, min_delta=1e-6):
     stop_training = False
+    save_best = False
     if monitor_value < best_metric + min_delta:
         stopping_steps += 1
         print("Monitor(max) STOP: {:.6f}!".format(monitor_value))
     else:
         stopping_steps = 0
         best_metric = monitor_value
+        save_best = True
     if stopping_steps >= patience:
         stop_training = True
         print(f"Early stopping at epoch={epoch}!")
-    return stop_training, best_metric, stopping_steps
+    return stop_training, best_metric, stopping_steps, save_best
 
 
 def train(args): 
@@ -529,7 +520,6 @@ def train(args):
 
     # TODO: clip gradient norm
     opt = flow.optim.Adam(deepfm_module.parameters(), lr=args.learning_rate)
-    lr_scheduler = make_lr_scheduler(args, opt)
     loss = flow.nn.BCEWithLogitsLoss(reduction="none").to("cuda")
 
     if args.loss_scale_policy == "static":
@@ -543,7 +533,7 @@ def train(args):
     train_graph = DeepFMTrainGraph(deepfm_module, loss, opt, grad_scaler, args.amp)
 
     train_losses = []
-    batches_per_epoch = math.ceil(args.num_train_samples / args.train_batch_size)
+    batches_per_epoch = math.ceil(args.num_train_samples / args.batch_size)
 
     best_metric = -np.inf
     stopping_steps = 0
@@ -551,13 +541,13 @@ def train(args):
     deepfm_module.train()
     step, last_step, last_time = -1, 0, time.time()
     epoch = 0
-    with make_criteo_dataloader(f"{args.data_dir}/train", args.train_batch_size) as loader:
+    with make_criteo_dataloader(f"{args.data_dir}/train", args.batch_size) as loader:
         for step in range(1, args.train_batches + 1):
             labels, features = batch_to_global(*next(loader))
             loss = train_graph(labels, features)
+            loss = loss.numpy()
+            train_losses.append(loss)
             if step % args.loss_print_interval == 0:
-                loss = loss.numpy()
-                train_losses.append(loss)
                 if rank == 0:
                     latency_ms = 1000 * (time.time() - last_time) / (step - last_step)
                     last_step, last_time = step, time.time()
@@ -569,15 +559,13 @@ def train(args):
 
             if step % batches_per_epoch == 0:
                 epoch += 1
-                auc, logloss = eval(args, eval_graph, step, epoch)
+                auc, logloss = eval(args, eval_graph, tag='val', cur_step=step, epoch=epoch)
                 if args.save_model_after_each_eval:
                     save_model(f"step_{step}_val_auc_{auc:0.5f}")
 
                 monitor_value = get_metrics(logs={'auc': auc, 'logloss': logloss})
-                
-                lr_scheduler.step(monitor_value)
 
-                stop_training, best_metric, stopping_steps = early_stop(
+                stop_training, best_metric, stopping_steps, save_best = early_stop(
                     epoch, 
                     monitor_value, 
                     best_metric=best_metric, 
@@ -585,18 +573,21 @@ def train(args):
                     patience=args.patience, 
                     min_delta=args.min_delta,
                 )
+                if save_best:
+                    print(f"Save best model: monitor(max): {best_metric:.6f}")
+                    save_model("best_checkpoint")
                 if stop_training:
                     break
 
                 deepfm_module.train()
                 last_time = time.time()
 
-    if step % batches_per_epoch != 0:
-        auc, logloss = eval(args, eval_graph, step)
-        if args.save_model_after_each_eval:
-            save_model(f"step_{step}_val_auc_{auc:0.5f}")
-    
-    plot_train_curve(args,train_losses)
+    state_dict = flow.load(f"{args.model_save_dir}/best_checkpoint", global_src_rank=0)
+    deepfm_module.load_state_dict(state_dict, strict=False)
+    print("================ Validation Evaluation ================")
+    auc, logloss = eval(args, eval_graph, tag='val', cur_step=step, epoch=epoch)
+    print("================ Test Evaluation ================")
+    auc, logloss = eval(args, eval_graph, tag='test', cur_step=step, epoch=epoch)
 
 
 def batch_to_global(np_label, np_features):
@@ -608,23 +599,26 @@ def batch_to_global(np_label, np_features):
     return labels, features
 
 
-def eval(args, eval_graph, cur_step=0, epoch=0):
-    if args.eval_batches <= 0:
-        return
+def eval(args, eval_graph, tag='val', cur_step=0, epoch=0):
+    if tag == 'val':
+        batches_per_epoch = math.ceil(args.num_val_samples / args.batch_size)
+    else:
+        batches_per_epoch = math.ceil(args.num_test_samples / args.batch_size)
+    
     eval_graph.module.eval()
     labels, preds = [], []
     eval_start_time = time.time()
-    with make_criteo_dataloader(f"{args.data_dir}/test", args.eval_batch_size, shuffle=False) as loader:
-        num_eval_batches = 0
+    with make_criteo_dataloader(f"{args.data_dir}/{tag}", args.batch_size, shuffle=False) as loader:
+        step = 0
         for np_batch in loader:
-            num_eval_batches += 1
-            if num_eval_batches > args.eval_batches:
-                break
             label, features = batch_to_global(*np_batch)
-            logits = eval_graph(features)
-            pred = logits.sigmoid()
+            pred = eval_graph(features)
             labels.append(label.numpy())
             preds.append(pred.numpy())
+            
+            step += 1
+            if step % batches_per_epoch == 0:
+                break
 
     auc = 0  # will be updated by rank 0 only
     rank = flow.env.get_rank()
@@ -652,13 +646,6 @@ def eval(args, eval_graph, cur_step=0, epoch=0):
 
     flow.comm.barrier()
     return auc, logloss
-
-
-def plot_train_curve(args, train_losses):
-    plt.plot(range(1, len(train_losses) + 1), train_losses)
-    plt.ylabel("Training Logloss")
-    plt.xlabel(f"batch number (per {args.loss_print_interval} batches)")
-    plt.savefig('training_curve.png')
 
 
 if __name__ == "__main__":
