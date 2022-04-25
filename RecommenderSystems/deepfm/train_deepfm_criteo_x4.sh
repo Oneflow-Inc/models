@@ -3,6 +3,7 @@
 # rm -r /minio/sdb/liuxinman/persistent2/*
 
 export CUDA_VISIBLE_DEVICES=2
+export ONEFLOW_DEBUG_MODE=INFO
 
 DEVICE_NUM_PER_NODE=1
 NUM_NODES=1
@@ -36,5 +37,4 @@ python3 -m oneflow.distributed.launch \
       --num_val_samples 4584062 \
       --num_test_samples 4584062 \
       --model_save_dir /minio/sdb/liuxinman/saved_models/of_deepfm \
-      --model_load_dir /minio/sdb/liuxinman/saved_models/of_deepfm/fuxi_to_of \
       > run.log & tail -f run.log

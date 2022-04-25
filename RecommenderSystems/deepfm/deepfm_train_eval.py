@@ -27,46 +27,46 @@ def get_args(print_args=True):
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--data_dir", type=str, required=True)
-    parser.add_argument("--num_train_samples", type=int, required=True, help="the number of training samples")
-    parser.add_argument("--num_val_samples", type=int, required=True, help="the number of training samples")
-    parser.add_argument("--num_test_samples", type=int, required=True, help="the number of training samples")
+    parser.add_argument("--num_train_samples", type=int, required=True, help="the number of train samples")
+    parser.add_argument("--num_val_samples", type=int, required=True, help="the number of validation samples")
+    parser.add_argument("--num_test_samples", type=int, required=True, help="the number of test samples")
 
-    parser.add_argument("--model_load_dir", type=str, default=None)
-    parser.add_argument("--model_save_dir", type=str, default=None)
-    parser.add_argument("--save_initial_model", action="store_true", help="save initial model parameters or not.")
-    parser.add_argument("--save_model_after_each_eval", action="store_true", help="save model after each eval.")
+    parser.add_argument("--model_load_dir", type=str, default=None, help="model loading directory")
+    parser.add_argument("--model_save_dir", type=str, default=None, help="model saving directory")
+    parser.add_argument("--save_initial_model", action="store_true", help="save initial model parameters or not")
+    parser.add_argument("--save_model_after_each_eval", action="store_true", help="save model after each eval or not")
 
-    parser.add_argument("--disable_fusedmlp", default=False, help="disable fused MLP or not")
-    parser.add_argument("--embedding_vec_size", type=int, default=16)
-    parser.add_argument("--dnn", type=int_list, default="1000,1000,1000,1000,1000")
-    parser.add_argument("--net_dropout", type=float, default=0.2)
-    parser.add_argument("--embedding_regularizer", type=float, default=None)
-    parser.add_argument("--net_regularizer", type=float, default=None)
-    parser.add_argument("--max_gradient_norm", type=float, default=10.0)
+    parser.add_argument("--disable_fusedmlp", default=True, help="disable fused MLP or not")
+    parser.add_argument("--embedding_vec_size", type=int, default=16, help="embedding vector size")
+    parser.add_argument("--dnn", type=int_list, default="1000,1000,1000,1000,1000", help="dnn hidden units number")
+    parser.add_argument("--net_dropout", type=float, default=0.2, help="net dropout rate")
+    parser.add_argument("--embedding_regularizer", type=float, default=1.0e-05, help="embedding layer regularization rate")
+    parser.add_argument("--net_regularizer", type=float, default=0.0, help="net regularization rate")
+    parser.add_argument("--max_gradient_norm", type=float, default=10.0, help="max norm of the gradients")
 
     parser.add_argument("--lr_factor", type=float, default=0.1)
     parser.add_argument("--min_lr", type=float, default=1.0e-6)
-    parser.add_argument("--learning_rate", type=float, default=0.001)
+    parser.add_argument("--learning_rate", type=float, default=0.001, help="learning rate")
 
-    parser.add_argument("--batch_size", type=int, default=10000)
-    parser.add_argument("--train_batches", type=int, default=75000)
-    parser.add_argument("--loss_print_interval", type=int, default=1000)
+    parser.add_argument("--batch_size", type=int, default=10000, help="training/evaluation batch size")
+    parser.add_argument("--train_batches", type=int, default=75000, help="the maximum number of training batches")
+    parser.add_argument("--loss_print_interval", type=int, default=100, help="")
 
-    parser.add_argument("--patience", type=int, default=2)
-    parser.add_argument("--min_delta", type=float, default=1.0e-6)
+    parser.add_argument("--patience", type=int, default=2, help="number of epochs with no improvement after which learning rate will be reduced")
+    parser.add_argument("--min_delta", type=float, default=1.0e-6, help="threshold for measuring the new optimum, to only focus on significant changes")
     
     parser.add_argument(
         "--table_size_array",
         type=int_list,
-        help="Embedding table size array for sparse fields",
+        help="embedding table size array for sparse fields",
         required=True,
     )
     parser.add_argument("--persistent_path", type=str, required=True, help="path for persistent kv store")
     parser.add_argument("--persistent_path_fm", type=str, required=True, help="path for persistent kv store of FM")
-    parser.add_argument("--store_type", type=str, default="cached_host_mem")
-    parser.add_argument("--cache_memory_budget_mb", type=int, default=8192)
+    parser.add_argument("--store_type", type=str, default="cached_host_mem", help="OneEmbeddig persistent kv store type: device_mem, cached_host_mem, cached_ssd")
+    parser.add_argument("--cache_memory_budget_mb", type=int, default=1024, help="size of cache memory budget on each device in megabytes when store_type is cached_host_mem or cached_ssd")
 
-    parser.add_argument("--amp", action="store_true", help="Run model with amp")
+    parser.add_argument("--amp", action="store_true", help="enable Automatic Mixed Precision(AMP) training or not")
     parser.add_argument("--loss_scale_policy", type=str, default="static", help="static or dynamic")
 
     args = parser.parse_args()
@@ -207,11 +207,18 @@ class OneEmbedding(nn.Module):
         assert table_size_array is not None
         vocab_size = sum(table_size_array)
 
+        # tables = [
+        #     flow.one_embedding.make_table(
+        #         flow.one_embedding.make_normal_initializer(mean=0.0, std=1e-4)
+        #     )
+        #     for _ in range(len(table_size_array))
+        # ]
+        scales = np.sqrt(1 / np.array(table_size_array))
         tables = [
             flow.one_embedding.make_table(
-                flow.one_embedding.make_normal_initializer(mean=0.0, std=1e-4)
+                flow.one_embedding.make_uniform_initializer(low=-scale, high=scale)
             )
-            for _ in range(len(table_size_array))
+            for scale in scales
         ]
         if store_type == "device_mem":
             store_options = flow.one_embedding.make_device_mem_store_options(
