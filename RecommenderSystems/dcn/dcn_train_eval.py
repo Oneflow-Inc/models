@@ -19,6 +19,7 @@ from collections import OrderedDict
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
 
+
 def get_activation(activation):
     if isinstance(activation, str):
         if activation.lower() == "relu":
@@ -31,6 +32,8 @@ def get_activation(activation):
             return getattr(nn, activation)()
     else:
         return activation
+
+
 def get_args(print_args=True):
     def int_list(x):
         return list(map(int, x.split(",")))
@@ -41,13 +44,19 @@ def get_args(print_args=True):
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--data_dir", type=str, required=True)
-    parser.add_argument("--num_train_samples", type=int, required=True, help="the number of training samples")
+    parser.add_argument(
+        "--num_train_samples", type=int, required=True, help="the number of training samples"
+    )
     parser.add_argument("--shard_seed", type=int, default=2022)
 
     parser.add_argument("--model_load_dir", type=str, default=None)
     parser.add_argument("--model_save_dir", type=str, default=None)
-    parser.add_argument("--save_initial_model", action="store_true", help="save initial model parameters or not.")
-    parser.add_argument("--save_model_after_each_eval", action="store_true", help="save model after each eval.")
+    parser.add_argument(
+        "--save_initial_model", action="store_true", help="save initial model parameters or not."
+    )
+    parser.add_argument(
+        "--save_model_after_each_eval", action="store_true", help="save model after each eval."
+    )
 
     parser.add_argument("--disable_fusedmlp", default=False, help="disable fused MLP or not")
     parser.add_argument("--embedding_vec_size", type=int, default=16)
@@ -74,14 +83,16 @@ def get_args(print_args=True):
     parser.add_argument("--reduce_lr_on_plateau", type=bool, default=True)
     parser.add_argument("--patience", type=int, default=2)
     parser.add_argument("--min_delta", type=float, default=1.0e-6)
-    
+
     parser.add_argument(
         "--table_size_array",
         type=int_list,
         help="Embedding table size array for sparse fields",
         required=True,
     )
-    parser.add_argument("--persistent_path", type=str, required=True, help="path for persistent kv store")
+    parser.add_argument(
+        "--persistent_path", type=str, required=True, help="path for persistent kv store"
+    )
     parser.add_argument("--store_type", type=str, default="cached_host_mem")
     parser.add_argument("--cache_memory_budget_mb", type=int, default=8192)
 
@@ -182,7 +193,7 @@ class DCNDataReader(object):
 
             while (pos + batch_size) <= len(rglist[0]):
                 label = rglist[0, pos : pos + batch_size]
-                features = rglist[1:, pos: pos + batch_size]
+                features = rglist[1:, pos : pos + batch_size]
                 pos += batch_size
                 features = np.stack(features, axis=-1)
                 yield label, features
@@ -195,6 +206,7 @@ class DCNDataReader(object):
                 # features = tail[1:]
                 # yield label, features
                 # ##
+
 
 def make_criteo_dataloader(data_path, batch_size, shuffle=True, shard_seed=2022):
     """Make a Criteo Parquet DataLoader.
@@ -239,9 +251,7 @@ class OneEmbedding(nn.Module):
         ]
         if store_type == "device_mem":
             store_options = flow.one_embedding.make_device_mem_store_options(
-                persistent_path=persistent_path, 
-                capacity=vocab_size,
-                size_factor=size_factor,
+                persistent_path=persistent_path, capacity=vocab_size, size_factor=size_factor,
             )
         elif store_type == "cached_host_mem":
             assert cache_memory_budget_mb > 0
@@ -291,26 +301,29 @@ class CrossNet(nn.Module):
     def __init__(self, input_dim, num_layers):
         super(CrossNet, self).__init__()
         self.num_layers = num_layers
-        self.cross_net = nn.ModuleList(CrossInteractionLayer(input_dim)
-                                       for _ in range(self.num_layers))
+        self.cross_net = nn.ModuleList(
+            CrossInteractionLayer(input_dim) for _ in range(self.num_layers)
+        )
 
     def forward(self, X_0):
-        X_i = X_0 # b x dim
+        X_i = X_0  # b x dim
         for i in range(self.num_layers):
             X_i = X_i + self.cross_net[i](X_0, X_i)
         return X_i
 
 
 class DNN(nn.Module):
-    def __init__(self, 
-                 input_dim, 
-                 output_dim=None, 
-                 hidden_units=[], 
-                 hidden_activations="ReLU",
-                 output_activation=None, 
-                 dropout_rates=[], 
-                 batch_norm=False, 
-                 use_bias=True):
+    def __init__(
+        self,
+        input_dim,
+        output_dim=None,
+        hidden_units=[],
+        hidden_activations="ReLU",
+        output_activation=None,
+        dropout_rates=[],
+        batch_norm=False,
+        use_bias=True,
+    ):
         super(DNN, self).__init__()
         dense_layers = []
         if not isinstance(dropout_rates, list):
@@ -331,14 +344,15 @@ class DNN(nn.Module):
             dense_layers.append(nn.Linear(hidden_units[-1], output_dim, bias=use_bias))
         if output_activation is not None:
             dense_layers.append(get_activation(output_activation))
-        self.dnn = nn.Sequential(*dense_layers) # * used to unpack list
-    
+        self.dnn = nn.Sequential(*dense_layers)  # * used to unpack list
+
     def forward(self, inputs):
         return self.dnn(inputs)
 
 
 class DCNModule(nn.Module):
-    def __init__(self, 
+    def __init__(
+        self,
         embedding_vec_size,
         persistent_path,
         table_size_array,
@@ -346,11 +360,11 @@ class DCNModule(nn.Module):
         cache_memory_budget_mb,
         size_factor,
         dnn_hidden_units=[128, 128],
-        crossing_layers = 3,
-        net_dropout = 0.2,
+        crossing_layers=3,
+        net_dropout=0.2,
         dnn_activations="relu",
         batch_norm=False,
-        ):
+    ):
         super(DCNModule, self).__init__()
 
         self.embedding_layer = OneEmbedding(
@@ -363,25 +377,29 @@ class DCNModule(nn.Module):
             size_factor=size_factor,
         )
 
-        input_dim = embedding_vec_size * (num_dense_fields + num_sparse_fields) 
+        input_dim = embedding_vec_size * (num_dense_fields + num_sparse_fields)
 
-        self.dnn = DNN(input_dim=input_dim,
-                             output_dim=None, # output hidden layer
-                             hidden_units=dnn_hidden_units,
-                             hidden_activations=dnn_activations,
-                             output_activation=None, 
-                             dropout_rates=net_dropout, 
-                             batch_norm=batch_norm, 
-                             use_bias=True) \
-                   if dnn_hidden_units else None # in case of only crossing net used
+        self.dnn = (
+            DNN(
+                input_dim=input_dim,
+                output_dim=None,  # output hidden layer
+                hidden_units=dnn_hidden_units,
+                hidden_activations=dnn_activations,
+                output_activation=None,
+                dropout_rates=net_dropout,
+                batch_norm=batch_norm,
+                use_bias=True,
+            )
+            if dnn_hidden_units
+            else None
+        )  # in case of only crossing net used
 
         self.crossnet = CrossNet(input_dim, crossing_layers)
 
-
         final_dim = input_dim
-        if isinstance(dnn_hidden_units, list) and len(dnn_hidden_units) > 0: # if use dnn
+        if isinstance(dnn_hidden_units, list) and len(dnn_hidden_units) > 0:  # if use dnn
             final_dim += dnn_hidden_units[-1]
-        self.fc = nn.Linear(final_dim, 1) # [cross_part, dnn_part] -> logit
+        self.fc = nn.Linear(final_dim, 1)  # [cross_part, dnn_part] -> logit
 
         self.output_activation = nn.Sigmoid()
         self.reset_parameters()
@@ -406,27 +424,28 @@ class DCNModule(nn.Module):
                 nn.init.xavier_normal_(m.weight)
                 if m.bias is not None:
                     m.bias.data.fill_(0)
+
         self.apply(reset_param)
 
 
 def make_dcn_module(args):
     model = DCNModule(
-                embedding_vec_size=args.embedding_vec_size,
-
-                persistent_path=args.persistent_path,
-                table_size_array=args.table_size_array,
-                one_embedding_store_type=args.store_type,
-                cache_memory_budget_mb=args.cache_memory_budget_mb,
-                dnn_hidden_units = args.dnn_hidden_units,
-                crossing_layers=args.crossing_layers, 
-                net_dropout = args.net_dropout,
-                dnn_activations=args.dnn_activations, 
-                batch_norm=args.batch_norm,   
-                size_factor=args.size_factor         
-            )
+        embedding_vec_size=args.embedding_vec_size,
+        persistent_path=args.persistent_path,
+        table_size_array=args.table_size_array,
+        one_embedding_store_type=args.store_type,
+        cache_memory_budget_mb=args.cache_memory_budget_mb,
+        dnn_hidden_units=args.dnn_hidden_units,
+        crossing_layers=args.crossing_layers,
+        net_dropout=args.net_dropout,
+        dnn_activations=args.dnn_activations,
+        batch_norm=args.batch_norm,
+        size_factor=args.size_factor,
+    )
     for key in model.state_dict():
         print(key)
     return model
+
 
 class DCNValGraph(flow.nn.Graph):
     def __init__(self, dcn_module, amp=False):
@@ -456,7 +475,7 @@ class DCNTrainGraph(flow.nn.Graph):
             self.set_grad_scaler(grad_scaler)
 
     def build(self, labels, features):
-        
+
         logits = self.module(features.to("cuda")).squeeze()
         loss = self.loss(logits, labels.squeeze().to("cuda"))
 
@@ -471,7 +490,7 @@ class DCNTrainGraph(flow.nn.Graph):
 
         return reduce_loss.to("cpu")
 
-        
+
 def make_lr_scheduler(args, optimizer):
     reduce_lr_on_plateau = flow.optim.lr_scheduler.ReduceLROnPlateau(
         optimizer=optimizer,
@@ -488,9 +507,8 @@ def make_lr_scheduler(args, optimizer):
     return reduce_lr_on_plateau
 
 
-
 def get_metrics(logs):
-    kv = {'auc': 1, 'logloss': -1}
+    kv = {"auc": 1, "logloss": -1}
     monitor_value = 0
     for k, v in kv.items():
         monitor_value += logs.get(k, 0) * v
@@ -511,7 +529,7 @@ def early_stop(epoch, monitor_value, best_metric, stopping_steps, patience=2, mi
     return stop_training, best_metric, stopping_steps
 
 
-def train(args): 
+def train(args):
     rank = flow.env.get_rank()
 
     dcn_module = make_dcn_module(args)
@@ -539,25 +557,31 @@ def train(args):
     if args.save_initial_model:
         save_model("initial_checkpoint")
 
-
     opt = flow.optim.Adam(dcn_module.parameters(), lr=args.learning_rate)
 
     def lr_decay(factor=0.1, min_lr=1e-6):
-            for param_group in opt.param_groups:
-                reduced_lr = max(param_group["lr"] * factor, min_lr)
-                param_group["lr"] = reduced_lr
-            print("Reduce learning rate on plateau: {}".format(reduced_lr))
-            return reduced_lr
+        for param_group in opt.param_groups:
+            reduced_lr = max(param_group["lr"] * factor, min_lr)
+            param_group["lr"] = reduced_lr
+        print("Reduce learning rate on plateau: {}".format(reduced_lr))
+        return reduced_lr
 
     def get_metrics(logs):
-        kv = {'auc': 1, 'logloss': -1}
+        kv = {"auc": 1, "logloss": -1}
         monitor_value = 0
         for k, v in kv.items():
             monitor_value += logs.get(k, 0) * v
         return monitor_value
 
-
-    def early_stop(epoch, monitor_value, best_metric, stopping_steps, patience=2, min_delta=1e-6, _reduce_lr_on_plateau = True):
+    def early_stop(
+        epoch,
+        monitor_value,
+        best_metric,
+        stopping_steps,
+        patience=2,
+        min_delta=1e-6,
+        _reduce_lr_on_plateau=True,
+    ):
         stop_training = False
         if monitor_value < best_metric + min_delta:
             stopping_steps += 1
@@ -573,7 +597,6 @@ def train(args):
             print(f"Early stopping at epoch={epoch}!")
         return stop_training, best_metric, stopping_steps
 
-
     # TODO: clip gradient norm
 
     lr_scheduler = None
@@ -585,7 +608,7 @@ def train(args):
         grad_scaler = flow.amp.GradScaler(
             init_scale=1073741824, growth_factor=2.0, backoff_factor=0.5, growth_interval=2000,
         )
-    
+
     eval_graph = DCNValGraph(dcn_module, args.amp)
     train_graph = DCNTrainGraph(dcn_module, loss_func, opt, lr_scheduler, grad_scaler, args.amp)
 
@@ -598,15 +621,14 @@ def train(args):
     best_metric = -np.inf
     stopping_steps = 0
 
-
     dcn_module.train()
     step, last_step, last_time = -1, 0, time.time()
     epoch = 0
 
-
-
     for i in range(50):
-        with make_criteo_dataloader(f"{args.data_dir}/train", args.train_batch_size,shard_seed=args.shard_seed) as loader:
+        with make_criteo_dataloader(
+            f"{args.data_dir}/train", args.train_batch_size, shard_seed=args.shard_seed
+        ) as loader:
             for step in range(1, args.train_batches + 1):
                 labels, features = batch_to_global(*next(loader))
                 loss = train_graph(labels, features)
@@ -627,7 +649,10 @@ def train(args):
 
                 if step % batches_per_epoch == 0:
 
-                    print("Current learning rate : ",opt.state_dict()['param_groups'][0]['_options']["lr"] )
+                    print(
+                        "Current learning rate : ",
+                        opt.state_dict()["param_groups"][0]["_options"]["lr"],
+                    )
                     epoch += 1
                     auc, logloss = eval_valid(args, eval_graph, step, epoch)
                     test_auc, test_logloss = eval_test(args, eval_graph, step, epoch)
@@ -635,26 +660,25 @@ def train(args):
                         test_auc_best = test_auc
                         test_logloss_best = test_logloss
 
-
                     # if args.save_model_after_each_eval:
                     if True:
                         save_model(f"step_{step}_val_auc_{auc:0.5f}")
 
-
-
-                    monitor_value = get_metrics(logs={'auc': auc, 'logloss': logloss})
+                    monitor_value = get_metrics(logs={"auc": auc, "logloss": logloss})
                     stop_training, best_metric, stopping_steps = early_stop(
-                        epoch, 
-                        monitor_value, 
-                        best_metric=best_metric, 
-                        stopping_steps=stopping_steps, 
-                        patience=args.patience, 
+                        epoch,
+                        monitor_value,
+                        best_metric=best_metric,
+                        stopping_steps=stopping_steps,
+                        patience=args.patience,
                         min_delta=args.min_delta,
-                        _reduce_lr_on_plateau = args.reduce_lr_on_plateau,
+                        _reduce_lr_on_plateau=args.reduce_lr_on_plateau,
                     )
 
-                    train_graph = DCNTrainGraph(dcn_module, loss_func, opt, lr_scheduler, grad_scaler, args.amp)
-                    
+                    train_graph = DCNTrainGraph(
+                        dcn_module, loss_func, opt, lr_scheduler, grad_scaler, args.amp
+                    )
+
                     if stop_training:
                         break
                     dcn_module.train()
@@ -664,21 +688,21 @@ def train(args):
 
         if stop_training:
             break
-        
+
         if i == 1:
             break
 
-    
     print("best test auc : ", test_auc_best, "logloss: ", test_logloss_best)
 
-    plot_train_curve(args,train_losses)
-    np.save('of_train_losses.npy',train_losses)
+    plot_train_curve(args, train_losses)
+    np.save("of_train_losses.npy", train_losses)
 
 
 def batch_to_global(np_label, np_features):
     def _np_to_global(np, dtype=flow.float):
         t = flow.tensor(np, dtype=dtype)
         return t.to_global(placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0))
+
     labels = _np_to_global(np_label.reshape(-1, 1))
     features = _np_to_global(np_features, dtype=flow.int64)
     return labels, features
@@ -691,7 +715,9 @@ def eval_valid(args, eval_graph, cur_step=0, epoch=0):
     labels, preds = [], []
     eval_start_time = time.time()
     # with make_criteo_dataloader(f"{args.data_dir}/test", args.eval_batch_size, shuffle=False) as loader:
-    with make_criteo_dataloader(f"{args.data_dir}/val", args.eval_batch_size, shuffle=True, shard_seed=args.shard_seed) as loader:
+    with make_criteo_dataloader(
+        f"{args.data_dir}/val", args.eval_batch_size, shuffle=True, shard_seed=args.shard_seed
+    ) as loader:
         num_eval_batches = 0
         for np_batch in loader:
             num_eval_batches += 1
@@ -730,14 +756,17 @@ def eval_valid(args, eval_graph, cur_step=0, epoch=0):
     flow.comm.barrier()
     return auc, logloss
 
+
 def eval_test(args, eval_graph, cur_step=0, epoch=0):
     if args.eval_batches <= 0:
         return
     eval_graph.module.eval()
     labels, preds = [], []
     eval_start_time = time.time()
-    with make_criteo_dataloader(f"{args.data_dir}/test", args.eval_batch_size, shuffle=True, shard_seed=args.shard_seed) as loader:
-    # with make_criteo_dataloader(f"{args.data_dir}/val", args.eval_batch_size, shuffle=False) as loader:
+    with make_criteo_dataloader(
+        f"{args.data_dir}/test", args.eval_batch_size, shuffle=True, shard_seed=args.shard_seed
+    ) as loader:
+        # with make_criteo_dataloader(f"{args.data_dir}/val", args.eval_batch_size, shuffle=False) as loader:
         num_eval_batches = 0
         for np_batch in loader:
             num_eval_batches += 1
@@ -778,13 +807,11 @@ def eval_test(args, eval_graph, cur_step=0, epoch=0):
     return auc, logloss
 
 
-
 def plot_train_curve(args, train_losses):
     plt.plot(range(1, len(train_losses) + 1), train_losses)
     plt.ylabel("Training Logloss")
     plt.xlabel(f"batch number (per {args.loss_print_interval} batches)")
-    plt.savefig('of_training_curve.png')
-
+    plt.savefig("of_training_curve.png")
 
 
 def load_fuxi_test(args):
@@ -792,7 +819,9 @@ def load_fuxi_test(args):
     rank = flow.env.get_rank()
     dcn_module = make_dcn_module(args)
     dcn_module.to_global(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
-    state_dict = flow.load("/home/yuanziyang/yzywork/dcn-test-dir/fuxi_2_of_state_dict", global_src_rank=0)
+    state_dict = flow.load(
+        "/home/yuanziyang/yzywork/dcn-test-dir/fuxi_2_of_state_dict", global_src_rank=0
+    )
     dcn_module.load_state_dict(state_dict, strict=False)
 
     # dcn_module.load_state_dict(state_dict, strict=False)
@@ -801,6 +830,8 @@ def load_fuxi_test(args):
     auc, logloss = eval_test(args, eval_graph, 0, 0)
     print("test finished")
     print("test auc : ", auc, "logloss: ", logloss)
+
+
 def get_table_size_array(feature_map_json):
     print("Load feature_map from json: " + feature_map_json)
     with open(feature_map_json, "r", encoding="utf-8") as fd:
@@ -814,6 +845,7 @@ def get_table_size_array(feature_map_json):
         table_size_array.append(feature_specs[col]["vocab_size"])
 
     return table_size_array
+
 
 if __name__ == "__main__":
     os.system(sys.executable + " -m oneflow --doctor")

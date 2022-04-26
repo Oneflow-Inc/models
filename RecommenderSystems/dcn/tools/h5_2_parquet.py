@@ -12,24 +12,25 @@ from pyspark.conf import SparkConf
 from pyspark.sql.functions import rand, udf, lit, xxhash64
 from pyspark.sql.types import IntegerType, LongType
 
-def load_hdf5(data_path, key='data'):
-    with h5py.File(data_path, 'r') as hf:
-            data_array = hf[key][:]
+
+def load_hdf5(data_path, key="data"):
+    with h5py.File(data_path, "r") as hf:
+        data_array = hf[key][:]
     return data_array
 
 
 def make_fuxih5_to_parquet(spark, feature_map, data_path, output_dir, part_num=None, shuffle=False):
     print("start loading h5 data!")
-    data_array = load_hdf5(data_path) # cols: 39 features + 1 label
+    data_array = load_hdf5(data_path)  # cols: 39 features + 1 label
     X = data_array[:, :-1]
     label = data_array[:, -1].reshape(-1, 1)
 
     print("start transforming h5 data!")
     total_prev_vocab = 0
-    for key in feature_map['feature_specs'].keys():
-        X[:, feature_map['feature_specs'][key]['index']] += total_prev_vocab
-        total_prev_vocab += float(feature_map['feature_specs'][key]['vocab_size'])
-    
+    for key in feature_map["feature_specs"].keys():
+        X[:, feature_map["feature_specs"][key]["index"]] += total_prev_vocab
+        total_prev_vocab += float(feature_map["feature_specs"][key]["vocab_size"])
+
     print("start creating dataframe!")
     data_array = np.concatenate((label, X), axis=1)
     data_pandas = pd.DataFrame(data_array)
@@ -91,39 +92,26 @@ if __name__ == "__main__":
     print("start making test parquet data!")
     test_output_dir = os.path.join(args.output_dir, "test")
     test_count = make_fuxih5_to_parquet(
-        spark, 
-        feature_map, 
-        test_h5, 
-        test_output_dir, 
-        part_num=256, 
-        shuffle=False
+        spark, feature_map, test_h5, test_output_dir, part_num=256, shuffle=False
     )
 
     print("start making val parquet data!")
     val_output_dir = os.path.join(args.output_dir, "val")
     val_count = make_fuxih5_to_parquet(
-        spark, 
-        feature_map, 
-        val_h5, 
-        val_output_dir, 
-        part_num=256, 
-        shuffle=False
+        spark, feature_map, val_h5, val_output_dir, part_num=256, shuffle=False
     )
 
     print("start making train parquet data!")
     train_output_dir = os.path.join(args.output_dir, "train")
     train_count = make_fuxih5_to_parquet(
-        spark, 
-        feature_map,
-        train_h5, 
-        train_output_dir, 
-        part_num=1024, 
-        shuffle=True
+        spark, feature_map, train_h5, train_output_dir, part_num=1024, shuffle=True
     )
 
     if args.export_dataset_info:
         df = spark.read.parquet(train_output_dir, test_output_dir, val_output_dir)
-        table_size_array = [df.select(f"I{i}").distinct().count() for i in range(1, 14)] + [df.select(f"C{i}").distinct().count() for i in range(1, 27)]
+        table_size_array = [df.select(f"I{i}").distinct().count() for i in range(1, 14)] + [
+            df.select(f"C{i}").distinct().count() for i in range(1, 27)
+        ]
         print(table_size_array)
         with open(os.path.join(args.output_dir, "README.md"), "w") as f:
             f.write("## number of examples:\n")
@@ -134,5 +122,3 @@ if __name__ == "__main__":
             f.write("table_size_array = [")
             f.write(", ".join([str(i) for i in table_size_array]))
             f.write("]\n")
-
-    
