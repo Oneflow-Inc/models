@@ -1,6 +1,6 @@
 import org.apache.spark.sql.functions.udf
 
-def makeDlrmDataset(srcDir: String, dstDir:String, tmpDir:String, modIdx:Long = 40000000L, intermediateStep:Boolean = false) = {
+def makeDlrmDataset(srcDir: String, dstDir:String, tmpDir:String, modIdx:Long = 40000000L, stepByStep:Boolean = false) = {
     val categorical_names = (1 to 26).map{id=>s"C$id"}
     val dense_names = (1 to 13).map{id=>s"I$id"}
     val integer_names = Seq("label") ++ dense_names
@@ -29,7 +29,7 @@ def makeDlrmDataset(srcDir: String, dstDir:String, tmpDir:String, modIdx:Long = 
     spark.read.option("delimiter", "\t").csv(val_csv).toDF(col_names: _*).select(cols:_*).repartition(256).write.parquet(s"${dstDir}/val")
 
     val day_files = 0.until(23).map{day=>s"${srcDir}/day_${day}"}
-    if (intermediateStep) {
+    if (stepByStep) {
         // save temporary intermediate data to tmpDir
         spark.read.option("delimiter", "\t").csv(day_files:_*).toDF(col_names: _*).select(cols:_*).write.parquet(s"${tmpDir}/tmp1")
         spark.read.parquet(s"${tmpDir}/tmp1").orderBy(rand()).write.parquet(s"${tmpDir}/tmp2")
