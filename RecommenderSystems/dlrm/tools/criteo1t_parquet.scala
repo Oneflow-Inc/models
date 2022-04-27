@@ -6,9 +6,9 @@ val integer_names = Seq("label") ++ dense_names
 val col_names = integer_names ++ categorical_names
 
 val mod_idx = 40000000L
-val src_dir = "/path/to/unziped/criteo1t"
-val dst_dir = "/path/to/output"
-val tmp_dir = "/path/to/tmp_spark"
+val src_dir = "/workspace/dataset/criteo1t/raw"
+val dst_dir = "/workspace/dataset/criteo1t/dlrm_parquet"
+val tmp_dir = "/workspace/tmp_spark"
 
 val day_23 = s"${src_dir}/day_23"
 val test_csv = s"${tmp_dir}/test.csv"
