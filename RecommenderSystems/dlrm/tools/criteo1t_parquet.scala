@@ -1,6 +1,6 @@
 import org.apache.spark.sql.functions.udf
 
-def makeDlrmDataset(srcDir: String, dstDir:String, tmpDir:String, modIdx:Long = 40000000L, intermediateStep:Bool = false) = {
+def makeDlrmDataset(srcDir: String, dstDir:String, tmpDir:String, modIdx:Long = 40000000L, intermediateStep:Boolean = false) = {
     val categorical_names = (1 to 26).map{id=>s"C$id"}
     val dense_names = (1 to 13).map{id=>s"I$id"}
     val integer_names = Seq("label") ++ dense_names
