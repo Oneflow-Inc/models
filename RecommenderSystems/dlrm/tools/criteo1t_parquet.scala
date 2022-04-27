@@ -16,9 +16,9 @@ def makeDlrmDataset(srcDir: String, dstDir:String, tmpDir:String, modIdx:Long = 
     val make_dense = udf((str:String) => if (str == null) 1 else str.toFloat + 1)
     val dense_cols = 1.to(13).map{i=>make_dense(col(s"I$i")).as(s"I${i}")}
 
-    var sparse_cols = if (mod_idx > 0){
+    var sparse_cols = if (modIdx > 0){
         def make_sparse = udf((str:String, i:Long, mod:Long) => (if (str == null) (i+1) * mod else Math.floorMod(Integer.parseUnsignedInt(str, 16).toLong, mod)) +  i * mod)
-        1.to(26).map{i=>make_sparse(col(s"C$i"), lit(i-1), lit(mod_idx)).as(s"C${i}")}
+        1.to(26).map{i=>make_sparse(col(s"C$i"), lit(i-1), lit(modIdx)).as(s"C${i}")}
     } else {
         1.to(26).map{i=>xxhash64(lit(i), col(s"C$i")).as(s"C${i}")}
     }
