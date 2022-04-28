@@ -117,7 +117,7 @@ if __name__ == "__main__":
         feature_map,
         train_h5, 
         train_output_dir, 
-        part_num=1024, 
+        part_num=2048, 
         shuffle=True
     )
 

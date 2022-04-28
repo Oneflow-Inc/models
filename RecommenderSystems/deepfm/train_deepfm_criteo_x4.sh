@@ -26,7 +26,7 @@ python3 -m oneflow.distributed.launch \
       --store_type 'cached_host_mem' \
       --cache_memory_budget_mb 1024 \
       --batch_size 10000 \
-      --train_batches 50000 \
+      --train_batches 75000 \
       --loss_print_interval 100 \
       --dnn "1000,1000,1000,1000,1000" \
       --net_dropout 0.2 \
@@ -37,4 +37,5 @@ python3 -m oneflow.distributed.launch \
       --num_val_samples 4584062 \
       --num_test_samples 4584062 \
       --model_save_dir /minio/sdb/liuxinman/saved_models/of_deepfm \
+      --embedding_regularizer 1.e-04
       > run.log & tail -f run.log

@@ -6,13 +6,10 @@ import time
 import math
 import numpy as np
 import psutil
-import warnings
 import oneflow as flow
 import oneflow.nn as nn
-from sklearn.metrics import roc_auc_score, log_loss
+from sklearn.metrics import log_loss
 from petastorm.reader import make_batch_reader
-import matplotlib.pyplot as plt
-import pickle
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
 
@@ -207,18 +204,11 @@ class OneEmbedding(nn.Module):
         assert table_size_array is not None
         vocab_size = sum(table_size_array)
 
-        # tables = [
-        #     flow.one_embedding.make_table(
-        #         flow.one_embedding.make_normal_initializer(mean=0.0, std=1e-4)
-        #     )
-        #     for _ in range(len(table_size_array))
-        # ]
-        scales = np.sqrt(1 / np.array(table_size_array))
         tables = [
             flow.one_embedding.make_table(
-                flow.one_embedding.make_uniform_initializer(low=-scale, high=scale)
+                flow.one_embedding.make_normal_initializer(mean=0.0, std=1e-4)
             )
-            for scale in scales
+            for _ in range(len(table_size_array))
         ]
         if store_type == "device_mem":
             store_options = flow.one_embedding.make_device_mem_store_options(
@@ -403,12 +393,14 @@ class DeepFMModule(nn.Module):
             fused=use_fusedmlp,
             dropout=dropout,
         )
+        
+        self.final_activation = nn.Sigmoid()
 
     def forward(self, inputs) -> flow.Tensor:
         embedded_x = self.embedding_layer(inputs)
         fm_pred = self.fm_layer(inputs, embedded_x)
         dnn_pred = self.dnn_layer(embedded_x.flatten(start_dim=1))
-        return fm_pred + dnn_pred
+        return self.final_activation(fm_pred + dnn_pred)
 
 
 def make_deepfm_module(args):
@@ -435,7 +427,6 @@ class DeepFMValGraph(flow.nn.Graph):
 
     def build(self, features):
         predicts = self.module(features.to("cuda"))
-        predicts = predicts.sigmoid()
         return predicts.to("cpu")
 
 
@@ -457,9 +448,8 @@ class DeepFMTrainGraph(flow.nn.Graph):
     def build(self, labels, features):
         logits = self.module(features.to("cuda"))
         loss = self.loss(logits, labels.to("cuda"))
-        reduce_loss = flow.mean(loss)
-        reduce_loss.backward()
-        return reduce_loss.to("cpu")
+        loss.backward()
+        return loss.to("cpu")
 
 
 def make_lr_scheduler(args, optimizer):
@@ -527,7 +517,7 @@ def train(args):
 
     # TODO: clip gradient norm
     opt = flow.optim.Adam(deepfm_module.parameters(), lr=args.learning_rate)
-    loss = flow.nn.BCEWithLogitsLoss(reduction="none").to("cuda")
+    loss = flow.nn.BCELoss(reduction="mean").to("cuda")
 
     if args.loss_scale_policy == "static":
         grad_scaler = flow.amp.StaticGradScaler(1024)
@@ -544,11 +534,13 @@ def train(args):
 
     best_metric = -np.inf
     stopping_steps = 0
+    
+    cached_eval_batches = prefetch_eval_batches(f"{args.data_dir}/val", args.batch_size, math.ceil(args.num_val_samples / args.batch_size))
 
     deepfm_module.train()
-    step, last_step, last_time = -1, 0, time.time()
     epoch = 0
     with make_criteo_dataloader(f"{args.data_dir}/train", args.batch_size) as loader:
+        step, last_step, last_time = -1, 0, time.time()
         for step in range(1, args.train_batches + 1):
             labels, features = batch_to_global(*next(loader))
             loss = train_graph(labels, features)
@@ -566,7 +558,7 @@ def train(args):
 
             if step % batches_per_epoch == 0:
                 epoch += 1
-                auc, logloss = eval(args, eval_graph, tag='val', cur_step=step, epoch=epoch)
+                auc, logloss = eval(args, eval_graph, tag='val', cur_step=step, epoch=epoch, cached_eval_batches=cached_eval_batches)
                 if args.save_model_after_each_eval:
                     save_model(f"step_{step}_val_auc_{auc:0.5f}")
 
@@ -592,21 +584,33 @@ def train(args):
     state_dict = flow.load(f"{args.model_save_dir}/best_checkpoint", global_src_rank=0)
     deepfm_module.load_state_dict(state_dict, strict=False)
     print("================ Validation Evaluation ================")
-    auc, logloss = eval(args, eval_graph, tag='val', cur_step=step, epoch=epoch)
+    eval(args, eval_graph, tag='val', cur_step=step, epoch=epoch, cached_eval_batches=cached_eval_batches)
     print("================ Test Evaluation ================")
-    auc, logloss = eval(args, eval_graph, tag='test', cur_step=step, epoch=epoch)
+    eval(args, eval_graph, tag='test', cur_step=step, epoch=epoch)
 
 
-def batch_to_global(np_label, np_features):
-    def _np_to_global(np, dtype=flow.float):
-        t = flow.tensor(np, dtype=dtype)
-        return t.to_global(placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0))
-    labels = _np_to_global(np_label.reshape(-1, 1))
-    features = _np_to_global(np_features, dtype=flow.int64)
+def np_to_global(np, dtype=flow.float):
+    # t = flow.from_numpy(np)
+    t = flow.tensor(np, dtype=dtype)
+    return t.to_global(placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0))
+
+
+def batch_to_global(np_label, np_features, is_train=True):
+    labels = np_to_global(np_label.reshape(-1, 1)) if is_train else np_label.reshape(-1, 1)
+    features = np_to_global(np_features, dtype=flow.int64)
     return labels, features
 
 
-def eval(args, eval_graph, tag='val', cur_step=0, epoch=0):
+def prefetch_eval_batches(data_dir, batch_size, num_batches):
+    cached_eval_batches = []
+    with make_criteo_dataloader(data_dir, batch_size, shuffle=False) as loader:
+        for _ in range(num_batches):
+            label, features = batch_to_global(*next(loader), is_train=False)
+            cached_eval_batches.append((label, features))
+    return cached_eval_batches
+
+
+def eval(args, eval_graph, tag='val', cur_step=0, epoch=0, cached_eval_batches=None):
     if tag == 'val':
         batches_per_epoch = math.ceil(args.num_val_samples / args.batch_size)
     else:
@@ -615,26 +619,39 @@ def eval(args, eval_graph, tag='val', cur_step=0, epoch=0):
     eval_graph.module.eval()
     labels, preds = [], []
     eval_start_time = time.time()
-    with make_criteo_dataloader(f"{args.data_dir}/{tag}", args.batch_size, shuffle=False) as loader:
-        step = 0
-        for np_batch in loader:
-            label, features = batch_to_global(*np_batch)
+    
+    if cached_eval_batches == None:
+        with make_criteo_dataloader(f"{args.data_dir}/{tag}", args.batch_size, shuffle=False) as loader:
+            for i in range(batches_per_epoch):
+                label, features = batch_to_global(*next(loader), is_train=False)
+                pred = eval_graph(features)
+                labels.append(label)
+                preds.append(pred.to_local())
+    else:
+        for i in range(batches_per_epoch):
+            label, features = cached_eval_batches[i]
             pred = eval_graph(features)
-            labels.append(label.numpy())
-            preds.append(pred.numpy())
-            
-            step += 1
-            if step % batches_per_epoch == 0:
-                break
+            labels.append(label)
+            preds.append(pred.to_local())
 
+    labels = (
+        np_to_global(np.concatenate(labels, axis=0)).to_global(sbp=flow.sbp.broadcast()).to_local()
+    )
+    preds = (
+        flow.cat(preds, dim=0)
+        .to_global(placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0))
+        .to_global(sbp=flow.sbp.broadcast())
+        .to_local()
+    )
+
+    flow.comm.barrier()
+    eval_time = time.time() - eval_start_time
+    
     auc = 0  # will be updated by rank 0 only
     rank = flow.env.get_rank()
     if rank == 0:
-        labels = np.concatenate(labels, axis=0)
-        preds = np.concatenate(preds, axis=0)
-        eval_time = time.time() - eval_start_time
         auc_start_time = time.time()
-        auc = roc_auc_score(labels, preds)
+        auc = flow.roc_auc_score(labels, preds).numpy()[0]
         auc_time = time.time() - auc_start_time
         log_loss_start_time = time.time()
         logloss = log_loss(labels, preds, eps=1e-7)
@@ -646,12 +663,11 @@ def eval(args, eval_graph, tag='val', cur_step=0, epoch=0):
 
         strtime = time.strftime("%Y-%m-%d %H:%M:%S")
         print(
-            f"Rank[{rank}], Epoch {epoch}, Step {cur_step}, AUC {auc:0.5f}, LogLoss {logloss:0.5f}, Eval_time {eval_time:0.2f} s, "
+            f"Rank[{rank}], Epoch {epoch}, Step {cur_step}, AUC {auc:0.6f}, LogLoss {logloss:0.6f}, Eval_time {eval_time:0.2f} s, "
             + f"AUC_time {auc_time:0.2f} s, LogLoss_time {log_loss_time: 0.2f} s, Eval_samples {labels.shape[0]}, "
             + f"GPU_Memory {device_mem_str}, Host_Memory {host_mem_mb} MiB, {strtime}"
         )
 
-    flow.comm.barrier()
     return auc, logloss
 
 
