@@ -10,7 +10,7 @@ import psutil
 import warnings
 import oneflow as flow
 import oneflow.nn as nn
-from sklearn.metrics import roc_auc_score, log_loss
+from sklearn.metrics import log_loss
 from petastorm.reader import make_batch_reader
 import matplotlib.pyplot as plt
 import json
@@ -507,36 +507,12 @@ def make_lr_scheduler(args, optimizer):
     return reduce_lr_on_plateau
 
 
-def get_metrics(logs):
-    kv = {"auc": 1, "logloss": -1}
-    monitor_value = 0
-    for k, v in kv.items():
-        monitor_value += logs.get(k, 0) * v
-    return monitor_value
-
-
-def early_stop(epoch, monitor_value, best_metric, stopping_steps, patience=2, min_delta=1e-6):
-    stop_training = False
-    if monitor_value < best_metric + min_delta:
-        stopping_steps += 1
-        print("Monitor(max) STOP: {:.6f}!".format(monitor_value))
-    else:
-        stopping_steps = 0
-        best_metric = monitor_value
-    if stopping_steps >= patience:
-        stop_training = True
-        print(f"Early stopping at epoch={epoch}!")
-    return stop_training, best_metric, stopping_steps
-
 
 def train(args):
     rank = flow.env.get_rank()
 
     dcn_module = make_dcn_module(args)
 
-    # fuxi_state_dict = flow.load("/home/yuanziyang/yzywork/dcn-test-dir/model_dict")
-    # for key in fuxi_state_dict:
-    #     dcn_module.state_dict()[key] = fuxi_state_dict[key]
 
     dcn_module.to_global(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
 
@@ -619,16 +595,15 @@ def train(args):
     test_logloss_best = np.inf
     test_auc_best = 0
     best_metric = -np.inf
-    stopping_steps = 0
-
-    dcn_module.train()
-    step, last_step, last_time = -1, 0, time.time()
     epoch = 0
+    stopping_steps = 0
 
     for i in range(50):
         with make_criteo_dataloader(
             f"{args.data_dir}/train", args.train_batch_size, shard_seed=args.shard_seed
         ) as loader:
+            dcn_module.train()
+            step, last_step, last_time = -1, 0, time.time()
             for step in range(1, args.train_batches + 1):
                 labels, features = batch_to_global(*next(loader))
                 loss = train_graph(labels, features)
@@ -681,7 +656,6 @@ def train(args):
 
                     if stop_training:
                         break
-                    dcn_module.train()
                     last_time = time.time()
 
                     break
@@ -736,7 +710,7 @@ def eval_valid(args, eval_graph, cur_step=0, epoch=0):
         preds = np.concatenate(preds, axis=0)
         eval_time = time.time() - eval_start_time
         auc_start_time = time.time()
-        auc = roc_auc_score(labels, preds)
+        auc = flow.roc_auc_score(labels, preds).numpy()[0]
         auc_time = time.time() - auc_start_time
         log_loss_start_time = time.time()
         logloss = log_loss(labels, preds, eps=1e-7)
@@ -785,7 +759,7 @@ def eval_test(args, eval_graph, cur_step=0, epoch=0):
         preds = np.concatenate(preds, axis=0)
         eval_time = time.time() - eval_start_time
         auc_start_time = time.time()
-        auc = roc_auc_score(labels, preds)
+        auc = flow.roc_auc_score(labels, preds).numpy()[0]
         auc_time = time.time() - auc_start_time
         log_loss_start_time = time.time()
         logloss = log_loss(labels, preds, eps=1e-7)
@@ -820,7 +794,7 @@ def load_fuxi_test(args):
     dcn_module = make_dcn_module(args)
     dcn_module.to_global(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
     state_dict = flow.load(
-        "/home/yuanziyang/yzywork/dcn-test-dir/fuxi_2_of_state_dict", global_src_rank=0
+        "your_path/fuxi_2_of_state_dict", global_src_rank=0
     )
     dcn_module.load_state_dict(state_dict, strict=False)
 
@@ -851,7 +825,6 @@ if __name__ == "__main__":
     os.system(sys.executable + " -m oneflow --doctor")
     flow.boxing.nccl.enable_all_to_all(True)
     args = get_args()
-    args.feature_map_json = "/home/yuanziyang/yzywork/dcn-test-dir/FUXI/BARS/ctr_prediction/benchmarks/DCN/data/Criteo/criteo_x4_9ea3bdfc/feature_map.json"
     args.table_size_array = get_table_size_array(args.feature_map_json)
     train(args)
     # load_fuxi_test(args)

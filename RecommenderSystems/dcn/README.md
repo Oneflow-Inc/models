@@ -6,13 +6,11 @@
 ```
 .
 |-- tools
-  |-- criteo.py             # fuxi data preprofile 
-  |-- csv_2_h5.py           # fuxi file used to transform data from csv to h5
   |-- dataset_config.yaml   # dataset config file
-  |-- fuxi_features.py      # fuxi file
-  |--
-  |--criteo1t_parquet.py    # Read Criteo1T data and export it as parquet data format
-|-- dlrm_train_eval.py       # OneFlow DLRM training and evaluation scripts with OneEmbedding module
+  |-- split_criteo.py      # split Criteo file
+  |-- make_criteo_parquet.py # make Criteo parquet data from csv data
+|-- dcn_train_eval.py       # OneFlow DCN training and evaluation scripts with OneEmbedding module
+|-- train.sh                # command to train DCN
 |-- requirements.txt         # python package configuration file
 └── README.md                # Documentation
 ```

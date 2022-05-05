@@ -1,6 +1,6 @@
 criteo_x4_001:
     data_format: csv
-    data_root: /home/yuanziyang/yzywork/dcn-test-dir/FUXI/BARS/ctr_prediction/benchmarks/DCN/data/Criteo/
+    data_root: your_dir/Criteo/
     feature_cols:
     -   active: true
         dtype: float
@@ -16,6 +16,6 @@ criteo_x4_001:
         type: categorical
     label_col: {dtype: float, name: Label}
     min_categr_count: 10
-    test_data: /home/yuanziyang/yzywork/dcn-test-dir/FUXI/BARS/ctr_prediction/benchmarks/DCN/data/Criteo/Criteo_x4/test.csv
-    train_data: /home/yuanziyang/yzywork/dcn-test-dir/FUXI/BARS/ctr_prediction/benchmarks/DCN/data/Criteo/Criteo_x4/train.csv
-    valid_data: /home/yuanziyang/yzywork/dcn-test-dir/FUXI/BARS/ctr_prediction/benchmarks/DCN/data/Criteo/Criteo_x4/valid.csv
+    test_data: your_path/Criteo/Criteo_csv/test.csv
+    train_data: your_path/Criteo/Criteo_csv/train.csv
+    valid_data: your_path/Criteo/Criteo_csv/valid.csv
