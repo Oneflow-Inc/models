@@ -16,6 +16,8 @@ import matplotlib.pyplot as plt
 import json
 from collections import OrderedDict
 
+from yaml import parse
+
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
 
@@ -42,7 +44,7 @@ def get_args(print_args=True):
         return list(map(str, x.split(",")))
 
     parser = argparse.ArgumentParser()
-
+    parser.add_argument("--feature_map_json", type=str, default="./feature_map.json")
     parser.add_argument("--data_dir", type=str, required=True)
     parser.add_argument(
         "--num_train_samples", type=int, required=True, help="the number of training samples"
