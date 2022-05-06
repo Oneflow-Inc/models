@@ -1,70 +1,23 @@
 import os
 import time
 import argparse
-from pyspark.sql import SparkSession
-from pyspark.conf import SparkConf
-from pyspark.sql.functions import rand, udf, lit, hash
-from pyspark.sql.types import IntegerType, LongType
-import pandas as pd
-from sklearn.preprocessing import LabelEncoder
-import os
-import sys
-
-
-from datetime import datetime
-
-import gc
-import argparse
 import logging
-import os
-from pathlib import Path
 import yaml
 import glob
+import io
+import json
 import pandas as pd
-import numpy as np
-
 import numpy as np
 from collections import Counter, OrderedDict
-import pandas as pd
-import io
-import pickle
-import os
-import logging
-import json
-from collections import defaultdict
 from collections import Counter
-import itertools
-import numpy as np
-import pandas as pd
-import pickle
-import os
-import sklearn.preprocessing as sklearn_preprocess
-
-import numpy as np
-from torch.utils import data
-import h5py
-import os
-import io
-import json
-from collections import Counter, OrderedDict
-import numpy as np
-import time
-import argparse
-import pandas as pd
 from pyspark.sql import SparkSession
 from pyspark.conf import SparkConf
-from pyspark.sql.functions import rand, udf, lit, xxhash64
-from pyspark.sql.types import IntegerType, LongType
+from pyspark.sql.functions import rand
 
 
 class Tokenizer(object):
     def __init__(
-        self,
-        na_value=None,
-        min_freq=1,
-        oov_token=0,
-        max_len=0,
-        padding="pre",
+        self, na_value=None, min_freq=1, oov_token=0, max_len=0, padding="pre",
     ):
         self._na_value = na_value
         self._min_freq = min_freq
@@ -93,7 +46,6 @@ class Tokenizer(object):
     def encode_category(self, categories):
         category_indices = [self.vocab.get(x, self.oov_token) for x in categories]
         return np.array(category_indices)
-
 
 
 class FeatureMap(object):
@@ -128,19 +80,14 @@ class FeatureMap(object):
 
 class FeatureEncoder(object):
     def __init__(
-        self,
-        feature_cols=[],
-        label_col={},
-        dataset_id=None,
-        data_root="../data/",
-        **kwargs
+        self, feature_cols=[], label_col={}, dataset_id=None, data_root="../data/", **kwargs
     ):
         logging.info("Set up feature encoder...")
-        self.data_dir = os.path.join(data_root, dataset_id)     
-        self.pickle_file = os.path.join(self.data_dir, "feature_encoder.pkl")   
-        self.json_file = os.path.join(self.data_dir, "feature_map.json")     
-        self.feature_cols = self._complete_feature_cols(feature_cols)       
-        self.label_col = label_col                                                                                
+        self.data_dir = os.path.join(data_root, dataset_id)
+        self.pickle_file = os.path.join(self.data_dir, "feature_encoder.pkl")
+        self.json_file = os.path.join(self.data_dir, "feature_map.json")
+        self.feature_cols = self._complete_feature_cols(feature_cols)
+        self.label_col = label_col
         self.feature_map = FeatureMap(dataset_id)
         self.encoders = dict()
 
@@ -220,8 +167,8 @@ class FeatureEncoder(object):
         feature_values = ddf[name].values
         if feature_type == "categorical":
             tokenizer = Tokenizer(
-                    min_freq=min_categr_count, na_value=feature_column.get("na_value", "")
-                )
+                min_freq=min_categr_count, na_value=feature_column.get("na_value", "")
+            )
             tokenizer.fit_on_texts(feature_values, use_padding=False)
             self.encoders[name + "_tokenizer"] = tokenizer
             self.feature_map.num_features += tokenizer.vocab_size
@@ -240,12 +187,14 @@ class FeatureEncoder(object):
                 if encoder == "":
                     data_arrays.append(
                         self.encoders.get(feature + "_tokenizer").encode_category(
-                            ddf.loc[:, feature].values))
+                            ddf.loc[:, feature].values
+                        )
+                    )
                 else:
                     raise NotImplementedError
-            else :
+            else:
                 raise NotImplementedError
-              
+
         label_name = self.label_col["name"]
         if ddf[label_name].dtype != np.float64:
             ddf.loc[:, label_name] = ddf.loc[:, label_name].apply(lambda x: float(x))
@@ -288,13 +237,7 @@ class DataIO(object):
         return data_array
 
 
-def data_generator(
-    feature_encoder,
-    train_data=None,
-    valid_data=None,
-    test_data=None,
-    **kwargs
-):
+def data_generator(feature_encoder, train_data=None, valid_data=None, test_data=None, **kwargs):
     data_io = DataIO(feature_encoder)
     train_array = data_io.load_data(train_data)
     valid_array = data_io.load_data(valid_data)
@@ -343,32 +286,34 @@ def make_array_to_parquet(spark, feature_map, data_array, output_dir, part_num=N
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config", type=str, default="/home/yuanziyang/yzywork/dcn_for_pr/tools", help="The config directory.")
+    parser.add_argument("--config", type=str, help="The config directory.")
     parser.add_argument("--dataset_id", type=str, default="criteo_x4_001")
-    # parser.add_argument("--output_dir", type=str, default="/home/yuanziyang/yzywork/dcn_for_pr/Criteo_sample/Criteo_parquet")
-    parser.add_argument("--output_dir", type=str, default="/home/yuanziyang/yzywork/dcn_for_pr/Criteo/Criteo_parquet")
+    parser.add_argument("--output_dir", type=str, help="The output data directory.")
     parser.add_argument("--spark_tmp_dir", type=str, default=None)
     parser.add_argument("--spark_driver_memory_gb", type=int, default=1024)
-    parser.add_argument("--export_dataset_info", action="store_true", help="export dataset infomation or not")
+    parser.add_argument(
+        "--export_dataset_info", action="store_true", help="export dataset infomation or not"
+    )
     args = vars(parser.parse_args())
     args["export_dataset_info"] = True
-
 
     params = load_config(args["config"], args["dataset_id"])
 
     feature_encoder = FeatureEncoder(**params)
     feature_encoder.fit(**params)
 
-
     train_array, valid_array, test_array = data_generator(feature_encoder, **params)
 
     data_dir = os.path.join(params["data_root"], params["dataset_id"])
-    feature_map_json = os.path.join(data_dir, "feature_map.json") 
+    feature_map_json = os.path.join(data_dir, "feature_map.json")
 
     print("Start Loading feature map!")
     with io.open(feature_map_json, "r", encoding="utf-8") as fd:
         feature_map = json.load(fd, object_pairs_hook=OrderedDict)
-    vocab_size_array = [feature_map["feature_specs"][key]["vocab_size"] for key in feature_map["feature_specs"].keys()]
+    vocab_size_array = [
+        feature_map["feature_specs"][key]["vocab_size"]
+        for key in feature_map["feature_specs"].keys()
+    ]
     print("Loading feature map done!")
 
     # start spark session

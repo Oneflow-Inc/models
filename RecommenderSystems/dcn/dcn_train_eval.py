@@ -7,34 +7,14 @@ import time
 import math
 import numpy as np
 import psutil
-import warnings
 import oneflow as flow
 import oneflow.nn as nn
-from sklearn.metrics import log_loss
 from petastorm.reader import make_batch_reader
-import matplotlib.pyplot as plt
-import json
-from collections import OrderedDict
-
-from yaml import parse
-
+from multiprocessing.spawn import get_executable
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
-
-
-def get_activation(activation):
-    if isinstance(activation, str):
-        if activation.lower() == "relu":
-            return nn.ReLU()
-        elif activation.lower() == "sigmoid":
-            return nn.Sigmoid()
-        elif activation.lower() == "tanh":
-            return nn.Tanh()
-        else:
-            return getattr(nn, activation)()
-    else:
-        return activation
-
+num_dense_fields = 13
+num_sparse_fields = 26
 
 def get_args(print_args=True):
     def int_list(x):
@@ -44,7 +24,6 @@ def get_args(print_args=True):
         return list(map(str, x.split(",")))
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--feature_map_json", type=str, default="./feature_map.json")
     parser.add_argument("--data_dir", type=str, required=True)
     parser.add_argument(
         "--num_train_samples", type=int, required=True, help="the number of training samples"
@@ -60,7 +39,6 @@ def get_args(print_args=True):
         "--save_model_after_each_eval", action="store_true", help="save model after each eval."
     )
 
-    parser.add_argument("--disable_fusedmlp", default=False, help="disable fused MLP or not")
     parser.add_argument("--embedding_vec_size", type=int, default=16)
     parser.add_argument("--batch_norm", type=bool, default=False)
     parser.add_argument("--dnn_hidden_units", type=int_list, default="1000,1000,1000,1000,1000")
@@ -118,10 +96,6 @@ def _print_args(args):
     for arg in sorted(str_list, key=lambda x: x.lower()):
         print(arg, flush=True)
     print("-------------------- end of arguments ---------------------", flush=True)
-
-
-num_dense_fields = 13
-num_sparse_fields = 26
 
 
 class DCNDataReader(object):
@@ -203,11 +177,6 @@ class DCNDataReader(object):
             if pos != rglist.shape[1]:
                 tail = rglist[:, pos:]
 
-                # ##
-                # label = tail[0]
-                # features = tail[1:]
-                # yield label, features
-                # ##
 
 
 def make_criteo_dataloader(data_path, batch_size, shuffle=True, shard_seed=2022):
@@ -230,6 +199,19 @@ def make_criteo_dataloader(data_path, batch_size, shuffle=True, shard_seed=2022)
         cur_shard=flow.env.get_rank(),
     )
 
+
+def get_activation(activation):
+    if isinstance(activation, str):
+        if activation.lower() == "relu":
+            return nn.ReLU()
+        elif activation.lower() == "sigmoid":
+            return nn.Sigmoid()
+        elif activation.lower() == "tanh":
+            return nn.Tanh()
+        else:
+            return getattr(nn, activation)()
+    else:
+        return activation
 
 class OneEmbedding(nn.Module):
     def __init__(
@@ -444,8 +426,6 @@ def make_dcn_module(args):
         batch_norm=args.batch_norm,
         size_factor=args.size_factor,
     )
-    for key in model.state_dict():
-        print(key)
     return model
 
 
@@ -480,15 +460,8 @@ class DCNTrainGraph(flow.nn.Graph):
 
         logits = self.module(features.to("cuda")).squeeze()
         loss = self.loss(logits, labels.squeeze().to("cuda"))
-
-        # reg_loss = self.module.get_regularization_loss().to("cuda")
-        # total_loss = loss + reg_loss + self.module.aux_loss.to("cuda")
-        total_loss = loss
-
-        reduce_loss = flow.mean(total_loss)
+        reduce_loss = flow.mean(loss)
         reduce_loss.backward()
-
-        # nn.utils.clip_grad_norm_(self.module.parameters(), 10)
 
         return reduce_loss.to("cpu")
 
@@ -509,13 +482,9 @@ def make_lr_scheduler(args, optimizer):
     return reduce_lr_on_plateau
 
 
-
 def train(args):
     rank = flow.env.get_rank()
-
     dcn_module = make_dcn_module(args)
-
-
     dcn_module.to_global(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
 
     if args.model_load_dir:
@@ -533,6 +502,7 @@ def train(args):
         flow.save(state_dict, save_path, global_dst_rank=0)
 
     if args.save_initial_model:
+        print("======== Save initial checkpoint ========")
         save_model("initial_checkpoint")
 
     opt = flow.optim.Adam(dcn_module.parameters(), lr=args.learning_rate)
@@ -560,6 +530,7 @@ def train(args):
         min_delta=1e-6,
         _reduce_lr_on_plateau=True,
     ):
+        save_best = False
         stop_training = False
         if monitor_value < best_metric + min_delta:
             stopping_steps += 1
@@ -569,13 +540,13 @@ def train(args):
         else:
             stopping_steps = 0
             best_metric = monitor_value
+            save_best = True
             print("Save best model: monitor(max): {:.6f}".format(monitor_value))
         if stopping_steps >= patience:
             stop_training = True
             print(f"Early stopping at epoch={epoch}!")
-        return stop_training, best_metric, stopping_steps
+        return stop_training, best_metric, stopping_steps, save_best
 
-    # TODO: clip gradient norm
 
     lr_scheduler = None
     loss_func = flow.nn.BCELoss(reduction="none").to("cuda")
@@ -590,88 +561,70 @@ def train(args):
     eval_graph = DCNValGraph(dcn_module, args.amp)
     train_graph = DCNTrainGraph(dcn_module, loss_func, opt, lr_scheduler, grad_scaler, args.amp)
 
-    train_losses = []
     batches_per_epoch = math.ceil(args.num_train_samples / args.train_batch_size)
-    batches_per_epoch = 3667
 
     test_logloss_best = np.inf
     test_auc_best = 0
     best_metric = -np.inf
     epoch = 0
     stopping_steps = 0
+    stop_training = False
 
-    for i in range(50):
-        with make_criteo_dataloader(
-            f"{args.data_dir}/train", args.train_batch_size, shard_seed=args.shard_seed
-        ) as loader:
-            dcn_module.train()
-            step, last_step, last_time = -1, 0, time.time()
-            for step in range(1, args.train_batches + 1):
-                labels, features = batch_to_global(*next(loader))
-                loss = train_graph(labels, features)
-                loss = loss.numpy()
-                train_losses.append(loss)
+    with make_criteo_dataloader(f"{args.data_dir}/train", args.train_batch_size, shard_seed=args.shard_seed) as loader:
+        dcn_module.train()
+        last_step, last_time = 0, time.time()
+        for step in range(1, args.train_batches + 1):
+            labels, features = batch_to_global(*next(loader))
+            loss = train_graph(labels, features)
+            loss = loss.numpy()
 
-                if step % args.loss_print_interval == 0:
-                    # loss = loss.numpy()
-                    # train_losses.append(loss)
-                    if rank == 0:
-                        latency_ms = 1000 * (time.time() - last_time) / (step - last_step)
-                        last_step, last_time = step, time.time()
-                        strtime = time.strftime("%Y-%m-%d %H:%M:%S")
-                        print(
-                            f"Rank[{rank}], Step {step}, Loss {loss:0.4f}, "
-                            + f"Latency {latency_ms:0.3f} ms, {strtime}"
-                        )
-
-                if step % batches_per_epoch == 0:
-
+            if step % args.loss_print_interval == 0:
+                if rank == 0:
+                    latency_ms = 1000 * (time.time() - last_time) / (step - last_step)
+                    last_step, last_time = step, time.time()
+                    strtime = time.strftime("%Y-%m-%d %H:%M:%S")
                     print(
-                        "Current learning rate : ",
-                        opt.state_dict()["param_groups"][0]["_options"]["lr"],
+                        f"Rank[{rank}], Step {step}, Loss {loss:0.4f}, "
+                        + f"Latency {latency_ms:0.3f} ms, {strtime}"
                     )
-                    epoch += 1
-                    auc, logloss = eval_valid(args, eval_graph, step, epoch)
-                    test_auc, test_logloss = eval_test(args, eval_graph, step, epoch)
-                    if test_auc > test_auc_best:
-                        test_auc_best = test_auc
-                        test_logloss_best = test_logloss
-
-                    # if args.save_model_after_each_eval:
-                    if True:
-                        save_model(f"step_{step}_val_auc_{auc:0.5f}")
-
-                    monitor_value = get_metrics(logs={"auc": auc, "logloss": logloss})
-                    stop_training, best_metric, stopping_steps = early_stop(
-                        epoch,
-                        monitor_value,
-                        best_metric=best_metric,
-                        stopping_steps=stopping_steps,
-                        patience=args.patience,
-                        min_delta=args.min_delta,
-                        _reduce_lr_on_plateau=args.reduce_lr_on_plateau,
-                    )
-
-                    train_graph = DCNTrainGraph(
-                        dcn_module, loss_func, opt, lr_scheduler, grad_scaler, args.amp
-                    )
-
-                    if stop_training:
-                        break
                     last_time = time.time()
 
-                    break
+            if step % batches_per_epoch == 0:
+                print("Current step: ", step, 
+                    "Current learning rate : ",
+                    opt.state_dict()["param_groups"][0]["_options"]["lr"],
+                )
+                epoch += 1
+                auc, logloss = eval(args, eval_graph, "val", step, epoch)
+                test_auc, test_logloss = eval(args, eval_graph, "test", step, epoch)
 
-        if stop_training:
-            break
+                if test_auc > test_auc_best:
+                    test_auc_best = test_auc
+                    test_logloss_best = test_logloss
 
-        if i == 1:
-            break
+                if args.save_model_after_each_eval:
+                    print("======== Save after every evaluate ========")
+                    save_model(f"step_{step}_val_auc_{auc:0.5f}")
+                monitor_value = get_metrics(logs={"auc": auc, "logloss": logloss})
+                stop_training, best_metric, stopping_steps,save_best = early_stop(epoch, monitor_value, best_metric=best_metric, stopping_steps=stopping_steps, patience=args.patience,
+                    min_delta=args.min_delta,
+                    _reduce_lr_on_plateau=args.reduce_lr_on_plateau,
+                )
+
+                if save_best:
+                    print(f"======== Save best model: monitor(max): {best_metric:.6f} ========")
+                    save_model("best_checkpoint")
+
+                train_graph = DCNTrainGraph(dcn_module, loss_func, opt, lr_scheduler, grad_scaler, args.amp)
+                dcn_module.train()
+
+            if stop_training:
+                break
+            
 
     print("best test auc : ", test_auc_best, "logloss: ", test_logloss_best)
 
-    plot_train_curve(args, train_losses)
-    np.save("of_train_losses.npy", train_losses)
+
 
 
 def batch_to_global(np_label, np_features):
@@ -684,16 +637,13 @@ def batch_to_global(np_label, np_features):
     return labels, features
 
 
-def eval_valid(args, eval_graph, cur_step=0, epoch=0):
+def eval(args, eval_graph, tag='val',  cur_step=0, epoch=0):
     if args.eval_batches <= 0:
         return
     eval_graph.module.eval()
     labels, preds = [], []
     eval_start_time = time.time()
-    # with make_criteo_dataloader(f"{args.data_dir}/test", args.eval_batch_size, shuffle=False) as loader:
-    with make_criteo_dataloader(
-        f"{args.data_dir}/val", args.eval_batch_size, shuffle=True, shard_seed=args.shard_seed
-    ) as loader:
+    with make_criteo_dataloader(f"{args.data_dir}/{tag}", args.eval_batch_size, shuffle=True, shard_seed=args.shard_seed) as loader:
         num_eval_batches = 0
         for np_batch in loader:
             num_eval_batches += 1
@@ -708,14 +658,19 @@ def eval_valid(args, eval_graph, cur_step=0, epoch=0):
     auc = 0  # will be updated by rank 0 only
     rank = flow.env.get_rank()
     if rank == 0:
-        labels = np.concatenate(labels, axis=0)
-        preds = np.concatenate(preds, axis=0)
+        labels = flow.tensor(np.concatenate(labels, axis=0))
+        preds = flow.tensor(np.concatenate(preds, axis=0))
+
         eval_time = time.time() - eval_start_time
+
         auc_start_time = time.time()
         auc = flow.roc_auc_score(labels, preds).numpy()[0]
         auc_time = time.time() - auc_start_time
+
         log_loss_start_time = time.time()
-        logloss = log_loss(labels, preds, eps=1e-7)
+        logloss_fn = flow.nn.BCELoss(reduction="none")
+        logloss = logloss_fn(preds,labels)
+        logloss = flow.mean(logloss)
         log_loss_time = time.time() - log_loss_start_time
 
         host_mem_mb = psutil.Process().memory_info().rss // (1024 * 1024)
@@ -723,6 +678,7 @@ def eval_valid(args, eval_graph, cur_step=0, epoch=0):
         device_mem_str = stream.read().split("\n")[rank + 1]
 
         strtime = time.strftime("%Y-%m-%d %H:%M:%S")
+        print(f"======== {tag} ========")
         print(
             f"Rank[{rank}], Epoch {epoch}, Step {cur_step}, AUC {auc:0.6f}, LogLoss {logloss:0.6f}, Eval_time {eval_time:0.2f} s, "
             + f"AUC_time {auc_time:0.2f} s, LogLoss_time {log_loss_time: 0.2f} s, Eval_samples {labels.shape[0]}, "
@@ -731,102 +687,9 @@ def eval_valid(args, eval_graph, cur_step=0, epoch=0):
 
     flow.comm.barrier()
     return auc, logloss
-
-
-def eval_test(args, eval_graph, cur_step=0, epoch=0):
-    if args.eval_batches <= 0:
-        return
-    eval_graph.module.eval()
-    labels, preds = [], []
-    eval_start_time = time.time()
-    with make_criteo_dataloader(
-        f"{args.data_dir}/test", args.eval_batch_size, shuffle=True, shard_seed=args.shard_seed
-    ) as loader:
-        # with make_criteo_dataloader(f"{args.data_dir}/val", args.eval_batch_size, shuffle=False) as loader:
-        num_eval_batches = 0
-        for np_batch in loader:
-            num_eval_batches += 1
-            if num_eval_batches > args.eval_batches:
-                break
-            label, features = batch_to_global(*np_batch)
-            logits = eval_graph(features)
-            pred = logits
-            labels.append(label.numpy())
-            preds.append(pred.numpy())
-
-    auc = 0  # will be updated by rank 0 only
-    rank = flow.env.get_rank()
-    if rank == 0:
-        labels = np.concatenate(labels, axis=0)
-        preds = np.concatenate(preds, axis=0)
-        eval_time = time.time() - eval_start_time
-        auc_start_time = time.time()
-        auc = flow.roc_auc_score(labels, preds).numpy()[0]
-        auc_time = time.time() - auc_start_time
-        log_loss_start_time = time.time()
-        logloss = log_loss(labels, preds, eps=1e-7)
-        log_loss_time = time.time() - log_loss_start_time
-
-        host_mem_mb = psutil.Process().memory_info().rss // (1024 * 1024)
-        stream = os.popen("nvidia-smi --query-gpu=memory.used --format=csv")
-        device_mem_str = stream.read().split("\n")[rank + 1]
-
-        strtime = time.strftime("%Y-%m-%d %H:%M:%S")
-        print("=== test ===")
-        print(
-            f"Rank[{rank}], Epoch {epoch}, Step {cur_step}, AUC {auc:0.6f}, LogLoss {logloss:0.6f}, Eval_time {eval_time:0.2f} s, "
-            + f"AUC_time {auc_time:0.2f} s, LogLoss_time {log_loss_time: 0.2f} s, Eval_samples {labels.shape[0]}, "
-            + f"GPU_Memory {device_mem_str}, Host_Memory {host_mem_mb} MiB, {strtime}"
-        )
-
-    flow.comm.barrier()
-    return auc, logloss
-
-
-def plot_train_curve(args, train_losses):
-    plt.plot(range(1, len(train_losses) + 1), train_losses)
-    plt.ylabel("Training Logloss")
-    plt.xlabel(f"batch number (per {args.loss_print_interval} batches)")
-    plt.savefig("of_training_curve.png")
-
-
-def load_fuxi_test(args):
-
-    rank = flow.env.get_rank()
-    dcn_module = make_dcn_module(args)
-    dcn_module.to_global(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
-    state_dict = flow.load(
-        "your_path/fuxi_2_of_state_dict", global_src_rank=0
-    )
-    dcn_module.load_state_dict(state_dict, strict=False)
-
-    # dcn_module.load_state_dict(state_dict, strict=False)
-    # dcn_module.to_global(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
-    eval_graph = DCNValGraph(dcn_module, args.amp)
-    auc, logloss = eval_test(args, eval_graph, 0, 0)
-    print("test finished")
-    print("test auc : ", auc, "logloss: ", logloss)
-
-
-def get_table_size_array(feature_map_json):
-    print("Load feature_map from json: " + feature_map_json)
-    with open(feature_map_json, "r", encoding="utf-8") as fd:
-        feature_map = json.load(fd, object_pairs_hook=OrderedDict)
-    feature_specs = OrderedDict(feature_map["feature_specs"])
-    sparse_names = [f"C{i}" for i in range(1, 27)]
-    dense_names = [f"I{i}" for i in range(1, 14)]
-    columns = dense_names + sparse_names
-    table_size_array = []
-    for col in columns:
-        table_size_array.append(feature_specs[col]["vocab_size"])
-
-    return table_size_array
-
 
 if __name__ == "__main__":
     os.system(sys.executable + " -m oneflow --doctor")
     flow.boxing.nccl.enable_all_to_all(True)
     args = get_args()
-    args.table_size_array = get_table_size_array(args.feature_map_json)
     train(args)
-    # load_fuxi_test(args)
