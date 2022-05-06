@@ -214,14 +214,10 @@ class OneEmbedding(nn.Module):
     ):
         assert table_size_array is not None
         vocab_size = sum(table_size_array)
-
-        scales = np.sqrt(1 / np.array(table_size_array))
-        # TODO: embedding initialization uniform2normal
         tables = [
             flow.one_embedding.make_table(
                 flow.one_embedding.make_normal_initializer(mean=0.0, std=1e-4)
             )
-            # for scale in scales
             for _ in range(len(table_size_array))
         ]
 
@@ -520,8 +516,8 @@ def early_stop(epoch, logs, best_metric, stopping_steps, patience=2, min_delta=1
 
     stop_training = False
     if monitor_value < best_metric + min_delta:
-            stopping_steps += 1
-            print("Monitor(max) STOP: {:.6f}!".format(monitor_value))
+        stopping_steps += 1
+        print("Monitor(max) STOP: {:.6f}!".format(monitor_value))
     else:
         stopping_steps = 0
         best_metric = monitor_value
@@ -554,18 +550,6 @@ def train(args):
     if args.save_initial_model:
         save_model("initial_checkpoint")
 
-    # TODO: clip gradient norm
-    # opt = flow.optim.SGD(pnn_module.parameters(), lr=args.learning_rate)
-    # opt = flow.optim.SGD(
-    #         [
-    #             {
-    #                 "params": pnn_module.parameters(),
-    #                 "lr": args.learning_rate,
-    #                 "clip_grad_max_norm": args.max_gradient_norm,
-    #                 "clip_grad_norm_type": 2.0,
-    #             }
-    #         ],
-    #     )
 
     opt = flow.optim.Adam(pnn_module.parameters(), lr=args.learning_rate)
 
