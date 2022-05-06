@@ -23,7 +23,7 @@ python3 -m oneflow.distributed.launch \
       --cache_memory_budget_mb 1024 \
       --train_batch_size 10000 \
       --train_batches 35000 \
-      --loss_print_interval 1 \
+      --loss_print_interval 1000 \
       --eval_batch_size 3000 \
       --eval_batches 1000 \
       --dnn "1000,1000" \
