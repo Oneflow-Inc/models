@@ -56,7 +56,6 @@ def get_args(print_args=True):
         required=True,
     )
     parser.add_argument("--persistent_path", type=str, required=True, help="path for persistent kv store")
-    parser.add_argument("--persistent_path_fm", type=str, required=True, help="path for persistent kv store of FM")
     parser.add_argument("--store_type", type=str, default="cached_host_mem", help="OneEmbeddig persistent kv store type: device_mem, cached_host_mem, cached_ssd")
     parser.add_argument("--cache_memory_budget_mb", type=int, default=1024, help="size of cache memory budget on each device in megabytes when store_type is cached_host_mem or cached_ssd")
 
@@ -202,11 +201,15 @@ class OneEmbedding(nn.Module):
         vocab_size = sum(table_size_array)
 
         tables = [
-            flow.one_embedding.make_table(
-                flow.one_embedding.make_normal_initializer(mean=0.0, std=1e-4)
+            flow.one_embedding.make_table_options(
+                [
+                    flow.one_embedding.make_column_options(flow.one_embedding.make_normal_initializer(mean=0, std=1e-4)), 
+                    flow.one_embedding.make_column_options(flow.one_embedding.make_normal_initializer(mean=0, std=1e-4)),
+                ]
             )
             for _ in range(len(table_size_array))
         ]
+
         if store_type == "device_mem":
             store_options = flow.one_embedding.make_device_mem_store_options(
                 persistent_path=persistent_path, 
@@ -233,7 +236,7 @@ class OneEmbedding(nn.Module):
             raise NotImplementedError("not support", store_type)
 
         super(OneEmbedding, self).__init__()
-        self.one_embedding = flow.one_embedding.MultiTableEmbedding(
+        self.one_embedding = flow.one_embedding.MultiTableMultiColumnEmbedding(
             name=table_name,
             embedding_dim=embedding_vec_size,
             dtype=flow.float,
@@ -280,37 +283,6 @@ class DNN(nn.Module):
         return self.linear_layers(x)
 
 
-class LR(nn.Module):
-    def __init__(
-        self,
-        persistent_path=None,
-        table_size_array=None,
-        one_embedding_store_type="cached_host_mem",
-        cache_memory_budget_mb=8192,
-        use_bias=True
-    ):
-        super(LR, self).__init__()
-        self.bias = nn.Parameter(flow.tensor([1], dtype=flow.float32)) if use_bias else None
-        self.embedding_layer = OneEmbedding(
-            table_name="fm_lr_embedding",
-            embedding_vec_size=1,
-            persistent_path=persistent_path,
-            table_size_array=table_size_array,
-            store_type=one_embedding_store_type,
-            cache_memory_budget_mb=cache_memory_budget_mb,
-            size_factor=3,
-        )
-
-    def forward(self, x):
-        # x = original ids
-        # order-1 feature interaction
-        embedded_x = self.embedding_layer(x)
-        output = flow.sum(embedded_x, dim=1)
-        if self.bias is not None:
-            output += self.bias
-        return output
-
-
 class Interaction(nn.Module):
     def __init__(self, interaction_itself=False, num_fields=26):
         super(Interaction, self).__init__()
@@ -324,32 +296,6 @@ class Interaction(nn.Module):
         return flow.sum(bi_interaction, dim=-1).view(-1, 1)
 
 
-class FM(nn.Module):
-    def __init__(
-        self, 
-        persistent_path=None,
-        table_size_array=None,
-        one_embedding_store_type="cached_host_mem",
-        cache_memory_budget_mb=8192,
-        use_bias=True
-    ):
-        super(FM, self).__init__()
-        self.interaction = Interaction(num_fields=num_dense_fields+num_sparse_fields)
-        self.lr = LR(
-            persistent_path=persistent_path,
-            table_size_array=table_size_array,
-            one_embedding_store_type=one_embedding_store_type,
-            cache_memory_budget_mb=cache_memory_budget_mb,
-            use_bias=use_bias,
-        )
-    
-    def forward(self, x:flow.Tensor, embedded_x:flow.Tensor) -> flow.Tensor:
-        lr_out = self.lr(x)
-        dot_sum = self.interaction(embedded_x)
-        output = lr_out + dot_sum
-        return output
-
-
 class DeepFMModule(nn.Module):
     def __init__(
         self,
@@ -357,7 +303,6 @@ class DeepFMModule(nn.Module):
         dnn=[1024, 1024, 512, 256],
         use_fusedmlp=True,
         persistent_path=None,
-        persistent_path_fm=None,
         table_size_array=None,
         one_embedding_store_type="cached_host_mem",
         cache_memory_budget_mb=8192,
@@ -365,9 +310,11 @@ class DeepFMModule(nn.Module):
     ):
         super(DeepFMModule, self).__init__()
 
+        self.embedding_vec_size = embedding_vec_size
+
         self.embedding_layer = OneEmbedding(
             table_name="sparse_embedding",
-            embedding_vec_size=embedding_vec_size,
+            embedding_vec_size=[embedding_vec_size, 1],
             persistent_path=persistent_path,
             table_size_array=table_size_array,
             store_type=one_embedding_store_type,
@@ -375,13 +322,7 @@ class DeepFMModule(nn.Module):
             size_factor=3,
         )
 
-        self.fm_layer = FM(
-            persistent_path=persistent_path_fm,
-            table_size_array=table_size_array,
-            one_embedding_store_type=one_embedding_store_type,
-            cache_memory_budget_mb=cache_memory_budget_mb,
-            use_bias=False,
-        )
+        self.interaction = Interaction(num_fields=num_dense_fields+num_sparse_fields)
 
         self.dnn_layer = DNN(
             in_features=embedding_vec_size * (num_dense_fields + num_sparse_fields),
@@ -394,9 +335,18 @@ class DeepFMModule(nn.Module):
         self.final_activation = nn.Sigmoid()
 
     def forward(self, inputs) -> flow.Tensor:
-        embedded_x = self.embedding_layer(inputs)
-        fm_pred = self.fm_layer(inputs, embedded_x)
+        multi_embedded_x = self.embedding_layer(inputs)
+        embedded_x = multi_embedded_x[:, :, 0:self.embedding_vec_size]
+        lr_embedded_x = multi_embedded_x[:, :, -1].unsqueeze(-1)
+
+        # FM
+        lr_out = flow.sum(lr_embedded_x, dim=1)
+        dot_sum = self.interaction(embedded_x)
+        fm_pred = lr_out + dot_sum
+
+        # DNN
         dnn_pred = self.dnn_layer(embedded_x.flatten(start_dim=1))
+
         return self.final_activation(fm_pred + dnn_pred)
 
 
@@ -406,7 +356,6 @@ def make_deepfm_module(args):
         dnn=args.dnn,
         use_fusedmlp=not args.disable_fusedmlp,
         persistent_path=args.persistent_path,
-        persistent_path_fm=args.persistent_path_fm,
         table_size_array=args.table_size_array,
         one_embedding_store_type=args.store_type,
         cache_memory_budget_mb=args.cache_memory_budget_mb,

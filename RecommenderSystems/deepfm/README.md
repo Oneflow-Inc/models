@@ -44,7 +44,6 @@
 | min_delta                  | threshold for measuring the new optimum, to only focus on significant changes | 1.0e-6                   |
 | table_size_array           | embedding table size array for sparse fields                 | *Required Argument*      |
 | persistent_path            | path for persistent kv store of embedding                    | *Required Argument*      |
-| persistent_path_fm         | path for persistent kv store of embedding in FM              | *Required Argument*      |
 | store_type                 | OneEmbeddig persistent kv store type: `device_mem`, `cached_host_mem` or `cached_ssd` | `cached_host_mem`        |
 | cache_memory_budget_mb     | size of cache memory budget on each device in megabytes when `store_type` is `cached_host_mem` or `cached_ssd` | 1024                     |
 | amp                        | enable Automatic Mixed Precision(AMP) training or not        | False                    |

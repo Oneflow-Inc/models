@@ -7,8 +7,7 @@ NUM_NODES=1
 NODE_RANK=0
 MASTER_ADDR=127.0.0.1
 DATA_DIR=/path/to/deepfm_parquet
-PERSISTENT_PATH=/path/to/persistent1
-PERSISTENT_PATH_FM=/path/to/persistent2
+PERSISTENT_PATH=/path/to/persistent
 MODEL_SAVE_DIR=/path/to/model/save/dir
 
 python3 -m oneflow.distributed.launch \
@@ -19,7 +18,6 @@ python3 -m oneflow.distributed.launch \
     deepfm_train_eval.py \
       --data_dir $DATA_DIR \
       --persistent_path $PERSISTENT_PATH \
-      --persistent_path_fm $PERSISTENT_PATH_FM \
       --table_size_array "43, 98, 121, 41, 219, 112, 79, 68, 91, 5, 26, 36, 70, 1447, 554, 157461, 117683, 305, 17, 11878, 629, 4, 39504, 5128, 156729, 3175, 27, 11070, 149083, 11, 4542, 1996, 4, 154737, 17, 16, 52989, 81, 40882" \
       --store_type 'cached_host_mem' \
       --cache_memory_budget_mb 1024 \
