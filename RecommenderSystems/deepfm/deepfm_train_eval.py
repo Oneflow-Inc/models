@@ -37,9 +37,6 @@ def get_args(print_args=True):
     parser.add_argument("--embedding_vec_size", type=int, default=16, help="embedding vector size")
     parser.add_argument("--dnn", type=int_list, default="1000,1000,1000,1000,1000", help="dnn hidden units number")
     parser.add_argument("--net_dropout", type=float, default=0.2, help="net dropout rate")
-    parser.add_argument("--embedding_regularizer", type=float, default=1.0e-05, help="embedding layer regularization rate")
-    parser.add_argument("--net_regularizer", type=float, default=0.0, help="net regularization rate")
-    parser.add_argument("--max_gradient_norm", type=float, default=10.0, help="max norm of the gradients")
 
     parser.add_argument("--lr_factor", type=float, default=0.1)
     parser.add_argument("--min_lr", type=float, default=1.0e-6)
@@ -529,7 +526,6 @@ def train(args):
     eval_graph = DeepFMValGraph(deepfm_module, args.amp)
     train_graph = DeepFMTrainGraph(deepfm_module, loss, opt, grad_scaler, args.amp)
 
-    train_losses = []
     batches_per_epoch = math.ceil(args.num_train_samples / args.batch_size)
 
     best_metric = -np.inf
@@ -544,16 +540,16 @@ def train(args):
         for step in range(1, args.train_batches + 1):
             labels, features = batch_to_global(*next(loader))
             loss = train_graph(labels, features)
-            loss = loss.numpy()
-            train_losses.append(loss)
             if step % args.loss_print_interval == 0:
+                loss = loss.numpy()
                 if rank == 0:
-                    latency_ms = 1000 * (time.time() - last_time) / (step - last_step)
+                    latency = (time.time() - last_time) / (step - last_step)
+                    throughput = args.batch_size / latency
                     last_step, last_time = step, time.time()
                     strtime = time.strftime("%Y-%m-%d %H:%M:%S")
                     print(
                         f"Rank[{rank}], Step {step}, Loss {loss:0.4f}, "
-                        + f"Latency {latency_ms:0.3f} ms, {strtime}"
+                        + f"Latency {(latency * 1000):0.3f} ms, Throughput {throughput:0.1f}, {strtime}"
                     )
 
             if step % batches_per_epoch == 0:
@@ -581,6 +577,7 @@ def train(args):
                 deepfm_module.train()
                 last_time = time.time()
 
+    print(f"Loading model from {args.model_save_dir}/best_checkpoint")
     state_dict = flow.load(f"{args.model_save_dir}/best_checkpoint", global_src_rank=0)
     deepfm_module.load_state_dict(state_dict, strict=False)
     print("================ Validation Evaluation ================")
@@ -622,6 +619,7 @@ def eval(args, eval_graph, tag='val', cur_step=0, epoch=0, cached_eval_batches=N
     
     if cached_eval_batches == None:
         with make_criteo_dataloader(f"{args.data_dir}/{tag}", args.batch_size, shuffle=False) as loader:
+            eval_start_time = time.time()
             for i in range(batches_per_epoch):
                 label, features = batch_to_global(*next(loader), is_train=False)
                 pred = eval_graph(features)

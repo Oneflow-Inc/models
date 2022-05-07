@@ -36,9 +36,6 @@
 | dnn                        | dnn hidden units number                                      | 1000,1000,1000,1000,1000 |
 | net_dropout                | number of minibatch training interations                     | 0.2                      |
 | embedding_vec_size         | embedding vector size                                        | 16                       |
-| embedding_regularizer      | embedding layer regularization rate                          | 1.0e-05                  |
-| net_regularizer            | net regularization rate                                      | 0.0                      |
-| max_gradient_norm          | max norm of the gradients                                    | 10.0                     |
 | learning_rate              | initial learning rate                                        | 0.001                    |
 | batch_size                 | training/evaluation batch size                               | 10000                    |
 | train_batches              | the maximum number of training batches                       | 75000                    |
