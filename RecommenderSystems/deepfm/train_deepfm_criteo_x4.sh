@@ -31,5 +31,4 @@ python3 -m oneflow.distributed.launch \
       --num_train_samples 36672493 \
       --num_val_samples 4584062 \
       --num_test_samples 4584062 \
-      --model_save_dir $MODEL_SAVE_DIR \
-      > run.log & tail -f run.log
+      --model_save_dir $MODEL_SAVE_DIR

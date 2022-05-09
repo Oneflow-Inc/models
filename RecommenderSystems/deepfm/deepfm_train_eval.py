@@ -397,18 +397,21 @@ def get_metrics(logs):
 
 
 def early_stop(epoch, monitor_value, best_metric, stopping_steps, patience=2, min_delta=1e-6):
+    rank = flow.env.get_rank()
     stop_training = False
     save_best = False
     if monitor_value < best_metric + min_delta:
         stopping_steps += 1
-        print("Monitor(max) STOP: {:.6f}!".format(monitor_value))
+        if rank == 0:
+            print("Monitor(max) STOP: {:.6f}!".format(monitor_value))
     else:
         stopping_steps = 0
         best_metric = monitor_value
         save_best = True
     if stopping_steps >= patience:
         stop_training = True
-        print(f"Early stopping at epoch={epoch}!")
+        if rank == 0:
+            print(f"Early stopping at epoch={epoch}!")
     return stop_training, best_metric, stopping_steps, save_best
 
 
@@ -417,11 +420,19 @@ def train(args):
 
     deepfm_module = make_deepfm_module(args)
     deepfm_module.to_global(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
-
+    
+    def load_model(dir):
+        if rank == 0:
+            print(f"Loading model from {dir}")
+        if os.path.exists(dir):
+            state_dict = flow.load(dir, global_src_rank=0)
+            deepfm_module.load_state_dict(state_dict, strict=False)
+        else:
+            if rank == 0:
+                print(f"Loading model from {dir} failed: invalid path")
+        
     if args.model_load_dir:
-        print(f"Loading model from {args.model_load_dir}")
-        state_dict = flow.load(args.model_load_dir, global_src_rank=0)
-        deepfm_module.load_state_dict(state_dict, strict=False)
+        load_model(args.model_load_dir)
 
     def save_model(subdir):
         if not args.model_save_dir:
@@ -452,7 +463,6 @@ def train(args):
 
     batches_per_epoch = math.ceil(args.num_train_samples / args.batch_size)
 
-    # will be updated by rank 0 only
     best_metric = -np.inf
     stopping_steps = 0
     save_best = False
@@ -485,32 +495,33 @@ def train(args):
                 if args.save_model_after_each_eval:
                     save_model(f"step_{step}_val_auc_{auc:0.5f}")
 
-                if rank == 0:
-                    monitor_value = get_metrics(logs={'auc': auc, 'logloss': logloss})
+                monitor_value = get_metrics(logs={'auc': auc, 'logloss': logloss})
 
-                    stop_training, best_metric, stopping_steps, save_best = early_stop(
-                        epoch, 
-                        monitor_value, 
-                        best_metric=best_metric, 
-                        stopping_steps=stopping_steps, 
-                        patience=args.patience, 
-                        min_delta=args.min_delta,
-                    )
+                stop_training, best_metric, stopping_steps, save_best = early_stop(
+                    epoch, 
+                    monitor_value, 
+                    best_metric=best_metric, 
+                    stopping_steps=stopping_steps, 
+                    patience=args.patience, 
+                    min_delta=args.min_delta,
+                )
+                
                 if save_best:
-                    print(f"Save best model: monitor(max): {best_metric:.6f}")
+                    if rank == 0:
+                        print(f"Save best model: monitor(max): {best_metric:.6f}")
                     save_model("best_checkpoint")
                 if stop_training:
                     break
                 
                 deepfm_module.train()
                 last_time = time.time()
-
-    print(f"Loading model from {args.model_save_dir}/best_checkpoint")
-    state_dict = flow.load(f"{args.model_save_dir}/best_checkpoint", global_src_rank=0)
-    deepfm_module.load_state_dict(state_dict, strict=False)
-    print("================ Validation Evaluation ================")
+    
+    load_model(f"{args.model_save_dir}/best_checkpoint")
+    if rank == 0:
+        print("================ Validation Evaluation ================")
     eval(args, eval_graph, tag='val', cur_step=step, epoch=epoch, cached_eval_batches=cached_eval_batches)
-    print("================ Test Evaluation ================")
+    if rank == 0:
+        print("================ Test Evaluation ================")
     eval(args, eval_graph, tag='test', cur_step=step, epoch=epoch)
 
 
@@ -573,17 +584,16 @@ def eval(args, eval_graph, tag='val', cur_step=0, epoch=0, cached_eval_batches=N
     flow.comm.barrier()
     eval_time = time.time() - eval_start_time
     
-    auc = 0  # will be updated by rank 0 only
-    logloss = 0 # will be updated by rank 0 only
     rank = flow.env.get_rank()
+    
+    auc_start_time = time.time()
+    auc = flow.roc_auc_score(labels, preds).numpy()[0]
+    auc_time = time.time() - auc_start_time
+    log_loss_start_time = time.time()
+    logloss = flow._C.binary_cross_entropy_loss(preds, labels, weight=None, reduction='mean')
+    log_loss_time = time.time() - log_loss_start_time
+    
     if rank == 0:
-        auc_start_time = time.time()
-        auc = flow.roc_auc_score(labels, preds).numpy()[0]
-        auc_time = time.time() - auc_start_time
-        log_loss_start_time = time.time()
-        logloss = flow._C.binary_cross_entropy_loss(preds, labels, weight=None, reduction='mean')
-        log_loss_time = time.time() - log_loss_start_time
-
         host_mem_mb = psutil.Process().memory_info().rss // (1024 * 1024)
         stream = os.popen("nvidia-smi --query-gpu=memory.used --format=csv")
         device_mem_str = stream.read().split("\n")[rank + 1]
