@@ -33,7 +33,6 @@ def get_args(print_args=True):
     parser.add_argument("--save_initial_model", action="store_true", help="save initial model parameters or not")
     parser.add_argument("--save_model_after_each_eval", action="store_true", help="save model after each eval or not")
 
-    parser.add_argument("--disable_fusedmlp", default=True, help="disable fused MLP or not")
     parser.add_argument("--embedding_vec_size", type=int, default=16, help="embedding vector size")
     parser.add_argument("--dnn", type=int_list, default="1000,1000,1000,1000,1000", help="dnn hidden units number")
     parser.add_argument("--net_dropout", type=float, default=0.2, help="net dropout rate")
@@ -250,29 +249,20 @@ class OneEmbedding(nn.Module):
 
 
 class DNN(nn.Module):
-    def __init__(self, in_features: int, hidden_units, skip_final_activation=False, fused=True, dropout=0.0) -> None:
+    def __init__(self, in_features: int, hidden_units, skip_final_activation=False, dropout=0.0) -> None:
         super(DNN, self).__init__()
-        if fused:
-            self.linear_layers = nn.FusedMLP(
-                in_features,
-                hidden_units[:-1],
-                hidden_units[-1],
-                skip_final_activation=skip_final_activation
-            )
-        else:
-            denses = []
-            dropout_rates = [dropout] * (len(hidden_units) - 1) + [0.0]
-            use_relu = [True] * (len(hidden_units) - 1) + [not skip_final_activation]
-            hidden_units = [in_features] + hidden_units
-            for idx in range(len(hidden_units) - 1):
-                denses.append(nn.Linear(hidden_units[idx], hidden_units[idx + 1], bias=True))
-                if use_relu[idx]:
-                    denses.append(nn.ReLU())
-                if dropout_rates[idx] > 0:
-                    denses.append(nn.Dropout(p=dropout_rates[idx]))
-            self.linear_layers = nn.Sequential(*denses)
+        denses = []
+        dropout_rates = [dropout] * (len(hidden_units) - 1) + [0.0]
+        use_relu = [True] * (len(hidden_units) - 1) + [not skip_final_activation]
+        hidden_units = [in_features] + hidden_units
+        for idx in range(len(hidden_units) - 1):
+            denses.append(nn.Linear(hidden_units[idx], hidden_units[idx + 1], bias=True))
+            if use_relu[idx]:
+                denses.append(nn.ReLU())
+            if dropout_rates[idx] > 0:
+                denses.append(nn.Dropout(p=dropout_rates[idx]))
+        self.linear_layers = nn.Sequential(*denses)
             
-
         for name, param in self.linear_layers.named_parameters():
             if "weight" in name:
                 nn.init.xavier_normal_(param)
@@ -283,17 +273,11 @@ class DNN(nn.Module):
         return self.linear_layers(x)
 
 
-class Interaction(nn.Module):
-    def __init__(self, interaction_itself=False, num_fields=26):
-        super(Interaction, self).__init__()
-        self.interaction_itself = interaction_itself
-        self.num_fields = num_fields
-        
-    def forward(self, embedded_x:flow.Tensor) -> flow.Tensor:
-        sum_of_square = flow.sum(embedded_x, dim=1) ** 2
-        square_of_sum = flow.sum(embedded_x ** 2, dim=1)
-        bi_interaction = (sum_of_square - square_of_sum) * 0.5
-        return flow.sum(bi_interaction, dim=-1).view(-1, 1)
+def interaction(embedded_x:flow.Tensor) -> flow.Tensor:
+    sum_of_square = flow.sum(embedded_x, dim=1) ** 2
+    square_of_sum = flow.sum(embedded_x ** 2, dim=1)
+    bi_interaction = (sum_of_square - square_of_sum) * 0.5
+    return flow.sum(bi_interaction, dim=-1).view(-1, 1)
 
 
 class DeepFMModule(nn.Module):
@@ -301,7 +285,6 @@ class DeepFMModule(nn.Module):
         self,
         embedding_vec_size=128,
         dnn=[1024, 1024, 512, 256],
-        use_fusedmlp=True,
         persistent_path=None,
         table_size_array=None,
         one_embedding_store_type="cached_host_mem",
@@ -322,13 +305,10 @@ class DeepFMModule(nn.Module):
             size_factor=3,
         )
 
-        self.interaction = Interaction(num_fields=num_dense_fields+num_sparse_fields)
-
         self.dnn_layer = DNN(
             in_features=embedding_vec_size * (num_dense_fields + num_sparse_fields),
             hidden_units=dnn+[1],
             skip_final_activation=True,
-            fused=use_fusedmlp,
             dropout=dropout,
         )
         
@@ -341,7 +321,7 @@ class DeepFMModule(nn.Module):
 
         # FM
         lr_out = flow.sum(lr_embedded_x, dim=1)
-        dot_sum = self.interaction(embedded_x)
+        dot_sum = interaction(embedded_x)
         fm_pred = lr_out + dot_sum
 
         # DNN
@@ -354,7 +334,6 @@ def make_deepfm_module(args):
     model = DeepFMModule(
         embedding_vec_size=args.embedding_vec_size,
         dnn=args.dnn,
-        use_fusedmlp=not args.disable_fusedmlp,
         persistent_path=args.persistent_path,
         table_size_array=args.table_size_array,
         one_embedding_store_type=args.store_type,
@@ -373,7 +352,7 @@ class DeepFMValGraph(flow.nn.Graph):
 
     def build(self, features):
         predicts = self.module(features.to("cuda"))
-        return predicts.to("cpu")
+        return predicts
 
 
 class DeepFMTrainGraph(flow.nn.Graph):

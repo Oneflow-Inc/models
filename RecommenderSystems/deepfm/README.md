@@ -31,7 +31,6 @@
 | model_save_dir             | model saving directory                                       | None                     |
 | save_initial_model         | save initial model parameters or not                         | False                    |
 | save_model_after_each_eval | save model after each eval or not                            | False                    |
-| disable_fusedmlp           | disable fused MLP or not                                     | True                     |
 | embedding_vec_size         | embedding vector size                                        | 16                       |
 | dnn                        | dnn hidden units number                                      | 1000,1000,1000,1000,1000 |
 | net_dropout                | number of minibatch training interations                     | 0.2                      |

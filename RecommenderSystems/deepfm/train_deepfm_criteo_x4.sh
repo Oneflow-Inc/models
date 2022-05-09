@@ -28,7 +28,6 @@ python3 -m oneflow.distributed.launch \
       --net_dropout 0.2 \
       --learning_rate 0.001 \
       --embedding_vec_size 16 \
-      --disable_fusedmlp True \
       --num_train_samples 36672493 \
       --num_val_samples 4584062 \
       --num_test_samples 4584062 \
