@@ -8,7 +8,6 @@ import numpy as np
 import psutil
 import oneflow as flow
 import oneflow.nn as nn
-from sklearn.metrics import log_loss
 from petastorm.reader import make_batch_reader
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
@@ -362,7 +361,7 @@ class DeepFMTrainGraph(flow.nn.Graph):
         super(DeepFMTrainGraph, self).__init__()
         self.module = deepfm_module
         self.loss = loss
-        self.add_optimizer(optimizer)
+        self.add_optimizer(optimizer, lr_sch=lr_scheduler)
         self.config.allow_fuse_model_update_ops(True)
         self.config.allow_fuse_add_to_output(True)
         self.config.allow_fuse_cast_scale(True)
@@ -378,19 +377,15 @@ class DeepFMTrainGraph(flow.nn.Graph):
 
 
 def make_lr_scheduler(args, optimizer):
-    reduce_lr_on_plateau = flow.optim.lr_scheduler.ReduceLROnPlateau(
+    batches_per_epoch = math.ceil(args.num_train_samples / args.batch_size)
+    milestones = [batches_per_epoch * (i + 1) for i in range(math.floor(math.log(args.min_lr / args.learning_rate, args.lr_factor)))]
+    multistep_lr = flow.optim.lr_scheduler.MultiStepLR(
         optimizer=optimizer,
-        mode="max",
-        factor=args.lr_factor,
-        patience=0,
-        threshold=args.min_delta,
-        threshold_mode="abs",
-        cooldown=0,
-        min_lr=args.min_lr,
-        verbose=True,
+        milestones=milestones,
+        gamma= args.lr_factor,
     )
 
-    return reduce_lr_on_plateau
+    return multistep_lr
 
 
 def get_metrics(logs):
@@ -442,6 +437,7 @@ def train(args):
 
     # TODO: clip gradient norm
     opt = flow.optim.Adam(deepfm_module.parameters(), lr=args.learning_rate)
+    lr_scheduler = make_lr_scheduler(args, opt)
     loss = flow.nn.BCELoss(reduction="mean").to("cuda")
 
     if args.loss_scale_policy == "static":
@@ -452,12 +448,15 @@ def train(args):
         )
     
     eval_graph = DeepFMValGraph(deepfm_module, args.amp)
-    train_graph = DeepFMTrainGraph(deepfm_module, loss, opt, grad_scaler, args.amp)
+    train_graph = DeepFMTrainGraph(deepfm_module, loss, opt, grad_scaler, args.amp, lr_scheduler=None)
 
     batches_per_epoch = math.ceil(args.num_train_samples / args.batch_size)
 
+    # will be updated by rank 0 only
     best_metric = -np.inf
     stopping_steps = 0
+    save_best = False
+    stop_training = False
     
     cached_eval_batches = prefetch_eval_batches(f"{args.data_dir}/val", args.batch_size, math.ceil(args.num_val_samples / args.batch_size))
 
@@ -486,22 +485,23 @@ def train(args):
                 if args.save_model_after_each_eval:
                     save_model(f"step_{step}_val_auc_{auc:0.5f}")
 
-                monitor_value = get_metrics(logs={'auc': auc, 'logloss': logloss})
+                if rank == 0:
+                    monitor_value = get_metrics(logs={'auc': auc, 'logloss': logloss})
 
-                stop_training, best_metric, stopping_steps, save_best = early_stop(
-                    epoch, 
-                    monitor_value, 
-                    best_metric=best_metric, 
-                    stopping_steps=stopping_steps, 
-                    patience=args.patience, 
-                    min_delta=args.min_delta,
-                )
+                    stop_training, best_metric, stopping_steps, save_best = early_stop(
+                        epoch, 
+                        monitor_value, 
+                        best_metric=best_metric, 
+                        stopping_steps=stopping_steps, 
+                        patience=args.patience, 
+                        min_delta=args.min_delta,
+                    )
                 if save_best:
                     print(f"Save best model: monitor(max): {best_metric:.6f}")
                     save_model("best_checkpoint")
                 if stop_training:
                     break
-
+                
                 deepfm_module.train()
                 last_time = time.time()
 
@@ -515,7 +515,7 @@ def train(args):
 
 
 def np_to_global(np, dtype=flow.float):
-    # t = flow.from_numpy(np)
+    # TODO: t = flow.from_numpy(np)
     t = flow.tensor(np, dtype=dtype)
     return t.to_global(placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0))
 
@@ -574,13 +574,14 @@ def eval(args, eval_graph, tag='val', cur_step=0, epoch=0, cached_eval_batches=N
     eval_time = time.time() - eval_start_time
     
     auc = 0  # will be updated by rank 0 only
+    logloss = 0 # will be updated by rank 0 only
     rank = flow.env.get_rank()
     if rank == 0:
         auc_start_time = time.time()
         auc = flow.roc_auc_score(labels, preds).numpy()[0]
         auc_time = time.time() - auc_start_time
         log_loss_start_time = time.time()
-        logloss = log_loss(labels, preds, eps=1e-7)
+        logloss = flow._C.binary_cross_entropy_loss(preds, labels, weight=None, reduction='mean')
         log_loss_time = time.time() - log_loss_start_time
 
         host_mem_mb = psutil.Process().memory_info().rss // (1024 * 1024)

@@ -67,8 +67,6 @@ CUDA: 10.2
 python: 3.8.4
 oneflow: 0.8.0
 numpy: 1.19.2
-scipy: 1.7.3
-sklearn: 1.0.2
 psutil: 5.9.0
 petastorm: 0.11.4
 pandas: 1.4.1
