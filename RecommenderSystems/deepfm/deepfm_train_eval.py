@@ -518,9 +518,6 @@ def train(args):
     
     load_model(f"{args.model_save_dir}/best_checkpoint")
     if rank == 0:
-        print("================ Validation Evaluation ================")
-    eval(args, eval_graph, tag='val', cur_step=step, epoch=epoch, cached_eval_batches=cached_eval_batches)
-    if rank == 0:
         print("================ Test Evaluation ================")
     eval(args, eval_graph, tag='test', cur_step=step, epoch=epoch)
 
@@ -586,12 +583,10 @@ def eval(args, eval_graph, tag='val', cur_step=0, epoch=0, cached_eval_batches=N
     
     rank = flow.env.get_rank()
     
-    auc_start_time = time.time()
+    metrics_start_time = time.time()
     auc = flow.roc_auc_score(labels, preds).numpy()[0]
-    auc_time = time.time() - auc_start_time
-    log_loss_start_time = time.time()
     logloss = flow._C.binary_cross_entropy_loss(preds, labels, weight=None, reduction='mean')
-    log_loss_time = time.time() - log_loss_start_time
+    metrics_time = time.time() - metrics_start_time
     
     if rank == 0:
         host_mem_mb = psutil.Process().memory_info().rss // (1024 * 1024)
@@ -600,8 +595,8 @@ def eval(args, eval_graph, tag='val', cur_step=0, epoch=0, cached_eval_batches=N
 
         strtime = time.strftime("%Y-%m-%d %H:%M:%S")
         print(
-            f"Rank[{rank}], Epoch {epoch}, Step {cur_step}, AUC {auc:0.6f}, LogLoss {logloss:0.6f}, Eval_time {eval_time:0.2f} s, "
-            + f"AUC_time {auc_time:0.2f} s, LogLoss_time {log_loss_time: 0.2f} s, Eval_samples {labels.shape[0]}, "
+            f"Rank[{rank}], Epoch {epoch}, Step {cur_step}, AUC {auc:0.6f}, LogLoss {logloss:0.6f}, "
+            + f"Eval_time {eval_time:0.2f} s, Metrics_time {metrics_time:0.2f} s, Eval_samples {labels.shape[0]}, "
             + f"GPU_Memory {device_mem_str}, Host_Memory {host_mem_mb} MiB, {strtime}"
         )
 
