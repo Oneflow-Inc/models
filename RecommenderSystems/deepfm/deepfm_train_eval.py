@@ -276,7 +276,7 @@ def interaction(embedded_x:flow.Tensor) -> flow.Tensor:
     sum_of_square = flow.sum(embedded_x, dim=1) ** 2
     square_of_sum = flow.sum(embedded_x ** 2, dim=1)
     bi_interaction = (sum_of_square - square_of_sum) * 0.5
-    return flow.sum(bi_interaction, dim=-1).view(-1, 1)
+    return flow.sum(bi_interaction, dim=-1, keepdim=True)
 
 
 class DeepFMModule(nn.Module):
@@ -310,8 +310,6 @@ class DeepFMModule(nn.Module):
             skip_final_activation=True,
             dropout=dropout,
         )
-        
-        self.final_activation = nn.Sigmoid()
 
     def forward(self, inputs) -> flow.Tensor:
         multi_embedded_x = self.embedding_layer(inputs)
@@ -326,7 +324,7 @@ class DeepFMModule(nn.Module):
         # DNN
         dnn_pred = self.dnn_layer(embedded_x.flatten(start_dim=1))
 
-        return self.final_activation(fm_pred + dnn_pred)
+        return (fm_pred + dnn_pred).sigmoid()
 
 
 def make_deepfm_module(args):
@@ -459,7 +457,7 @@ def train(args):
         )
     
     eval_graph = DeepFMValGraph(deepfm_module, args.amp)
-    train_graph = DeepFMTrainGraph(deepfm_module, loss, opt, grad_scaler, args.amp, lr_scheduler=None)
+    train_graph = DeepFMTrainGraph(deepfm_module, loss, opt, grad_scaler, args.amp, lr_scheduler=lr_scheduler)
 
     batches_per_epoch = math.ceil(args.num_train_samples / args.batch_size)
 
