@@ -137,30 +137,31 @@ class DeepFMDataReader(object):
 
         for rg in reader:
             rgdict = rg._asdict()
-            rglist = np.array([rgdict[field] for field in self.fields])
+            rglist = [rgdict[field] for field in self.fields]
             pos = 0
             if tail is not None:
-                pos = batch_size - tail.shape[1]
-                tail = np.concatenate((tail, rglist[:, 0 : (batch_size - tail.shape[1])]), axis=1)
-                if tail.shape[1] == batch_size:
+                pos = batch_size - len(tail[0])
+                tail = list(
+                    [
+                        np.concatenate((tail[i], rglist[i][0 : (batch_size - len(tail[i]))]))
+                        for i in range(self.num_fields)
+                    ]
+                )
+                if len(tail[0]) == batch_size:
                     label = tail[0]
-                    features = tail[1:]
+                    features = tail[1 : self.num_fields]
                     tail = None
-                    features = np.stack(features, axis=-1)
-                    yield label, features
+                    yield label, np.stack(features, axis=-1)
                 else:
                     pos = 0
                     continue
-
             while (pos + batch_size) <= len(rglist[0]):
-                label = rglist[0, pos : pos + batch_size]
-                features = rglist[1:, pos: pos + batch_size]
+                label = rglist[0][pos : pos + batch_size]
+                features = [rglist[j][pos : pos + batch_size] for j in range(1, self.num_fields)]
                 pos += batch_size
-                features = np.stack(features, axis=-1)
-                yield label, features
-
-            if pos != rglist.shape[1]:
-                tail = rglist[:, pos:]
+                yield label, np.stack(features, axis=-1)
+            if pos != len(rglist[0]):
+                tail = [rglist[i][pos:] for i in range(self.num_fields)]
 
 
 def make_criteo_dataloader(data_path, batch_size, shuffle=True):
@@ -314,10 +315,10 @@ class DeepFMModule(nn.Module):
     def forward(self, inputs) -> flow.Tensor:
         multi_embedded_x = self.embedding_layer(inputs)
         embedded_x = multi_embedded_x[:, :, 0:self.embedding_vec_size]
-        lr_embedded_x = multi_embedded_x[:, :, -1].unsqueeze(-1)
+        lr_embedded_x = multi_embedded_x[:, :, -1]
 
         # FM
-        lr_out = flow.sum(lr_embedded_x, dim=1)
+        lr_out = flow.sum(lr_embedded_x, dim=1, keepdim=True)
         dot_sum = interaction(embedded_x)
         fm_pred = lr_out + dot_sum
 
