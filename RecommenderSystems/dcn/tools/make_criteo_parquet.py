@@ -262,6 +262,11 @@ def make_array_to_parquet(spark, feature_map, data_array, output_dir, part_num=N
     data_pandas = pd.DataFrame(data_array)
     print("pd done!")
 
+    print("cast label to float32 and Feature to Int64")
+    data_pandas.iloc[:,0] = data_pandas.iloc[:,0].astype('float32')
+    for i in range(1,40):    
+        data_pandas.iloc[:,i] = data_pandas.iloc[:,i].astype('int64')
+        
     sparse_names = [f"C{i}" for i in range(1, 27)]
     dense_names = [f"I{i}" for i in range(1, 14)]
     columns = ["Label"] + dense_names + sparse_names
@@ -286,10 +291,10 @@ def make_array_to_parquet(spark, feature_map, data_array, output_dir, part_num=N
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config", type=str, help="The config directory.")
+    parser.add_argument("--config", type=str, default="./" ,help="The directory which has config file.")
     parser.add_argument("--dataset_id", type=str, default="criteo_x4_001")
     parser.add_argument("--output_dir", type=str, help="The output data directory.")
-    parser.add_argument("--spark_tmp_dir", type=str, default=None)
+    parser.add_argument("--spark_tmp_dir", type=str, default='./spark_tmp_dir')
     parser.add_argument("--spark_driver_memory_gb", type=int, default=1024)
     parser.add_argument(
         "--export_dataset_info", action="store_true", help="export dataset infomation or not"

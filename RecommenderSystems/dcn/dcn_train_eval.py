@@ -25,19 +25,16 @@ def get_args(print_args=True):
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--data_dir", type=str, required=True)
-    parser.add_argument(
-        "--num_train_samples", type=int, required=True, help="the number of training samples"
-    )
-    parser.add_argument("--shard_seed", type=int, default=2022)
+    parser.add_argument("--num_train_samples", type=int, default=36672493, help="the number of training samples")
+    parser.add_argument("--num_valid_samples", type=int, default=4584062, help="the number of validation samples")
+    parser.add_argument("--num_test_samples", type=int, default=4584062, help="the number of test samples")
 
+    parser.add_argument("--shard_seed", type=int, default=2022)
     parser.add_argument("--model_load_dir", type=str, default=None)
     parser.add_argument("--model_save_dir", type=str, default=None)
-    parser.add_argument(
-        "--save_initial_model", action="store_true", help="save initial model parameters or not."
-    )
-    parser.add_argument(
-        "--save_model_after_each_eval", action="store_true", help="save model after each eval."
-    )
+    
+    parser.add_argument("--save_initial_model", action="store_true", help="save initial model parameters or not.")
+    parser.add_argument("--save_model_after_each_eval", action="store_true", help="save model after each eval.")
 
     parser.add_argument("--embedding_vec_size", type=int, default=16)
     parser.add_argument("--batch_norm", type=bool, default=False)
@@ -54,25 +51,20 @@ def get_args(print_args=True):
     parser.add_argument("--learning_rate", type=float, default=0.001)
     parser.add_argument("--size_factor", type=int, default=1)
 
-    parser.add_argument("--eval_batches", type=int, default=1612, help="number of eval batches")
-    parser.add_argument("--eval_batch_size", type=int, default=10000)
+    parser.add_argument("--valid_batch_size", type=int, default=10000)
+    parser.add_argument("--valid_batches", type=int, default=1000, help="number of valid batches")
+    parser.add_argument("--test_batch_size", type=int, default=10000)    
+    parser.add_argument("--test_batches", type=int, default=1000, help="number of test batches")
     parser.add_argument("--train_batch_size", type=int, default=10000)
-    parser.add_argument("--train_batches", type=int, default=75000)
+    parser.add_argument("--train_batches", type=int, default=15000, help="number of train batches")
     parser.add_argument("--loss_print_interval", type=int, default=1000)
 
-    parser.add_argument("--reduce_lr_on_plateau", type=bool, default=True)
     parser.add_argument("--patience", type=int, default=2)
     parser.add_argument("--min_delta", type=float, default=1.0e-6)
 
-    parser.add_argument(
-        "--table_size_array",
-        type=int_list,
-        help="Embedding table size array for sparse fields",
-        required=True,
-    )
-    parser.add_argument(
-        "--persistent_path", type=str, required=True, help="path for persistent kv store"
-    )
+    parser.add_argument("--table_size_array", type=int_list, help="Embedding table size array for sparse fields", required=True )
+    parser.add_argument("--persistent_path", type=str, required=True, help="path for persistent kv store")
+
     parser.add_argument("--store_type", type=str, default="cached_host_mem")
     parser.add_argument("--cache_memory_budget_mb", type=int, default=8192)
 
@@ -109,7 +101,7 @@ class DCNDataReader(object):
         batch_size,
         num_epochs=1,
         shuffle_row_groups=True,
-        shard_seed=2022,
+        shard_seed=2019,
         shard_count=1,
         cur_shard=0,
     ):
@@ -152,31 +144,31 @@ class DCNDataReader(object):
 
         for rg in reader:
             rgdict = rg._asdict()
-            rglist = np.array([rgdict[field] for field in self.fields])
+            rglist = [rgdict[field] for field in self.fields]
             pos = 0
             if tail is not None:
-                pos = batch_size - tail.shape[1]
-                tail = np.concatenate((tail, rglist[:, 0 : (batch_size - tail.shape[1])]), axis=1)
-                if tail.shape[1] == batch_size:
+                pos = batch_size - len(tail[0])
+                tail = list(
+                    [
+                        np.concatenate((tail[i], rglist[i][0 : (batch_size - len(tail[i]))]))
+                        for i in range(self.num_fields)
+                    ]
+                )
+                if len(tail[0]) == batch_size:
                     label = tail[0]
-                    features = tail[1:]
+                    features = tail[1 : self.num_fields]
                     tail = None
-                    features = np.stack(features, axis=-1)
-                    yield label, features
+                    yield label, np.stack(features, axis=-1)
                 else:
                     pos = 0
                     continue
-
             while (pos + batch_size) <= len(rglist[0]):
-                label = rglist[0, pos : pos + batch_size]
-                features = rglist[1:, pos : pos + batch_size]
+                label = rglist[0][pos : pos + batch_size]
+                features = [rglist[j][pos : pos + batch_size] for j in range(1, self.num_fields)]
                 pos += batch_size
-                features = np.stack(features, axis=-1)
-                yield label, features
-
-            if pos != rglist.shape[1]:
-                tail = rglist[:, pos:]
-
+                yield label, np.stack(features, axis=-1)
+            if pos != len(rglist[0]):
+                tail = [rglist[i][pos:] for i in range(self.num_fields)]
 
 
 def make_criteo_dataloader(data_path, batch_size, shuffle=True, shard_seed=2022):
@@ -467,30 +459,27 @@ class DCNTrainGraph(flow.nn.Graph):
 
 
 def make_lr_scheduler(args, optimizer):
-    reduce_lr_on_plateau = flow.optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer=optimizer,
-        mode="max",
-        factor=args.lr_factor,
-        patience=0,
-        threshold=args.min_delta,
-        threshold_mode="abs",
-        cooldown=0,
-        min_lr=args.min_lr,
-        verbose=True,
-    )
-
-    return reduce_lr_on_plateau
-
+    batches_per_epoch = math.ceil(args.num_train_samples / args.train_batch_size)
+    multistep_lr = flow.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[3*batches_per_epoch], gamma=args.lr_factor)
+    return multistep_lr
 
 def train(args):
     rank = flow.env.get_rank()
     dcn_module = make_dcn_module(args)
     dcn_module.to_global(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
 
+    def load_model(dir):
+        if rank == 0:
+            print(f"Loading model from {dir}")
+        if os.path.exists(dir):
+            state_dict = flow.load(dir, global_src_rank=0)
+            dcn_module.load_state_dict(state_dict, strict=False)
+        else:
+            if rank == 0:
+                print(f"Loading model from {dir} failed: invalid path")
+
     if args.model_load_dir:
-        print(f"Loading model from {args.model_load_dir}")
-        state_dict = flow.load(args.model_load_dir, global_src_rank=0)
-        dcn_module.load_state_dict(state_dict, strict=False)
+        load_model(args.model_load_dir)
 
     def save_model(subdir):
         if not args.model_save_dir:
@@ -505,14 +494,6 @@ def train(args):
         print("======== Save initial checkpoint ========")
         save_model("initial_checkpoint")
 
-    opt = flow.optim.Adam(dcn_module.parameters(), lr=args.learning_rate)
-
-    def lr_decay(factor=0.1, min_lr=1e-6):
-        for param_group in opt.param_groups:
-            reduced_lr = max(param_group["lr"] * factor, min_lr)
-            param_group["lr"] = reduced_lr
-        print("Reduce learning rate on plateau: {}".format(reduced_lr))
-        return reduced_lr
 
     def get_metrics(logs):
         kv = {"auc": 1, "logloss": -1}
@@ -528,15 +509,14 @@ def train(args):
         stopping_steps,
         patience=2,
         min_delta=1e-6,
-        _reduce_lr_on_plateau=True,
     ):
         save_best = False
         stop_training = False
         if monitor_value < best_metric + min_delta:
             stopping_steps += 1
             print("Monitor(max) STOP: {:.6f}!".format(monitor_value))
-            if _reduce_lr_on_plateau:
-                lr_decay(factor=0.1, min_lr=1e-6)
+            print("Reduce learning rate on plateau")
+
         else:
             stopping_steps = 0
             best_metric = monitor_value
@@ -547,16 +527,14 @@ def train(args):
             print(f"Early stopping at epoch={epoch}!")
         return stop_training, best_metric, stopping_steps, save_best
 
-
+    opt = flow.optim.Adam(dcn_module.parameters(), lr=args.learning_rate)
     lr_scheduler = None
     loss_func = flow.nn.BCELoss(reduction="none").to("cuda")
 
     if args.loss_scale_policy == "static":
         grad_scaler = flow.amp.StaticGradScaler(1024)
     else:
-        grad_scaler = flow.amp.GradScaler(
-            init_scale=1073741824, growth_factor=2.0, backoff_factor=0.5, growth_interval=2000,
-        )
+        grad_scaler = flow.amp.GradScaler(init_scale=1073741824, growth_factor=2.0, backoff_factor=0.5, growth_interval=2000,)
 
     eval_graph = DCNValGraph(dcn_module, args.amp)
     train_graph = DCNTrainGraph(dcn_module, loss_func, opt, lr_scheduler, grad_scaler, args.amp)
@@ -569,6 +547,9 @@ def train(args):
     epoch = 0
     stopping_steps = 0
     stop_training = False
+
+    cached_valid_batches = prefetch_eval_batches(f"{args.data_dir}/val", args.valid_batch_size, args.valid_batches)
+    cached_test_batches = prefetch_eval_batches(f"{args.data_dir}/test", args.test_batch_size, args.test_batches)    
 
     with make_criteo_dataloader(f"{args.data_dir}/train", args.train_batch_size, shard_seed=args.shard_seed) as loader:
         dcn_module.train()
@@ -590,13 +571,12 @@ def train(args):
                     last_time = time.time()
 
             if step % batches_per_epoch == 0:
-                print("Current step: ", step, 
-                    "Current learning rate : ",
-                    opt.state_dict()["param_groups"][0]["_options"]["lr"],
-                )
                 epoch += 1
-                auc, logloss = eval(args, eval_graph, "val", step, epoch)
-                test_auc, test_logloss = eval(args, eval_graph, "test", step, epoch)
+                auc, logloss = eval(args, eval_graph, tag='val', cur_step=step, epoch=epoch, cached_eval_batches=cached_valid_batches)
+                test_auc, test_logloss = eval(args, eval_graph, tag='test', cur_step=step, epoch=epoch, cached_eval_batches=cached_test_batches)
+
+                monitor_value = get_metrics(logs={"auc": auc, "logloss": logloss})
+                stop_training, best_metric, stopping_steps,save_best = early_stop(epoch, monitor_value, best_metric=best_metric, stopping_steps=stopping_steps, patience=args.patience,min_delta=args.min_delta,)
 
                 if test_auc > test_auc_best:
                     test_auc_best = test_auc
@@ -605,87 +585,98 @@ def train(args):
                 if args.save_model_after_each_eval:
                     print("======== Save after every evaluate ========")
                     save_model(f"step_{step}_val_auc_{auc:0.5f}")
-                monitor_value = get_metrics(logs={"auc": auc, "logloss": logloss})
-                stop_training, best_metric, stopping_steps,save_best = early_stop(epoch, monitor_value, best_metric=best_metric, stopping_steps=stopping_steps, patience=args.patience,
-                    min_delta=args.min_delta,
-                    _reduce_lr_on_plateau=args.reduce_lr_on_plateau,
-                )
-
-                if save_best:
-                    print(f"======== Save best model: monitor(max): {best_metric:.6f} ========")
-                    save_model("best_checkpoint")
-
-                train_graph = DCNTrainGraph(dcn_module, loss_func, opt, lr_scheduler, grad_scaler, args.amp)
-                dcn_module.train()
-
-            if stop_training:
-                break
             
-
+                if save_best:
+                    if rank == 0:
+                        print(f"======== Save best model: monitor(max): {best_metric:.6f} ========")
+                        save_model("best_checkpoint")
+                    
+                dcn_module.train()
+                
+                if stop_training:
+                    break
+                last_time = time.time()
+            
     print("best test auc : ", test_auc_best, "logloss: ", test_logloss_best)
 
 
 
+def _np_to_global(np_array):
+    t = flow.from_numpy(np_array)
+    return t.to_global(placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0))
 
-def batch_to_global(np_label, np_features):
-    def _np_to_global(np, dtype=flow.float):
-        t = flow.tensor(np, dtype=dtype)
-        return t.to_global(placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0))
-
-    labels = _np_to_global(np_label.reshape(-1, 1))
-    features = _np_to_global(np_features, dtype=flow.int64)
+def batch_to_global(np_label, np_features, is_train=True):
+    labels = _np_to_global(np_label.reshape(-1, 1)) if is_train else np_label.reshape(-1, 1)
+    features = _np_to_global(np_features)
     return labels, features
 
 
-def eval(args, eval_graph, tag='val',  cur_step=0, epoch=0):
-    if args.eval_batches <= 0:
-        return
+def prefetch_eval_batches(data_dir, batch_size, num_batches):
+    cached_eval_batches = []
+    with make_criteo_dataloader(data_dir, batch_size, shuffle=False) as loader:
+        for _ in range(num_batches):
+            label, features = batch_to_global(*next(loader), is_train=False)
+            cached_eval_batches.append((label, features))
+    return cached_eval_batches
+
+
+def eval(args, eval_graph, tag='val', cur_step=0, epoch=0, cached_eval_batches=None):
+    if tag == 'val':
+        batches_per_epoch = math.ceil(args.num_valid_samples / args.valid_batch_size)
+    else:
+        batches_per_epoch = math.ceil(args.num_test_samples / args.test_batch_size)
+    
     eval_graph.module.eval()
     labels, preds = [], []
     eval_start_time = time.time()
-    with make_criteo_dataloader(f"{args.data_dir}/{tag}", args.eval_batch_size, shuffle=True, shard_seed=args.shard_seed) as loader:
-        num_eval_batches = 0
-        for np_batch in loader:
-            num_eval_batches += 1
-            if num_eval_batches > args.eval_batches:
-                break
-            label, features = batch_to_global(*np_batch)
-            logits = eval_graph(features)
-            pred = logits
-            labels.append(label.numpy())
-            preds.append(pred.numpy())
+    
+    if cached_eval_batches == None:
+        with make_criteo_dataloader(f"{args.data_dir}/{tag}", args.batch_size, shuffle=False) as loader:
+            eval_start_time = time.time()
+            for i in range(batches_per_epoch):
+                label, features = batch_to_global(*next(loader), is_train=False)
+                pred = eval_graph(features)
+                labels.append(label)
+                preds.append(pred.to_local())
+    else:
+        for i in range(batches_per_epoch):
+            label, features = cached_eval_batches[i]
+            pred = eval_graph(features)
+            labels.append(label)
+            preds.append(pred.to_local())
 
-    auc = 0  # will be updated by rank 0 only
+    labels = (
+        _np_to_global(np.concatenate(labels, axis=0)).to_global(sbp=flow.sbp.broadcast()).to_local()
+    )
+    preds = (
+        flow.cat(preds, dim=0)
+        .to_global(placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0))
+        .to_global(sbp=flow.sbp.broadcast())
+        .to_local()
+    )
+
+    flow.comm.barrier()
+    eval_time = time.time() - eval_start_time
+    
     rank = flow.env.get_rank()
+    
+    metrics_start_time = time.time()
+    auc = flow.roc_auc_score(labels, preds).numpy()[0]
+    logloss = flow._C.binary_cross_entropy_loss(preds, labels, weight=None, reduction='mean')
+    metrics_time = time.time() - metrics_start_time
+    
     if rank == 0:
-        labels = flow.tensor(np.concatenate(labels, axis=0))
-        preds = flow.tensor(np.concatenate(preds, axis=0))
-
-        eval_time = time.time() - eval_start_time
-
-        auc_start_time = time.time()
-        auc = flow.roc_auc_score(labels, preds).numpy()[0]
-        auc_time = time.time() - auc_start_time
-
-        log_loss_start_time = time.time()
-        logloss_fn = flow.nn.BCELoss(reduction="none")
-        logloss = logloss_fn(preds,labels)
-        logloss = flow.mean(logloss)
-        log_loss_time = time.time() - log_loss_start_time
-
         host_mem_mb = psutil.Process().memory_info().rss // (1024 * 1024)
         stream = os.popen("nvidia-smi --query-gpu=memory.used --format=csv")
         device_mem_str = stream.read().split("\n")[rank + 1]
 
         strtime = time.strftime("%Y-%m-%d %H:%M:%S")
-        print(f"======== {tag} ========")
         print(
-            f"Rank[{rank}], Epoch {epoch}, Step {cur_step}, AUC {auc:0.6f}, LogLoss {logloss:0.6f}, Eval_time {eval_time:0.2f} s, "
-            + f"AUC_time {auc_time:0.2f} s, LogLoss_time {log_loss_time: 0.2f} s, Eval_samples {labels.shape[0]}, "
+            f"Rank[{rank}], Epoch {epoch}, Step {cur_step}, AUC {auc:0.6f}, LogLoss {logloss:0.6f}, "
+            + f"Eval_time {eval_time:0.2f} s, Metrics_time {metrics_time:0.2f} s, Eval_samples {labels.shape[0]}, "
             + f"GPU_Memory {device_mem_str}, Host_Memory {host_mem_mb} MiB, {strtime}"
-        )
+            )
 
-    flow.comm.barrier()
     return auc, logloss
 
 if __name__ == "__main__":
