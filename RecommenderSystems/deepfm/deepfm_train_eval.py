@@ -521,15 +521,14 @@ def train(args):
     eval(args, eval_graph, tag='test', cur_step=step, epoch=epoch)
 
 
-def np_to_global(np, dtype=flow.float):
-    # TODO: t = flow.from_numpy(np)
-    t = flow.tensor(np, dtype=dtype)
+def np_to_global(np):
+    t = flow.from_numpy(np)
     return t.to_global(placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0))
 
 
 def batch_to_global(np_label, np_features, is_train=True):
     labels = np_to_global(np_label.reshape(-1, 1)) if is_train else np_label.reshape(-1, 1)
-    features = np_to_global(np_features, dtype=flow.int64)
+    features = np_to_global(np_features)
     return labels, features
 
 

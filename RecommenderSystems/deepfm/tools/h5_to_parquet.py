@@ -23,21 +23,26 @@ def make_fuxih5_to_parquet(spark, feature_map, data_path, output_dir, part_num=N
     data_array = load_hdf5(data_path) # cols: 39 features + 1 label
     X = data_array[:, :-1]
     label = data_array[:, -1].reshape(-1, 1)
-
+    
     print("start transforming h5 data!")
     total_prev_vocab = 0
     for key in feature_map['feature_specs'].keys():
         X[:, feature_map['feature_specs'][key]['index']] += total_prev_vocab
-        total_prev_vocab += float(feature_map['feature_specs'][key]['vocab_size'])
-    
-    print("start creating dataframe!")
-    data_array = np.concatenate((label, X), axis=1)
-    data_pandas = pd.DataFrame(data_array)
-    print("pd done!")
+        total_prev_vocab += feature_map['feature_specs'][key]['vocab_size']
 
+    print("start creating dataframe!")
     sparse_names = [f"C{i}" for i in range(1, 27)]
     dense_names = [f"I{i}" for i in range(1, 14)]
     columns = ["Label"] + dense_names + sparse_names
+    
+    type_dic = {}
+    type_dic['Label'] = 'float32'
+    for i in range(1, 40):
+        type_dic[columns[i]] = 'int64'
+    data_array = np.concatenate((label, X), axis=1)
+    data_pandas = pd.DataFrame(data_array, columns=columns)
+    data_pandas = data_pandas.astype(type_dic)
+    print("pd done!")
 
     start = time.time()
     df = spark.createDataFrame(data_pandas, schema=columns)
@@ -117,7 +122,7 @@ if __name__ == "__main__":
         feature_map,
         train_h5, 
         train_output_dir, 
-        part_num=2048, 
+        part_num=4096, 
         shuffle=True
     )
 
