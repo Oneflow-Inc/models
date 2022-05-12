@@ -1,5 +1,4 @@
 import argparse
-from multiprocessing.spawn import get_executable
 import os
 import sys
 import glob
@@ -10,7 +9,6 @@ import psutil
 import oneflow as flow
 import oneflow.nn as nn
 from petastorm.reader import make_batch_reader
-from multiprocessing.spawn import get_executable
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
 num_dense_fields = 13
@@ -555,10 +553,10 @@ def train(args):
         dcn_module.train()
         last_step, last_time = 0, time.time()
         for step in range(1, args.train_batches + 1):
-            labels, features = batch_to_global(*next(loader))
+            labels, features = batch_to_global(*next(loader))    
             loss = train_graph(labels, features)
             loss = loss.numpy()
-
+            
             if step % args.loss_print_interval == 0:
                 if rank == 0:
                     latency_ms = 1000 * (time.time() - last_time) / (step - last_step)
@@ -607,7 +605,7 @@ def _np_to_global(np_array):
 
 def batch_to_global(np_label, np_features, is_train=True):
     labels = _np_to_global(np_label.reshape(-1, 1)) if is_train else np_label.reshape(-1, 1)
-    features = _np_to_global(np_features)
+    features = _np_to_global(np_features) 
     return labels, features
 
 
