@@ -59,6 +59,9 @@ def get_args(print_args=True):
 
     parser.add_argument("--amp", action="store_true", help="enable Automatic Mixed Precision(AMP) training or not")
     parser.add_argument("--loss_scale_policy", type=str, default="static", help="static or dynamic")
+    
+    parser.add_argument("--early_stop", action="store_true", help="enable early stop or not")
+    parser.add_argument("--save_best_model", action="store_true", help="static or dynamic")
 
     args = parser.parse_args()
 
@@ -504,18 +507,20 @@ def train(args):
                     patience=args.patience, 
                     min_delta=args.min_delta,
                 )
-                
-                if save_best:
+            
+                if args.save_best_model and save_best:
                     if rank == 0:
                         print(f"Save best model: monitor(max): {best_metric:.6f}")
                     save_model("best_checkpoint")
-                if stop_training:
+                
+                if args.early_stop and stop_training:
                     break
                 
                 deepfm_module.train()
                 last_time = time.time()
-    
-    load_model(f"{args.model_save_dir}/best_checkpoint")
+
+    if args.save_best_model:
+        load_model(f"{args.model_save_dir}/best_checkpoint")
     if rank == 0:
         print("================ Test Evaluation ================")
     eval(args, eval_graph, tag='test', cur_step=step, epoch=epoch)

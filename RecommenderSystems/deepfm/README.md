@@ -29,6 +29,7 @@
 | num_test_samples           | the number of test samples                                   | *Required Argument*      |
 | model_load_dir             | model loading directory                                      | None                     |
 | model_save_dir             | model saving directory                                       | None                     |
+| save_best_model            | save best model or not                                       | False                    |
 | save_initial_model         | save initial model parameters or not                         | False                    |
 | save_model_after_each_eval | save model after each eval or not                            | False                    |
 | embedding_vec_size         | embedding vector size                                        | 16                       |
@@ -47,6 +48,7 @@
 | cache_memory_budget_mb     | size of cache memory budget on each device in megabytes when `store_type` is `cached_host_mem` or `cached_ssd` | 1024                     |
 | amp                        | enable Automatic Mixed Precision(AMP) training or not        | False                    |
 | loss_scale_policy          | loss scale policy for AMP training: `static` or `dynamic`    | `static`                 |
+| early_stop                 | enable early stop or not                                     | False                    |
 
 ## Getting Started
 
