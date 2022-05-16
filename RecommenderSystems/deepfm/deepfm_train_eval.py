@@ -374,7 +374,7 @@ class DeepFMModule(nn.Module):
         # DNN
         dnn_pred = self.dnn_layer(embedded_x.flatten(start_dim=1))
 
-        return (fm_pred + dnn_pred).sigmoid()
+        return fm_pred + dnn_pred
 
 
 def make_deepfm_module(args):
@@ -399,7 +399,7 @@ class DeepFMValGraph(flow.nn.Graph):
 
     def build(self, features):
         predicts = self.module(features.to("cuda"))
-        return predicts
+        return predicts.sigmoid()
 
 
 class DeepFMTrainGraph(flow.nn.Graph):
@@ -498,7 +498,7 @@ def train(args):
     # TODO: clip gradient norm
     opt = flow.optim.Adam(deepfm_module.parameters(), lr=args.learning_rate)
     lr_scheduler = make_lr_scheduler(args, opt)
-    loss = flow.nn.BCELoss(reduction="mean").to("cuda")
+    loss = flow.nn.BCEWithLogitsLoss(reduction="mean").to("cuda")
 
     if args.loss_scale_policy == "static":
         grad_scaler = flow.amp.StaticGradScaler(1024)
