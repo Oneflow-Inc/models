@@ -139,5 +139,3 @@ if __name__ == "__main__":
             f.write("table_size_array = [")
             f.write(", ".join([str(i) for i in table_size_array]))
             f.write("]\n")
-
-    

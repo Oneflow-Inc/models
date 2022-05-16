@@ -102,7 +102,7 @@ def get_args(print_args=True):
     )
     parser.add_argument("--loss_scale_policy", type=str, default="static", help="static or dynamic")
 
-    parser.add_argument("--early_stop", action="store_true", help="enable early stop or not")
+    parser.add_argument("--disable_early_stop", action="store_true", help="enable early stop or not")
     parser.add_argument("--save_best_model", action="store_true", help="static or dynamic")
 
     args = parser.parse_args()
