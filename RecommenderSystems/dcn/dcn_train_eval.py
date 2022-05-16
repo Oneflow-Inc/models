@@ -559,14 +559,15 @@ def train(args):
             
             if step % args.loss_print_interval == 0:
                 if rank == 0:
-                    latency_ms = 1000 * (time.time() - last_time) / (step - last_step)
+                    latency = (time.time() - last_time) / (step - last_step)
+                    throughput = args.batch_size / latency
                     last_step, last_time = step, time.time()
                     strtime = time.strftime("%Y-%m-%d %H:%M:%S")
                     print(
                         f"Rank[{rank}], Step {step}, Loss {loss:0.4f}, "
-                        + f"Latency {latency_ms:0.3f} ms, {strtime}"
+                        + f"Latency {(latency * 1000):0.3f} ms, Throughput {throughput:0.1f}, {strtime}"
                     )
-                    last_time = time.time()
+
 
             if step % batches_per_epoch == 0:
                 epoch += 1
@@ -588,11 +589,10 @@ def train(args):
                     if rank == 0:
                         print(f"======== Save best model: monitor(max): {best_metric:.6f} ========")
                         save_model("best_checkpoint")
-                    
-                dcn_module.train()
                 
                 if stop_training:
                     break
+                dcn_module.train()
                 last_time = time.time()
             
     print("best test auc : ", test_auc_best, "logloss: ", test_logloss_best)
