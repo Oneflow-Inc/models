@@ -23,7 +23,6 @@ import psutil
 import warnings
 import oneflow as flow
 import oneflow.nn as nn
-from sklearn.metrics import roc_auc_score
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 from petastorm.reader import make_batch_reader
@@ -499,8 +498,8 @@ def train(args):
     )
 
     dlrm_module.train()
-    step, last_step, last_time = -1, 0, time.time()
     with make_criteo_dataloader(f"{args.data_dir}/train", args.train_batch_size) as loader:
+        step, last_step, last_time = -1, 0, time.time()
         for step in range(1, args.train_batches + 1):
             labels, dense_fields, sparse_fields = batch_to_global(*next(loader))
             loss = train_graph(labels, dense_fields, sparse_fields)
@@ -563,13 +562,14 @@ def eval(cached_eval_batches, eval_graph, cur_step=0):
         .to_global(sbp=flow.sbp.broadcast())
         .to_local()
     )
+    flow.comm.barrier()
     eval_time = time.time() - eval_start_time
 
     rank = flow.env.get_rank()
     auc = 0
     if rank == 0:
         auc_start_time = time.time()
-        auc = roc_auc_score(labels.numpy(), preds.numpy())
+        auc = flow.roc_auc_score(labels, preds).numpy()[0]
         auc_time = time.time() - auc_start_time
         host_mem_mb = psutil.Process().memory_info().rss // (1024 * 1024)
         stream = os.popen("nvidia-smi --query-gpu=memory.used --format=csv")
@@ -582,7 +582,6 @@ def eval(cached_eval_batches, eval_graph, cur_step=0):
             + f"GPU_Memory {device_mem_str}, Host_Memory {host_mem_mb} MiB, {strtime}"
         )
 
-    flow.comm.barrier()
     return auc
 
 
