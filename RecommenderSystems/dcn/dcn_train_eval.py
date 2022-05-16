@@ -560,7 +560,7 @@ def train(args):
             if step % args.loss_print_interval == 0:
                 if rank == 0:
                     latency = (time.time() - last_time) / (step - last_step)
-                    throughput = args.batch_size / latency
+                    throughput = args.train_batch_size / latency
                     last_step, last_time = step, time.time()
                     strtime = time.strftime("%Y-%m-%d %H:%M:%S")
                     print(
@@ -621,15 +621,17 @@ def prefetch_eval_batches(data_dir, batch_size, num_batches):
 def eval(args, eval_graph, tag='val', cur_step=0, epoch=0, cached_eval_batches=None):
     if tag == 'val':
         batches_per_epoch = math.ceil(args.num_valid_samples / args.valid_batch_size)
+        batch_size = args.valid_batch_size
     else:
         batches_per_epoch = math.ceil(args.num_test_samples / args.test_batch_size)
+        batch_size = args.test_batch_size
     
     eval_graph.module.eval()
     labels, preds = [], []
     eval_start_time = time.time()
     
     if cached_eval_batches == None:
-        with make_criteo_dataloader(f"{args.data_dir}/{tag}", args.batch_size, shuffle=False) as loader:
+        with make_criteo_dataloader(f"{args.data_dir}/{tag}", batch_size, shuffle=False) as loader:
             eval_start_time = time.time()
             for i in range(batches_per_epoch):
                 label, features = batch_to_global(*next(loader), is_train=False)
