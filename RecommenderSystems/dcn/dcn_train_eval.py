@@ -489,9 +489,7 @@ def train(args):
         flow.save(state_dict, save_path, global_dst_rank=0)
 
     if args.save_initial_model:
-        print("======== Save initial checkpoint ========")
         save_model("initial_checkpoint")
-
 
     def get_metrics(logs):
         kv = {"auc": 1, "logloss": -1}
@@ -508,21 +506,25 @@ def train(args):
         patience=2,
         min_delta=1e-6,
     ):
+        rank = flow.env.get_rank()
         save_best = False
         stop_training = False
         if monitor_value < best_metric + min_delta:
             stopping_steps += 1
-            print("Monitor(max) STOP: {:.6f}!".format(monitor_value))
-            print("Reduce learning rate on plateau")
+            if rank == 0:
+                print("Monitor(max) STOP: {:.6f}!".format(monitor_value))
+                print("Reduce learning rate on plateau")
 
         else:
             stopping_steps = 0
             best_metric = monitor_value
             save_best = True
-            print("Save best model: monitor(max): {:.6f}".format(monitor_value))
+            if rank == 0:
+                print("Save best model: monitor(max): {:.6f}".format(monitor_value))
         if stopping_steps >= patience:
             stop_training = True
-            print(f"Early stopping at epoch={epoch}!")
+            if rank ==0:
+                print(f"Early stopping at epoch={epoch}!")
         return stop_training, best_metric, stopping_steps, save_best
 
     opt = flow.optim.Adam(dcn_module.parameters(), lr=args.learning_rate)
@@ -582,7 +584,6 @@ def train(args):
                     test_logloss_best = test_logloss
 
                 if args.save_model_after_each_eval:
-                    print("======== Save after every evaluate ========")
                     save_model(f"step_{step}_val_auc_{auc:0.5f}")
             
                 if save_best:
@@ -662,7 +663,7 @@ def eval(args, eval_graph, tag='val', cur_step=0, epoch=0, cached_eval_batches=N
     
     metrics_start_time = time.time()
     auc = flow.roc_auc_score(labels, preds).numpy()[0]
-    logloss = flow._C.binary_cross_entropy_loss(preds, labels, weight=None, reduction='mean')
+    logloss = flow._C.binary_cross_entropy_loss(preds, labels, weight=None, reduction='mean').item()
     metrics_time = time.time() - metrics_start_time
     
     if rank == 0:
