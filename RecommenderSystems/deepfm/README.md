@@ -154,4 +154,4 @@ Besides, for FuxiCTR [Criteo_x4_001](https://github.com/openbenchmark/BARS/blob/
 
 | Dataset       | Test LogLoss | Test AUC |
 | ------------- | ------------ | -------- |
-| Criteo_x4_001 | 0.808978     | 0.443073 |
+| Criteo_x4_001 | 0.443073     | 0.808978 |
