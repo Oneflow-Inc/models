@@ -26,8 +26,8 @@ python3 -m oneflow.distributed.launch \
       --embedding_vec_size 16 \
       --cache_memory_budget_mb 2048 \
       --num_train_samples 36672493 \
-      --num_valid_samples \
-      --num_test_samples \
+      --num_valid_samples 4584062 \
+      --num_test_samples 4584062 \
       --train_batch_size 10000 \
       --train_batches 70000 \
       --loss_print_interval 100 \
