@@ -42,8 +42,9 @@ def get_args(print_args=True):
     parser.add_argument("--net_dropout", type=float, default=0.2)
     parser.add_argument("--embedding_regularizer", type=float, default=None)
     parser.add_argument("--net_regularizer", type=float, default=None)
-    parser.add_argument("--max_gradient_norm", type=float, default=10.0)
 
+    parser.add_argument("--patience", type=int, default=2)
+    parser.add_argument("--min_delta", type=float, default=1.0e-6)
     parser.add_argument("--lr_factor", type=float, default=0.1)
     parser.add_argument("--min_lr", type=float, default=1.0e-6)
     parser.add_argument("--learning_rate", type=float, default=0.001)
@@ -57,15 +58,10 @@ def get_args(print_args=True):
     parser.add_argument("--train_batches", type=int, default=15000, help="number of train batches")
     parser.add_argument("--loss_print_interval", type=int, default=1000)
 
-    parser.add_argument("--patience", type=int, default=2)
-    parser.add_argument("--min_delta", type=float, default=1.0e-6)
-
     parser.add_argument("--table_size_array", type=int_list, help="Embedding table size array for sparse fields", required=True )
     parser.add_argument("--persistent_path", type=str, required=True, help="path for persistent kv store")
-
     parser.add_argument("--store_type", type=str, default="cached_host_mem")
     parser.add_argument("--cache_memory_budget_mb", type=int, default=8192)
-
     parser.add_argument("--amp", action="store_true", help="Run model with amp")
     parser.add_argument("--loss_scale_policy", type=str, default="static", help="static or dynamic")
 
