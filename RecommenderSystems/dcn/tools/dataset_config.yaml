@@ -19,3 +19,4 @@ criteo_x4_001:
     test_data: your_path/Criteo/Criteo_csv/test.csv
     train_data: your_path/Criteo/Criteo_csv/train.csv
     valid_data: your_path/Criteo/Criteo_csv/valid.csv
+    
