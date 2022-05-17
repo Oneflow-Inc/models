@@ -571,7 +571,7 @@ def train(args):
                         print(f"Save best model: monitor(max): {best_metric:.6f}")
                     save_model("best_checkpoint")
 
-                if args.early_stop and stop_training:
+                if not args.disable_early_stop and stop_training:
                     break
 
                 deepfm_module.train()
