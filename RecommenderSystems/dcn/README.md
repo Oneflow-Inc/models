@@ -79,20 +79,8 @@ Each sample contains:
 - I1-I13 - A total of 13 columns of integer features (mostly count features).
 - C1-C26 - A total of 26 columns of categorical features. The values of these features have been hashed onto 32 bits for anonymization purposes.
 
-We have two methods for data processing
 
-### Data processing 1:
-Follow the [FuxiCTR data processing](https://github.com/openbenchmark/BARS/tree/master/ctr_prediction/benchmarks/DCN/DCN_criteo_x4_001) method:
-1. Use `tools/split_criteo.py` to split train, valid, test csv files
-2. Use `tools/make_criteo.py` to make criteo dataset of parquet format, modifying `yourpath/` in  `tools/dataset_config.yaml` and `tools/make_criteo.py` is neeeded.
-please check the important arguements below
-- `spark_tmp_dir`: change the tmp directory used by pyspark, SSD of 2T or above is recommended
-- `spark_driver_memory_gb`: amount of gigabyte memory to use for the driver process, 1024 as default
-- `mod_idx`, limited value of index count of each features, `0` or less stands for no limit
-- `export_dataset_info`, export `README.md` file in `output_dir` contains subsets count and table size array
-3. Please install `pyspark` before running
-
-### Data processing 2:
+### Data preprocess:
 1. Download the [Criteo Kaggle dataset](https://www.kaggle.com/c/criteo-display-ad-challenge) and then split it using split_criteo_kaggle.py.
 
 2. launch a spark shell using [launch_spark.sh](https://github.com/Oneflow-Inc/models/blob/criteo_dcn/RecommenderSystems/dcn/tools/launch_spark.sh).
