@@ -31,7 +31,6 @@
 |embedding_vec_size|embedding vector dimention size|128|
 |batch_norm|batch norm used in DNN|False|
 |dnn_hidden_units|hidden units list of DNN|"1000,1000,1000,1000,1000"|
-|dnn_activations|activation used in DNN|relu|
 |crossing_layers|layer number of Crossnet|3|
 |net_dropout|dropout rate of DNN|0.2|
 |embedding_regularizer|rate of embedding layer regularizer|None|
@@ -80,7 +79,10 @@ Each sample contains:
 - I1-I13 - A total of 13 columns of integer features (mostly count features).
 - C1-C26 - A total of 26 columns of categorical features. The values of these features have been hashed onto 32 bits for anonymization purposes.
 
-In our data processing:
+We have two methods for data processing
+
+### Data processing 1:
+Follow the [FuxiCTR data processing](https://github.com/openbenchmark/BARS/tree/master/ctr_prediction/benchmarks/DCN/DCN_criteo_x4_001) method:
 1. Use `tools/split_criteo.py` to split train, valid, test csv files
 2. Use `tools/make_criteo.py` to make criteo dataset of parquet format, modifying `yourpath/` in  `tools/dataset_config.yaml` and `tools/make_criteo.py` is neeeded.
 please check the important arguements below
@@ -89,6 +91,39 @@ please check the important arguements below
 - `mod_idx`, limited value of index count of each features, `0` or less stands for no limit
 - `export_dataset_info`, export `README.md` file in `output_dir` contains subsets count and table size array
 3. Please install `pyspark` before running
+
+### Data processing 2:
+1. Download the [Criteo Kaggle dataset](https://www.kaggle.com/c/criteo-display-ad-challenge) and then split it using split_criteo_kaggle.py.
+
+2. launch a spark shell using [launch_spark.sh](https://github.com/Oneflow-Inc/models/blob/dev_deepfm_multicol_oneemb/RecommenderSystems/deepfm/tools/launch_spark.sh).
+
+     -   Modify the SPARK_LOCAL_DIRS as needed
+
+         ```shell
+         export SPARK_LOCAL_DIRS=/path/to/your/spark/
+         ```
+
+     -   Run `bash launch_spark.sh`
+
+3. load [deepfm_parquet.scala](https://github.com/Oneflow-Inc/models/blob/dev_deepfm_multicol_oneemb/RecommenderSystems/deepfm/tools/dcn_parquet.scala) to your spark shell by `:load ddn_parquet.scala`.
+
+4. call the `makeDCNDataset(srcDir: String, dstDir:String)` function to generate the dataset.
+
+     ```shell
+     makeDeepfmDataset("/path/to/your/src_dir", "/path/to/your/dst_dir")
+     ```
+
+     After generating parquet dataset, dataset information will also be printed. It contains the information about the number of samples and table size array, which is needed when training.
+
+     ```txt
+     train samples = 36672493                                                             
+     validation samples = 4584062
+     test samples = 4584062                                                               
+     table size array: 
+     649,9364,14746,490,476707,11618,4142,1373,7275,13,169,407,1376
+     1460,583,10131227,2202608,305,24,12517,633,3,93145,5683,8351593,3194,27,14992,5461306,10,5652,2173,4,7046547,18,15,286181,105,142572
+     ```
+
 
 ## Start training by Oneflow
 Following command will launch 8 oneflow DCN training and evaluation processes on a node with 8 GPU devices, by specify `data_dir` for data input and `persistent_path` for OneEmbedding persistent store path.

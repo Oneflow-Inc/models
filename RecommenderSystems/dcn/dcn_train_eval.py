@@ -48,7 +48,6 @@ def get_args(print_args=True):
     parser.add_argument("--embedding_vec_size", type=int, default=16)
     parser.add_argument("--batch_norm", type=bool, default=False)
     parser.add_argument("--dnn_hidden_units", type=int_list, default="1000,1000,1000,1000,1000")
-    parser.add_argument("--dnn_activations", type=str, default="relu")
     parser.add_argument("--crossing_layers", type=int, default=3)
     parser.add_argument("--net_dropout", type=float, default=0.2)
     parser.add_argument("--embedding_regularizer", type=float, default=None)
@@ -204,20 +203,6 @@ def make_criteo_dataloader(data_path, batch_size, shuffle=True, shard_seed=2022)
     )
 
 
-def get_activation(activation):
-    if isinstance(activation, str):
-        if activation.lower() == "relu":
-            return nn.ReLU()
-        elif activation.lower() == "sigmoid":
-            return nn.Sigmoid()
-        elif activation.lower() == "tanh":
-            return nn.Tanh()
-        else:
-            return getattr(nn, activation)()
-    else:
-        return activation
-
-
 class OneEmbedding(nn.Module):
     def __init__(
         self,
@@ -305,10 +290,7 @@ class DNN(nn.Module):
     def __init__(
         self,
         input_dim,
-        output_dim=None,
         hidden_units=[],
-        hidden_activations="ReLU",
-        output_activation=None,
         dropout_rates=[],
         batch_norm=False,
         use_bias=True,
@@ -317,9 +299,7 @@ class DNN(nn.Module):
         dense_layers = []
         if not isinstance(dropout_rates, list):
             dropout_rates = [dropout_rates] * len(hidden_units)
-        if not isinstance(hidden_activations, list):
-            hidden_activations = [hidden_activations] * len(hidden_units)
-        hidden_activations = [get_activation(x) for x in hidden_activations]
+        hidden_activations = [nn.ReLU()] * len(hidden_units)
         hidden_units = [input_dim] + hidden_units
         for idx in range(len(hidden_units) - 1):
             dense_layers.append(nn.Linear(hidden_units[idx], hidden_units[idx + 1], bias=use_bias))
@@ -329,10 +309,6 @@ class DNN(nn.Module):
                 dense_layers.append(hidden_activations[idx])
             if dropout_rates[idx] > 0:
                 dense_layers.append(nn.Dropout(p=dropout_rates[idx]))
-        if output_dim is not None:
-            dense_layers.append(nn.Linear(hidden_units[-1], output_dim, bias=use_bias))
-        if output_activation is not None:
-            dense_layers.append(get_activation(output_activation))
         self.dnn = nn.Sequential(*dense_layers)  # * used to unpack list
 
     def forward(self, inputs):
@@ -351,7 +327,6 @@ class DCNModule(nn.Module):
         dnn_hidden_units=[128, 128],
         crossing_layers=3,
         net_dropout=0.2,
-        dnn_activations="relu",
         batch_norm=False,
     ):
         super(DCNModule, self).__init__()
@@ -371,10 +346,7 @@ class DCNModule(nn.Module):
         self.dnn = (
             DNN(
                 input_dim=input_dim,
-                output_dim=None,  # output hidden layer
                 hidden_units=dnn_hidden_units,
-                hidden_activations=dnn_activations,
-                output_activation=None,
                 dropout_rates=net_dropout,
                 batch_norm=batch_norm,
                 use_bias=True,
@@ -427,7 +399,6 @@ def make_dcn_module(args):
         dnn_hidden_units=args.dnn_hidden_units,
         crossing_layers=args.crossing_layers,
         net_dropout=args.net_dropout,
-        dnn_activations=args.dnn_activations,
         batch_norm=args.batch_norm,
         size_factor=args.size_factor,
     )
@@ -636,8 +607,8 @@ def train(args):
                     break
                 dcn_module.train()
                 last_time = time.time()
-
-    print("best test auc : ", test_auc_best, "logloss: ", test_logloss_best)
+    if rank ==0:
+        print("best test auc : ", test_auc_best, "logloss: ", test_logloss_best)
 
 
 def _np_to_global(np_array):
