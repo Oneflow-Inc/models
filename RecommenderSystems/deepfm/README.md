@@ -6,17 +6,18 @@
   <img width="539" alt="Screen Shot 2022-04-01 at 4 45 22 PM" src="https://user-images.githubusercontent.com/46690197/161228714-ae9410bb-56db-46b0-8f0b-cb8becb6ee03.png">
 </p>
 
+
 ## Directory description
 
 ```txt
 .
-├── deepfm_train_eval.py       # OneFlow DeepFM train/val/test scripts with OneEmbedding module
-├── README.md                  # Documentation
+├── deepfm_train_eval.py      # OneFlow DeepFM train/val/test scripts with OneEmbedding module
+├── README.md                 # Documentation
 ├── tools
-│   ├── criteo_parquet.py      # Read Criteo Kaggle data and export it as parquet data format
-│   ├── h5_to_parquet.py       # Read .h5 data preprocessed by FuxiCTR and export it as parquet data format
-├── train_deepfm_criteo_x4.sh  # DeepFM training shell script
-
+│   ├── criteo_parquet.py     # Read Criteo Kaggle data and export it as parquet data format
+│   ├── deepfm_parquet.scala  # Read Criteo Kaggle data and export it as parquet data format
+│   └── launch_spark.sh       # spark launching shell script
+├── train_deepfm_criteo_x4.sh # DeepFM training shell script
 ```
 
 ## Arguments description
@@ -59,6 +60,7 @@ A hands-on guide to train a DeepFM model.
 ### Environment
 
 1.   Install OneFlow by following the steps in [OneFlow Installation Guide](https://github.com/Oneflow-Inc/oneflow#install-oneflow) or use the command line below.
+
      ```shell
      python3 -m pip install --pre oneflow -f https://staging.oneflow.info/branch/master/cu102
      ```
@@ -72,15 +74,10 @@ A hands-on guide to train a DeepFM model.
      numpy: 1.19.2
      psutil: 5.9.0
      petastorm: 0.11.4
-     pandas: 1.4.1
      pyspark: 3.2.1
      ```
 
 ### Dataset
-
-**TODO**：make our own dataset
-
-For now, we use the criteo_x4_001 dataset in FuxiCTR. We also use exactly the same data preprocessing steps as FuxiCTR by directly converting the preprocessed dataset to parquet format.
 
 **Note**: 
 
@@ -88,29 +85,36 @@ According to [the DeepFM paper](https://arxiv.org/abs/1703.04247), we treat both
 
 >   χ may include cat- egorical fields (e.g., gender, location) and continuous fields (e.g., age). Each categorical field is represented as a vec- tor of one-hot encoding, and each continuous field is repre- sented as the value itself, or a vector of one-hot encoding af- ter discretization. 
 
-Besides, for FuxiCTR [Criteo_x4_001](https://github.com/openbenchmark/BARS/blob/master/ctr_prediction/datasets/Criteo/README.md#Criteo_x4_001), features with frequency < 10 are dropped. This is not mentioned in the original paper. We will run more experiments later to check if this step is necessary.
+1.   Download the [Criteo Kaggle dataset](https://www.kaggle.com/c/criteo-display-ad-challenge) and then split it using split_criteo_kaggle.py.
 
-1.   Follow the steps in FuxiCTR [Criteo_x4_001](https://github.com/openbenchmark/BARS/blob/master/ctr_prediction/datasets/Criteo/README.md#Criteo_x4_001) to download and split the dataset.
-2.   Follow the steps in [FuxiCTR's DeepFM Criteo x4 001 experiment guide](https://github.com/openbenchmark/BARS/tree/master/ctr_prediction/benchmarks/DeepFM/DeepFM_criteo_x4_001) to train a DeepFM on Criteo_x4_001 dataset. After the experiment is done, a directory which contains five files, named `feature_encoder.plk`, `feature_map.json`, `train.h5`, `valid.h5`, and `test.h5` respectively, will be generated, which is the preprocessed dataset.
-3.   Use [h5_to_parquet.py](https://github.com/Oneflow-Inc/models/blob/dev_deepfm/RecommenderSystems/deepfm/tools/h5_to_parquet.py) to convert it to parquet format.
+2.   launch a spark shell using [launch_spark.sh](https://github.com/Oneflow-Inc/models/blob/dev_deepfm_multicol_oneemb/RecommenderSystems/deepfm/tools/launch_spark.sh).
+
+     -   Modify the SPARK_LOCAL_DIRS as needed
+
+         ```shell
+         export SPARK_LOCAL_DIRS=/path/to/your/spark/
+         ```
+
+     -   Run `bash launch_spark.sh`
+
+3.   load [deepfm_parquet.scala](https://github.com/Oneflow-Inc/models/blob/dev_deepfm_multicol_oneemb/RecommenderSystems/deepfm/tools/deepfm_parquet.scala) to your spark shell by `:load deepfm_parquet.scala`.
+
+4.   call the `makeDeepfmDataset(srcDir: String, dstDir:String)` function to generate the dataset.
+
      ```shell
-     python h5_to_parquet.py \
-          --input_dir=/path/to/preprocessed_dataset \
-          --output_dir=/path/to/deepfm_parquet \
-          --spark_tmp_dir=/path/to/spark_tmp_dir \
-          --export_dataset_info
+     makeDeepfmDataset("/path/to/your/src_dir", "/path/to/your/dst_dir")
      ```
-​	When generating parquet dataset, a README.md file will also be generated. It contains the information about the number of samples and table size array, which is needed when training.
 
-     ```markdown
-     ## number of examples:
-     train: 36672493
-     test: 4584062
-     val: 4584062
+     After generating parquet dataset, dataset information will also be printed. It contains the information about the number of samples and table size array, which is needed when training.
 
-     ## table size array
-     table_size_array = [43, 98, 121, 41, 219, 112, 79, 68, 91, 5, 26, 36, 70, 1447, 554, 157461, 117683, 305, 17, 11878, 629, 3, 39504, 5128, 156729, 3175, 27, 11070, 149083, 10, 4542, 1996, 4, 154737, 17, 15, 52989, 81, 40882]
-     ```
+      ```txt
+     train samples = 36672493                                                             
+     validation samples = 4584062
+     test samples = 4584062                                                               
+     table size array: 
+     15,68,56,36,173,93,43,41,114,5,16,6,44                                          
+     27,92,172,157,12,7,183,19,2,142,173,170,166,14,170,168,9,127,44,4,169,6,10,125,20,90
+      ```
 
 ### Start Training by Oneflow
 
@@ -122,7 +126,7 @@ Besides, for FuxiCTR [Criteo_x4_001](https://github.com/openbenchmark/BARS/blob/
      DATA_DIR=/path/to/deepfm_parquet
      PERSISTENT_PATH=/path/to/persistent
      MODEL_SAVE_DIR=/path/to/model/save/dir
-
+     
      python3 -m oneflow.distributed.launch \
      --nproc_per_node $DEVICE_NUM_PER_NODE \
      --nnodes 1 \
@@ -131,7 +135,7 @@ Besides, for FuxiCTR [Criteo_x4_001](https://github.com/openbenchmark/BARS/blob/
      deepfm_train_eval.py \
           --data_dir $DATA_DIR \
           --persistent_path $PERSISTENT_PATH \
-          --table_size_array "43, 98, 121, 41, 219, 112, 79, 68, 91, 5, 26, 36, 70, 1447, 554, 157461, 117683, 305, 17, 11878, 629, 4, 39504, 5128, 156729, 3175, 27, 11070, 149083, 11, 4542, 1996, 4, 154737, 17, 16, 52989, 81, 40882" \
+          --table_size_array "649,9364,14746,490,476707,11618,4142,1373,7275,13,169,407,1376,1460,583,10131227,2202608,305,24,12517,633,3,93145,5683,8351593,3194,27,14992,5461306,10,5652,2173,4,7046547,18,15,286181,105,142572" \
           --store_type 'cached_host_mem' \
           --cache_memory_budget_mb 1024 \
           --batch_size 10000 \
