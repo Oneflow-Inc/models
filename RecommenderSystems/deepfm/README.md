@@ -11,12 +11,13 @@
 
 ```txt
 .
-├── deepfm_train_eval.py      # OneFlow DeepFM train/val/test scripts with OneEmbedding module
-├── README.md                 # Documentation
+├── deepfm_train_eval.py       # OneFlow DeepFM train/val/test scripts with OneEmbedding module
+├── README.md                  # Documentation
 ├── tools
-│   ├── deepfm_parquet.scala  # Read Criteo Kaggle data and export it as parquet data format
-│   └── launch_spark.sh       # spark launching shell script
-├── train_deepfm_criteo_x4.sh # DeepFM training shell script
+│   ├── deepfm_parquet.scala   # Read Criteo Kaggle data and export it as parquet data format
+│   └── launch_spark.sh        # Spark launching shell script
+│   └── split_criteo_kaggle.py # Split criteo kaggle dataset to train\val\test set
+├── train_deepfm_criteo_x4.sh  # DeepFM training shell script
 ```
 
 ## Arguments description
@@ -84,7 +85,13 @@ According to [the DeepFM paper](https://arxiv.org/abs/1703.04247), we treat both
 
 >   χ may include cat- egorical fields (e.g., gender, location) and continuous fields (e.g., age). Each categorical field is represented as a vec- tor of one-hot encoding, and each continuous field is repre- sented as the value itself, or a vector of one-hot encoding af- ter discretization. 
 
-1.   Download the [Criteo Kaggle dataset](https://www.kaggle.com/c/criteo-display-ad-challenge) and then split it using split_criteo_kaggle.py.
+1.   Download the [Criteo Kaggle dataset](https://www.kaggle.com/c/criteo-display-ad-challenge) and then split it using [split_criteo_kaggle.py](https://github.com/Oneflow-Inc/models/blob/dev_deepfm_multicol_oneemb/RecommenderSystems/deepfm/tools/split_criteo_kaggle.py).
+
+     Note: Only train.txt is used. The dataset is randomly spllitted into 8:1:1 as training set, validation set and test set.
+
+     ```shell
+     python3 split_criteo_kaggle.py --input_dir=/path/to/your/criteo_kaggle --output_dir=/path/to/your/output/dir
+     ```
 
 2.   launch a spark shell using [launch_spark.sh](https://github.com/Oneflow-Inc/models/blob/dev_deepfm_multicol_oneemb/RecommenderSystems/deepfm/tools/launch_spark.sh).
 
