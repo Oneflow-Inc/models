@@ -95,7 +95,7 @@ please check the important arguements below
 ### Data processing 2:
 1. Download the [Criteo Kaggle dataset](https://www.kaggle.com/c/criteo-display-ad-challenge) and then split it using split_criteo_kaggle.py.
 
-2. launch a spark shell using [launch_spark.sh](https://github.com/Oneflow-Inc/models/blob/dev_deepfm_multicol_oneemb/RecommenderSystems/deepfm/tools/launch_spark.sh).
+2. launch a spark shell using [launch_spark.sh](https://github.com/Oneflow-Inc/models/blob/criteo_dcn/RecommenderSystems/dcn/tools/launch_spark.sh).
 
      -   Modify the SPARK_LOCAL_DIRS as needed
 
@@ -105,12 +105,12 @@ please check the important arguements below
 
      -   Run `bash launch_spark.sh`
 
-3. load [deepfm_parquet.scala](https://github.com/Oneflow-Inc/models/blob/dev_deepfm_multicol_oneemb/RecommenderSystems/deepfm/tools/dcn_parquet.scala) to your spark shell by `:load ddn_parquet.scala`.
+3. load [ddn_parquet.scala](https://github.com/Oneflow-Inc/models/blob/criteo_dcn/RecommenderSystems/dcn/tools/dcn_parquet.scala) to your spark shell by `:load ddn_parquet.scala`.
 
 4. call the `makeDCNDataset(srcDir: String, dstDir:String)` function to generate the dataset.
 
      ```shell
-     makeDeepfmDataset("/path/to/your/src_dir", "/path/to/your/dst_dir")
+     makeDCNDataset("/path/to/your/src_dir", "/path/to/your/dst_dir")
      ```
 
      After generating parquet dataset, dataset information will also be printed. It contains the information about the number of samples and table size array, which is needed when training.
