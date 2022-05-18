@@ -14,7 +14,6 @@
 ├── deepfm_train_eval.py      # OneFlow DeepFM train/val/test scripts with OneEmbedding module
 ├── README.md                 # Documentation
 ├── tools
-│   ├── criteo_parquet.py     # Read Criteo Kaggle data and export it as parquet data format
 │   ├── deepfm_parquet.scala  # Read Criteo Kaggle data and export it as parquet data format
 │   └── launch_spark.sh       # spark launching shell script
 ├── train_deepfm_criteo_x4.sh # DeepFM training shell script
@@ -107,14 +106,14 @@ According to [the DeepFM paper](https://arxiv.org/abs/1703.04247), we treat both
 
      After generating parquet dataset, dataset information will also be printed. It contains the information about the number of samples and table size array, which is needed when training.
 
-      ```txt
+     ```txt
      train samples = 36672493                                                             
      validation samples = 4584062
      test samples = 4584062                                                               
      table size array: 
-     15,68,56,36,173,93,43,41,114,5,16,6,44                                          
-     27,92,172,157,12,7,183,19,2,142,173,170,166,14,170,168,9,127,44,4,169,6,10,125,20,90
-      ```
+     649,9364,14746,490,476707,11618,4142,1373,7275,13,169,407,1376
+     1460,583,10131227,2202608,305,24,12517,633,3,93145,5683,8351593,3194,27,14992,5461306,10,5652,2173,4,7046547,18,15,286181,105,142572
+     ```
 
 ### Start Training by Oneflow
 
