@@ -59,7 +59,7 @@ The model is evaluated at the end of every epoch. At the end of each epoch, if t
 
 The monitor used for the early stop is `val_auc - val_log_loss`. The mode of the early stop is `max`. You could tune `patience` and `min_delta` as needed.
 
-If you want to disable early stopping, simply add `--disable_early_stop` in the [train_deepfm.sh](https://github.com/Oneflow-Inc/models/blob/dev_deepfm/RecommenderSystems/deepfm/train_deepfm.sh).
+If you want to disable early stopping, simply add `--disable_early_stop` in the [train_deepfm.sh](https://github.com/Oneflow-Inc/models/blob/dev_deepfm_multicol_oneemb/RecommenderSystems/deepfm/train_deepfm.sh).
 
 ## Getting Started
 
@@ -131,7 +131,7 @@ According to [the DeepFM paper](https://arxiv.org/abs/1703.04247), we treat both
 
 ### Start Training by Oneflow
 
-1.   Modify the [train_deepfm.sh](https://github.com/Oneflow-Inc/models/blob/dev_deepfm/RecommenderSystems/deepfm/train_deepfm.sh) as needed.
+1.   Modify the [train_deepfm.sh](https://github.com/Oneflow-Inc/models/blob/dev_deepfm_multicol_oneemb/RecommenderSystems/deepfm/train_deepfm.sh) as needed.
 
      ```shell
      #!/bin/bash
