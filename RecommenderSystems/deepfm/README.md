@@ -22,7 +22,7 @@
 
 ## Arguments description
 
-We use exactly the same default arguments as [the DeepFM_Criteo_x4_001 experiment](https://github.com/openbenchmark/BARS/tree/master/ctr_prediction/benchmarks/DeepFM/DeepFM_criteo_x4_001) in FuxiCTR. 
+We use exactly the same default values as [the DeepFM_Criteo_x4_001 experiment](https://github.com/openbenchmark/BARS/tree/master/ctr_prediction/benchmarks/DeepFM/DeepFM_criteo_x4_001) in FuxiCTR. 
 
 | Argument Name              | Argument Explanation                                         | Default Value            |
 | -------------------------- | ------------------------------------------------------------ | ------------------------ |
@@ -53,6 +53,14 @@ We use exactly the same default arguments as [the DeepFM_Criteo_x4_001 experimen
 | loss_scale_policy          | loss scale policy for AMP training: `static` or `dynamic`    | `static`                 |
 | disable_early_stop         | disable early stop or not                                    | False                    |
 
+#### Early Stop Schema
+
+The model is evaluated at the end of every epoch. At the end of each epoch, if the early stopping criterion is met, the training process will be stopped. 
+
+The monitor used for the early stop is `val_auc - val_log_loss`. The mode of the early stop is `max`. You could tune `patience` and `min_delta` as needed.
+
+If you want to disable early stopping, simply add `--disable_early_stop` in the [train_deepfm.sh](https://github.com/Oneflow-Inc/models/blob/dev_deepfm/RecommenderSystems/deepfm/train_deepfm.sh).
+
 ## Getting Started
 
 A hands-on guide to train a DeepFM model.
@@ -68,13 +76,10 @@ A hands-on guide to train a DeepFM model.
 2.   Install all other dependencies listed below.
 
      ```json
-     CUDA: 10.2
-     python: 3.8.4
-     oneflow: 0.8.0
-     numpy: 1.19.2
-     psutil: 5.9.0
-     petastorm: 0.11.4
-     pyspark: 3.2.1
+     psutil
+     petastorm
+     pandas
+     sklearn
      ```
 
 ### Dataset
@@ -83,17 +88,19 @@ A hands-on guide to train a DeepFM model.
 
 According to [the DeepFM paper](https://arxiv.org/abs/1703.04247), we treat both categorical and continuous features as sparse features. 
 
->   χ may include cat- egorical fields (e.g., gender, location) and continuous fields (e.g., age). Each categorical field is represented as a vec- tor of one-hot encoding, and each continuous field is repre- sented as the value itself, or a vector of one-hot encoding af- ter discretization. 
+>   χ may include categorical fields (e.g., gender, location) and continuous fields (e.g., age). Each categorical field is represented as a vec- tor of one-hot encoding, and each continuous field is repre- sented as the value itself, or a vector of one-hot encoding after discretization. 
 
 1.   Download the [Criteo Kaggle dataset](https://www.kaggle.com/c/criteo-display-ad-challenge) and then split it using [split_criteo_kaggle.py](https://github.com/Oneflow-Inc/models/blob/dev_deepfm_multicol_oneemb/RecommenderSystems/deepfm/tools/split_criteo_kaggle.py).
 
-     Note: Only train.txt is used. The dataset is randomly spllitted into 8:1:1 as training set, validation set and test set.
+     Note: Same as [the DeepFM_Criteo_x4_001 experiment](https://github.com/openbenchmark/BARS/tree/master/ctr_prediction/benchmarks/DeepFM/DeepFM_criteo_x4_001) in FuxiCTR, only train.txt is used. Also, the dataset is randomly spllitted into 8:1:1 as training set, validation set and test set. The dataset is splitted using StratifiedKFold in sklearn.
 
      ```shell
      python3 split_criteo_kaggle.py --input_dir=/path/to/your/criteo_kaggle --output_dir=/path/to/your/output/dir
      ```
 
-2.   launch a spark shell using [launch_spark.sh](https://github.com/Oneflow-Inc/models/blob/dev_deepfm_multicol_oneemb/RecommenderSystems/deepfm/tools/launch_spark.sh).
+2.   Download spark from https://spark.apache.org/downloads.html and then uncompress the tar file into the directory where you want to install Spark. Ensure the `SPARK_HOME` environment variable points to the directory where the spark is.
+
+3.   launch a spark shell using [launch_spark.sh](https://github.com/Oneflow-Inc/models/blob/dev_deepfm_multicol_oneemb/RecommenderSystems/deepfm/tools/launch_spark.sh).
 
      -   Modify the SPARK_LOCAL_DIRS as needed
 
@@ -103,9 +110,9 @@ According to [the DeepFM paper](https://arxiv.org/abs/1703.04247), we treat both
 
      -   Run `bash launch_spark.sh`
 
-3.   load [deepfm_parquet.scala](https://github.com/Oneflow-Inc/models/blob/dev_deepfm_multicol_oneemb/RecommenderSystems/deepfm/tools/deepfm_parquet.scala) to your spark shell by `:load deepfm_parquet.scala`.
+4.   load [deepfm_parquet.scala](https://github.com/Oneflow-Inc/models/blob/dev_deepfm_multicol_oneemb/RecommenderSystems/deepfm/tools/deepfm_parquet.scala) to your spark shell by `:load deepfm_parquet.scala`.
 
-4.   call the `makeDeepfmDataset(srcDir: String, dstDir:String)` function to generate the dataset.
+5.   call the `makeDeepfmDataset(srcDir: String, dstDir:String)` function to generate the dataset.
 
      ```shell
      makeDeepfmDataset("/path/to/your/src_dir", "/path/to/your/dst_dir")
@@ -124,7 +131,7 @@ According to [the DeepFM paper](https://arxiv.org/abs/1703.04247), we treat both
 
 ### Start Training by Oneflow
 
-1.   Modify the [train_deepfm_criteo_x4.sh](https://github.com/Oneflow-Inc/models/blob/dev_deepfm/RecommenderSystems/deepfm/train_deepfm_criteo_x4.sh) as needed.
+1.   Modify the [train_deepfm.sh](https://github.com/Oneflow-Inc/models/blob/dev_deepfm/RecommenderSystems/deepfm/train_deepfm.sh) as needed.
 
      ```shell
      #!/bin/bash
@@ -158,10 +165,4 @@ According to [the DeepFM paper](https://arxiv.org/abs/1703.04247), we treat both
           --save_best_model
      ```
 
-2.   train a DeepFM model by `bash train_deepfm_criteo_x4.sh`.
-
-## Performance
-
-| Dataset       | Test LogLoss | Test AUC |
-| ------------- | ------------ | -------- |
-| Criteo_x4_001 | 0.443073     | 0.808978 |
+2.   train a DeepFM model by `bash train_deepfm.sh`.
