@@ -17,7 +17,7 @@
 │   ├── deepfm_parquet.scala   # Read Criteo Kaggle data and export it as parquet data format
 │   └── launch_spark.sh        # Spark launching shell script
 │   └── split_criteo_kaggle.py # Split criteo kaggle dataset to train\val\test set
-├── train_deepfm_criteo_x4.sh  # DeepFM training shell script
+├── train_deepfm.sh  # DeepFM training shell script
 ```
 
 ## Arguments description
