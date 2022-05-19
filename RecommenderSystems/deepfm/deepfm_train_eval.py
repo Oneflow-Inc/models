@@ -299,13 +299,13 @@ class OneEmbedding(nn.Module):
 
 class DNN(nn.Module):
     def __init__(
-        self, in_features: int, hidden_units, skip_final_activation=False, dropout=0.0
+        self, in_features, hidden_units, out_features, skip_final_activation=False, dropout=0.0
     ) -> None:
         super(DNN, self).__init__()
         denses = []
-        dropout_rates = [dropout] * (len(hidden_units) - 1) + [0.0]
-        use_relu = [True] * (len(hidden_units) - 1) + [not skip_final_activation]
-        hidden_units = [in_features] + hidden_units
+        dropout_rates = [dropout] * len(hidden_units) + [0.0]
+        use_relu = [True] * len(hidden_units) + [not skip_final_activation]
+        hidden_units = [in_features] + hidden_units + [out_features]
         for idx in range(len(hidden_units) - 1):
             denses.append(nn.Linear(hidden_units[idx], hidden_units[idx + 1], bias=True))
             if use_relu[idx]:
@@ -358,7 +358,8 @@ class DeepFMModule(nn.Module):
 
         self.dnn_layer = DNN(
             in_features=embedding_vec_size * (num_dense_fields + num_sparse_fields),
-            hidden_units=dnn + [1],
+            hidden_units=dnn,
+            out_features=1,
             skip_final_activation=True,
             dropout=dropout,
         )
