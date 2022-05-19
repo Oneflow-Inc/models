@@ -263,6 +263,9 @@ class OneEmbedding(nn.Module):
 
 
 class CrossInteractionLayer(nn.Module):
+    '''
+    Follow the same CrossInteractionLayer implementation of FuxiCTR
+    '''
     def __init__(self, input_dim):
         super(CrossInteractionLayer, self).__init__()
         self.weight = nn.Linear(input_dim, 1, bias=False)
@@ -274,6 +277,9 @@ class CrossInteractionLayer(nn.Module):
 
 
 class CrossNet(nn.Module):
+    '''
+    Follow the same CrossNet implementation of FuxiCTR
+    '''
     def __init__(self, input_dim, num_layers):
         super(CrossNet, self).__init__()
         self.num_layers = num_layers
@@ -672,3 +678,5 @@ if __name__ == "__main__":
     flow.boxing.nccl.enable_all_to_all(True)
     args = get_args()
     train(args)
+
+

@@ -6,11 +6,11 @@
 ```
 .
 |-- tools
-  |-- dataset_config.yaml   # dataset config file
-  |-- split_criteo.py      # split Criteo txt file to csv files
-  |-- make_criteo_parquet.py # make Criteo parquet data from csv files
-|-- dcn_train_eval.py       # OneFlow DCN training and evaluation scripts with OneEmbedding module
-|-- train.sh                # command to train DCN
+  |-- dcn_parquet.scala   # Read Criteo Kaggle data and export it as parquet data format
+  |-- split_criteo.py         # Split criteo kaggle dataset to train\val\test csv files
+  |-- launch_spark.sh        # Spark launching shell script
+|-- dcn_train_eval.py       # OneFlow DCN train/val/test scripts with OneEmbedding module
+|-- train.sh                # DCN training shell script
 |-- requirements.txt         # python package configuration file
 └── README.md                # Documentation
 ```
@@ -65,7 +65,7 @@ The model is evaluated at the end of every epoch. At the end of each epoch, if t
 
 The monitor used for the early stop is `val_auc - val_log_loss`. The mode of the early stop is `max`. You could tune `patience` and `min_delta` as needed.
 
-If you want to disable early stopping, simply add `--disable_early_stop` in the [train_deepfm.sh](https://github.com/Oneflow-Inc/models/blob/criteo_dcn/RecommenderSystems/dcn/train.sh).
+If you want to disable early stopping, simply add `--disable_early_stop` in the [train.sh](https://github.com/Oneflow-Inc/models/blob/criteo_dcn/RecommenderSystems/dcn/train.sh).
 
 
 ## Getting started
@@ -104,7 +104,7 @@ Each sample contains:
 
      -   Run `bash launch_spark.sh`
 
-3. load [ddn_parquet.scala](https://github.com/Oneflow-Inc/models/blob/criteo_dcn/RecommenderSystems/dcn/tools/dcn_parquet.scala) to your spark shell by `:load ddn_parquet.scala`.
+3. load [dcn_parquet.scala](https://github.com/Oneflow-Inc/models/blob/criteo_dcn/RecommenderSystems/dcn/tools/dcn_parquet.scala) to your spark shell by `:load dcn_parquet.scala`.
 
 4. call the `makeDCNDataset(srcDir: String, dstDir:String)` function to generate the dataset.
 
@@ -172,7 +172,7 @@ python3 -m oneflow.distributed.launch \
 
 ```
 
-
-
+## CrossNet Module
+We followed the FuxiCTR implementation of [CrossNet Module](https://github.com/xue-pai/FuxiCTR/blob/0f4ccf36aac02d120cb0c87f417c40e0e4330744/fuxictr/pytorch/models/DCN.py#L77).
 
 

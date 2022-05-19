@@ -3,4 +3,4 @@ spark-shell \
     --master "local[*]" \
     --conf spark.driver.maxResultSize=0 \
     --driver-memory 360G
-    
+

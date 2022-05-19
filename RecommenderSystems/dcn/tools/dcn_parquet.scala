@@ -33,3 +33,5 @@ def makeDCNDataset(srcDir: String, dstDir:String) = {
     println(1.to(13).map{i=>df.select(s"I$i").as[Long].distinct.count}.mkString(","))
     println(1.to(26).map{i=>df.select(s"C$i").as[Long].distinct.count}.mkString(","))
 }
+
+

@@ -38,3 +38,5 @@ python3 -m oneflow.distributed.launch \
       --test_batches 1000 \
       --loss_print_interval 100 \
       --size_factor 3
+
+
