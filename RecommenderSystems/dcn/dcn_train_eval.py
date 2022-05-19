@@ -37,14 +37,13 @@ def get_args(print_args=True):
     parser.add_argument("--shard_seed", type=int, default=2022)
     parser.add_argument("--model_load_dir", type=str, default=None)
     parser.add_argument("--model_save_dir", type=str, default=None)
-
+    parser.add_argument("--save_best_model", action="store_true", help="save best model or not")
     parser.add_argument(
         "--save_initial_model", action="store_true", help="save initial model parameters or not."
     )
     parser.add_argument(
         "--save_model_after_each_eval", action="store_true", help="save model after each eval."
     )
-
     parser.add_argument("--embedding_vec_size", type=int, default=16)
     parser.add_argument("--batch_norm", type=bool, default=False)
     parser.add_argument("--dnn_hidden_units", type=int_list, default="1000,1000,1000,1000,1000")
@@ -53,6 +52,9 @@ def get_args(print_args=True):
     parser.add_argument("--embedding_regularizer", type=float, default=None)
     parser.add_argument("--net_regularizer", type=float, default=None)
 
+    parser.add_argument(
+        "--disable_early_stop", action="store_true", help="enable early stop or not"
+    )
     parser.add_argument("--patience", type=int, default=2)
     parser.add_argument("--min_delta", type=float, default=1.0e-6)
     parser.add_argument("--lr_factor", type=float, default=0.1)
@@ -288,27 +290,18 @@ class CrossNet(nn.Module):
 
 class DNN(nn.Module):
     def __init__(
-        self,
-        input_dim,
-        hidden_units=[],
-        dropout_rates=[],
-        batch_norm=False,
-        use_bias=True,
+        self, input_dim, hidden_units=[], dropout_rates=0, batch_norm=False, use_bias=True,
     ):
         super(DNN, self).__init__()
         dense_layers = []
-        if not isinstance(dropout_rates, list):
-            dropout_rates = [dropout_rates] * len(hidden_units)
-        hidden_activations = [nn.ReLU()] * len(hidden_units)
         hidden_units = [input_dim] + hidden_units
         for idx in range(len(hidden_units) - 1):
             dense_layers.append(nn.Linear(hidden_units[idx], hidden_units[idx + 1], bias=use_bias))
+            dense_layers.append(nn.ReLU())
             if batch_norm:
                 dense_layers.append(nn.BatchNorm1d(hidden_units[idx + 1]))
-            if hidden_activations[idx]:
-                dense_layers.append(hidden_activations[idx])
-            if dropout_rates[idx] > 0:
-                dense_layers.append(nn.Dropout(p=dropout_rates[idx]))
+            if dropout_rates > 0:
+                dense_layers.append(nn.Dropout(p=dropout_rates))
         self.dnn = nn.Sequential(*dense_layers)  # * used to unpack list
 
     def forward(self, inputs):
@@ -362,7 +355,6 @@ class DCNModule(nn.Module):
             final_dim += dnn_hidden_units[-1]
         self.fc = nn.Linear(final_dim, 1)  # [cross_part, dnn_part] -> logit
 
-        self.output_activation = nn.Sigmoid()
         self.reset_parameters()
 
     def forward(self, X):
@@ -376,8 +368,7 @@ class DCNModule(nn.Module):
         else:
             final_out = cross_out
         y_pred = self.fc(final_out)
-        y_pred = self.output_activation(y_pred)
-        return y_pred
+        return y_pred.sigmoid()
 
     def reset_parameters(self):
         def reset_param(m):
@@ -414,7 +405,7 @@ class DCNValGraph(flow.nn.Graph):
 
     def build(self, features):
         predicts = self.module(features.to("cuda"))
-        return predicts.to("cpu")
+        return predicts
 
 
 class DCNTrainGraph(flow.nn.Graph):
@@ -497,14 +488,10 @@ def train(args):
             stopping_steps += 1
             if rank == 0:
                 print("Monitor(max) STOP: {:.6f}!".format(monitor_value))
-                print("Reduce learning rate on plateau")
-
         else:
             stopping_steps = 0
             best_metric = monitor_value
             save_best = True
-            if rank == 0:
-                print("Save best model: monitor(max): {:.6f}".format(monitor_value))
         if stopping_steps >= patience:
             stop_training = True
             if rank == 0:
@@ -527,8 +514,6 @@ def train(args):
 
     batches_per_epoch = math.ceil(args.num_train_samples / args.train_batch_size)
 
-    test_logloss_best = np.inf
-    test_auc_best = 0
     best_metric = -np.inf
     epoch = 0
     stopping_steps = 0
@@ -536,9 +521,6 @@ def train(args):
 
     cached_valid_batches = prefetch_eval_batches(
         f"{args.data_dir}/val", args.valid_batch_size, args.valid_batches
-    )
-    cached_test_batches = prefetch_eval_batches(
-        f"{args.data_dir}/test", args.test_batch_size, args.test_batches
     )
 
     with make_criteo_dataloader(
@@ -572,16 +554,11 @@ def train(args):
                     epoch=epoch,
                     cached_eval_batches=cached_valid_batches,
                 )
-                test_auc, test_logloss = eval(
-                    args,
-                    eval_graph,
-                    tag="test",
-                    cur_step=step,
-                    epoch=epoch,
-                    cached_eval_batches=cached_test_batches,
-                )
+                if args.save_model_after_each_eval:
+                    save_model(f"step_{step}_val_auc_{auc:0.5f}")
 
                 monitor_value = get_metrics(logs={"auc": auc, "logloss": logloss})
+
                 stop_training, best_metric, stopping_steps, save_best = early_stop(
                     epoch,
                     monitor_value,
@@ -591,24 +568,21 @@ def train(args):
                     min_delta=args.min_delta,
                 )
 
-                if test_auc > test_auc_best:
-                    test_auc_best = test_auc
-                    test_logloss_best = test_logloss
-
-                if args.save_model_after_each_eval:
-                    save_model(f"step_{step}_val_auc_{auc:0.5f}")
-
-                if save_best:
+                if args.save_best_model and save_best:
                     if rank == 0:
-                        print(f"======== Save best model: monitor(max): {best_metric:.6f} ========")
-                        save_model("best_checkpoint")
+                        print(f"Save best model: monitor(max): {best_metric:.6f}")
+                    save_model("best_checkpoint")
 
-                if stop_training:
+                if not args.disable_early_stop and stop_training:
                     break
+
                 dcn_module.train()
                 last_time = time.time()
-    if rank ==0:
-        print("best test auc : ", test_auc_best, "logloss: ", test_logloss_best)
+    if args.save_best_model:
+        load_model(f"{args.model_save_dir}/best_checkpoint")
+    if rank == 0:
+        print("================ Test Evaluation ================")
+    eval(args, eval_graph, tag="test", cur_step=step, epoch=epoch)
 
 
 def _np_to_global(np_array):

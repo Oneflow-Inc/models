@@ -26,6 +26,7 @@
 |shard_seed|seed for shuffling parquet data|2022|
 |model_load_dir|model loading directory|None|
 |model_save_dir|model saving directory|None|
+|save_best_model|save best model or not|False|
 |save_initial_model|save initial model parameters or not|False|
 |save_model_after_each_eval|save model or not after each evaluation|False|
 |embedding_vec_size|embedding vector dimention size|128|
@@ -35,6 +36,7 @@
 |net_dropout|dropout rate of DNN|0.2|
 |embedding_regularizer|rate of embedding layer regularizer|None|
 |net_regularizer|rate of Crossnet and DNN layer regularizer|None|
+|disable_early_stop|disable early stop or not|False|
 |patience|waiting epoch of ealy stopping|2|
 |min_delta|minimal delta of metric Monitor|1.0e-6|
 |lr_factor|learning rate decay factor|0.1|
@@ -56,6 +58,15 @@
 |cache_memory_budget_mb|size of cache memory budget on each device in megabytes when `store_type` is `cached_host_mem` or `cached_ssd`|8192|
 |amp|enable Automatic Mixed Precision(AMP) training|False|
 |loss_scale_policy|loss scale policy for AMP training: `static` or `dynamic`|static|
+
+#### Early Stop Schema
+
+The model is evaluated at the end of every epoch. At the end of each epoch, if the early stopping criterion is met, the training process will be stopped. 
+
+The monitor used for the early stop is `val_auc - val_log_loss`. The mode of the early stop is `max`. You could tune `patience` and `min_delta` as needed.
+
+If you want to disable early stopping, simply add `--disable_early_stop` in the [train_deepfm.sh](https://github.com/Oneflow-Inc/models/blob/criteo_dcn/RecommenderSystems/dcn/train.sh).
+
 
 ## Getting started
 If you'd like to quickly train a OneFlow DCN model, please follow steps below:
