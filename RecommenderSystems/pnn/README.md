@@ -58,7 +58,7 @@ The model is evaluated at the end of every epoch. At the end of each epoch, if t
 
 The monitor used for the early stop is `val_auc - val_log_loss`. The mode of the early stop is `max`. You could tune `patience` and `min_delta` as needed.
 
-If you want to disable early stopping, simply add `--disable_early_stop` in the [train_pnn.sh](https://github.com/Oneflow-Inc/models/blob/dev_pnn_merge/RecommenderSystems/pnn/train_pnn.sh).
+If you want to disable early stopping, simply add `--disable_early_stop` in the [train_pnn.sh](https://github.com/Oneflow-Inc/models/blob/dev_pnn_pr/RecommenderSystems/pnn/train_pnn.sh).
 
 ## Getting Started
 
@@ -89,7 +89,7 @@ According to [the PNN paper](https://arxiv.org/pdf/1611.00144.pdf), we treat bot
 
 >   χ may include categorical fields (e.g., gender, location) and continuous fields (e.g., age). Each categorical field is represented as a vec- tor of one-hot encoding, and each continuous field is repre- sented as the value itself, or a vector of one-hot encoding after discretization. 
 
-1.   Download the [Criteo Kaggle dataset](https://www.kaggle.com/c/criteo-display-ad-challenge) and then split it using [split_criteo_kaggle.py](https://github.com/Oneflow-Inc/models/blob/dev_pnn_merge/RecommenderSystems/pnn/tools/split_criteo_kaggle.py).
+1.   Download the [Criteo Kaggle dataset](https://www.kaggle.com/c/criteo-display-ad-challenge) and then split it using [split_criteo_kaggle.py](https://github.com/Oneflow-Inc/models/blob/dev_pnn_pr/RecommenderSystems/pnn/tools/split_criteo_kaggle.py).
 
      Note: Same as [the PNN_Criteo_x4_001 experiment](https://github.com/openbenchmark/BARS/tree/master/ctr_prediction/benchmarks/PNN/PNN_criteo_x4_001) in FuxiCTR, only train.txt is used. Also, the dataset is randomly spllitted into 8:1:1 as training set, validation set and test set. The dataset is splitted using StratifiedKFold in sklearn.
 
@@ -99,7 +99,7 @@ According to [the PNN paper](https://arxiv.org/pdf/1611.00144.pdf), we treat bot
 
 2.   Download spark from https://spark.apache.org/downloads.html and then uncompress the tar file into the directory where you want to install Spark. Ensure the `SPARK_HOME` environment variable points to the directory where the spark is.
 
-3.   launch a spark shell using [launch_spark.sh](https://github.com/Oneflow-Inc/models/blob/dev_pnn_merge/RecommenderSystems/pnn/tools/launch_spark.sh).
+3.   launch a spark shell using [launch_spark.sh](https://github.com/Oneflow-Inc/models/blob/dev_pnn_pr/RecommenderSystems/pnn/tools/launch_spark.sh).
 
      -   Modify the SPARK_LOCAL_DIRS as needed
 
@@ -109,7 +109,7 @@ According to [the PNN paper](https://arxiv.org/pdf/1611.00144.pdf), we treat bot
 
      -   Run `bash launch_spark.sh`
 
-4.   load [pnn_parquet.scala](https://github.com/Oneflow-Inc/models/blob/dev_pnn_merge/RecommenderSystems/pnn/tools/pnn_parquet.scala) to your spark shell by `:load pnn_parquet.scala`.
+4.   load [pnn_parquet.scala](https://github.com/Oneflow-Inc/models/blob/dev_pnn_pr/RecommenderSystems/pnn/tools/pnn_parquet.scala) to your spark shell by `:load pnn_parquet.scala`.
 
 5.   call the `makePNNDataset(srcDir: String, dstDir:String)` function to generate the dataset.
 
@@ -131,7 +131,7 @@ According to [the PNN paper](https://arxiv.org/pdf/1611.00144.pdf), we treat bot
 
 ### Start Training by Oneflow
 
-1.   Modify the [train_pnn.sh](https://github.com/Oneflow-Inc/models/blob/dev_pnn_merge/RecommenderSystems/pnn/train_pnn.sh) as needed.
+1.   Modify the [train_pnn.sh](https://github.com/Oneflow-Inc/models/blob/dev_pnn_pr/RecommenderSystems/pnn/train_pnn.sh) as needed.
 
      ```shell
      #!/bin/bash
