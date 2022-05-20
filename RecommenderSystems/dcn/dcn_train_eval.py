@@ -68,7 +68,7 @@ def get_args(print_args=True):
     parser.add_argument("--test_batches", type=int, default=1000, help="number of test batches")
     parser.add_argument("--train_batch_size", type=int, default=10000)
     parser.add_argument("--train_batches", type=int, default=15000, help="number of train batches")
-    parser.add_argument("--loss_print_interval", type=int, default=1000)
+    parser.add_argument("--loss_print_interval", type=int, default=100)
 
     parser.add_argument(
         "--table_size_array",

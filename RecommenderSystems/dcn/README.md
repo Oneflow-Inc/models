@@ -50,7 +50,7 @@ We use exactly the same default values as the [DCN_criteo_x4_001](https://github
 |test_batches|number of test batches|1000|
 |train_batch_size|train batch size|10000|
 |train_batches|number of train batches|15000|
-|loss_print_interval|training loss print interval|1000|
+|loss_print_interval|training loss print interval|100|
 |train_batch_size|training batch size|55296|
 |train_batches|number of minibatch training interations|75000|
 |table_size_array|table size array for sparse fields|*Required Argument*|
@@ -146,27 +146,12 @@ python3 -m oneflow.distributed.launch \
       --data_dir $DATA_DIR \
       --model_save_dir $MODEL_SAVE_DIR \
       --persistent_path $PERSISTENT_PATH \
-      --save_initial_model \
-      --save_model_after_each_eval \
       --table_size_array "649,9364,14746,490,476707,11618,4142,1373,7275,13,169,407,1376,1460,583,10131227,2202608,305,24,12517,633,3,93145,5683,8351593,3194,27,14992,5461306,10,5652,2173,4,7046547,18,15,286181,105,142572" \
       --store_type 'cached_host_mem' \
       --dnn_hidden_units "1000, 1000, 1000, 1000, 1000" \
       --crossing_layers 4\
-      --net_dropout 0.2 \
-      --learning_rate 0.001 \
       --embedding_vec_size 16 \
       --cache_memory_budget_mb 2048 \
-      --num_train_samples 36672493 \
-      --num_valid_samples 4584062 \
-      --num_test_samples 4584062 \
-      --train_batch_size 10000 \
-      --train_batches 70000 \
-      --loss_print_interval 100 \
-      --valid_batch_size 10000 \
-      --valid_batches 1000 \
-      --test_batch_size 10000 \
-      --test_batches 1000 \
-      --loss_print_interval 100 \
       --size_factor 3
 
 ```
