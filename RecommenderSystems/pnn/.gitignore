@@ -4,3 +4,4 @@ eval_aucs.npy
 run.sh
 train_losses.npy
 run.log
+log/
