@@ -1,4 +1,6 @@
 petastorm
 psutil
+pandas
+sklearn
 
 

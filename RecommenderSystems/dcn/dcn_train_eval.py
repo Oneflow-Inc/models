@@ -552,7 +552,7 @@ def train(args):
 
             if step % batches_per_epoch == 0:
                 epoch += 1
-                auc, logloss = eval(
+                val_auc, val_logloss = eval(
                     args,
                     eval_graph,
                     tag="val",
@@ -561,9 +561,9 @@ def train(args):
                     cached_eval_batches=cached_valid_batches,
                 )
                 if args.save_model_after_each_eval:
-                    save_model(f"step_{step}_val_auc_{auc:0.5f}")
+                    save_model(f"step_{step}_val_auc_{val_auc:0.5f}")
 
-                monitor_value = get_metrics(logs={"auc": auc, "logloss": logloss})
+                monitor_value = get_metrics(logs={"auc": val_auc, "logloss": val_logloss})
 
                 stop_training, best_metric, stopping_steps, save_best = early_stop(
                     epoch,

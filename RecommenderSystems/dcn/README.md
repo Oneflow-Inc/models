@@ -17,6 +17,7 @@
 
 
 ## Arguments description
+We use exactly the same default values as the [DCN_criteo_x4_001](https://github.com/openbenchmark/BARS/tree/master/ctr_prediction/benchmarks/DCN/DCN_criteo_x4_001) experiment in FuxiCTR.
 |Argument Name|Argument Explanation|Default Value|
 |-----|---|------|
 |data_dir|the data file directory|*Required Argument*|
@@ -71,18 +72,18 @@ If you want to disable early stopping, simply add `--disable_early_stop` in the 
 ## Getting started
 If you'd like to quickly train a OneFlow DCN model, please follow steps below:
 ### Installing OneFlow and Dependencies
-To install nightly release of OneFlow with CUDA 11.5 support:
+1. To install nightly release of OneFlow with CUDA 11.5 support:
 ```
 python3 -m pip install --pre oneflow -f https://staging.oneflow.info/branch/master/cu115
 ```
 For more information how to install Oneflow, please refer to [Oneflow Installation Tutorial](
 https://github.com/Oneflow-Inc/oneflow#install-oneflow).
 
-Please check `requirements.txt` to install dependencies manually or execute:
+2. Please check `requirements.txt` to install dependencies manually or execute:
 ```bash
 python3 -m pip install -r requirements.txt
 ```
-### Preparing dataset
+### Dataset
 The Criteo dataset is from [2014-kaggle-display-advertising-challenge-dataset](https://www.kaggle.com/competitions/criteo-display-ad-challenge/overview), considered the original download link is invalid, click [here](https://www.kaggle.com/datasets/mrkmakr/criteo-dataset) to donwload if you would.
 
 Each sample contains:
@@ -91,7 +92,6 @@ Each sample contains:
 - C1-C26 - A total of 26 columns of categorical features. The values of these features have been hashed onto 32 bits for anonymization purposes.
 
 
-### Data preprocess:
 1. Download the [Criteo Kaggle dataset](https://www.kaggle.com/c/criteo-display-ad-challenge) and then split it using split_criteo_kaggle.py.
 
 2. launch a spark shell using [launch_spark.sh](https://github.com/Oneflow-Inc/models/blob/criteo_dcn/RecommenderSystems/dcn/tools/launch_spark.sh).
@@ -119,8 +119,7 @@ Each sample contains:
      validation samples = 4584062
      test samples = 4584062                                                               
      table size array: 
-     649,9364,14746,490,476707,11618,4142,1373,7275,13,169,407,1376
-     1460,583,10131227,2202608,305,24,12517,633,3,93145,5683,8351593,3194,27,14992,5461306,10,5652,2173,4,7046547,18,15,286181,105,142572
+     649,9364,14746,490,476707,11618,4142,1373,7275,13,169,407,1376,1460,583,10131227,2202608,305,24,12517,633,3,93145,5683,8351593,3194,27,14992,5461306,10,5652,2173,4,7046547,18,15,286181,105,142572
      ```
 
 
@@ -130,7 +129,7 @@ Following command will launch 8 oneflow DCN training and evaluation processes on
 `table_size_array` is close related to sparse features of data input. each sparse field such as `C1` or other `C*` field in criteo dataset corresponds to a embedding table and has its own capacity of unique feature ids, this capacity is also called `number of rows` or `size of embedding table`, the embedding table will be initialized by this value. `table_size_array` holds all sparse fields' `size of embedding table`. `table_size_array` is also used to estimate capacity for OneEmbedding. 
 
 ```python
-DEVICE_NUM_PER_NODE=1
+DEVICE_NUM_PER_NODE=8
 NUM_NODES=1
 NODE_RANK=0
 MASTER_ADDR=127.0.0.1
@@ -149,7 +148,7 @@ python3 -m oneflow.distributed.launch \
       --persistent_path $PERSISTENT_PATH \
       --save_initial_model \
       --save_model_after_each_eval \
-      --table_size_array "43, 98, 121, 41, 219, 112, 79, 68, 91, 5, 26, 36, 70, 1447, 554, 157461, 117683, 305, 17, 11878, 629, 4, 39504, 5128, 156729, 3175, 27, 11070, 149083, 11, 4542, 1996, 4, 154737, 17, 16, 52989, 81, 40882" \
+      --table_size_array "649,9364,14746,490,476707,11618,4142,1373,7275,13,169,407,1376,1460,583,10131227,2202608,305,24,12517,633,3,93145,5683,8351593,3194,27,14992,5461306,10,5652,2173,4,7046547,18,15,286181,105,142572" \
       --store_type 'cached_host_mem' \
       --dnn_hidden_units "1000, 1000, 1000, 1000, 1000" \
       --crossing_layers 4\
@@ -172,7 +171,15 @@ python3 -m oneflow.distributed.launch \
 
 ```
 
+You could modified it in [train.sh](https://github.com/Oneflow-Inc/models/blob/criteo_dcn/RecommenderSystems/dcn/train.sh), and then quickly run by 
+
+`
+bash train.sh
+`
+
+
+
 ## CrossNet Module
-We followed the FuxiCTR implementation of [CrossNet Module](https://github.com/xue-pai/FuxiCTR/blob/0f4ccf36aac02d120cb0c87f417c40e0e4330744/fuxictr/pytorch/models/DCN.py#L77).
+We followed the FuxiCTR implementation of [CrossNet Module](https://github.com/xue-pai/FuxiCTR/blob/0f4ccf36aac02d120cb0c87f417c40e0e4330744/fuxictr/pytorch/models/DCN.py#L77). We reuse the `CrossInteractionLayer` as a basic Crossnet layer, and make it multi layers in `CrossNet`.
 
 
