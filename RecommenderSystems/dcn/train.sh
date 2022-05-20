@@ -14,10 +14,11 @@ python3 -m oneflow.distributed.launch \
       --persistent_path $PERSISTENT_PATH \
       --table_size_array "649,9364,14746,490,476707,11618,4142,1373,7275,13,169,407,1376,1460,583,10131227,2202608,305,24,12517,633,3,93145,5683,8351593,3194,27,14992,5461306,10,5652,2173,4,7046547,18,15,286181,105,142572" \
       --store_type 'cached_host_mem' \
-      --dnn_hidden_units "1000, 1000, 1000, 1000, 1000" \
-      --crossing_layers 4\
-      --embedding_vec_size 16 \
       --cache_memory_budget_mb 2048 \
-      --size_factor 3
+      --dnn_hidden_units "1000, 1000, 1000, 1000, 1000" \
+      --crossing_layers 4 \
+      --embedding_vec_size 16 
+
+
 
 

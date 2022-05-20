@@ -60,7 +60,7 @@ def get_args(print_args=True):
     parser.add_argument("--lr_factor", type=float, default=0.1)
     parser.add_argument("--min_lr", type=float, default=1.0e-6)
     parser.add_argument("--learning_rate", type=float, default=0.001)
-    parser.add_argument("--size_factor", type=int, default=1)
+    parser.add_argument("--size_factor", type=int, default=3)
 
     parser.add_argument("--valid_batch_size", type=int, default=10000)
     parser.add_argument("--valid_batches", type=int, default=1000, help="number of valid batches")
