@@ -1,6 +1,8 @@
 # PNN
 [PNN](https://arxiv.org/pdf/1611.00144.pdf) is a  Neural Network with a product layer to capture interactive patterns between interfield categories, and further fully connected layers to explore high-order feature interactions for CTR prediction. Its model structure is as follows. Based on this structure, this project uses OneFlow distributed deep learning framework to realize training the model in graph mode on the Criteo data set.
-<img width="360" alt="image" src="https://user-images.githubusercontent.com/63446546/165274725-f8b5c376-58ef-4e81-8083-5aab9ff66292.png">
+<p align='center'>
+  <img width="500" alt="image" src="https://user-images.githubusercontent.com/63446546/165274725-f8b5c376-58ef-4e81-8083-5aab9ff66292.png">
+</p>
 
 ## Directory description
 
@@ -9,10 +11,10 @@
 ├── pnn_train_eval.py          # OneFlow PNN train/val/test scripts with OneEmbedding module
 ├── README.md                  # Documentation
 ├── tools
-│   ├── criteo_parquet.py      # Read Criteo Kaggle data and export it as parquet data format
-│   ├── h5_to_parquet.py       # Read .h5 data preprocessed by FuxiCTR and export it as parquet data format
+│   ├── pnn_parquet.scala      # Read Criteo Kaggle data and export it as parquet data format
+│   └── launch_spark.sh        # Spark launching shell script
+│   └── split_criteo_kaggle.py # Split criteo kaggle dataset to train\val\test set
 ├── train_pnn.sh               # PNN training shell script
-
 ```
 
 ## Arguments description
