@@ -6,12 +6,9 @@ import time
 import math
 import numpy as np
 import psutil
-import warnings
 import oneflow as flow
 import oneflow.nn as nn
-from sklearn.metrics import roc_auc_score, log_loss
 from petastorm.reader import make_batch_reader
-import matplotlib.pyplot as plt
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
 
@@ -29,9 +26,8 @@ def get_args(print_args=True):
     parser.add_argument("--num_train_samples", type=int, required=True, help="the number of training samples")
     parser.add_argument("--num_val_samples", type=int, required=True, help="the number of validation samples")
     parser.add_argument("--num_test_samples", type=int, required=True, help="the number of test samples")
-
-    parser.add_argument("--model_load_dir", type=str, default=None)
-    parser.add_argument("--model_save_dir", type=str, default=None)
+    parser.add_argument("--model_load_dir", type=str, default=None, help="model loading directory")
+    parser.add_argument("--model_save_dir", type=str, default=None, help="model saving directory")
     parser.add_argument("--save_initial_model", action="store_true", help="save initial model parameters or not.")
     parser.add_argument("--save_model_after_each_eval", action="store_true", help="save model after each eval.")
 
@@ -41,14 +37,24 @@ def get_args(print_args=True):
 
     parser.add_argument("--lr_factor", type=float, default=0.1)
     parser.add_argument("--min_lr", type=float, default=1.0e-6)
-    parser.add_argument("--learning_rate", type=float, default=0.001)
+    parser.add_argument("--learning_rate", type=float, default=0.001, help="learning rate")
     
     parser.add_argument("--batch_size", type=int, default=10000, help="training/evaluation batch size")
     parser.add_argument("--train_batches", type=int, default=75000, help="the maximum number of training batches")
     parser.add_argument("--loss_print_interval", type=int, default=100, help="")
 
-    parser.add_argument("--patience", type=int, default=2)
-    parser.add_argument("--min_delta", type=float, default=1.0e-6)
+    parser.add_argument(
+        "--patience",
+        type=int,
+        default=2,
+        help="number of epochs with no improvement after which learning rate will be reduced",
+    )
+    parser.add_argument(
+        "--min_delta",
+        type=float,
+        default=1.0e-6,
+        help="threshold for measuring the new optimum, to only focus on significant changes",
+    )
     
     parser.add_argument(
         "--table_size_array",
@@ -56,12 +62,31 @@ def get_args(print_args=True):
         help="Embedding table size array for sparse fields",
         required=True,
     )
-    parser.add_argument("--persistent_path", type=str, required=True, help="path for persistent kv store")
-    parser.add_argument("--store_type", type=str, default="cached_host_mem")
-    parser.add_argument("--cache_memory_budget_mb", type=int, default=8192)
+    parser.add_argument(
+        "--persistent_path", type=str, required=True, help="path for persistent kv store"
+    )
+    parser.add_argument(
+        "--store_type",
+        type=str,
+        default="cached_host_mem",
+        help="OneEmbeddig persistent kv store type: device_mem, cached_host_mem, cached_ssd",
+    )
+    parser.add_argument(
+        "--cache_memory_budget_mb",
+        type=int,
+        default=1024,
+        help="size of cache memory budget on each device in megabytes when store_type is cached_host_mem or cached_ssd",
+    )
 
-    parser.add_argument("--amp", action="store_true", help="Run model with amp")
+    parser.add_argument(
+        "--amp", action="store_true", help="enable Automatic Mixed Precision(AMP) training or not"
+    )
     parser.add_argument("--loss_scale_policy", type=str, default="static", help="static or dynamic")
+
+    parser.add_argument(
+        "--disable_early_stop", action="store_true", help="enable early stop or not"
+    )
+    parser.add_argument("--save_best_model", action="store_true", help="save best model or not")
     parser.add_argument("--use_inner", type=bool, default=True, help="Use inner_product_layer")
     parser.add_argument("--use_outter", type=bool, default=False, help="Use outter_product_layer")
 
@@ -156,21 +181,16 @@ class PNNDataReader(object):
                     label = tail[0]
                     features = tail[1:]
                     tail = None
-                    features = np.stack(features, axis=-1)
-                    yield label, features
+                    yield label, np.stack(features, axis=-1)
                 else:
                     pos = 0
                     continue
 
             while (pos + batch_size) <= len(rglist[0]):
                 label = rglist[0][pos : pos + batch_size]
-                # TODO: check list slicing failed problem
-                tmp = np.array(rglist)
-                # features = rglist[1:][pos: pos + batch_size]
-                features = tmp[1:, pos: pos + batch_size]
+                features = [rglist[j][pos : pos + batch_size] for j in range(1, self.num_fields)]
                 pos += batch_size
-                features = np.stack(features, axis=-1)
-                yield label, features
+                yield label, np.stack(features, axis=-1)
 
             if pos != len(rglist[0]):
                 tail = [rglist[i][pos:] for i in range(self.num_fields)]
@@ -272,13 +292,13 @@ class DenseLayer(nn.Module):
 
 
 class DNN(nn.Module):
-    def __init__(self, in_features: int, hidden_units, skip_final_activation=False, dropout=0.0) -> None:
+    def __init__(self, in_features: int, hidden_units, out_features, skip_final_activation=False, dropout=0.0) -> None:
         super(DNN, self).__init__()
 
         denses = []
-        dropout_rates = [dropout] * (len(hidden_units) - 1) + [0.0]
-        use_relu = [True] * (len(hidden_units) - 1) + [not skip_final_activation]
-        hidden_units = [in_features] + hidden_units
+        dropout_rates = [dropout] * len(hidden_units) + [0.0]
+        use_relu = [True] * len(hidden_units) + [not skip_final_activation]
+        hidden_units = [in_features] + hidden_units + [out_features]
         for idx in range(len(hidden_units) - 1):
             denses.append(nn.Linear(hidden_units[idx], hidden_units[idx + 1], bias=True))
             if use_relu[idx]:
@@ -373,7 +393,6 @@ class PNNModule(nn.Module):
         self,
         embedding_vec_size=128,
         dnn=[1024, 1024, 512, 256],
-        use_fusedmlp=True,
         persistent_path=None,
         table_size_array=None,
         one_embedding_store_type="cached_host_mem",
@@ -408,17 +427,16 @@ class PNNModule(nn.Module):
             self.outter_product_layer = OutterProductLayer(self.fields, embedding_vec_size, kernel_type)
         self.dnn_layer = DNN(
             in_features=self.input_dim,
-            hidden_units=dnn+[1],
+            hidden_units=dnn,
+            out_features=1,   
             skip_final_activation=True,
             dropout=dropout,
         )
         
-        self.final_activation = nn.Sigmoid()
+
 
     def forward(self, inputs) -> flow.Tensor:
         E = self.embedding_layer(inputs)
-        print("self.use_inner: ", self.use_inner)
-        print("self.use_outter: ", self.use_outter)
         if self.use_inner:
             I = self.inner_product_layer(E)
         if self.use_outter:
@@ -433,7 +451,7 @@ class PNNModule(nn.Module):
         else:
             dense_input = flow.cat([E.flatten(start_dim=1)], dim=1)
         dnn_pred = self.dnn_layer(dense_input)
-        return self.final_activation(dnn_pred)
+        return dnn_pred
 
 
 def make_pnn_module(args):
@@ -460,7 +478,7 @@ class PNNValGraph(flow.nn.Graph):
 
     def build(self, features):
         predicts = self.module(features.to("cuda"))
-        return predicts
+        return predicts.sigmoid()
 
 
 class PNNTrainGraph(flow.nn.Graph):
@@ -506,18 +524,21 @@ def get_metrics(logs):
 
 
 def early_stop(epoch, monitor_value, best_metric, stopping_steps, patience=2, min_delta=1e-6):
+    rank = flow.env.get_rank()
     stop_training = False
     save_best = False
     if monitor_value < best_metric + min_delta:
         stopping_steps += 1
-        print("Monitor(max) STOP: {:.6f}!".format(monitor_value))
+        if rank == 0:
+            print("Monitor(max) STOP: {:.6f}!".format(monitor_value))
     else:
         stopping_steps = 0
         best_metric = monitor_value
         save_best = True
     if stopping_steps >= patience:
         stop_training = True
-        print(f"Early stopping at epoch={epoch}!")
+        if rank == 0:
+            print(f"Early stopping at epoch={epoch}!")
     return stop_training, best_metric, stopping_steps, save_best
 
 
@@ -555,7 +576,7 @@ def train(args):
 
     opt = flow.optim.Adam(pnn_module.parameters(), lr=args.learning_rate)
     lr_scheduler = make_lr_scheduler(args, opt)
-    loss = flow.nn.BCELoss(reduction="mean").to("cuda")
+    loss = flow.nn.BCEWithLogitsLoss(reduction="mean").to("cuda")
 
     if args.loss_scale_policy == "static":
         grad_scaler = flow.amp.StaticGradScaler(1024)
@@ -567,8 +588,7 @@ def train(args):
     eval_graph = PNNValGraph(pnn_module, args.amp)
     train_graph = PNNTrainGraph(pnn_module, loss, opt, grad_scaler, args.amp, lr_scheduler=lr_scheduler)
 
-    train_losses = []
-    eval_aucs = []
+
     batches_per_epoch = math.ceil(args.num_train_samples / args.batch_size)
 
     # will be updated by rank 0 only
@@ -615,11 +635,11 @@ def train(args):
                     min_delta=args.min_delta,
                 )
                 
-                if save_best:
+                if args.save_best_model and save_best:
                     if rank == 0:
                         print(f"Save best model: monitor(max): {best_metric:.6f}")
                     save_model("best_checkpoint")
-                if stop_training:
+                if not args.disable_early_stop and stop_training:
                     break
                 
                 pnn_module.train()
@@ -634,15 +654,8 @@ def train(args):
         auc, logloss = eval(args, eval_graph, step)
         if args.save_model_after_each_eval:
             save_model(f"step_{step}_val_auc_{auc:0.5f}")
-    save_curve(train_losses, 'train_losses')
-    save_curve(eval_aucs, 'eval_aucs')
-    # plot_train_curve(args,train_losses)
-    # plot_eval_auc_curve(args,eval_aucs)
 
 
-def save_curve(lst, name):
-    lst=np.array(lst)
-    np.save('./{}.npy'.format(name),lst)
 
 
 def np_to_global(np, dtype=flow.float):
@@ -655,6 +668,7 @@ def batch_to_global(np_label, np_features, is_train=True):
     labels = np_to_global(np_label.reshape(-1, 1)) if is_train else np_label.reshape(-1, 1)
     features = np_to_global(np_features, dtype=flow.int64)
     return labels, features
+
 
 
 def prefetch_eval_batches(data_dir, batch_size, num_batches):
@@ -722,18 +736,6 @@ def eval(args, eval_graph, tag='val', cur_step=0, epoch=0, cached_eval_batches=N
 
     return auc, logloss
 
-
-def plot_train_curve(args, train_losses):
-    plt.plot(range(1, len(train_losses) + 1), train_losses)
-    plt.ylabel("Training Logloss")
-    plt.xlabel(f"batch number (per {args.loss_print_interval} batches)")
-    plt.savefig('training_curve.png')
-
-def plot_eval_auc_curve(args, train_losses):
-    plt.plot(range(1, len(train_losses) + 1), train_losses)
-    plt.ylabel("Training Logloss")
-    plt.xlabel(f"batch number (per {args.loss_print_interval} batches)")
-    plt.savefig('training_curve.png')
 
 
 if __name__ == "__main__":

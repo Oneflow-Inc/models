@@ -32,4 +32,5 @@ python3 -m oneflow.distributed.launch \
       --num_val_samples 4584062 \
       --num_test_samples 4584062 \
       --model_save_dir /minio/sdd/sunbowen/saved_models/of_pnn \
+      --save_best_model \
       > run.log & tail -f run.log
