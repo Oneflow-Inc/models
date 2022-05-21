@@ -2,8 +2,8 @@
  [Deep & Cross Network](https://dl.acm.org/doi/10.1145/3124749.3124754) (DCN) can not only keep the advantages of DNN model, but also learn specific bounded feature crossover more effectively. In particular, DCN can explicitly learn cross features for each layer without the need for manual feature engineering, and the increased algorithm complexity is almost negligible compared with DNN model.
  ![DCN](https://user-images.githubusercontent.com/80230303/159417248-1975736f-3de8-4972-84e3-2f0f346cbc1a.png)
 
-### CrossNet Module
-We followed the FuxiCTR implementation of [CrossNet Module](https://github.com/xue-pai/FuxiCTR/blob/0f4ccf36aac02d120cb0c87f417c40e0e4330744/fuxictr/pytorch/models/DCN.py#L77). We reuse the `CrossInteractionLayer` as a basic Crossnet layer, and make it multi layers in `CrossNet`. The only difference of CrossNet implementation between FuxiCTR and Oneflow is `nn` module, one is `torch.nn` and another one is `oneflow.nn` .
+### CrossNet Implementation
+Oneflow API is very compatible to Pytorch, so only minor modification in codes then we can apply the Pytorch implemented modules to Oneflow. We follow the FuxiCTR [CrossNet implementation](https://github.com/xue-pai/FuxiCTR/blob/0f4ccf36aac02d120cb0c87f417c40e0e4330744/fuxictr/pytorch/models/DCN.py#L77), reuse the `CrossInteractionLayer` as a basic Crossnet layer, and make it multi layers in `CrossNet`. The only difference of CrossNet implementation between FuxiCTR and Oneflow is `nn` module, one is `torch.nn` and another one is `oneflow.nn` .
 
 - FuxiCTR CrossNet implementation：
 ```python
