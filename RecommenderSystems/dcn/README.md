@@ -2,74 +2,9 @@
  [Deep & Cross Network](https://dl.acm.org/doi/10.1145/3124749.3124754) (DCN) can not only keep the advantages of DNN model, but also learn specific bounded feature crossover more effectively. In particular, DCN can explicitly learn cross features for each layer without the need for manual feature engineering, and the increased algorithm complexity is almost negligible compared with DNN model.
  ![DCN](https://user-images.githubusercontent.com/80230303/159417248-1975736f-3de8-4972-84e3-2f0f346cbc1a.png)
 
-### CrossNet Implementation
-Oneflow API is very compatible to Pytorch, so only minor modification in codes then we can apply the Pytorch implemented modules to Oneflow. Therefore, We refer to some DCN implementation in [FuxiCTR](https://github.com/xue-pai/FuxiCTR/tree/v1.0.2) such as CrossNet. We follow the FuxiCTR [CrossNet implementation](https://github.com/xue-pai/FuxiCTR/blob/0f4ccf36aac02d120cb0c87f417c40e0e4330744/fuxictr/pytorch/models/DCN.py#L77), reuse the `CrossInteractionLayer` as a basic Crossnet layer, and make it multi layers in `CrossNet`. The only difference of CrossNet implementation between FuxiCTR and Oneflow is `nn` module, one is `torch.nn` and another one is `oneflow.nn` .
 
-- FuxiCTR CrossNet implementation：
-```python
-import torch.nn as nn
+Oneflow API is compatible to Pytorch, so only minor modification in codes then we can apply the Pytorch implemented modules to Oneflow. Therefore, We refer to some DCN implementation in [FuxiCTR](https://github.com/xue-pai/FuxiCTR/tree/v1.0.2) such as CrossNet. We follow the FuxiCTR [CrossNet implementation](https://github.com/xue-pai/FuxiCTR/blob/0f4ccf36aac02d120cb0c87f417c40e0e4330744/fuxictr/pytorch/models/DCN.py#L77), reuse the `CrossInteractionLayer` as a basic Crossnet layer, and make it multi layers in `CrossNet`. The only difference of CrossNet implementation between FuxiCTR and Oneflow is `nn` module, one is `torch.nn` and another one is `oneflow.nn` .
 
-class CrossNet(nn.Module):
-    def __init__(self, input_dim, num_layers):
-        super(CrossNet, self).__init__()
-        self.num_layers = num_layers
-        self.cross_net = nn.ModuleList(CrossInteractionLayer(input_dim)
-                                       for _ in range(self.num_layers))
-
-    def forward(self, X_0):
-        X_i = X_0 # b x dim
-        for i in range(self.num_layers):
-            X_i = X_i + self.cross_net[i](X_0, X_i)
-        return X_i
-
-
-class CrossInteractionLayer(nn.Module):
-    def __init__(self, input_dim):
-        super(CrossInteractionLayer, self).__init__()
-        self.weight = nn.Linear(input_dim, 1, bias=False)
-        self.bias = nn.Parameter(torch.zeros(input_dim))
-
-    def forward(self, X_0, X_i):
-        interaction_out = self.weight(X_i) * X_0 + self.bias
-        return interaction_out
-```
-
-- Oneflow CrossNet implementation
-
-```python
-import oneflow.nn as nn
-
-class CrossInteractionLayer(nn.Module):
-    '''
-    Follow the same CrossInteractionLayer implementation of FuxiCTR
-    '''
-    def __init__(self, input_dim):
-        super(CrossInteractionLayer, self).__init__()
-        self.weight = nn.Linear(input_dim, 1, bias=False)
-        self.bias = nn.Parameter(flow.zeros(input_dim))
-
-    def forward(self, X_0, X_i):
-        interaction_out = self.weight(X_i) * X_0 + self.bias
-        return interaction_out
-
-
-class CrossNet(nn.Module):
-    '''
-    Follow the same CrossNet implementation of FuxiCTR
-    '''
-    def __init__(self, input_dim, num_layers):
-        super(CrossNet, self).__init__()
-        self.num_layers = num_layers
-        self.cross_net = nn.ModuleList(
-            CrossInteractionLayer(input_dim) for _ in range(self.num_layers)
-        )
-
-    def forward(self, X_0):
-        X_i = X_0  # b x dim
-        for i in range(self.num_layers):
-            X_i = X_i + self.cross_net[i](X_0, X_i)
-        return X_i
-```
 
 ## Directory description
 ```
