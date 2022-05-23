@@ -328,23 +328,6 @@ class OneEmbedding(nn.Module):
         return self.one_embedding.forward(ids)
 
 
-class DenseLayer(nn.Module):
-    def __init__(
-        self, in_features: int, out_features: int, relu=True, dropout=0.0
-    ) -> None:
-        super(DenseLayer, self).__init__()
-        denses = []
-        denses.append(nn.Linear(in_features, out_features))
-        if relu:
-            denses.append(nn.ReLU(inplace=True))
-        if dropout > 0:
-            denses.append(nn.Dropout(p=dropout))
-        self.features = nn.Sequential(*denses)
-
-    def forward(self, x: flow.Tensor) -> flow.Tensor:
-        return self.features(x)
-
-
 class DNN(nn.Module):
     def __init__(
         self,
