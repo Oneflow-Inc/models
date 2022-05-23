@@ -3,8 +3,7 @@
  ![DCN](https://user-images.githubusercontent.com/80230303/159417248-1975736f-3de8-4972-84e3-2f0f346cbc1a.png)
 
 
-Oneflow API is compatible to Pytorch, so only minor modification in codes then we can apply the Pytorch implemented modules to Oneflow. Therefore, We refer to some DCN implementation in [FuxiCTR](https://github.com/xue-pai/FuxiCTR/tree/v1.0.2) such as CrossNet. We follow the FuxiCTR [CrossNet implementation](https://github.com/xue-pai/FuxiCTR/blob/0f4ccf36aac02d120cb0c87f417c40e0e4330744/fuxictr/pytorch/models/DCN.py#L77), reuse the `CrossInteractionLayer` as a basic Crossnet layer, and make it multi layers in `CrossNet`. The only difference of CrossNet implementation between FuxiCTR and Oneflow is `nn` module, one is `torch.nn` and another one is `oneflow.nn` .
-
+Oneflow API is compatible to Pytorch, so only minor modification in codes then we can apply the Pytorch implemented modules to Oneflow. Therefore, we adopted some implementation from [FuxiCTR](https://github.com/xue-pai/FuxiCTR/tree/v1.0.2), for example the `CrossInteractionLayer` was reused as a basic `CrossNet` hidden layer, and we make a recurrent loop of these hidden layers in `CrossNet` module to get high-degree interaction across features.
 
 ## Directory description
 ```
