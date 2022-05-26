@@ -384,21 +384,12 @@ class InnerProductLayer(nn.Module):
 
 
 class OutterProductLayer(nn.Module):
-    def __init__(self, field_size, embedding_size, kernel_type="mat"):
+    def __init__(self, field_size, embedding_size):
         super(OutterProductLayer, self).__init__()
-        self.kernel_type = kernel_type
         num_inputs = field_size
         num_pairs = int(num_inputs * (num_inputs - 1) / 2)
         embed_size = embedding_size
-        if self.kernel_type == "mat":
-
-            self.kernel = nn.Parameter(flow.Tensor(embed_size, num_pairs, embed_size))
-
-        elif self.kernel_type == "vec":
-            self.kernel = nn.Parameter(flow.Tensor(num_pairs, embed_size))
-
-        elif self.kernel_type == "num":
-            self.kernel = nn.Parameter(flow.Tensor(num_pairs, 1))
+        self.kernel = nn.Parameter(flow.Tensor(embed_size, num_pairs, embed_size))
         nn.init.xavier_uniform_(self.kernel)
 
     def forward(self, inputs):
@@ -412,24 +403,11 @@ class OutterProductLayer(nn.Module):
                 col.append(j)
         p = flow.cat([embed_list[idx] for idx in row], dim=1)  # batch num_pairs k
         q = flow.cat([embed_list[idx] for idx in col], dim=1)
-
-        if self.kernel_type == "mat":
-            res = flow.mul(p.unsqueeze(dim=1), self.kernel)
-            res = flow.sum(res, dim=-1)
-            res = flow.transpose(res, 2, 1)
-            res = flow.mul(res, q)
-            res = flow.sum(res, dim=-1)
-        else:
-            # 1 * pair * (k or 1)
-
-            k = flow.unsqueeze(self.kernel, 0)
-
-            # batch * pair
-
-            res = flow.sum(p * q * k, dim=-1)
-
-            # p q # b * p * k
-
+        res = flow.mul(p.unsqueeze(dim=1), self.kernel)
+        res = flow.sum(res, dim=-1)
+        res = flow.transpose(res, 2, 1)
+        res = flow.mul(res, q)
+        res = flow.sum(res, dim=-1)
         return res
 
 
@@ -445,7 +423,6 @@ class PNNModule(nn.Module):
         interaction_type="dot",
         interaction_itself=False,
         dropout=0.2,
-        kernel_type="mat",
         use_inner=True,
         use_outter=False,
     ):
@@ -472,7 +449,7 @@ class PNNModule(nn.Module):
         if self.use_outter:
             self.input_dim += sum(range(self.fields))
             self.outter_product_layer = OutterProductLayer(
-                self.fields, embedding_vec_size, kernel_type
+                self.fields, embedding_vec_size
             )
         self.dnn_layer = DNN(
             in_features=self.input_dim,
