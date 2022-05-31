@@ -34,7 +34,10 @@ def make_pnn_parquet(
 
     if mod_idx <= 0:
         dense_cols = [xxhash64(Ii, lit(i - 1)).alias(Ii) for i, Ii in enumerate(dense_names)]
-        sparse_cols = [xxhash64(Ci, lit(i - 1)).alias(Ci) for i, Ci in enumerate(sparse_names, start=len(dense_names))]
+        sparse_cols = [
+            xxhash64(Ci, lit(i - 1)).alias(Ci)
+            for i, Ci in enumerate(sparse_names, start=len(dense_names))
+        ]
     else:
         make_dense = udf(
             lambda s, i: mod_idx * i if s is None else int(float(s)) % mod_idx + mod_idx * i,
@@ -45,8 +48,10 @@ def make_pnn_parquet(
             LongType(),
         )
         dense_cols = [make_dense(Ii, lit(i - 1)).alias(Ii) for i, Ii in enumerate(dense_names)]
-        sparse_cols = [make_sparse(Ci, lit(i - 1)).alias(Ci) for i, Ci in enumerate(sparse_names, start=len(dense_names))]
-        
+        sparse_cols = [
+            make_sparse(Ci, lit(i - 1)).alias(Ci)
+            for i, Ci in enumerate(sparse_names, start=len(dense_names))
+        ]
 
     cols = [label_col] + dense_cols + sparse_cols
 
@@ -97,9 +102,7 @@ if __name__ == "__main__":
 
     # create validation dataset
     val_output_dir = os.path.join(args.output_dir, "val")
-    val_count = make_pnn_parquet(
-        spark, val_csv, val_output_dir, part_num=256, mod_idx=args.mod_idx
-    )
+    val_count = make_pnn_parquet(spark, val_csv, val_output_dir, part_num=256, mod_idx=args.mod_idx)
 
     # create train dataset
     train_output_dir = os.path.join(args.output_dir, "train")
@@ -109,7 +112,9 @@ if __name__ == "__main__":
 
     if args.export_dataset_info:
         df = spark.read.parquet(train_output_dir, test_output_dir, val_output_dir)
-        table_size_array = [df.select(f"I{i}").distinct().count() for i in range(1, 14)] + [df.select(f"C{i}").distinct().count() for i in range(1, 27)]
+        table_size_array = [df.select(f"I{i}").distinct().count() for i in range(1, 14)] + [
+            df.select(f"C{i}").distinct().count() for i in range(1, 27)
+        ]
         print(table_size_array)
         with open(os.path.join(args.output_dir, "README.md"), "w") as f:
             f.write("## number of examples:\n")

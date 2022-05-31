@@ -1,13 +1,8 @@
 #!/bin/bash
-rm -r /minio/sdb/sunbowen/persistent1/*
-
-
-DEVICE_NUM_PER_NODE=2
-NUM_NODES=1
-NODE_RANK=0
-MASTER_ADDR=127.0.0.1
-DATA_DIR=/minio/sdb/sunbowen/criteo_x4_9ea3bdfc/pnn_parquet
-PERSISTENT_PATH=/minio/sdb/sunbowen/persistent1
+DEVICE_NUM_PER_NODE=1
+DATA_DIR=/path/to/pnn_parquet
+PERSISTENT_PATH=/path/to/persistent
+MODEL_SAVE_DIR=/path/to/model/save/dir
 
 python3 -m oneflow.distributed.launch \
     --nproc_per_node $DEVICE_NUM_PER_NODE \
@@ -30,6 +25,5 @@ python3 -m oneflow.distributed.launch \
       --num_train_samples 36672493 \
       --num_val_samples 4584062 \
       --num_test_samples 4584062 \
-      --model_save_dir /minio/sdd/sunbowen/saved_models/of_pnn \
-      --save_best_model \
-      > run.log & tail -f run.log
+      --model_save_dir $MODEL_SAVE_DIR \
+      --save_best_model 
