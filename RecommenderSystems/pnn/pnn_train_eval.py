@@ -363,22 +363,30 @@ class DNN(nn.Module):
         return self.linear_layers(x)
 
 
-class InnerProductLayer(nn.Module):
-    def __init__(self, field_size):
-        super(InnerProductLayer, self).__init__()
-        self.field_size = field_size
-
-        offset = 1 if self.interaction_itself else 0
-        li = flow.tensor([i for i in range(field_size) for j in range(i + offset)])
-        lj = flow.tensor([j for i in range(field_size) for j in range(i + offset)])
-        self.register_buffer("li", li)
-        self.register_buffer("lj", lj)
+class Interaction(nn.Module):
+    def __init__(
+        self, num_embedding_fields, interaction_itself=False, interaction_padding=False,
+    ):
+        super(Interaction, self).__init__()
+        self.interaction_itself = interaction_itself
+        n_cols = (
+            num_embedding_fields + 2
+            if self.interaction_itself
+            else num_embedding_fields + 1
+        )
+        output_size = sum(range(n_cols))
+        self.output_size = (
+            ((output_size + 8 - 1) // 8 * 8) if interaction_padding else output_size
+        )
+        self.output_padding = self.output_size - output_size
 
     def forward(self, x: flow.Tensor) -> flow.Tensor:
-        Z = flow.matmul(x, x, transpose_b=True)
-        Zflat = Z[:, self.li, self.lj]
-        R = flow.cat([Zflat], dim=1)
-        return R
+        return flow._C.fused_dot_feature_interaction(
+            [x],
+            output_concat=None,
+            self_interaction=self.interaction_itself,
+            output_padding=self.output_padding,
+        )
 
 
 class OutterProductLayer(nn.Module):
@@ -439,7 +447,7 @@ class PNNModule(nn.Module):
         self.input_dim = embedding_vec_size * self.fields
         if self.use_inner:
             self.input_dim += sum(range(self.fields))
-            self.inner_product_layer = InnerProductLayer(self.fields)
+            self.inner_product_layer = Interaction(self.fields)
         if self.use_outter:
             self.input_dim += sum(range(self.fields))
             self.outter_product_layer = OutterProductLayer(
