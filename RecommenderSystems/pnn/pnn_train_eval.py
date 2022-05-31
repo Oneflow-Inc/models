@@ -364,10 +364,8 @@ class DNN(nn.Module):
 
 
 class InnerProductLayer(nn.Module):
-    def __init__(self, field_size, interaction_type="dot", interaction_itself=False):
+    def __init__(self, field_size):
         super(InnerProductLayer, self).__init__()
-        self.interaction_type = interaction_type
-        self.interaction_itself = interaction_itself
         self.field_size = field_size
 
         offset = 1 if self.interaction_itself else 0
@@ -420,8 +418,6 @@ class PNNModule(nn.Module):
         table_size_array=None,
         one_embedding_store_type="cached_host_mem",
         cache_memory_budget_mb=8192,
-        interaction_type="dot",
-        interaction_itself=False,
         dropout=0.2,
         use_inner=True,
         use_outter=False,
@@ -443,9 +439,7 @@ class PNNModule(nn.Module):
         self.input_dim = embedding_vec_size * self.fields
         if self.use_inner:
             self.input_dim += sum(range(self.fields))
-            self.inner_product_layer = InnerProductLayer(
-                self.fields, interaction_type, interaction_itself
-            )
+            self.inner_product_layer = InnerProductLayer(self.fields)
         if self.use_outter:
             self.input_dim += sum(range(self.fields))
             self.outter_product_layer = OutterProductLayer(
