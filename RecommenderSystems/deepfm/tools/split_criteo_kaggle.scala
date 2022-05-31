@@ -1,6 +1,6 @@
 import org.apache.spark.sql.functions.udf
 
-def splitDataset(srcDir: String, dstDir:String) = {
+def splitCriteoKaggle(srcDir: String, dstDir:String) = {
    val categorical_names = (1 to 26).map{id=>s"C$id"}
    val dense_names = (1 to 13).map{id=>s"I$id"}
    val integer_names = Seq("label") ++ dense_names
