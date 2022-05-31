@@ -10,7 +10,9 @@ import oneflow as flow
 import oneflow.nn as nn
 from petastorm.reader import make_batch_reader
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
+sys.path.append(
+    os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
+)
 
 
 def get_args(print_args=True):
@@ -23,13 +25,37 @@ def get_args(print_args=True):
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--data_dir", type=str, required=True)
-    parser.add_argument("--num_train_samples", type=int, required=True, help="the number of training samples")
-    parser.add_argument("--num_val_samples", type=int, required=True, help="the number of validation samples")
-    parser.add_argument("--num_test_samples", type=int, required=True, help="the number of test samples")
-    parser.add_argument("--model_load_dir", type=str, default=None, help="model loading directory")
-    parser.add_argument("--model_save_dir", type=str, default=None, help="model saving directory")
-    parser.add_argument("--save_initial_model", action="store_true", help="save initial model parameters or not.")
-    parser.add_argument("--save_model_after_each_eval", action="store_true", help="save model after each eval.")
+    parser.add_argument(
+        "--num_train_samples",
+        type=int,
+        required=True,
+        help="the number of training samples",
+    )
+    parser.add_argument(
+        "--num_val_samples",
+        type=int,
+        required=True,
+        help="the number of validation samples",
+    )
+    parser.add_argument(
+        "--num_test_samples", type=int, required=True, help="the number of test samples"
+    )
+    parser.add_argument(
+        "--model_load_dir", type=str, default=None, help="model loading directory"
+    )
+    parser.add_argument(
+        "--model_save_dir", type=str, default=None, help="model saving directory"
+    )
+    parser.add_argument(
+        "--save_initial_model",
+        action="store_true",
+        help="save initial model parameters or not.",
+    )
+    parser.add_argument(
+        "--save_model_after_each_eval",
+        action="store_true",
+        help="save model after each eval.",
+    )
 
     parser.add_argument("--embedding_vec_size", type=int, default=16)
     parser.add_argument("--dnn", type=int_list, default="1000,1000,1000,1000,1000")
@@ -37,10 +63,19 @@ def get_args(print_args=True):
 
     parser.add_argument("--lr_factor", type=float, default=0.1)
     parser.add_argument("--min_lr", type=float, default=1.0e-6)
-    parser.add_argument("--learning_rate", type=float, default=0.001, help="learning rate")
-    
-    parser.add_argument("--batch_size", type=int, default=10000, help="training/evaluation batch size")
-    parser.add_argument("--train_batches", type=int, default=75000, help="the maximum number of training batches")
+    parser.add_argument(
+        "--learning_rate", type=float, default=0.001, help="learning rate"
+    )
+
+    parser.add_argument(
+        "--batch_size", type=int, default=10000, help="training/evaluation batch size"
+    )
+    parser.add_argument(
+        "--train_batches",
+        type=int,
+        default=75000,
+        help="the maximum number of training batches",
+    )
     parser.add_argument("--loss_print_interval", type=int, default=100, help="")
 
     parser.add_argument(
@@ -55,7 +90,7 @@ def get_args(print_args=True):
         default=1.0e-6,
         help="threshold for measuring the new optimum, to only focus on significant changes",
     )
-    
+
     parser.add_argument(
         "--table_size_array",
         type=int_list,
@@ -63,7 +98,10 @@ def get_args(print_args=True):
         required=True,
     )
     parser.add_argument(
-        "--persistent_path", type=str, required=True, help="path for persistent kv store"
+        "--persistent_path",
+        type=str,
+        required=True,
+        help="path for persistent kv store",
     )
     parser.add_argument(
         "--store_type",
@@ -79,16 +117,26 @@ def get_args(print_args=True):
     )
 
     parser.add_argument(
-        "--amp", action="store_true", help="enable Automatic Mixed Precision(AMP) training or not"
+        "--amp",
+        action="store_true",
+        help="enable Automatic Mixed Precision(AMP) training or not",
     )
-    parser.add_argument("--loss_scale_policy", type=str, default="static", help="static or dynamic")
+    parser.add_argument(
+        "--loss_scale_policy", type=str, default="static", help="static or dynamic"
+    )
 
     parser.add_argument(
         "--disable_early_stop", action="store_true", help="enable early stop or not"
     )
-    parser.add_argument("--save_best_model", action="store_true", help="save best model or not")
-    parser.add_argument("--use_inner", type=bool, default=True, help="Use inner_product_layer")
-    parser.add_argument("--use_outter", type=bool, default=False, help="Use outter_product_layer")
+    parser.add_argument(
+        "--save_best_model", action="store_true", help="save best model or not"
+    )
+    parser.add_argument(
+        "--use_inner", type=bool, default=True, help="Use inner_product_layer"
+    )
+    parser.add_argument(
+        "--use_outter", type=bool, default=False, help="Use outter_product_layer"
+    )
 
     args = parser.parse_args()
 
@@ -173,7 +221,9 @@ class PNNDataReader(object):
                 pos = batch_size - len(tail[0])
                 tail = list(
                     [
-                        np.concatenate((tail[i], rglist[i][0 : (batch_size - len(tail[i]))]))
+                        np.concatenate(
+                            (tail[i], rglist[i][0 : (batch_size - len(tail[i]))])
+                        )
                         for i in range(self.num_fields)
                     ]
                 )
@@ -188,7 +238,9 @@ class PNNDataReader(object):
 
             while (pos + batch_size) <= len(rglist[0]):
                 label = rglist[0][pos : pos + batch_size]
-                features = [rglist[j][pos : pos + batch_size] for j in range(1, self.num_fields)]
+                features = [
+                    rglist[j][pos : pos + batch_size] for j in range(1, self.num_fields)
+                ]
                 pos += batch_size
                 yield label, np.stack(features, axis=-1)
 
@@ -239,7 +291,7 @@ class OneEmbedding(nn.Module):
 
         if store_type == "device_mem":
             store_options = flow.one_embedding.make_device_mem_store_options(
-                persistent_path=persistent_path, 
+                persistent_path=persistent_path,
                 capacity=vocab_size,
                 size_factor=size_factor,
             )
@@ -277,7 +329,9 @@ class OneEmbedding(nn.Module):
 
 
 class DenseLayer(nn.Module):
-    def __init__(self, in_features: int, out_features: int, relu=True, dropout=0.0) -> None:
+    def __init__(
+        self, in_features: int, out_features: int, relu=True, dropout=0.0
+    ) -> None:
         super(DenseLayer, self).__init__()
         denses = []
         denses.append(nn.Linear(in_features, out_features))
@@ -292,7 +346,14 @@ class DenseLayer(nn.Module):
 
 
 class DNN(nn.Module):
-    def __init__(self, in_features: int, hidden_units, out_features, skip_final_activation=False, dropout=0.0) -> None:
+    def __init__(
+        self,
+        in_features: int,
+        hidden_units,
+        out_features,
+        skip_final_activation=False,
+        dropout=0.0,
+    ) -> None:
         super(DNN, self).__init__()
 
         denses = []
@@ -300,7 +361,9 @@ class DNN(nn.Module):
         use_relu = [True] * len(hidden_units) + [not skip_final_activation]
         hidden_units = [in_features] + hidden_units + [out_features]
         for idx in range(len(hidden_units) - 1):
-            denses.append(nn.Linear(hidden_units[idx], hidden_units[idx + 1], bias=True))
+            denses.append(
+                nn.Linear(hidden_units[idx], hidden_units[idx + 1], bias=True)
+            )
             if use_relu[idx]:
                 denses.append(nn.ReLU())
             if dropout_rates[idx] > 0:
@@ -318,7 +381,7 @@ class DNN(nn.Module):
 
 
 class InnerProductLayer(nn.Module):
-    def __init__(self, field_size, interaction_type='dot', interaction_itself=False):
+    def __init__(self, field_size, interaction_type="dot", interaction_itself=False):
         super(InnerProductLayer, self).__init__()
         self.interaction_type = interaction_type
         self.interaction_itself = interaction_itself
@@ -330,33 +393,63 @@ class InnerProductLayer(nn.Module):
         self.register_buffer("li", li)
         self.register_buffer("lj", lj)
 
-    def forward(self, x:flow.Tensor) -> flow.Tensor:
+    def forward(self, x: flow.Tensor) -> flow.Tensor:
         Z = flow.matmul(x, x, transpose_b=True)
         Zflat = Z[:, self.li, self.lj]
-        R = flow.cat([Zflat], dim=1)       
+        R = flow.cat([Zflat], dim=1)
         return R
 
 
+class Interaction(nn.Module):
+    def __init__(
+        self,
+        dense_feature_size,
+        num_embedding_fields,
+        interaction_itself=False,
+        interaction_padding=False,
+    ):
+        super(Interaction, self).__init__()
+        self.interaction_itself = interaction_itself
+        n_cols = (
+            num_embedding_fields + 2
+            if self.interaction_itself
+            else num_embedding_fields + 1
+        )
+        output_size = dense_feature_size + sum(range(n_cols))
+        self.output_size = (
+            ((output_size + 8 - 1) // 8 * 8) if interaction_padding else output_size
+        )
+        self.output_padding = self.output_size - output_size
+
+    def forward(self, x: flow.Tensor, y: flow.Tensor) -> flow.Tensor:
+        return flow._C.fused_dot_feature_interaction(
+            [y],
+            output_concat=None,
+            self_interaction=self.interaction_itself,
+            output_padding=self.output_padding,
+        )
+
+
 class OutterProductLayer(nn.Module):
-    def __init__(self, field_size, embedding_size, kernel_type='mat'):
+    def __init__(self, field_size, embedding_size, kernel_type="mat"):
         super(OutterProductLayer, self).__init__()
         self.kernel_type = kernel_type
         num_inputs = field_size
         num_pairs = int(num_inputs * (num_inputs - 1) / 2)
         embed_size = embedding_size
-        if self.kernel_type == 'mat':
+        if self.kernel_type == "mat":
 
-            self.kernel = nn.Parameter(flow.Tensor(
-                embed_size, num_pairs, embed_size))
+            self.kernel = nn.Parameter(flow.Tensor(embed_size, num_pairs, embed_size))
 
-        elif self.kernel_type == 'vec':
+        elif self.kernel_type == "vec":
             self.kernel = nn.Parameter(flow.Tensor(num_pairs, embed_size))
 
-        elif self.kernel_type == 'num':
+        elif self.kernel_type == "num":
             self.kernel = nn.Parameter(flow.Tensor(num_pairs, 1))
         nn.init.xavier_uniform_(self.kernel)
 
     def forward(self, inputs):
+        print("E.reshape: ", inputs.shape)
         embed_list = [field_emb for field_emb in inputs]
         row = []
         col = []
@@ -365,11 +458,10 @@ class OutterProductLayer(nn.Module):
             for j in range(i + 1, num_inputs):
                 row.append(i)
                 col.append(j)
-        p = flow.cat([embed_list[idx]
-                       for idx in row], dim=1)  # batch num_pairs k
+        p = flow.cat([embed_list[idx] for idx in row], dim=1)  # batch num_pairs k
         q = flow.cat([embed_list[idx] for idx in col], dim=1)
 
-        if self.kernel_type == 'mat':
+        if self.kernel_type == "mat":
             res = flow.mul(p.unsqueeze(dim=1), self.kernel)
             res = flow.sum(res, dim=-1)
             res = flow.transpose(res, 2, 1)
@@ -388,6 +480,7 @@ class OutterProductLayer(nn.Module):
 
         return res
 
+
 class PNNModule(nn.Module):
     def __init__(
         self,
@@ -397,12 +490,12 @@ class PNNModule(nn.Module):
         table_size_array=None,
         one_embedding_store_type="cached_host_mem",
         cache_memory_budget_mb=8192,
-        interaction_type = 'dot',
-        interaction_itself = False,
+        interaction_type="dot",
+        interaction_itself=False,
         dropout=0.2,
-        kernel_type = 'mat',
-        use_inner = True,
-        use_outter = False
+        kernel_type="mat",
+        use_inner=True,
+        use_outter=False,
     ):
         super(PNNModule, self).__init__()
         self.embedding_vec_size = embedding_vec_size
@@ -421,27 +514,39 @@ class PNNModule(nn.Module):
         self.input_dim = embedding_vec_size * self.fields
         if self.use_inner:
             self.input_dim += sum(range(self.fields))
-            self.inner_product_layer = InnerProductLayer(self.fields, interaction_type, interaction_itself)
+            self.inner_product_layer = InnerProductLayer(
+                self.fields, interaction_type, interaction_itself
+            )
         if self.use_outter:
             self.input_dim += sum(range(self.fields))
-            self.outter_product_layer = OutterProductLayer(self.fields, embedding_vec_size, kernel_type)
+            self.outter_product_layer = OutterProductLayer(
+                self.fields, embedding_vec_size, kernel_type
+            )
         self.dnn_layer = DNN(
             in_features=self.input_dim,
             hidden_units=dnn,
-            out_features=1,   
+            out_features=1,
             skip_final_activation=True,
             dropout=dropout,
         )
-        
-
+        self.interaction = Interaction(
+            0,
+            39,
+            interaction_itself,
+            # interaction_padding=interaction_padding,
+        )
 
     def forward(self, inputs) -> flow.Tensor:
         E = self.embedding_layer(inputs)
         if self.use_inner:
-            I = self.inner_product_layer(E)
+            I = self.interaction(None, E)
+            # I = self.inner_product_layer(E)
+        print("I.shape, pre: ", I.shape)
         if self.use_outter:
-            O = self.outter_product_layer(E.reshape(self.fields, -1, 1, self.embedding_vec_size))
-
+            O = self.outter_product_layer(
+                E.reshape(self.fields, -1, 1, self.embedding_vec_size)
+            )
+        print("E.shape, cur: ", E.shape)
         if self.use_inner and self.use_outter:
             dense_input = flow.cat([E.flatten(start_dim=1), I, O], dim=1)
         elif self.use_inner:
@@ -464,7 +569,7 @@ def make_pnn_module(args):
         cache_memory_budget_mb=args.cache_memory_budget_mb,
         dropout=args.net_dropout,
         use_inner=args.use_inner,
-        use_outter=args.use_outter
+        use_outter=args.use_outter,
     )
     return model
 
@@ -483,7 +588,13 @@ class PNNValGraph(flow.nn.Graph):
 
 class PNNTrainGraph(flow.nn.Graph):
     def __init__(
-        self, pnn_module, loss, optimizer, grad_scaler=None, amp=False, lr_scheduler=None,
+        self,
+        pnn_module,
+        loss,
+        optimizer,
+        grad_scaler=None,
+        amp=False,
+        lr_scheduler=None,
     ):
         super(PNNTrainGraph, self).__init__()
         self.module = pnn_module
@@ -506,24 +617,29 @@ class PNNTrainGraph(flow.nn.Graph):
 
 def make_lr_scheduler(args, optimizer):
     batches_per_epoch = math.ceil(args.num_train_samples / args.batch_size)
-    milestones = [batches_per_epoch * (i + 1) for i in range(math.floor(math.log(args.min_lr / args.learning_rate, args.lr_factor)))]
+    milestones = [
+        batches_per_epoch * (i + 1)
+        for i in range(
+            math.floor(math.log(args.min_lr / args.learning_rate, args.lr_factor))
+        )
+    ]
     multistep_lr = flow.optim.lr_scheduler.MultiStepLR(
-        optimizer=optimizer,
-        gamma=args.lr_factor,
-        milestones=milestones,
+        optimizer=optimizer, gamma=args.lr_factor, milestones=milestones,
     )
     return multistep_lr
 
 
 def get_metrics(logs):
-    kv = {'auc': 1, 'logloss': -1}
+    kv = {"auc": 1, "logloss": -1}
     monitor_value = 0
     for k, v in kv.items():
         monitor_value += logs.get(k, 0) * v
     return monitor_value
 
 
-def early_stop(epoch, monitor_value, best_metric, stopping_steps, patience=2, min_delta=1e-6):
+def early_stop(
+    epoch, monitor_value, best_metric, stopping_steps, patience=2, min_delta=1e-6
+):
     rank = flow.env.get_rank()
     stop_training = False
     save_best = False
@@ -542,7 +658,7 @@ def early_stop(epoch, monitor_value, best_metric, stopping_steps, patience=2, mi
     return stop_training, best_metric, stopping_steps, save_best
 
 
-def train(args): 
+def train(args):
     rank = flow.env.get_rank()
 
     pnn_module = make_pnn_module(args)
@@ -557,7 +673,7 @@ def train(args):
         else:
             if rank == 0:
                 print(f"Loading model from {dir} failed: invalid path")
-        
+
     if args.model_load_dir:
         load_model(args.model_load_dir)
 
@@ -573,7 +689,6 @@ def train(args):
     if args.save_initial_model:
         save_model("initial_checkpoint")
 
-
     opt = flow.optim.Adam(pnn_module.parameters(), lr=args.learning_rate)
     lr_scheduler = make_lr_scheduler(args, opt)
     loss = flow.nn.BCEWithLogitsLoss(reduction="mean").to("cuda")
@@ -582,12 +697,16 @@ def train(args):
         grad_scaler = flow.amp.StaticGradScaler(1024)
     else:
         grad_scaler = flow.amp.GradScaler(
-            init_scale=1073741824, growth_factor=2.0, backoff_factor=0.5, growth_interval=2000,
+            init_scale=1073741824,
+            growth_factor=2.0,
+            backoff_factor=0.5,
+            growth_interval=2000,
         )
-    
-    eval_graph = PNNValGraph(pnn_module, args.amp)
-    train_graph = PNNTrainGraph(pnn_module, loss, opt, grad_scaler, args.amp, lr_scheduler=lr_scheduler)
 
+    eval_graph = PNNValGraph(pnn_module, args.amp)
+    train_graph = PNNTrainGraph(
+        pnn_module, loss, opt, grad_scaler, args.amp, lr_scheduler=lr_scheduler
+    )
 
     batches_per_epoch = math.ceil(args.num_train_samples / args.batch_size)
 
@@ -597,7 +716,11 @@ def train(args):
     save_best = False
     stop_training = False
 
-    cached_eval_batches = prefetch_eval_batches(f"{args.data_dir}/val", args.batch_size, math.ceil(args.num_val_samples / args.batch_size))
+    cached_eval_batches = prefetch_eval_batches(
+        f"{args.data_dir}/val",
+        args.batch_size,
+        math.ceil(args.num_val_samples / args.batch_size),
+    )
 
     pnn_module.train()
     epoch = 0
@@ -620,35 +743,42 @@ def train(args):
 
             if step % batches_per_epoch == 0:
                 epoch += 1
-                auc, logloss = eval(args, eval_graph, tag='val', cur_step=step, epoch=epoch, cached_eval_batches=cached_eval_batches)
+                auc, logloss = eval(
+                    args,
+                    eval_graph,
+                    tag="val",
+                    cur_step=step,
+                    epoch=epoch,
+                    cached_eval_batches=cached_eval_batches,
+                )
                 if args.save_model_after_each_eval:
                     save_model(f"step_{step}_val_auc_{auc:0.5f}")
 
-                monitor_value = get_metrics(logs={'auc': auc, 'logloss': logloss})
+                monitor_value = get_metrics(logs={"auc": auc, "logloss": logloss})
 
                 stop_training, best_metric, stopping_steps, save_best = early_stop(
-                    epoch, 
-                    monitor_value, 
-                    best_metric=best_metric, 
-                    stopping_steps=stopping_steps, 
-                    patience=args.patience, 
+                    epoch,
+                    monitor_value,
+                    best_metric=best_metric,
+                    stopping_steps=stopping_steps,
+                    patience=args.patience,
                     min_delta=args.min_delta,
                 )
-                
+
                 if args.save_best_model and save_best:
                     if rank == 0:
                         print(f"Save best model: monitor(max): {best_metric:.6f}")
                     save_model("best_checkpoint")
                 if not args.disable_early_stop and stop_training:
                     break
-                
+
                 pnn_module.train()
                 last_time = time.time()
-    
+
     load_model(f"{args.model_save_dir}/best_checkpoint")
     if rank == 0:
         print("================ Test Evaluation ================")
-    eval(args, eval_graph, tag='test', cur_step=step, epoch=epoch)
+    eval(args, eval_graph, tag="test", cur_step=step, epoch=epoch)
 
     if step % batches_per_epoch != 0:
         auc, logloss = eval(args, eval_graph, step)
@@ -656,19 +786,20 @@ def train(args):
             save_model(f"step_{step}_val_auc_{auc:0.5f}")
 
 
-
-
 def np_to_global(np, dtype=flow.float):
     # TODO: t = flow.from_numpy(np)
     t = flow.tensor(np, dtype=dtype)
-    return t.to_global(placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0))
+    return t.to_global(
+        placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0)
+    )
 
 
 def batch_to_global(np_label, np_features, is_train=True):
-    labels = np_to_global(np_label.reshape(-1, 1)) if is_train else np_label.reshape(-1, 1)
+    labels = (
+        np_to_global(np_label.reshape(-1, 1)) if is_train else np_label.reshape(-1, 1)
+    )
     features = np_to_global(np_features, dtype=flow.int64)
     return labels, features
-
 
 
 def prefetch_eval_batches(data_dir, batch_size, num_batches):
@@ -679,8 +810,9 @@ def prefetch_eval_batches(data_dir, batch_size, num_batches):
             cached_eval_batches.append((label, features))
     return cached_eval_batches
 
-def eval(args, eval_graph, tag='val', cur_step=0, epoch=0, cached_eval_batches=None):
-    if tag == 'val':
+
+def eval(args, eval_graph, tag="val", cur_step=0, epoch=0, cached_eval_batches=None):
+    if tag == "val":
         batches_per_epoch = math.ceil(args.num_val_samples / args.batch_size)
     else:
         batches_per_epoch = math.ceil(args.num_test_samples / args.batch_size)
@@ -688,7 +820,9 @@ def eval(args, eval_graph, tag='val', cur_step=0, epoch=0, cached_eval_batches=N
     labels, preds = [], []
     eval_start_time = time.time()
     if cached_eval_batches == None:
-        with make_criteo_dataloader(f"{args.data_dir}/{tag}", args.batch_size, shuffle=False) as loader:
+        with make_criteo_dataloader(
+            f"{args.data_dir}/{tag}", args.batch_size, shuffle=False
+        ) as loader:
             eval_start_time = time.time()
             for i in range(batches_per_epoch):
                 label, features = batch_to_global(*next(loader), is_train=False)
@@ -703,25 +837,31 @@ def eval(args, eval_graph, tag='val', cur_step=0, epoch=0, cached_eval_batches=N
             preds.append(pred.to_local())
 
     labels = (
-        np_to_global(np.concatenate(labels, axis=0)).to_global(sbp=flow.sbp.broadcast()).to_local()
+        np_to_global(np.concatenate(labels, axis=0))
+        .to_global(sbp=flow.sbp.broadcast())
+        .to_local()
     )
     preds = (
         flow.cat(preds, dim=0)
-        .to_global(placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0))
+        .to_global(
+            placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0)
+        )
         .to_global(sbp=flow.sbp.broadcast())
         .to_local()
     )
 
     flow.comm.barrier()
     eval_time = time.time() - eval_start_time
-    
+
     rank = flow.env.get_rank()
-    
+
     metrics_start_time = time.time()
     auc = flow.roc_auc_score(labels, preds).numpy()[0]
-    logloss = flow._C.binary_cross_entropy_loss(preds, labels, weight=None, reduction='mean')
+    logloss = flow._C.binary_cross_entropy_loss(
+        preds, labels, weight=None, reduction="mean"
+    )
     metrics_time = time.time() - metrics_start_time
-    
+
     if rank == 0:
         host_mem_mb = psutil.Process().memory_info().rss // (1024 * 1024)
         stream = os.popen("nvidia-smi --query-gpu=memory.used --format=csv")
@@ -735,7 +875,6 @@ def eval(args, eval_graph, tag='val', cur_step=0, epoch=0, cached_eval_batches=N
         )
 
     return auc, logloss
-
 
 
 if __name__ == "__main__":

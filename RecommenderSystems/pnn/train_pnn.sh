@@ -21,7 +21,7 @@ python3 -m oneflow.distributed.launch \
       --table_size_array "43, 98, 121, 41, 219, 112, 79, 68, 91, 5, 26, 36, 70, 1447, 554, 157461, 117683, 305, 17, 11878, 629, 4, 39504, 5128, 156729, 3175, 27, 11070, 149083, 11, 4542, 1996, 4, 154737, 17, 16, 52989, 81, 40882" \
       --store_type 'cached_host_mem' \
       --cache_memory_budget_mb 1024 \
-      --batch_size 10000 \
+      --batch_size 2000 \
       --train_batches 75000 \
       --loss_print_interval 100 \
       --dnn "1000,1000" \
