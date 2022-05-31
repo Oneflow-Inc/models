@@ -60,7 +60,6 @@ def get_args(print_args=True):
     parser.add_argument("--embedding_vec_size", type=int, default=16)
     parser.add_argument("--dnn", type=int_list, default="1000,1000,1000,1000,1000")
     parser.add_argument("--net_dropout", type=float, default=0.2)
-
     parser.add_argument("--lr_factor", type=float, default=0.1)
     parser.add_argument("--min_lr", type=float, default=1.0e-6)
     parser.add_argument(
@@ -130,12 +129,6 @@ def get_args(print_args=True):
     )
     parser.add_argument(
         "--save_best_model", action="store_true", help="save best model or not"
-    )
-    parser.add_argument(
-        "--use_inner", type=bool, default=True, help="Use inner_product_layer"
-    )
-    parser.add_argument(
-        "--use_outter", type=bool, default=False, help="Use outter_product_layer"
     )
 
     args = parser.parse_args()
@@ -380,105 +373,12 @@ class DNN(nn.Module):
         return self.linear_layers(x)
 
 
-class InnerProductLayer(nn.Module):
-    def __init__(self, field_size, interaction_type="dot", interaction_itself=False):
-        super(InnerProductLayer, self).__init__()
-        self.interaction_type = interaction_type
-        self.interaction_itself = interaction_itself
-        self.field_size = field_size
-
-        offset = 1 if self.interaction_itself else 0
-        li = flow.tensor([i for i in range(field_size) for j in range(i + offset)])
-        lj = flow.tensor([j for i in range(field_size) for j in range(i + offset)])
-        self.register_buffer("li", li)
-        self.register_buffer("lj", lj)
+class Interaction(nn.Module):
+    def __init__(self):
+        super(Interaction, self).__init__()
 
     def forward(self, x: flow.Tensor) -> flow.Tensor:
-        Z = flow.matmul(x, x, transpose_b=True)
-        Zflat = Z[:, self.li, self.lj]
-        R = flow.cat([Zflat], dim=1)
-        return R
-
-
-class Interaction(nn.Module):
-    def __init__(
-        self,
-        dense_feature_size,
-        num_embedding_fields,
-        interaction_itself=False,
-        interaction_padding=False,
-    ):
-        super(Interaction, self).__init__()
-        self.interaction_itself = interaction_itself
-        n_cols = (
-            num_embedding_fields + 2
-            if self.interaction_itself
-            else num_embedding_fields + 1
-        )
-        output_size = dense_feature_size + sum(range(n_cols))
-        self.output_size = (
-            ((output_size + 8 - 1) // 8 * 8) if interaction_padding else output_size
-        )
-        self.output_padding = self.output_size - output_size
-
-    def forward(self, x: flow.Tensor, y: flow.Tensor) -> flow.Tensor:
-        return flow._C.fused_dot_feature_interaction(
-            [y],
-            output_concat=None,
-            self_interaction=self.interaction_itself,
-            output_padding=self.output_padding,
-        )
-
-
-class OutterProductLayer(nn.Module):
-    def __init__(self, field_size, embedding_size, kernel_type="mat"):
-        super(OutterProductLayer, self).__init__()
-        self.kernel_type = kernel_type
-        num_inputs = field_size
-        num_pairs = int(num_inputs * (num_inputs - 1) / 2)
-        embed_size = embedding_size
-        if self.kernel_type == "mat":
-
-            self.kernel = nn.Parameter(flow.Tensor(embed_size, num_pairs, embed_size))
-
-        elif self.kernel_type == "vec":
-            self.kernel = nn.Parameter(flow.Tensor(num_pairs, embed_size))
-
-        elif self.kernel_type == "num":
-            self.kernel = nn.Parameter(flow.Tensor(num_pairs, 1))
-        nn.init.xavier_uniform_(self.kernel)
-
-    def forward(self, inputs):
-        print("E.reshape: ", inputs.shape)
-        embed_list = [field_emb for field_emb in inputs]
-        row = []
-        col = []
-        num_inputs = inputs.shape[0]
-        for i in range(num_inputs - 1):
-            for j in range(i + 1, num_inputs):
-                row.append(i)
-                col.append(j)
-        p = flow.cat([embed_list[idx] for idx in row], dim=1)  # batch num_pairs k
-        q = flow.cat([embed_list[idx] for idx in col], dim=1)
-
-        if self.kernel_type == "mat":
-            res = flow.mul(p.unsqueeze(dim=1), self.kernel)
-            res = flow.sum(res, dim=-1)
-            res = flow.transpose(res, 2, 1)
-            res = flow.mul(res, q)
-            res = flow.sum(res, dim=-1)
-        else:
-            # 1 * pair * (k or 1)
-
-            k = flow.unsqueeze(self.kernel, 0)
-
-            # batch * pair
-
-            res = flow.sum(p * q * k, dim=-1)
-
-            # p q # b * p * k
-
-        return res
+        return flow._C.fused_dot_feature_interaction([x])
 
 
 class PNNModule(nn.Module):
@@ -490,12 +390,7 @@ class PNNModule(nn.Module):
         table_size_array=None,
         one_embedding_store_type="cached_host_mem",
         cache_memory_budget_mb=8192,
-        interaction_type="dot",
-        interaction_itself=False,
         dropout=0.2,
-        kernel_type="mat",
-        use_inner=True,
-        use_outter=False,
     ):
         super(PNNModule, self).__init__()
         self.embedding_vec_size = embedding_vec_size
@@ -508,20 +403,10 @@ class PNNModule(nn.Module):
             cache_memory_budget_mb=cache_memory_budget_mb,
             size_factor=3,
         )
-        self.use_inner = use_inner
-        self.use_outter = use_outter
         self.fields = num_sparse_fields + num_dense_fields
-        self.input_dim = embedding_vec_size * self.fields
-        if self.use_inner:
-            self.input_dim += sum(range(self.fields))
-            self.inner_product_layer = InnerProductLayer(
-                self.fields, interaction_type, interaction_itself
-            )
-        if self.use_outter:
-            self.input_dim += sum(range(self.fields))
-            self.outter_product_layer = OutterProductLayer(
-                self.fields, embedding_vec_size, kernel_type
-            )
+        self.input_dim = embedding_vec_size * self.fields + sum(range(self.fields))
+        self.inner_product_layer = Interaction()
+
         self.dnn_layer = DNN(
             in_features=self.input_dim,
             hidden_units=dnn,
@@ -529,32 +414,11 @@ class PNNModule(nn.Module):
             skip_final_activation=True,
             dropout=dropout,
         )
-        self.interaction = Interaction(
-            0,
-            39,
-            interaction_itself,
-            # interaction_padding=interaction_padding,
-        )
 
     def forward(self, inputs) -> flow.Tensor:
         E = self.embedding_layer(inputs)
-        if self.use_inner:
-            I = self.interaction(None, E)
-            # I = self.inner_product_layer(E)
-        print("I.shape, pre: ", I.shape)
-        if self.use_outter:
-            O = self.outter_product_layer(
-                E.reshape(self.fields, -1, 1, self.embedding_vec_size)
-            )
-        print("E.shape, cur: ", E.shape)
-        if self.use_inner and self.use_outter:
-            dense_input = flow.cat([E.flatten(start_dim=1), I, O], dim=1)
-        elif self.use_inner:
-            dense_input = flow.cat([E.flatten(start_dim=1), I], dim=1)
-        elif self.use_outter:
-            dense_input = flow.cat([E.flatten(start_dim=1), O], dim=1)
-        else:
-            dense_input = flow.cat([E.flatten(start_dim=1)], dim=1)
+        I = self.inner_product_layer(E)
+        dense_input = flow.cat([E.flatten(start_dim=1), I], dim=1)
         dnn_pred = self.dnn_layer(dense_input)
         return dnn_pred
 
@@ -568,8 +432,6 @@ def make_pnn_module(args):
         one_embedding_store_type=args.store_type,
         cache_memory_budget_mb=args.cache_memory_budget_mb,
         dropout=args.net_dropout,
-        use_inner=args.use_inner,
-        use_outter=args.use_outter,
     )
     return model
 
@@ -599,7 +461,6 @@ class PNNTrainGraph(flow.nn.Graph):
         super(PNNTrainGraph, self).__init__()
         self.module = pnn_module
         self.loss = loss
-        # self.max_norm = max_norm
         self.add_optimizer(optimizer, lr_sch=lr_scheduler)
         self.config.allow_fuse_model_update_ops(True)
         self.config.allow_fuse_add_to_output(True)
