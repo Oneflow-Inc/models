@@ -1,7 +1,6 @@
 #!/bin/bash
 rm -r /minio/sdb/sunbowen/persistent1/*
 
-export CUDA_VISIBLE_DEVICES=1
 
 DEVICE_NUM_PER_NODE=1
 NUM_NODES=1
@@ -33,4 +32,6 @@ python3 -m oneflow.distributed.launch \
       --num_test_samples 4584062 \
       --model_save_dir /minio/sdd/sunbowen/saved_models/of_pnn \
       --save_best_model \
+      --use_inner True \
+      --use_outter False \
       > run.log & tail -f run.log
