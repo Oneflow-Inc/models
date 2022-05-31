@@ -22,8 +22,8 @@ python3 -m oneflow.distributed.launch \
       --net_dropout 0.2 \
       --learning_rate 0.001 \
       --embedding_vec_size 16 \
-      --num_train_samples 36672493 \
-      --num_val_samples 4584062 \
-      --num_test_samples 4584062 \
+      --num_train_samples 36673135 \
+      --num_val_samples 4584737 \
+      --num_test_samples 4582745 \
       --model_save_dir $MODEL_SAVE_DIR \
       --save_best_model
