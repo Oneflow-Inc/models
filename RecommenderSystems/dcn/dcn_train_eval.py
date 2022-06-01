@@ -262,12 +262,12 @@ class OneEmbedding(nn.Module):
         return self.one_embedding.forward(ids)
 
 
-class CrossInteractionLayer(nn.Module):
+class CrossLayer(nn.Module):
     '''
-    Follow the same CrossInteractionLayer implementation of FuxiCTR
+    Follow the same CrossLayer implementation of FuxiCTR
     '''
     def __init__(self, input_dim):
-        super(CrossInteractionLayer, self).__init__()
+        super(CrossLayer, self).__init__()
         self.weight = nn.Linear(input_dim, 1, bias=False)
         self.bias = nn.Parameter(flow.zeros(input_dim))
 
@@ -284,7 +284,7 @@ class CrossNet(nn.Module):
         super(CrossNet, self).__init__()
         self.num_layers = num_layers
         self.cross_net = nn.ModuleList(
-            CrossInteractionLayer(input_dim) for _ in range(self.num_layers)
+            CrossLayer(input_dim) for _ in range(self.num_layers)
         )
 
     def forward(self, X_0):
