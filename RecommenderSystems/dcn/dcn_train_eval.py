@@ -277,20 +277,20 @@ class CrossLayer(nn.Module):
             
     def forward(self, X_0, X_i):
         if self.cross_layer_type == "vector":
-            interaction_out = self.weight(X_i) * X_0 + self.bias + X_i
+            output = self.weight(X_i) * X_0 + self.bias + X_i
         elif self.cross_layer_type == "matrix":
-            interaction_out = self.weight(X_i) * X_0 + X_i
+            output = self.weight(X_i) * X_0 + X_i
         else:
             raise RuntimeError(f"Unsupported cross layer type: {self.cross_layer_type}")
-        return interaction_out
+        return output
 
 
 class CrossNet(nn.Module):
-    def __init__(self, input_dim, num_layers):
+    def __init__(self, input_dim, num_layers, cross_layer_type="vector"):
         super(CrossNet, self).__init__()
         self.num_layers = num_layers
         self.cross_net = nn.ModuleList(
-            CrossLayer(input_dim) for _ in range(self.num_layers)
+            CrossLayer(input_dim, cross_layer_type) for _ in range(self.num_layers)
         )
 
     def forward(self, X_0):
@@ -331,6 +331,7 @@ class DCNModule(nn.Module):
         size_factor,
         dnn_hidden_units=[128, 128],
         crossing_layers=3,
+        cross_layer_type="vector",
         net_dropout=0.2,
         batch_norm=False,
     ):
@@ -360,7 +361,7 @@ class DCNModule(nn.Module):
             else None
         )  # in case of only crossing net used
 
-        self.crossnet = CrossNet(input_dim, crossing_layers)
+        self.crossnet = CrossNet(input_dim, crossing_layers, cross_layer_type)
 
         final_dim = input_dim
         if isinstance(dnn_hidden_units, list) and len(dnn_hidden_units) > 0:  # if use dnn
@@ -401,6 +402,7 @@ def make_dcn_module(args):
         cache_memory_budget_mb=args.cache_memory_budget_mb,
         dnn_hidden_units=args.dnn_hidden_units,
         crossing_layers=args.crossing_layers,
+        cross_layer_type=args.cross_layer_type,
         net_dropout=args.net_dropout,
         batch_norm=args.batch_norm,
         size_factor=args.size_factor,
