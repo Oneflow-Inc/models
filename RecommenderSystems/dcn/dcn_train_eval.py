@@ -47,6 +47,7 @@ def get_args(print_args=True):
     parser.add_argument("--embedding_vec_size", type=int, default=16)
     parser.add_argument("--batch_norm", type=bool, default=False)
     parser.add_argument("--dnn_hidden_units", type=int_list, default="1000,1000,1000,1000,1000")
+    parser.add_argument("--cross_layer_type", type=str, default="vector", help="vector, metrix, low-rank, mix")
     parser.add_argument("--crossing_layers", type=int, default=3)
     parser.add_argument("--net_dropout", type=float, default=0.2)
     parser.add_argument("--embedding_regularizer", type=float, default=None)
@@ -263,23 +264,28 @@ class OneEmbedding(nn.Module):
 
 
 class CrossLayer(nn.Module):
-    '''
-    Follow the same CrossLayer implementation of FuxiCTR
-    '''
-    def __init__(self, input_dim):
+    def __init__(self, input_dim, cross_layer_type="vector"):
         super(CrossLayer, self).__init__()
-        self.weight = nn.Linear(input_dim, 1, bias=False)
-        self.bias = nn.Parameter(flow.zeros(input_dim))
-
+        if cross_layer_type == "vector":
+            self.weight = nn.Linear(input_dim, 1, bias=False)
+            self.bias = nn.Parameter(flow.zeros(input_dim))
+        elif cross_layer_type == "matrix":
+            self.weight = nn.Linear(input_dim, input_dim, bias=True)
+        else:
+            raise RuntimeError(f"Unsupported cross layer type: {cross_layer_type}")
+        self.cross_layer_type = cross_layer_type
+            
     def forward(self, X_0, X_i):
-        interaction_out = self.weight(X_i) * X_0 + self.bias
+        if self.cross_layer_type == "vector":
+            interaction_out = self.weight(X_i) * X_0 + self.bias + X_i
+        elif self.cross_layer_type == "matrix":
+            interaction_out = self.weight(X_i) * X_0 + X_i
+        else:
+            raise RuntimeError(f"Unsupported cross layer type: {self.cross_layer_type}")
         return interaction_out
 
 
 class CrossNet(nn.Module):
-    '''
-    Follow the same CrossNet implementation of FuxiCTR
-    '''
     def __init__(self, input_dim, num_layers):
         super(CrossNet, self).__init__()
         self.num_layers = num_layers
@@ -290,7 +296,7 @@ class CrossNet(nn.Module):
     def forward(self, X_0):
         X_i = X_0  # b x dim
         for i in range(self.num_layers):
-            X_i = X_i + self.cross_net[i](X_0, X_i)
+            X_i = self.cross_net[i](X_0, X_i)
         return X_i
 
 
