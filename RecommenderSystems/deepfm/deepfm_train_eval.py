@@ -325,10 +325,7 @@ class DNN(nn.Module):
 
 
 def interaction(embedded_x: flow.Tensor) -> flow.Tensor:
-    sum_of_square = flow.sum(embedded_x, dim=1) ** 2
-    square_of_sum = flow.sum(embedded_x ** 2, dim=1)
-    bi_interaction = (sum_of_square - square_of_sum) * 0.5
-    return flow.sum(bi_interaction, dim=-1, keepdim=True)
+    return flow._C.fused_dot_feature_interaction([embedded_x], pooling="sum")
 
 
 class DeepFMModule(nn.Module):
