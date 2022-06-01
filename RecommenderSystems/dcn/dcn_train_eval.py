@@ -53,6 +53,7 @@ def get_args(print_args=True):
     parser.add_argument("--embedding_regularizer", type=float, default=None)
     parser.add_argument("--net_regularizer", type=float, default=None)
     parser.add_argument("--low_rank", type=int, default=32)
+    parser.add_argument("--num_experts", type=int, default=4)
 
     parser.add_argument(
         "--disable_early_stop", action="store_true", help="enable early stop or not"
@@ -265,7 +266,7 @@ class OneEmbedding(nn.Module):
 
 
 class CrossLayer(nn.Module):
-    def __init__(self, input_dim, cross_layer_type="vector", low_rank=32):
+    def __init__(self, input_dim, cross_layer_type="vector", low_rank=32, num_experts=4):
         super(CrossLayer, self).__init__()
         if cross_layer_type == "vector":
             self.weight = nn.Linear(input_dim, 1, bias=False)
@@ -275,6 +276,10 @@ class CrossLayer(nn.Module):
         elif cross_layer_type == "low_rank":
             self.V = nn.Linear(input_dim, low_rank, bias=False)
             self.U = nn.Linear(low_rank, input_dim, bias=True)
+        elif cross_layer_type == "mix":
+            self.V = nn.Linear(input_dim, low_rank, bias=False)
+            self.C = nn.Linear(low_rank, low_rank, bias=False)
+            self.U = nn.Linear(low_rank, input_dim, bias=True)        
         else:
             raise RuntimeError(f"Unsupported cross layer type: {cross_layer_type}")
         self.cross_layer_type = cross_layer_type
@@ -285,18 +290,21 @@ class CrossLayer(nn.Module):
         elif self.cross_layer_type == "matrix":
             output = self.weight(X_i) * X_0 + X_i
         elif self.cross_layer_type == "low_rank":
-            output = self.U(self.V(X_0)) * X_0 + X_i
+            output = self.U(self.V(X_i)) * X_0 + X_i
+        elif self.cross_layer_type == "mix":
+            output = self.U(self.C(self.V(X_i))) * X_0
+            # G = flow.softmax(X_i)
         else:
             raise RuntimeError(f"Unsupported cross layer type: {self.cross_layer_type}")
         return output
 
 
 class CrossNet(nn.Module):
-    def __init__(self, input_dim, num_layers, cross_layer_type="vector", low_rank=32):
+    def __init__(self, input_dim, num_layers, cross_layer_type="vector", low_rank=32, num_experts=4):
         super(CrossNet, self).__init__()
         self.num_layers = num_layers
         self.cross_net = nn.ModuleList(
-            CrossLayer(input_dim, cross_layer_type) for _ in range(self.num_layers)
+            CrossLayer(input_dim, cross_layer_type, low_rank, num_experts) for _ in range(self.num_layers)
         )
 
     def forward(self, X_0):
@@ -339,6 +347,7 @@ class DCNModule(nn.Module):
         crossing_layers=3,
         cross_layer_type="vector",
         low_rank=32,
+        num_experts=4,
         net_dropout=0.2,
         batch_norm=False,
     ):
@@ -368,7 +377,7 @@ class DCNModule(nn.Module):
             else None
         )  # in case of only crossing net used
 
-        self.crossnet = CrossNet(input_dim, crossing_layers, cross_layer_type)
+        self.crossnet = CrossNet(input_dim, crossing_layers, cross_layer_type, low_rank, num_experts)
 
         final_dim = input_dim
         if isinstance(dnn_hidden_units, list) and len(dnn_hidden_units) > 0:  # if use dnn
