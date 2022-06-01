@@ -52,6 +52,7 @@ def get_args(print_args=True):
     parser.add_argument("--net_dropout", type=float, default=0.2)
     parser.add_argument("--embedding_regularizer", type=float, default=None)
     parser.add_argument("--net_regularizer", type=float, default=None)
+    parser.add_argument("--low_rank", type=int, default=32)
 
     parser.add_argument(
         "--disable_early_stop", action="store_true", help="enable early stop or not"
@@ -264,13 +265,16 @@ class OneEmbedding(nn.Module):
 
 
 class CrossLayer(nn.Module):
-    def __init__(self, input_dim, cross_layer_type="vector"):
+    def __init__(self, input_dim, cross_layer_type="vector", low_rank=32):
         super(CrossLayer, self).__init__()
         if cross_layer_type == "vector":
             self.weight = nn.Linear(input_dim, 1, bias=False)
             self.bias = nn.Parameter(flow.zeros(input_dim))
         elif cross_layer_type == "matrix":
             self.weight = nn.Linear(input_dim, input_dim, bias=True)
+        elif cross_layer_type == "low_rank":
+            self.V = nn.Linear(input_dim, low_rank, bias=False)
+            self.U = nn.Linear(low_rank, input_dim, bias=True)
         else:
             raise RuntimeError(f"Unsupported cross layer type: {cross_layer_type}")
         self.cross_layer_type = cross_layer_type
@@ -280,13 +284,15 @@ class CrossLayer(nn.Module):
             output = self.weight(X_i) * X_0 + self.bias + X_i
         elif self.cross_layer_type == "matrix":
             output = self.weight(X_i) * X_0 + X_i
+        elif self.cross_layer_type == "low_rank":
+            output = self.U(self.V(X_0)) * X_0 + X_i
         else:
             raise RuntimeError(f"Unsupported cross layer type: {self.cross_layer_type}")
         return output
 
 
 class CrossNet(nn.Module):
-    def __init__(self, input_dim, num_layers, cross_layer_type="vector"):
+    def __init__(self, input_dim, num_layers, cross_layer_type="vector", low_rank=32):
         super(CrossNet, self).__init__()
         self.num_layers = num_layers
         self.cross_net = nn.ModuleList(
@@ -332,6 +338,7 @@ class DCNModule(nn.Module):
         dnn_hidden_units=[128, 128],
         crossing_layers=3,
         cross_layer_type="vector",
+        low_rank=32,
         net_dropout=0.2,
         batch_norm=False,
     ):
