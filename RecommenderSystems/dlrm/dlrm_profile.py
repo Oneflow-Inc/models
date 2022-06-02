@@ -7,8 +7,8 @@ nsys = '/usr/local/cuda-11.6/bin/nsys profile --stats=true '
 
 data_dir = "/data/criteo1t/criteo1t_dlrm_parquet"
 persistent_path = './persistent'
-script_path = 'dlrm_train_eval.py'
-#script_path = 'dlrm_prefetch_train.py'
+#script_path = 'dlrm_train_eval.py'
+script_path = 'dlrm_prefetch_train.py'
 
 env = ''
 #env += "NCCL_DEBUG=INFO "
