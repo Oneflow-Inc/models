@@ -266,7 +266,7 @@ class OneEmbedding(nn.Module):
 
 
 class CrossLayer(nn.Module):
-    def __init__(self, input_dim, cross_layer_type="vector", low_rank=32, num_experts=4):
+    def __init__(self, input_dim, cross_layer_type="vector", low_rank=32, num_experts=4, act=None):
         super(CrossLayer, self).__init__()
         if cross_layer_type == "vector":
             self.weight = nn.Linear(input_dim, 1, bias=False)
@@ -277,9 +277,19 @@ class CrossLayer(nn.Module):
             self.V = nn.Linear(input_dim, low_rank, bias=False)
             self.U = nn.Linear(low_rank, input_dim, bias=True)
         elif cross_layer_type == "mix":
-            self.V = nn.Linear(input_dim, low_rank, bias=False)
-            self.C = nn.Linear(low_rank, low_rank, bias=False)
-            self.U = nn.Linear(low_rank, input_dim, bias=True)        
+            self.V = nn.Parameter(flow.Tensor(input_dim, num_experts*low_rank))
+            self.C = nn.Parameter(flow.Tensor(num_experts, low_rank, low_rank))
+            self.U = nn.Parameter(flow.Tensor(num_experts, low_rank, input_dim))
+            self.bias = nn.Parameter(flow.zeros(num_experts, input_dim))
+            self.gates = nn.Parameter(flow.Tensor(input_dim, num_experts))
+            nn.init.xavier_normal_(self.V)
+            nn.init.xavier_normal_(self.C)
+            nn.init.xavier_normal_(self.U)
+            nn.init.xavier_normal_(self.gates)
+            self.act = act
+            self.input_dim = input_dim
+            self.num_experts = num_experts
+            self.low_rank = low_rank
         else:
             raise RuntimeError(f"Unsupported cross layer type: {cross_layer_type}")
         self.cross_layer_type = cross_layer_type
@@ -292,8 +302,20 @@ class CrossLayer(nn.Module):
         elif self.cross_layer_type == "low_rank":
             output = self.U(self.V(X_i)) * X_0 + X_i
         elif self.cross_layer_type == "mix":
-            output = self.U(self.C(self.V(X_i))) * X_0
-            # G = flow.softmax(X_i)
+            x = flow.matmul(X_i, self.V)
+            if self.act is not None:
+                x = self.act(x)
+            x = x.view(-1, self.num_experts, self.low_rank).permute(1, 0, 2)
+            x = flow.bmm(x, self.C)
+            if self.act is not None:
+                x = self.act(x)
+            x = flow.bmm(x, self.U)
+            x = x.permute(1, 0, 2) + self.bias
+            E = x * X_0.view(-1, 1, self.input_dim)
+
+            G = flow.matmul(X_i, self.gates).softmax().unsqueeze(-1)
+
+            output = flow.sum(E * G, dim=1)
         else:
             raise RuntimeError(f"Unsupported cross layer type: {self.cross_layer_type}")
         return output
