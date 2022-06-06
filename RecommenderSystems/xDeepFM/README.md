@@ -1,9 +1,9 @@
 # DeepFM
 
-[DeepFM](https://arxiv.org/abs/1703.04247) is a Factorization-Machine based Neural Network for CTR prediction. Its model structure is as follows. Based on this structure, this project uses OneFlow distributed deep learning framework to realize training the model in graph mode on the Criteo data set.
+[xDeepFM](https://arxiv.org/pdf/1803.05170.pdf) is a Factorization-Machine based Neural Network for CTR prediction. Its model structure is as follows. Based on this structure, this project uses OneFlow distributed deep learning framework to realize training the model in graph mode on the Criteo data set.
 
 <p align='center'>
-  <img width="539" alt="Screen Shot 2022-04-01 at 4 45 22 PM" src="https://user-images.githubusercontent.com/46690197/161228714-ae9410bb-56db-46b0-8f0b-cb8becb6ee03.png">
+  <img width="539" alt="Screen Shot 2022-04-01 at 4 45 22 PM" src="https://user-images.githubusercontent.com/63446546/172111504-d2db0fb3-a85b-4ee0-a644-3ccb0f87cbfb.png">
 </p>
 
 
@@ -11,13 +11,13 @@
 
 ```txt
 .
-├── deepfm_train_eval.py       # OneFlow DeepFM train/val/test scripts with OneEmbedding module
+├── xdeepfm_train_eval.py      # OneFlow xDeepFM train/val/test scripts with OneEmbedding module
 ├── README.md                  # Documentation
 ├── tools
-│   ├── deepfm_parquet.scala   # Read Criteo Kaggle data and export it as parquet data format
+│   ├── xdeepfm_parquet.scala  # Read Criteo Kaggle data and export it as parquet data format
 │   └── launch_spark.sh        # Spark launching shell script
 │   └── split_criteo_kaggle.py # Split criteo kaggle dataset to train\val\test set
-├── train_deepfm.sh            # DeepFM training shell script
+├── train.sh                   # xDeepFM training shell script
 ```
 
 ## Arguments description

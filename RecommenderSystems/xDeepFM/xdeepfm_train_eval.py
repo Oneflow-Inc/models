@@ -378,13 +378,6 @@ class DNN(nn.Module):
         return self.linear_layers(x)
 
 
-def interaction(embedded_x: flow.Tensor) -> flow.Tensor:
-    sum_of_square = flow.sum(embedded_x, dim=1) ** 2
-    square_of_sum = flow.sum(embedded_x ** 2, dim=1)
-    bi_interaction = (sum_of_square - square_of_sum) * 0.5
-    return flow.sum(bi_interaction, dim=-1, keepdim=True)
-
-
 class CIN(nn.Module):
     def __init__(self, num_fields, cin_layer_units, output_dim=1):
         super(CIN, self).__init__()
@@ -400,12 +393,10 @@ class CIN(nn.Module):
                 in_channels, out_channels, kernel_size=1  # how many filters
             )  # kernel output shape
 
-    def forward(self, feature_emb_list):
+    def forward(self, inputs):
         pooling_outputs = []
-        # X_0 = flow.stack(feature_emb_list, dim=1)  # b x field_size x emb_size
-        X_0 = feature_emb_list
-        batch_size = X_0.shape[0]
-        embedding_dim = X_0.shape[-1]
+        X_0 = inputs
+        batch_size, _, embedding_dim = X_0.shape
         X_i = X_0
         for i in range(len(self.cin_layer_units)):
             hadamard_tensor = flow.einsum("bhd,bmd->bhmd", X_0, X_i)
@@ -465,9 +456,10 @@ class xDeepFMModule(nn.Module):
         embedded_x = multi_embedded_x[:, :, 0 : self.embedding_vec_size]
         lr_embedded_x = multi_embedded_x[:, :, -1]
 
-        # FM
+        # LR
         lr_logit = flow.sum(lr_embedded_x, dim=1, keepdim=True)
 
+        # CIN
         cin_logit = self.cin(embedded_x)
 
         if self.dnn_layer is not None:
@@ -475,10 +467,6 @@ class xDeepFMModule(nn.Module):
             y_pred = lr_logit + cin_logit + dnn_logit  # LR + CIN + DNN
         else:
             y_pred = lr_logit + cin_logit  # only LR + CIN
-
-        # # DNN
-        # dnn_pred = self.dnn_layer(embedded_x.flatten(start_dim=1))
-        # print("dnn_pred.shape: ", dnn_pred.shape)
 
         return y_pred
 
