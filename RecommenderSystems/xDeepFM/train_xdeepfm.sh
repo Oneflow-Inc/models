@@ -1,7 +1,7 @@
 #!/bin/bash
 rm -r /minio/sdb/sunbowen/persistent1/*
 
-export CUDA_VISIBLE_DEVICES=1
+export CUDA_VISIBLE_DEVICES=3
 export ONEFLOW_DEBUG_MODE=INFO
 export ONEFLOW_EAGER_LOCAL_TO_GLOBAL_BALANCED_OVERRIDE=1
 
