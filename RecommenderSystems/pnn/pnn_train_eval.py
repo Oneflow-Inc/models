@@ -10,9 +10,7 @@ import oneflow as flow
 import oneflow.nn as nn
 from petastorm.reader import make_batch_reader
 
-sys.path.append(
-    os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
-)
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
 
 
 def get_args(print_args=True):
@@ -26,35 +24,21 @@ def get_args(print_args=True):
 
     parser.add_argument("--data_dir", type=str, required=True)
     parser.add_argument(
-        "--num_train_samples",
-        type=int,
-        required=True,
-        help="the number of training samples",
+        "--num_train_samples", type=int, required=True, help="the number of training samples",
     )
     parser.add_argument(
-        "--num_val_samples",
-        type=int,
-        required=True,
-        help="the number of validation samples",
+        "--num_val_samples", type=int, required=True, help="the number of validation samples",
     )
     parser.add_argument(
         "--num_test_samples", type=int, required=True, help="the number of test samples"
     )
+    parser.add_argument("--model_load_dir", type=str, default=None, help="model loading directory")
+    parser.add_argument("--model_save_dir", type=str, default=None, help="model saving directory")
     parser.add_argument(
-        "--model_load_dir", type=str, default=None, help="model loading directory"
+        "--save_initial_model", action="store_true", help="save initial model parameters or not.",
     )
     parser.add_argument(
-        "--model_save_dir", type=str, default=None, help="model saving directory"
-    )
-    parser.add_argument(
-        "--save_initial_model",
-        action="store_true",
-        help="save initial model parameters or not.",
-    )
-    parser.add_argument(
-        "--save_model_after_each_eval",
-        action="store_true",
-        help="save model after each eval.",
+        "--save_model_after_each_eval", action="store_true", help="save model after each eval.",
     )
 
     parser.add_argument("--embedding_vec_size", type=int, default=16)
@@ -63,18 +47,13 @@ def get_args(print_args=True):
 
     parser.add_argument("--lr_factor", type=float, default=0.1)
     parser.add_argument("--min_lr", type=float, default=1.0e-6)
-    parser.add_argument(
-        "--learning_rate", type=float, default=0.001, help="learning rate"
-    )
+    parser.add_argument("--learning_rate", type=float, default=0.001, help="learning rate")
 
     parser.add_argument(
         "--batch_size", type=int, default=10000, help="training/evaluation batch size"
     )
     parser.add_argument(
-        "--train_batches",
-        type=int,
-        default=75000,
-        help="the maximum number of training batches",
+        "--train_batches", type=int, default=75000, help="the maximum number of training batches",
     )
     parser.add_argument("--loss_print_interval", type=int, default=100, help="")
 
@@ -93,15 +72,13 @@ def get_args(print_args=True):
 
     parser.add_argument(
         "--table_size_array",
+        default="649,9364,14746,490,476707,11618,4142,1373,7275,13,169,407,1376,1460,583,10131227,2202608,305,24,12517,633,3,93145,5683,8351593,3194,27,14992,5461306,10,5652,2173,4,7046547,18,15,286181,105,142572",
         type=int_list,
         help="Embedding table size array for sparse fields",
-        required=True,
+        required=False,
     )
     parser.add_argument(
-        "--persistent_path",
-        type=str,
-        required=True,
-        help="path for persistent kv store",
+        "--persistent_path", type=str, required=True, help="path for persistent kv store",
     )
     parser.add_argument(
         "--store_type",
@@ -117,26 +94,16 @@ def get_args(print_args=True):
     )
 
     parser.add_argument(
-        "--amp",
-        action="store_true",
-        help="enable Automatic Mixed Precision(AMP) training or not",
+        "--amp", action="store_true", help="enable Automatic Mixed Precision(AMP) training or not",
     )
-    parser.add_argument(
-        "--loss_scale_policy", type=str, default="static", help="static or dynamic"
-    )
+    parser.add_argument("--loss_scale_policy", type=str, default="static", help="static or dynamic")
 
     parser.add_argument(
         "--disable_early_stop", action="store_true", help="enable early stop or not"
     )
-    parser.add_argument(
-        "--save_best_model", action="store_true", help="save best model or not"
-    )
-    parser.add_argument(
-        "--use_inner", type=bool, default=True, help="Use inner_product_layer"
-    )
-    parser.add_argument(
-        "--use_outter", type=bool, default=False, help="Use outter_product_layer"
-    )
+    parser.add_argument("--save_best_model", action="store_true", help="save best model or not")
+    parser.add_argument("--use_inner", type=bool, default=True, help="Use inner_product_layer")
+    parser.add_argument("--use_outter", type=bool, default=False, help="Use outter_product_layer")
 
     args = parser.parse_args()
 
@@ -221,9 +188,7 @@ class PNNDataReader(object):
                 pos = batch_size - len(tail[0])
                 tail = list(
                     [
-                        np.concatenate(
-                            (tail[i], rglist[i][0 : (batch_size - len(tail[i]))])
-                        )
+                        np.concatenate((tail[i], rglist[i][0 : (batch_size - len(tail[i]))]))
                         for i in range(self.num_fields)
                     ]
                 )
@@ -238,9 +203,7 @@ class PNNDataReader(object):
 
             while (pos + batch_size) <= len(rglist[0]):
                 label = rglist[0][pos : pos + batch_size]
-                features = [
-                    rglist[j][pos : pos + batch_size] for j in range(1, self.num_fields)
-                ]
+                features = [rglist[j][pos : pos + batch_size] for j in range(1, self.num_fields)]
                 pos += batch_size
                 yield label, np.stack(features, axis=-1)
 
@@ -291,9 +254,7 @@ class OneEmbedding(nn.Module):
 
         if store_type == "device_mem":
             store_options = flow.one_embedding.make_device_mem_store_options(
-                persistent_path=persistent_path,
-                capacity=vocab_size,
-                size_factor=size_factor,
+                persistent_path=persistent_path, capacity=vocab_size, size_factor=size_factor,
             )
         elif store_type == "cached_host_mem":
             assert cache_memory_budget_mb > 0
@@ -344,9 +305,7 @@ class DNN(nn.Module):
         use_relu = [True] * len(hidden_units) + [not skip_final_activation]
         hidden_units = [in_features] + hidden_units + [out_features]
         for idx in range(len(hidden_units) - 1):
-            denses.append(
-                nn.Linear(hidden_units[idx], hidden_units[idx + 1], bias=True)
-            )
+            denses.append(nn.Linear(hidden_units[idx], hidden_units[idx + 1], bias=True))
             if use_relu[idx]:
                 denses.append(nn.ReLU())
             if dropout_rates[idx] > 0:
@@ -369,15 +328,9 @@ class Interaction(nn.Module):
     ):
         super(Interaction, self).__init__()
         self.interaction_itself = interaction_itself
-        n_cols = (
-            num_embedding_fields + 2
-            if self.interaction_itself
-            else num_embedding_fields + 1
-        )
+        n_cols = num_embedding_fields + 2 if self.interaction_itself else num_embedding_fields + 1
         output_size = sum(range(n_cols))
-        self.output_size = (
-            ((output_size + 8 - 1) // 8 * 8) if interaction_padding else output_size
-        )
+        self.output_size = ((output_size + 8 - 1) // 8 * 8) if interaction_padding else output_size
         self.output_padding = self.output_size - output_size
 
     def forward(self, x: flow.Tensor) -> flow.Tensor:
@@ -450,9 +403,7 @@ class PNNModule(nn.Module):
             self.inner_product_layer = Interaction(self.fields)
         if self.use_outter:
             self.input_dim += sum(range(self.fields))
-            self.outter_product_layer = OutterProductLayer(
-                self.fields, embedding_vec_size
-            )
+            self.outter_product_layer = OutterProductLayer(self.fields, embedding_vec_size)
         self.dnn_layer = DNN(
             in_features=self.input_dim,
             hidden_units=dnn,
@@ -466,9 +417,7 @@ class PNNModule(nn.Module):
         if self.use_inner:
             I = self.inner_product_layer(E)
         if self.use_outter:
-            O = self.outter_product_layer(
-                E.reshape(self.fields, -1, 1, self.embedding_vec_size)
-            )
+            O = self.outter_product_layer(E.reshape(self.fields, -1, 1, self.embedding_vec_size))
 
         if self.use_inner and self.use_outter:
             dense_input = flow.cat([E.flatten(start_dim=1), I, O], dim=1)
@@ -511,13 +460,7 @@ class PNNValGraph(flow.nn.Graph):
 
 class PNNTrainGraph(flow.nn.Graph):
     def __init__(
-        self,
-        pnn_module,
-        loss,
-        optimizer,
-        grad_scaler=None,
-        amp=False,
-        lr_scheduler=None,
+        self, pnn_module, loss, optimizer, grad_scaler=None, amp=False, lr_scheduler=None,
     ):
         super(PNNTrainGraph, self).__init__()
         self.module = pnn_module
@@ -542,9 +485,7 @@ def make_lr_scheduler(args, optimizer):
     batches_per_epoch = math.ceil(args.num_train_samples / args.batch_size)
     milestones = [
         batches_per_epoch * (i + 1)
-        for i in range(
-            math.floor(math.log(args.min_lr / args.learning_rate, args.lr_factor))
-        )
+        for i in range(math.floor(math.log(args.min_lr / args.learning_rate, args.lr_factor)))
     ]
     multistep_lr = flow.optim.lr_scheduler.MultiStepLR(
         optimizer=optimizer, gamma=args.lr_factor, milestones=milestones,
@@ -560,9 +501,7 @@ def get_metrics(logs):
     return monitor_value
 
 
-def early_stop(
-    epoch, monitor_value, best_metric, stopping_steps, patience=2, min_delta=1e-6
-):
+def early_stop(epoch, monitor_value, best_metric, stopping_steps, patience=2, min_delta=1e-6):
     rank = flow.env.get_rank()
     stop_training = False
     save_best = False
@@ -620,10 +559,7 @@ def train(args):
         grad_scaler = flow.amp.StaticGradScaler(1024)
     else:
         grad_scaler = flow.amp.GradScaler(
-            init_scale=1073741824,
-            growth_factor=2.0,
-            backoff_factor=0.5,
-            growth_interval=2000,
+            init_scale=1073741824, growth_factor=2.0, backoff_factor=0.5, growth_interval=2000,
         )
 
     eval_graph = PNNValGraph(pnn_module, args.amp)
@@ -640,9 +576,7 @@ def train(args):
     stop_training = False
 
     cached_eval_batches = prefetch_eval_batches(
-        f"{args.data_dir}/val",
-        args.batch_size,
-        math.ceil(args.num_val_samples / args.batch_size),
+        f"{args.data_dir}/val", args.batch_size, math.ceil(args.num_val_samples / args.batch_size),
     )
 
     pnn_module.train()
@@ -709,19 +643,14 @@ def train(args):
             save_model(f"step_{step}_val_auc_{auc:0.5f}")
 
 
-def np_to_global(np, dtype=flow.float):
-    # TODO: t = flow.from_numpy(np)
-    t = flow.tensor(np, dtype=dtype)
-    return t.to_global(
-        placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0)
-    )
+def np_to_global(np):
+    t = flow.from_numpy(np)
+    return t.to_global(placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0))
 
 
 def batch_to_global(np_label, np_features, is_train=True):
-    labels = (
-        np_to_global(np_label.reshape(-1, 1)) if is_train else np_label.reshape(-1, 1)
-    )
-    features = np_to_global(np_features, dtype=flow.int64)
+    labels = np_to_global(np_label.reshape(-1, 1)) if is_train else np_label.reshape(-1, 1)
+    features = np_to_global(np_features)
     return labels, features
 
 
@@ -760,15 +689,11 @@ def eval(args, eval_graph, tag="val", cur_step=0, epoch=0, cached_eval_batches=N
             preds.append(pred.to_local())
 
     labels = (
-        np_to_global(np.concatenate(labels, axis=0))
-        .to_global(sbp=flow.sbp.broadcast())
-        .to_local()
+        np_to_global(np.concatenate(labels, axis=0)).to_global(sbp=flow.sbp.broadcast()).to_local()
     )
     preds = (
         flow.cat(preds, dim=0)
-        .to_global(
-            placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0)
-        )
+        .to_global(placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0))
         .to_global(sbp=flow.sbp.broadcast())
         .to_local()
     )
@@ -780,9 +705,7 @@ def eval(args, eval_graph, tag="val", cur_step=0, epoch=0, cached_eval_batches=N
 
     metrics_start_time = time.time()
     auc = flow.roc_auc_score(labels, preds).numpy()[0]
-    logloss = flow._C.binary_cross_entropy_loss(
-        preds, labels, weight=None, reduction="mean"
-    )
+    logloss = flow._C.binary_cross_entropy_loss(preds, labels, weight=None, reduction="mean")
     metrics_time = time.time() - metrics_start_time
 
     if rank == 0:
