@@ -41,9 +41,11 @@ def get_args(print_args=True):
         help="save model after each eval or not",
     )
 
-    parser.add_argument("--embedding_vec_size", type=int, default=16, help="embedding vector size")
+    parser.add_argument("--num_experts", type=int, default=3, help="the number of experts")
+    parser.add_argument("--num_tasks", type=int, default=2, help="the number of tasks")
+    parser.add_argument("--embedding_vec_size", type=int, default=4, help="embedding vector size")
     parser.add_argument(
-        "--dnn", type=int_list, default="1000,1000,1000,1000,1000", help="dnn hidden units number"
+        "--expert_dnn", type=int_list, default="256, 128", help="dnn hidden units number"
     )
     parser.add_argument("--net_dropout", type=float, default=0.2, help="net dropout rate")
 
@@ -52,10 +54,10 @@ def get_args(print_args=True):
     parser.add_argument("--learning_rate", type=float, default=0.001, help="learning rate")
 
     parser.add_argument(
-        "--batch_size", type=int, default=10000, help="training/evaluation batch size"
+        "--batch_size", type=int, default=256, help="training/evaluation batch size"
     )
     parser.add_argument(
-        "--train_batches", type=int, default=75000, help="the maximum number of training batches"
+        "--train_batches", type=int, default=16000, help="the maximum number of training batches"
     )
     parser.add_argument("--loss_print_interval", type=int, default=100, help="")
 
@@ -428,10 +430,10 @@ class MmoeModule(nn.Module):
 
 def make_mmoe_module(args):
     model = MmoeModule(
-        num_tasks=2,
-        num_experts=3,
-        embedding_vec_size=4,
-        expert_dnn=[256, 128],
+        num_tasks=args.num_tasks,
+        num_experts=args.num_experts,
+        embedding_vec_size=args.embedding_vec_size,
+        expert_dnn=args.expert_dnn,
         persistent_path=args.persistent_path,
         table_size_array=args.table_size_array,
         one_embedding_store_type=args.store_type,
