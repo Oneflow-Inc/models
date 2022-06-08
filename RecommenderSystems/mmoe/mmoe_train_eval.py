@@ -132,51 +132,6 @@ class MmoeDataReader(object):
         self.shard_count = shard_count
         self.cur_shard = cur_shard
 
-        column_names = [
-            "age",
-            "class_worker",
-            "det_ind_code",
-            "det_occ_code",
-            "education",
-            "wage_per_hour",
-            "hs_college",
-            "marital_stat",
-            "major_ind_code",
-            "major_occ_code",
-            "race",
-            "hisp_origin",
-            "sex",
-            "union_member",
-            "unemp_reason",
-            "full_or_part_emp",
-            "capital_gains",
-            "capital_losses",
-            "stock_dividends",
-            "tax_filer_stat",
-            "region_prev_res",
-            "state_prev_res",
-            "det_hh_fam_stat",
-            "det_hh_summ",
-            "instance_weight",
-            "mig_chg_msa",
-            "mig_chg_reg",
-            "mig_move_reg",
-            "mig_same",
-            "mig_prev_sunbelt",
-            "num_emp",
-            "fam_under_18",
-            "country_father",
-            "country_mother",
-            "country_self",
-            "citizenship",
-            "own_or_self",
-            "vet_question",
-            "vet_benefits",
-            "weeks_worked",
-            "year",
-            "income_50k",
-        ]
-
         sparse_features = [
             "class_worker",
             "det_ind_code",
@@ -210,15 +165,24 @@ class MmoeDataReader(object):
         ]
 
         dense_features = [
-            col
-            for col in column_names
-            if col not in sparse_features and col not in ["income_50k", "marital_stat"]
+            "age",
+            "wage_per_hour",
+            "capital_gains",
+            "capital_losses",
+            "stock_dividends",
+            "instance_weight",
+            "num_emp",
+            "own_or_self",
+            "vet_benefits",
+            "weeks_worked",
+            "year",
         ]
 
         self.fields = dense_features + sparse_features + ["label_income", "label_marital"]
-        self.num_fields = len(self.fields)
+
         self.dense_end = len(dense_features)
         self.sparse_end = len(dense_features + sparse_features)
+        self.num_fields = len(self.fields)
 
     def __enter__(self):
         self.reader = make_batch_reader(
@@ -258,9 +222,10 @@ class MmoeDataReader(object):
                 if len(tail[0]) == batch_size:
                     dense = tail[0 : self.dense_end]
                     sparse = tail[self.dense_end : self.sparse_end]
-                    label = tail[self.sparse_end :]
+                    label_income = tail[self.sparse_end]
+                    label_marital = tail[self.sparse_end + 1]
                     tail = None
-                    yield np.stack(label, axis=-1), np.stack(dense, axis=-1), np.stack(
+                    yield label_income, label_marital, np.stack(dense, axis=-1), np.stack(
                         sparse, axis=-1
                     )
                 else:
@@ -272,12 +237,12 @@ class MmoeDataReader(object):
                     rglist[j][pos : pos + batch_size]
                     for j in range(self.dense_end, self.sparse_end)
                 ]
-                label = [
-                    rglist[j][pos : pos + batch_size]
-                    for j in range(self.sparse_end, self.num_fields)
-                ]
+                label_income = rglist[self.sparse_end][pos : pos + batch_size]
+                label_marital = rglist[self.sparse_end + 1][pos : pos + batch_size]
                 pos += batch_size
-                yield np.stack(label, axis=-1), np.stack(dense, axis=-1), np.stack(sparse, axis=-1)
+                yield label_income, label_marital, np.stack(dense, axis=-1), np.stack(
+                    sparse, axis=-1
+                )
             if pos != len(rglist[0]):
                 tail = [rglist[i][pos:] for i in range(self.num_fields)]
 
@@ -414,14 +379,6 @@ class MmoeModule(nn.Module):
             size_factor=3,
         )
 
-        self.expert = DNN(
-            in_features=embedding_vec_size * num_sparse_fields + num_dense_fields,
-            hidden_units=expert_dnn[:-1],
-            out_features=expert_dnn[-1],
-            skip_final_activation=True,
-            dropout=0.0,
-        )
-
         self.experts = nn.ModuleList([])
         for _ in range(num_experts):
             expert_net = DNN(
@@ -449,27 +406,21 @@ class MmoeModule(nn.Module):
     def forward(self, dense_inputs, sparse_inputs) -> flow.Tensor:
         sparse_emb = self.embedding_layer(sparse_inputs)
         inputs = flow.cat([sparse_emb.flatten(start_dim=1), dense_inputs], dim=1)
-        # print("inputs: ", inputs.shape)
 
         expert_outs = []
         for expert in self.experts:
             expert_outs.append(expert(inputs))
         expert_concat = flow.stack(expert_outs, dim=1)
-        # print("expert_concat: ", expert_concat.shape)
 
         mmoe_outs = []
         for i in range(self.num_tasks):
             gate_out = self.gates[i](inputs).softmax()
-            # print("gate: ", gate_out.shape)
             gate_out = gate_out.reshape([-1, self.num_experts, 1])
-            # print("gate: ", gate_out.shape)
+
             gate_mul_expert = flow.mul(expert_concat, gate_out.expand_as(expert_concat))
-            # print("gate_mul_expert: ", gate_mul_expert.shape)
             gate_mul_expert = flow.sum(gate_mul_expert, dim=1)
-            # print("gate_mul_expert: ", gate_mul_expert.shape)
 
             tower_out = self.towers[i](gate_mul_expert)
-            # print("tower: ", tower_out.shape)
             mmoe_outs.append(tower_out)
 
         return mmoe_outs
@@ -504,15 +455,13 @@ class MmoeTrainGraph(flow.nn.Graph):
             self.config.enable_amp(True)
             self.set_grad_scaler(grad_scaler)
 
-    def build(self, labels, dense_fields, sparse_fields):
+    def build(self, label_income, label_marital, dense_fields, sparse_fields):
         logits = self.module(dense_fields.to("cuda"), sparse_fields.to("cuda"))
-        label_income = labels[:, 0].unsqueeze(1)
-        label_marital = labels[:, 1].unsqueeze(1)
         loss_income = self.loss(logits[0], label_income.to("cuda"))
         loss_marital = self.loss(logits[1], label_marital.to("cuda"))
         loss = loss_income + loss_marital
         loss.backward()
-        return loss.to("cpu")
+        return loss_income.to("cpu"), loss_marital.to("cpu")
 
 
 class MmoeValGraph(flow.nn.Graph):
@@ -522,9 +471,9 @@ class MmoeValGraph(flow.nn.Graph):
         if amp:
             self.config.enable_amp(True)
 
-    def build(self, features):
-        predicts = self.module(features.to("cuda"))
-        return predicts.sigmoid()
+    def build(self, dense_fields, sparse_fields):
+        preds = self.module(dense_fields.to("cuda"), sparse_fields.to("cuda"))
+        return preds[0].sigmoid(), preds[1].sigmoid()
 
 
 def make_lr_scheduler(args, optimizer):
@@ -599,48 +548,48 @@ def train(args):
     with make_census_dataloader(f"{args.data_dir}/train", args.batch_size) as loader:
         step, last_step, last_time = -1, 0, time.time()
         for step in range(1, args.train_batches + 1):
-            labels, dense_fields, sparse_fields = batch_to_global(*next(loader))
-            # print("label: ", labels.shape)
-            # print("dense: ", dense_fields.shape)
-            # print("sparse: ", sparse_fields.shape)
-            loss = train_graph(labels, dense_fields, sparse_fields)
+            label_income, label_marital, dense_fields, sparse_fields = batch_to_global(
+                *next(loader)
+            )
+            loss_income, loss_marital = train_graph(
+                label_income, label_marital, dense_fields, sparse_fields
+            )
             if step % args.loss_print_interval == 0:
-                loss = loss.numpy()
+                loss_income = loss_income.numpy()
+                loss_marital = loss_marital.numpy()
                 if rank == 0:
                     latency = (time.time() - last_time) / (step - last_step)
                     throughput = args.batch_size / latency
                     last_step, last_time = step, time.time()
                     strtime = time.strftime("%Y-%m-%d %H:%M:%S")
                     print(
-                        f"Rank[{rank}], Step {step}, Loss {loss:0.4f}, "
+                        f"Rank[{rank}], Step {step}, Loss_income {loss_income:0.4f}, Loss_marital {loss_marital:0.4f}, "
                         + f"Latency {(latency * 1000):0.3f} ms, Throughput {throughput:0.1f}, {strtime}"
                     )
 
-            # if step % batches_per_epoch == 0:
-            #     epoch += 1
-            #     auc = eval(
-            #         args,
-            #         eval_graph,
-            #         cur_step=step,
-            #         epoch=epoch,
-            #         cached_eval_batches=cached_eval_batches,
-            #     )
-            #     if args.save_model_after_each_eval:
-            #         save_model(f"step_{step}_val_auc_{auc:0.5f}")
+            if step % batches_per_epoch == 0:
+                epoch += 1
+                auc_income, auc_marital = eval(
+                    args,
+                    eval_graph,
+                    cur_step=step,
+                    epoch=epoch,
+                    cached_eval_batches=cached_eval_batches,
+                )
+                if args.save_model_after_each_eval:
+                    save_model(
+                        f"step_{step}_val_auc_income_{auc_income:0.5f}_marital_{auc_marital:0.5f}"
+                    )
 
-            # mmoe_module.train()
-            # last_time = time.time()
+            mmoe_module.train()
+            last_time = time.time()
 
-    # if step % batches_per_epoch != 0:
-    #     auc = eval(
-    #         args,
-    #         eval_graph,
-    #         cur_step=step,
-    #         epoch=epoch,
-    #         cached_eval_batches=cached_eval_batches,
-    #     )
-    #     if args.save_model_after_each_eval:
-    #         save_model(f"step_{step}_val_auc_{auc:0.5f}")
+    if step % batches_per_epoch != 0:
+        auc_income, auc_marital = eval(
+            args, eval_graph, cur_step=step, epoch=epoch, cached_eval_batches=cached_eval_batches,
+        )
+        if args.save_model_after_each_eval:
+            save_model(f"step_{step}_val_auc_income_{auc_income:0.5f}_marital_{auc_marital:0.5f}")
 
 
 def np_to_global(np):
@@ -648,20 +597,29 @@ def np_to_global(np):
     return t.to_global(placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0))
 
 
-def batch_to_global(np_label, np_dense, np_sparse, is_train=True):
-    labels = np_to_global(np_label) if is_train else np_label
+def batch_to_global(np_label_income, np_label_marital, np_dense, np_sparse, is_train=True):
+    label_income = (
+        np_to_global(np_label_income.reshape(-1, 1)) if is_train else np_label_income.reshape(-1, 1)
+    )
+    label_marital = (
+        np_to_global(np_label_marital.reshape(-1, 1))
+        if is_train
+        else np_label_marital.reshape(-1, 1)
+    )
     np_dense = np_to_global(np_dense)
     np_sparse = np_to_global(np_sparse)
 
-    return labels, np_dense, np_sparse
+    return label_income, label_marital, np_dense, np_sparse
 
 
 def prefetch_eval_batches(data_dir, batch_size, num_batches):
     cached_eval_batches = []
     with make_census_dataloader(data_dir, batch_size, shuffle=False) as loader:
         for _ in range(num_batches):
-            labels, dense_fields, sparse_fields = batch_to_global(*next(loader))
-            cached_eval_batches.append((labels, dense_fields, sparse_fields))
+            label_income, label_marital, dense_fields, sparse_fields = batch_to_global(
+                *next(loader)
+            )
+            cached_eval_batches.append((label_income, label_marital, dense_fields, sparse_fields))
     return cached_eval_batches
 
 
@@ -669,20 +627,36 @@ def eval(args, eval_graph, cur_step=0, epoch=0, cached_eval_batches=None):
     batches_per_epoch = math.ceil(args.num_test_samples / args.batch_size)
 
     eval_graph.module.eval()
-    labels, preds = [], []
+    label_incomes, label_maritals = [], []
+    pred_incomes, pred_maritals = [], []
     eval_start_time = time.time()
 
     for i in range(batches_per_epoch):
-        label, features = cached_eval_batches[i]
-        pred = eval_graph(features)
-        labels.append(label)
-        preds.append(pred.to_local())
+        label_income, label_marital, dense_fields, sparse_fields = cached_eval_batches[i]
+        pred_income, pred_marital = eval_graph(dense_fields, sparse_fields)
+        label_incomes.append(label_income)
+        label_maritals.append(label_marital)
+        pred_incomes.append(pred_income.to_local())
+        pred_maritals.append(pred_marital.to_local())
 
-    labels = (
-        np_to_global(np.concatenate(labels, axis=0)).to_global(sbp=flow.sbp.broadcast()).to_local()
+    label_incomes = (
+        np_to_global(np.concatenate(label_incomes, axis=0))
+        .to_global(sbp=flow.sbp.broadcast())
+        .to_local()
     )
-    preds = (
-        flow.cat(preds, dim=0)
+    label_maritals = (
+        np_to_global(np.concatenate(label_maritals, axis=0))
+        .to_global(sbp=flow.sbp.broadcast())
+        .to_local()
+    )
+    pred_incomes = (
+        flow.cat(pred_incomes, dim=0)
+        .to_global(placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0))
+        .to_global(sbp=flow.sbp.broadcast())
+        .to_local()
+    )
+    pred_maritals = (
+        flow.cat(pred_maritals, dim=0)
         .to_global(placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0))
         .to_global(sbp=flow.sbp.broadcast())
         .to_local()
@@ -694,8 +668,14 @@ def eval(args, eval_graph, cur_step=0, epoch=0, cached_eval_batches=None):
     rank = flow.env.get_rank()
 
     metrics_start_time = time.time()
-    auc = flow.roc_auc_score(labels, preds).numpy()[0]
-    logloss = flow._C.binary_cross_entropy_loss(preds, labels, weight=None, reduction="mean")
+    auc_income = flow.roc_auc_score(label_incomes, pred_incomes).numpy()[0]
+    auc_marital = flow.roc_auc_score(label_maritals, pred_maritals).numpy()[0]
+    loss_income = flow._C.binary_cross_entropy_loss(
+        pred_incomes, label_incomes, weight=None, reduction="mean"
+    )
+    loss_marital = flow._C.binary_cross_entropy_loss(
+        pred_maritals, label_maritals, weight=None, reduction="mean"
+    )
     metrics_time = time.time() - metrics_start_time
 
     if rank == 0:
@@ -705,12 +685,13 @@ def eval(args, eval_graph, cur_step=0, epoch=0, cached_eval_batches=None):
 
         strtime = time.strftime("%Y-%m-%d %H:%M:%S")
         print(
-            f"Rank[{rank}], Epoch {epoch}, Step {cur_step}, AUC {auc:0.6f}, LogLoss {logloss:0.6f}, "
-            + f"Eval_time {eval_time:0.2f} s, Metrics_time {metrics_time:0.2f} s, Eval_samples {labels.shape[0]}, "
+            f"Rank[{rank}], Epoch {epoch}, Step {cur_step}, AUC_income {auc_income:0.6f}, AUC_marital {auc_marital:0.6f}, "
+            + f"Loss_income {loss_income:0.6f}, Loss_marital {loss_marital:0.6f}, "
+            + f"Eval_time {eval_time:0.2f} s, Metrics_time {metrics_time:0.2f} s, Eval_samples {label_incomes.shape[0]}, "
             + f"GPU_Memory {device_mem_str}, Host_Memory {host_mem_mb} MiB, {strtime}"
         )
 
-    return auc
+    return auc_income, auc_marital
 
 
 if __name__ == "__main__":
