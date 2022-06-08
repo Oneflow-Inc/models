@@ -105,11 +105,11 @@ def _print_args(args):
     print("-------------------- end of arguments ---------------------", flush=True)
 
 
-num_dense_fields = 13
-num_sparse_fields = 26
+num_dense_fields = 11
+num_sparse_fields = 29
 
 
-class MMoeDataReader(object):
+class MmoeDataReader(object):
     """A context manager that manages the creation and termination of a
     :class:`petastorm.Reader`.
     """
@@ -132,11 +132,93 @@ class MMoeDataReader(object):
         self.shard_count = shard_count
         self.cur_shard = cur_shard
 
-        fields = ["Label"]
-        fields += [f"I{i+1}" for i in range(num_dense_fields)]
-        fields += [f"C{i+1}" for i in range(num_sparse_fields)]
-        self.fields = fields
-        self.num_fields = len(fields)
+        column_names = [
+            "age",
+            "class_worker",
+            "det_ind_code",
+            "det_occ_code",
+            "education",
+            "wage_per_hour",
+            "hs_college",
+            "marital_stat",
+            "major_ind_code",
+            "major_occ_code",
+            "race",
+            "hisp_origin",
+            "sex",
+            "union_member",
+            "unemp_reason",
+            "full_or_part_emp",
+            "capital_gains",
+            "capital_losses",
+            "stock_dividends",
+            "tax_filer_stat",
+            "region_prev_res",
+            "state_prev_res",
+            "det_hh_fam_stat",
+            "det_hh_summ",
+            "instance_weight",
+            "mig_chg_msa",
+            "mig_chg_reg",
+            "mig_move_reg",
+            "mig_same",
+            "mig_prev_sunbelt",
+            "num_emp",
+            "fam_under_18",
+            "country_father",
+            "country_mother",
+            "country_self",
+            "citizenship",
+            "own_or_self",
+            "vet_question",
+            "vet_benefits",
+            "weeks_worked",
+            "year",
+            "income_50k",
+        ]
+
+        sparse_features = [
+            "class_worker",
+            "det_ind_code",
+            "det_occ_code",
+            "education",
+            "hs_college",
+            "major_ind_code",
+            "major_occ_code",
+            "race",
+            "hisp_origin",
+            "sex",
+            "union_member",
+            "unemp_reason",
+            "full_or_part_emp",
+            "tax_filer_stat",
+            "region_prev_res",
+            "state_prev_res",
+            "det_hh_fam_stat",
+            "det_hh_summ",
+            "mig_chg_msa",
+            "mig_chg_reg",
+            "mig_move_reg",
+            "mig_same",
+            "mig_prev_sunbelt",
+            "fam_under_18",
+            "country_father",
+            "country_mother",
+            "country_self",
+            "citizenship",
+            "vet_question",
+        ]
+
+        dense_features = [
+            col
+            for col in column_names
+            if col not in sparse_features and col not in ["income_50k", "marital_stat"]
+        ]
+
+        self.fields = dense_features + sparse_features + ["label_income", "label_marital"]
+        self.num_fields = len(self.fields)
+        self.dense_end = len(dense_features)
+        self.sparse_end = len(dense_features + sparse_features)
 
     def __enter__(self):
         self.reader = make_batch_reader(
@@ -174,18 +256,28 @@ class MMoeDataReader(object):
                     ]
                 )
                 if len(tail[0]) == batch_size:
-                    label = tail[0]
-                    features = tail[1 : self.num_fields]
+                    dense = tail[0 : self.dense_end]
+                    sparse = tail[self.dense_end : self.sparse_end]
+                    label = tail[self.sparse_end :]
                     tail = None
-                    yield label, np.stack(features, axis=-1)
+                    yield np.stack(label, axis=-1), np.stack(dense, axis=-1), np.stack(
+                        sparse, axis=-1
+                    )
                 else:
                     pos = 0
                     continue
             while (pos + batch_size) <= len(rglist[0]):
-                label = rglist[0][pos : pos + batch_size]
-                features = [rglist[j][pos : pos + batch_size] for j in range(1, self.num_fields)]
+                dense = [rglist[j][pos : pos + batch_size] for j in range(0, self.dense_end)]
+                sparse = [
+                    rglist[j][pos : pos + batch_size]
+                    for j in range(self.dense_end, self.sparse_end)
+                ]
+                label = [
+                    rglist[j][pos : pos + batch_size]
+                    for j in range(self.sparse_end, self.num_fields)
+                ]
                 pos += batch_size
-                yield label, np.stack(features, axis=-1)
+                yield np.stack(label, axis=-1), np.stack(dense, axis=-1), np.stack(sparse, axis=-1)
             if pos != len(rglist[0]):
                 tail = [rglist[i][pos:] for i in range(self.num_fields)]
 
@@ -200,7 +292,7 @@ def make_census_dataloader(data_path, batch_size, shuffle=True):
     world_size = flow.env.get_world_size()
     batch_size_per_proc = batch_size // world_size
 
-    return MMoeDataReader(
+    return MmoeDataReader(
         files,
         batch_size_per_proc,
         None,  # TODO: iterate over all eval dataset
@@ -233,9 +325,7 @@ class OneEmbedding(nn.Module):
         ]
         if store_type == "device_mem":
             store_options = flow.one_embedding.make_device_mem_store_options(
-                persistent_path=persistent_path, 
-                capacity=vocab_size,
-                size_factor=size_factor,
+                persistent_path=persistent_path, capacity=vocab_size, size_factor=size_factor,
             )
         elif store_type == "cached_host_mem":
             assert cache_memory_budget_mb > 0
@@ -297,53 +387,113 @@ class DNN(nn.Module):
         return self.linear_layers(x)
 
 
-class MMoeModule(nn.Module):
+class MmoeModule(nn.Module):
     def __init__(
         self,
-        embedding_vec_size=128,
-        dnn=[1024, 1024, 512, 256],
+        num_tasks=2,
+        num_experts=3,
+        embedding_vec_size=4,
+        expert_dnn=[256, 128],
         persistent_path=None,
         table_size_array=None,
         one_embedding_store_type="cached_host_mem",
         cache_memory_budget_mb=8192,
-        dropout=0.2,
     ):
-        super(MMoeModule, self).__init__()
+        super(MmoeModule, self).__init__()
 
-    def forward(self, inputs) -> flow.Tensor:
-        pass
+        self.num_experts = num_experts
+        self.num_tasks = num_tasks
+
+        self.embedding_layer = OneEmbedding(
+            table_name="sparse_embedding",
+            embedding_vec_size=embedding_vec_size,
+            persistent_path=persistent_path,
+            table_size_array=table_size_array,
+            store_type=one_embedding_store_type,
+            cache_memory_budget_mb=cache_memory_budget_mb,
+            size_factor=3,
+        )
+
+        self.expert = DNN(
+            in_features=embedding_vec_size * num_sparse_fields + num_dense_fields,
+            hidden_units=expert_dnn[:-1],
+            out_features=expert_dnn[-1],
+            skip_final_activation=True,
+            dropout=0.0,
+        )
+
+        self.experts = nn.ModuleList([])
+        for _ in range(num_experts):
+            expert_net = DNN(
+                in_features=embedding_vec_size * num_sparse_fields + num_dense_fields,
+                hidden_units=expert_dnn[:-1],
+                out_features=expert_dnn[-1],
+                skip_final_activation=True,
+                dropout=0.0,
+            )
+            self.experts.append(expert_net)
+
+        self.gates = nn.ModuleList([])
+        self.towers = nn.ModuleList([])
+        for _ in range(num_tasks):
+            gate_net = nn.Linear(
+                in_features=embedding_vec_size * num_sparse_fields + num_dense_fields,
+                out_features=num_experts,
+                bias=False,
+            )
+            self.gates.append(gate_net)
+
+            tower_net = nn.Linear(in_features=expert_dnn[-1], out_features=1,)
+            self.towers.append(tower_net)
+
+    def forward(self, dense_inputs, sparse_inputs) -> flow.Tensor:
+        sparse_emb = self.embedding_layer(sparse_inputs)
+        inputs = flow.cat([sparse_emb.flatten(start_dim=1), dense_inputs], dim=1)
+        # print("inputs: ", inputs.shape)
+
+        expert_outs = []
+        for expert in self.experts:
+            expert_outs.append(expert(inputs))
+        expert_concat = flow.stack(expert_outs, dim=1)
+        # print("expert_concat: ", expert_concat.shape)
+
+        mmoe_outs = []
+        for i in range(self.num_tasks):
+            gate_out = self.gates[i](inputs).softmax()
+            # print("gate: ", gate_out.shape)
+            gate_out = gate_out.reshape([-1, self.num_experts, 1])
+            # print("gate: ", gate_out.shape)
+            gate_mul_expert = flow.mul(expert_concat, gate_out.expand_as(expert_concat))
+            # print("gate_mul_expert: ", gate_mul_expert.shape)
+            gate_mul_expert = flow.sum(gate_mul_expert, dim=1)
+            # print("gate_mul_expert: ", gate_mul_expert.shape)
+
+            tower_out = self.towers[i](gate_mul_expert)
+            # print("tower: ", tower_out.shape)
+            mmoe_outs.append(tower_out)
+
+        return mmoe_outs
 
 
 def make_mmoe_module(args):
-    model = MMoeModule(
-        embedding_vec_size=args.embedding_vec_size,
-        dnn=args.dnn,
+    model = MmoeModule(
+        num_tasks=2,
+        num_experts=3,
+        embedding_vec_size=4,
+        expert_dnn=[256, 128],
         persistent_path=args.persistent_path,
         table_size_array=args.table_size_array,
         one_embedding_store_type=args.store_type,
         cache_memory_budget_mb=args.cache_memory_budget_mb,
-        dropout=args.net_dropout,
     )
     return model
 
 
-class MMoeValGraph(flow.nn.Graph):
-    def __init__(self, mmoe_module, amp=False):
-        super(MMoeValGraph, self).__init__()
-        self.module = mmoe_module
-        if amp:
-            self.config.enable_amp(True)
-
-    def build(self, features):
-        predicts = self.module(features.to("cuda"))
-        return predicts.sigmoid()
-
-
-class MMoeTrainGraph(flow.nn.Graph):
+class MmoeTrainGraph(flow.nn.Graph):
     def __init__(
         self, mmoe_module, loss, optimizer, grad_scaler=None, amp=False, lr_scheduler=None,
     ):
-        super(MMoeTrainGraph, self).__init__()
+        super(MmoeTrainGraph, self).__init__()
         self.module = mmoe_module
         self.loss = loss
         self.add_optimizer(optimizer, lr_sch=lr_scheduler)
@@ -354,11 +504,27 @@ class MMoeTrainGraph(flow.nn.Graph):
             self.config.enable_amp(True)
             self.set_grad_scaler(grad_scaler)
 
-    def build(self, labels, features):
-        logits = self.module(features.to("cuda"))
-        loss = self.loss(logits, labels.to("cuda"))
+    def build(self, labels, dense_fields, sparse_fields):
+        logits = self.module(dense_fields.to("cuda"), sparse_fields.to("cuda"))
+        label_income = labels[:, 0].unsqueeze(1)
+        label_marital = labels[:, 1].unsqueeze(1)
+        loss_income = self.loss(logits[0], label_income.to("cuda"))
+        loss_marital = self.loss(logits[1], label_marital.to("cuda"))
+        loss = loss_income + loss_marital
         loss.backward()
         return loss.to("cpu")
+
+
+class MmoeValGraph(flow.nn.Graph):
+    def __init__(self, mmoe_module, amp=False):
+        super(MmoeValGraph, self).__init__()
+        self.module = mmoe_module
+        if amp:
+            self.config.enable_amp(True)
+
+    def build(self, features):
+        predicts = self.module(features.to("cuda"))
+        return predicts.sigmoid()
 
 
 def make_lr_scheduler(args, optimizer):
@@ -418,7 +584,7 @@ def train(args):
         )
 
     eval_graph = MmoeValGraph(mmoe_module, args.amp)
-    train_graph = MMoeTrainGraph(
+    train_graph = MmoeTrainGraph(
         mmoe_module, loss, opt, grad_scaler, args.amp, lr_scheduler=lr_scheduler
     )
 
@@ -433,8 +599,11 @@ def train(args):
     with make_census_dataloader(f"{args.data_dir}/train", args.batch_size) as loader:
         step, last_step, last_time = -1, 0, time.time()
         for step in range(1, args.train_batches + 1):
-            labels, features = batch_to_global(*next(loader))
-            loss = train_graph(labels, features)
+            labels, dense_fields, sparse_fields = batch_to_global(*next(loader))
+            # print("label: ", labels.shape)
+            # print("dense: ", dense_fields.shape)
+            # print("sparse: ", sparse_fields.shape)
+            loss = train_graph(labels, dense_fields, sparse_fields)
             if step % args.loss_print_interval == 0:
                 loss = loss.numpy()
                 if rank == 0:
@@ -447,31 +616,31 @@ def train(args):
                         + f"Latency {(latency * 1000):0.3f} ms, Throughput {throughput:0.1f}, {strtime}"
                     )
 
-            if step % batches_per_epoch == 0:
-                epoch += 1
-                auc = eval(
-                    args,
-                    eval_graph,
-                    cur_step=step,
-                    epoch=epoch,
-                    cached_eval_batches=cached_eval_batches,
-                )
-                if args.save_model_after_each_eval:
-                    save_model(f"step_{step}_val_auc_{auc:0.5f}")
+            # if step % batches_per_epoch == 0:
+            #     epoch += 1
+            #     auc = eval(
+            #         args,
+            #         eval_graph,
+            #         cur_step=step,
+            #         epoch=epoch,
+            #         cached_eval_batches=cached_eval_batches,
+            #     )
+            #     if args.save_model_after_each_eval:
+            #         save_model(f"step_{step}_val_auc_{auc:0.5f}")
 
-                mmoe_module.train()
-                last_time = time.time()
+            # mmoe_module.train()
+            # last_time = time.time()
 
-    if step % batches_per_epoch != 0:
-        auc = eval(
-            args,
-            eval_graph,
-            cur_step=step,
-            epoch=epoch,
-            cached_eval_batches=cached_eval_batches,
-        )
-        if args.save_model_after_each_eval:
-            save_model(f"step_{step}_val_auc_{auc:0.5f}")
+    # if step % batches_per_epoch != 0:
+    #     auc = eval(
+    #         args,
+    #         eval_graph,
+    #         cur_step=step,
+    #         epoch=epoch,
+    #         cached_eval_batches=cached_eval_batches,
+    #     )
+    #     if args.save_model_after_each_eval:
+    #         save_model(f"step_{step}_val_auc_{auc:0.5f}")
 
 
 def np_to_global(np):
@@ -479,18 +648,20 @@ def np_to_global(np):
     return t.to_global(placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0))
 
 
-def batch_to_global(np_label, np_features, is_train=True):
-    labels = np_to_global(np_label.reshape(-1, 1)) if is_train else np_label.reshape(-1, 1)
-    features = np_to_global(np_features)
-    return labels, features
+def batch_to_global(np_label, np_dense, np_sparse, is_train=True):
+    labels = np_to_global(np_label) if is_train else np_label
+    np_dense = np_to_global(np_dense)
+    np_sparse = np_to_global(np_sparse)
+
+    return labels, np_dense, np_sparse
 
 
 def prefetch_eval_batches(data_dir, batch_size, num_batches):
     cached_eval_batches = []
     with make_census_dataloader(data_dir, batch_size, shuffle=False) as loader:
         for _ in range(num_batches):
-            label, features = batch_to_global(*next(loader), is_train=False)
-            cached_eval_batches.append((label, features))
+            labels, dense_fields, sparse_fields = batch_to_global(*next(loader))
+            cached_eval_batches.append((labels, dense_fields, sparse_fields))
     return cached_eval_batches
 
 
