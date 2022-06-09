@@ -619,7 +619,7 @@ def prefetch_eval_batches(data_dir, batch_size, num_batches):
     with make_census_dataloader(data_dir, batch_size, shuffle=False) as loader:
         for _ in range(num_batches):
             label_income, label_marital, dense_fields, sparse_fields = batch_to_global(
-                *next(loader)
+                *next(loader), is_train=False
             )
             cached_eval_batches.append((label_income, label_marital, dense_fields, sparse_fields))
     return cached_eval_batches
