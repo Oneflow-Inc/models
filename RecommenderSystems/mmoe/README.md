@@ -1,10 +1,10 @@
 # MMoE
 
 [Multi-gate Mixture-of-Experts (MMoE)](https://dl.acm.org/doi/pdf/10.1145/3219819.3220007) adapts the Mixture-of- Experts (MoE) structure to multi-task learning by sharing the expert submodels across all tasks, while also having a gating network trained to optimize each task. Its model structure is as follows. Based on this structure, this project uses OneFlow distributed deep learning framework to realize training the model in graph mode on the Criteo data set.
-
 <p align='center'>
-  <img width="539" alt="Screen Shot 2022-04-01 at 4 45 22 PM" src="https://user-images.githubusercontent.com/46690197/161228714-ae9410bb-56db-46b0-8f0b-cb8becb6ee03.png">
+  <img width="539" alt="mmoe" src="https://user-images.githubusercontent.com/46690197/172789523-443b5df5-432a-4b96-99ba-7712d46a81ed.png">
 </p>
+
 ## Directory description
 
 ```txt
