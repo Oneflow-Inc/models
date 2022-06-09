@@ -12,7 +12,7 @@ python3 -m oneflow.distributed.launch \
     mmoe_train_eval.py \
       --data_dir $DATA_DIR \
       --persistent_path $PERSISTENT_PATH \
-      --table_size_array "8, 38, 36, 16, 3, 21, 14, 5, 8, 2, 3, 5, 7, 6, 5, 16, 13, 7, 6, 8, 8, 3, 4, 4, 15, 16, 14, 5, 3" \
+      --table_size_array "9, 52, 47, 17, 3, 24, 15, 5, 10, 2, 3, 6, 8, 6, 6, 51, 38, 8, 10, 9, 10, 3, 4, 5, 43, 43, 43, 5, 3" \
       --store_type 'cached_host_mem' \
       --cache_memory_budget_mb 1024 \
       --batch_size 256 \
