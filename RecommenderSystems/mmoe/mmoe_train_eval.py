@@ -47,7 +47,7 @@ def get_args(print_args=True):
     parser.add_argument(
         "--expert_dnn", type=int_list, default="256, 128", help="dnn hidden units number"
     )
-    parser.add_argument("--net_dropout", type=float, default=0.2, help="net dropout rate")
+    parser.add_argument("--net_dropout", type=float, default=0.0, help="net dropout rate")
 
     parser.add_argument("--lr_factor", type=float, default=0.1)
     parser.add_argument("--min_lr", type=float, default=1.0e-6)
@@ -361,6 +361,7 @@ class MmoeModule(nn.Module):
         num_experts=3,
         embedding_vec_size=4,
         expert_dnn=[256, 128],
+        net_dropout=0.0,
         persistent_path=None,
         table_size_array=None,
         one_embedding_store_type="cached_host_mem",
@@ -388,7 +389,7 @@ class MmoeModule(nn.Module):
                 hidden_units=expert_dnn[:-1],
                 out_features=expert_dnn[-1],
                 skip_final_activation=True,
-                dropout=0.0,
+                dropout=net_dropout,
             )
             self.experts.append(expert_net)
 
@@ -434,6 +435,7 @@ def make_mmoe_module(args):
         num_experts=args.num_experts,
         embedding_vec_size=args.embedding_vec_size,
         expert_dnn=args.expert_dnn,
+        net_dropout=args.net_dropout,
         persistent_path=args.persistent_path,
         table_size_array=args.table_size_array,
         one_embedding_store_type=args.store_type,
