@@ -302,17 +302,13 @@ class DNN(nn.Module):
         self, in_features, hidden_units, out_features, skip_final_activation=False, dropout=0.0
     ) -> None:
         super(DNN, self).__init__()
-        denses = []
-        dropout_rates = [dropout] * len(hidden_units) + [0.0]
-        use_relu = [True] * len(hidden_units) + [not skip_final_activation]
-        hidden_units = [in_features] + hidden_units + [out_features]
-        for idx in range(len(hidden_units) - 1):
-            denses.append(nn.Linear(hidden_units[idx], hidden_units[idx + 1], bias=True))
-            if use_relu[idx]:
-                denses.append(nn.ReLU())
-            if dropout_rates[idx] > 0:
-                denses.append(nn.Dropout(p=dropout_rates[idx]))
-        self.linear_layers = nn.Sequential(*denses)
+        self.dropout_rates = [dropout] * len(hidden_units)
+        self.linear_layers = nn.FusedMLP(in_features, 
+                                         hidden_units, 
+                                         out_features,
+                                         self.dropout_rates,
+                                         0.0, 
+                                         skip_final_activation)
 
         for name, param in self.linear_layers.named_parameters():
             if "weight" in name:
