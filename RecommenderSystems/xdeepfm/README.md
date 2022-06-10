@@ -79,8 +79,6 @@ A hands-on guide to train a xDeepFM model.
      ```json
      psutil
      petastorm
-     pandas
-     sklearn
      ```
 
 ### Dataset
@@ -106,7 +104,7 @@ A hands-on guide to train a xDeepFM model.
 
      -   Run `bash launch_spark.sh`
 
-4.   load [xdeepfm_parquet.scala](https://github.com/Oneflow-Inc/models/blob/xdev_deepfm/RecommenderSystems/xdeepfm/tools/xdeepfm_parquet.scala) to your spark shell by `:load deepfm_parquet.scala`.
+4.   load [xdeepfm_parquet.scala](https://github.com/Oneflow-Inc/models/blob/dev_xdeepfm_pr/RecommenderSystems/xdeepfm/tools/xdeepfm_parquet.scala) to your spark shell by `:load deepfm_parquet.scala`.
 
 5.   call the `makexDeepfmDataset(srcDir: String, dstDir:String)` function to generate the dataset.
 
