@@ -11,7 +11,7 @@
 
 ```txt
 .
-├── xdeepfm_train_eval.py      # OneFlow DeepFM train/val/test scripts with OneEmbedding module
+├── xdeepfm_train_eval.py      # OneFlow xDeepFM train/val/test scripts with OneEmbedding module
 ├── README.md                  # Documentation
 ├── tools
 │   ├── xdeepfm_parquet.scala  # Read Criteo Kaggle data and export it as parquet data format
@@ -60,7 +60,7 @@ The model is evaluated at the end of every epoch. At the end of each epoch, if t
 
 The monitor used for the early stop is `val_auc - val_log_loss`. The mode of the early stop is `max`. You could tune `patience` and `min_delta` as needed.
 
-If you want to disable early stopping, simply add `--disable_early_stop` in the [train_xdeepfm.sh](https://github.com/Oneflow-Inc/models/blob/dev_xdeepfm/RecommenderSystems/xdeepfm/train_xdeepfm.sh).
+If you want to disable early stopping, simply add `--disable_early_stop` in the [train_xdeepfm.sh](https://github.com/Oneflow-Inc/models/blob/dev_xdeepfm_pr/RecommenderSystems/xdeepfm/train_xdeepfm.sh).
 
 ## Getting Started
 
@@ -86,7 +86,7 @@ A hands-on guide to train a xDeepFM model.
 ### Dataset
 
 
-1.   Download the [Criteo Kaggle dataset](https://www.kaggle.com/c/criteo-display-ad-challenge) and then split it using [split_criteo_kaggle.py](https://github.com/Oneflow-Inc/models/blob/dev_xdeepfm/RecommenderSystems/xdeepfm/tools/split_criteo_kaggle.py).
+1.   Download the [Criteo Kaggle dataset](https://www.kaggle.com/c/criteo-display-ad-challenge) and then split it using [split_criteo_kaggle.py](https://github.com/Oneflow-Inc/models/blob/dev_xdeepfm_pr/RecommenderSystems/xdeepfm/tools/split_criteo_kaggle.py).
 
      Note: Same as [the xDeepFM_Criteo_x4_001 experiment](https://github.com/openbenchmark/BARS/tree/master/ctr_prediction/benchmarks/xDeepFM/xDeepFM_criteo_x4_001) in FuxiCTR, only train.txt is used. Also, the dataset is randomly spllitted into 8:1:1 as training set, validation set and test set. The dataset is splitted using StratifiedKFold in sklearn.
 
@@ -96,7 +96,7 @@ A hands-on guide to train a xDeepFM model.
 
 2.   Download spark from https://spark.apache.org/downloads.html and then uncompress the tar file into the directory where you want to install Spark. Ensure the `SPARK_HOME` environment variable points to the directory where the spark is.
 
-3.   launch a spark shell using [launch_spark.sh](https://github.com/Oneflow-Inc/models/blob/dev_xdeepfm/RecommenderSystems/xdeepfm/tools/launch_spark.sh).
+3.   launch a spark shell using [launch_spark.sh](https://github.com/Oneflow-Inc/models/blob/dev_xdeepfm_pr/RecommenderSystems/xdeepfm/tools/launch_spark.sh).
 
      -   Modify the SPARK_LOCAL_DIRS as needed
 
@@ -127,7 +127,7 @@ A hands-on guide to train a xDeepFM model.
 
 ### Start Training by Oneflow
 
-1.   Modify the [train_xdeepfm.sh](https://github.com/Oneflow-Inc/models/blob/dev_xdeepfm/RecommenderSystems/xdeepfm/train_xdeepfm.sh) as needed.
+1.   Modify the [train_xdeepfm.sh](https://github.com/Oneflow-Inc/models/blob/dev_xdeepfm_pr/RecommenderSystems/xdeepfm/train_xdeepfm.sh) as needed.
 
      ```shell
      #!/bin/bash
