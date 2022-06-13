@@ -373,7 +373,16 @@ class DeepFMModule(nn.Module):
             out_features=1,
             skip_final_activation=True,
             dropout=dropout,
-            fused=use_fusedmlp,
+            fused=False,
+        )
+        
+        self.fused_mlp = DNN(
+            in_features=embedding_vec_size * (num_dense_fields + num_sparse_fields),
+            hidden_units=dnn,
+            out_features=1,
+            skip_final_activation=True,
+            dropout=dropout,
+            fused=True,
         )
 
     def forward(self, inputs) -> flow.Tensor:
@@ -388,8 +397,9 @@ class DeepFMModule(nn.Module):
 
         # DNN
         dnn_pred = self.dnn_layer(embedded_x.flatten(start_dim=1))
+        mlp_pred = self.fused_mlp(embedded_x.flatten(start_dim=1))
 
-        return fm_pred + dnn_pred
+        return (fm_pred + dnn_pred), (fm_pred + mlp_pred)
 
 
 def make_deepfm_module(args):
@@ -414,8 +424,8 @@ class DeepFMValGraph(flow.nn.Graph):
             self.config.enable_amp(True)
 
     def build(self, features):
-        predicts = self.module(features.to("cuda"))
-        return predicts.sigmoid()
+        predicts_dnn, predicts_mlp = self.module(features.to("cuda"))
+        return predicts_dnn.sigmoid(), predicts_mlp.sigmoid()
 
 
 class DeepFMTrainGraph(flow.nn.Graph):
@@ -434,10 +444,12 @@ class DeepFMTrainGraph(flow.nn.Graph):
             self.set_grad_scaler(grad_scaler)
 
     def build(self, labels, features):
-        logits = self.module(features.to("cuda"))
-        loss = self.loss(logits, labels.to("cuda"))
+        logits_dnn, logits_mlp = self.module(features.to("cuda"))
+        loss_dnn = self.loss(logits_dnn, labels.to("cuda"))
+        loss_mlp = self.loss(logits_mlp, labels.to("cuda"))
+        loss = loss_dnn + loss_mlp
         loss.backward()
-        return loss.to("cpu")
+        return loss_dnn.to("cpu"), loss_mlp.to("cpu")
 
 
 def make_lr_scheduler(args, optimizer):
@@ -545,16 +557,17 @@ def train(args):
         step, last_step, last_time = -1, 0, time.time()
         for step in range(1, args.train_batches + 1):
             labels, features = batch_to_global(*next(loader))
-            loss = train_graph(labels, features)
+            loss_dnn, loss_mlp = train_graph(labels, features)
             if step % args.loss_print_interval == 0:
-                loss = loss.numpy()
+                loss_dnn = loss_dnn.numpy()
+                loss_mlp = loss_mlp.numpy()
                 if rank == 0:
                     latency = (time.time() - last_time) / (step - last_step)
                     throughput = args.batch_size / latency
                     last_step, last_time = step, time.time()
                     strtime = time.strftime("%Y-%m-%d %H:%M:%S")
                     print(
-                        f"Rank[{rank}], Step {step}, Loss {loss:0.4f}, "
+                        f"Rank[{rank}], Step {step}, Loss_dnn {loss_dnn:0.4f}, Loss_mlp {loss_mlp:0.4f}, "
                         + f"Latency {(latency * 1000):0.3f} ms, Throughput {throughput:0.1f}, {strtime}"
                     )
 
@@ -627,7 +640,7 @@ def eval(args, eval_graph, tag="val", cur_step=0, epoch=0, cached_eval_batches=N
         batches_per_epoch = math.ceil(args.num_test_samples / args.batch_size)
 
     eval_graph.module.eval()
-    labels, preds = [], []
+    labels, preds_dnn, preds_mlp = [], [], []
     eval_start_time = time.time()
 
     if cached_eval_batches == None:
@@ -637,21 +650,29 @@ def eval(args, eval_graph, tag="val", cur_step=0, epoch=0, cached_eval_batches=N
             eval_start_time = time.time()
             for i in range(batches_per_epoch):
                 label, features = batch_to_global(*next(loader), is_train=False)
-                pred = eval_graph(features)
+                pred_dnn, pred_mlp = eval_graph(features)
                 labels.append(label)
-                preds.append(pred.to_local())
+                preds_dnn.append(pred_dnn.to_local())
+                preds_mlp.append(pred_mlp.to_local())
     else:
         for i in range(batches_per_epoch):
             label, features = cached_eval_batches[i]
-            pred = eval_graph(features)
+            pred_dnn, pred_mlp = eval_graph(features)
             labels.append(label)
-            preds.append(pred.to_local())
+            preds_dnn.append(pred_dnn.to_local())
+            preds_mlp.append(pred_mlp.to_local())
 
     labels = (
         np_to_global(np.concatenate(labels, axis=0)).to_global(sbp=flow.sbp.broadcast()).to_local()
     )
-    preds = (
-        flow.cat(preds, dim=0)
+    preds_dnn = (
+        flow.cat(preds_dnn, dim=0)
+        .to_global(placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0))
+        .to_global(sbp=flow.sbp.broadcast())
+        .to_local()
+    )
+    preds_mlp = (
+        flow.cat(preds_mlp, dim=0)
         .to_global(placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0))
         .to_global(sbp=flow.sbp.broadcast())
         .to_local()
@@ -663,8 +684,10 @@ def eval(args, eval_graph, tag="val", cur_step=0, epoch=0, cached_eval_batches=N
     rank = flow.env.get_rank()
 
     metrics_start_time = time.time()
-    auc = flow.roc_auc_score(labels, preds).numpy()[0]
-    logloss = flow._C.binary_cross_entropy_loss(preds, labels, weight=None, reduction="mean")
+    auc_dnn = flow.roc_auc_score(labels, preds_dnn).numpy()[0]
+    logloss_dnn = flow._C.binary_cross_entropy_loss(preds_dnn, labels, weight=None, reduction="mean")
+    auc_mlp = flow.roc_auc_score(labels, preds_mlp).numpy()[0]
+    logloss_mlp = flow._C.binary_cross_entropy_loss(preds_mlp, labels, weight=None, reduction="mean")
     metrics_time = time.time() - metrics_start_time
 
     if rank == 0:
@@ -674,12 +697,13 @@ def eval(args, eval_graph, tag="val", cur_step=0, epoch=0, cached_eval_batches=N
 
         strtime = time.strftime("%Y-%m-%d %H:%M:%S")
         print(
-            f"Rank[{rank}], Epoch {epoch}, Step {cur_step}, AUC {auc:0.6f}, LogLoss {logloss:0.6f}, "
+            f"Rank[{rank}], Epoch {epoch}, Step {cur_step}, AUC_dnn {auc_dnn:0.6f}, LogLoss_dnn {logloss_dnn:0.6f}, "
+            +f"AUC_mlp {auc_mlp:0.6f}, LogLoss_mlp {logloss_mlp:0.6f}, "
             + f"Eval_time {eval_time:0.2f} s, Metrics_time {metrics_time:0.2f} s, Eval_samples {labels.shape[0]}, "
             + f"GPU_Memory {device_mem_str}, Host_Memory {host_mem_mb} MiB, {strtime}"
         )
 
-    return auc, logloss
+    return auc_dnn, logloss_dnn
 
 
 if __name__ == "__main__":
