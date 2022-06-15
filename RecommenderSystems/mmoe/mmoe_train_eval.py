@@ -15,6 +15,8 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.
 
 def get_args(print_args=True):
     def int_list(x):
+        if x == "":
+            return []
         return list(map(int, x.split(",")))
 
     def str_list(x):
@@ -45,7 +47,11 @@ def get_args(print_args=True):
     parser.add_argument("--num_tasks", type=int, default=2, help="the number of tasks")
     parser.add_argument("--embedding_vec_size", type=int, default=4, help="embedding vector size")
     parser.add_argument(
-        "--expert_dnn", type=int_list, default="256, 128", help="dnn hidden units number"
+        "--expert_dnn", type=int_list, default="256, 128", help="expert dnn hidden units number"
+    )
+    parser.add_argument("--gate_dnn", type=int_list, default="", help="gate hidden units number")
+    parser.add_argument(
+        "--tower_dnn", type=int_list, default="", help="tower dnn hidden units number"
     )
     parser.add_argument("--net_dropout", type=float, default=0.0, help="net dropout rate")
 
@@ -329,15 +335,22 @@ class OneEmbedding(nn.Module):
 
 class DNN(nn.Module):
     def __init__(
-        self, in_features, hidden_units, out_features, skip_final_activation=False, dropout=0.0
+        self,
+        in_features,
+        hidden_units,
+        out_features,
+        skip_final_activation=False,
+        dropout=0.0,
+        use_final_bias=True,
     ) -> None:
         super(DNN, self).__init__()
         denses = []
         dropout_rates = [dropout] * len(hidden_units) + [0.0]
         use_relu = [True] * len(hidden_units) + [not skip_final_activation]
+        use_bias = [True] * len(hidden_units) + [use_final_bias]
         hidden_units = [in_features] + hidden_units + [out_features]
         for idx in range(len(hidden_units) - 1):
-            denses.append(nn.Linear(hidden_units[idx], hidden_units[idx + 1], bias=True))
+            denses.append(nn.Linear(hidden_units[idx], hidden_units[idx + 1], bias=use_bias[idx]))
             if use_relu[idx]:
                 denses.append(nn.ReLU())
             if dropout_rates[idx] > 0:
@@ -361,6 +374,8 @@ class MmoeModule(nn.Module):
         num_experts=3,
         embedding_vec_size=4,
         expert_dnn=[256, 128],
+        gate_dnn=[],
+        tower_dnn=[],
         net_dropout=0.0,
         persistent_path=None,
         table_size_array=None,
@@ -396,14 +411,24 @@ class MmoeModule(nn.Module):
         self.gates = nn.ModuleList([])
         self.towers = nn.ModuleList([])
         for _ in range(num_tasks):
-            gate_net = nn.Linear(
+            gate_net = DNN(
                 in_features=embedding_vec_size * num_sparse_fields + num_dense_fields,
+                hidden_units=gate_dnn,
                 out_features=num_experts,
-                bias=False,
+                skip_final_activation=True,
+                dropout=net_dropout,
+                use_final_bias=False,
             )
             self.gates.append(gate_net)
 
-            tower_net = nn.Linear(in_features=expert_dnn[-1], out_features=1,)
+            tower_net = DNN(
+                in_features=expert_dnn[-1],
+                hidden_units=tower_dnn,
+                out_features=1,
+                skip_final_activation=True,
+                dropout=net_dropout,
+                use_final_bias=False,
+            )
             self.towers.append(tower_net)
 
     def forward(self, dense_inputs, sparse_inputs) -> flow.Tensor:
@@ -435,6 +460,8 @@ def make_mmoe_module(args):
         num_experts=args.num_experts,
         embedding_vec_size=args.embedding_vec_size,
         expert_dnn=args.expert_dnn,
+        gate_dnn=args.gate_dnn,
+        tower_dnn=args.tower_dnn,
         net_dropout=args.net_dropout,
         persistent_path=args.persistent_path,
         table_size_array=args.table_size_array,
@@ -537,9 +564,7 @@ def train(args):
         )
 
     eval_graph = MmoeValGraph(mmoe_module, args.amp)
-    train_graph = MmoeTrainGraph(
-        mmoe_module, loss, opt, grad_scaler, args.amp, lr_scheduler=lr_scheduler
-    )
+    train_graph = MmoeTrainGraph(mmoe_module, loss, opt, grad_scaler, args.amp, lr_scheduler=None)
 
     batches_per_epoch = math.ceil(args.num_train_samples / args.batch_size)
 

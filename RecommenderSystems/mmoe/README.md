@@ -30,7 +30,9 @@
 | num_experts                | the number of experts                                        | 3                   |
 | num_tasks                  | the number of tasks                                          | 2                   |
 | embedding_vec_size         | embedding vector size                                        | 16                  |
-| expert_dnn                 | expert dnn hidden units number                               | 256, 128            |
+| expert_dnn                 | expert dnn hidden units number                               | [256, 128]          |
+| gate_dnn                   | gate dnn hidden units number                                 | []                  |
+| tower_dnn                  | tower dnn hidden units number                                | []                  |
 | net_dropout                | net dropout rate                                             | 0.0                 |
 | learning_rate              | initial learning rate                                        | 0.001               |
 | batch_size                 | training/evaluation batch size                               | 256                 |
