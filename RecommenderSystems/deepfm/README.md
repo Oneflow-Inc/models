@@ -39,7 +39,6 @@ We use exactly the same default values as [the DeepFM_Criteo_x4_001 experiment](
 | dnn                        | dnn hidden units number                                      | 1000,1000,1000,1000,1000 |
 | net_dropout                | number of minibatch training interations                     | 0.2                      |
 | disable_fusedmlp           | disable fused mlp or not                                     | False                    |
-| embedding_vec_size         | embedding vector size                                        | 16                       |
 | learning_rate              | initial learning rate                                        | 0.001                    |
 | batch_size                 | training/evaluation batch size                               | 10000                    |
 | train_batches              | the maximum number of training batches                       | 75000                    |
