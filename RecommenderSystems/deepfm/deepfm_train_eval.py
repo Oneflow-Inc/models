@@ -300,17 +300,25 @@ class OneEmbedding(nn.Module):
 
 class DNN(nn.Module):
     def __init__(
-        self, in_features, hidden_units, out_features, skip_final_activation=False, dropout=0.0, fused=True
+        self,
+        in_features,
+        hidden_units,
+        out_features,
+        skip_final_activation=False,
+        dropout=0.0,
+        fused=True,
     ) -> None:
         super(DNN, self).__init__()
         if fused:
             self.dropout_rates = [dropout] * len(hidden_units)
-            self.linear_layers = nn.FusedMLP(in_features, 
-                                            hidden_units, 
-                                            out_features,
-                                            self.dropout_rates,
-                                            0.0, 
-                                            skip_final_activation)
+            self.linear_layers = nn.FusedMLP(
+                in_features,
+                hidden_units,
+                out_features,
+                self.dropout_rates,
+                0.0,
+                skip_final_activation,
+            )
         else:
             denses = []
             dropout_rates = [dropout] * len(hidden_units) + [0.0]
