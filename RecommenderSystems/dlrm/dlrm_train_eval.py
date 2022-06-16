@@ -41,12 +41,23 @@ def get_args(print_args=True):
 
     parser.add_argument("--disable_fusedmlp", action="store_true", help="disable fused MLP or not")
     parser.add_argument("--embedding_vec_size", type=int, default=128)
+    parser.add_argument(
+        "--one_embedding_key_type",
+        type=str,
+        default="int64",
+        help="OneEmbedding key type: int32, int64",
+    )
     parser.add_argument("--bottom_mlp", type=int_list, default="512,256,128")
     parser.add_argument("--top_mlp", type=int_list, default="1024,1024,512,256")
     parser.add_argument(
         "--disable_interaction_padding",
         action="store_true",
         help="disable interaction padding or not",
+    )
+    parser.add_argument(
+        "--disable_dense_input_padding",
+        action="store_true",
+        help="disable dense input padding or not",
     )
     parser.add_argument(
         "--interaction_itself", action="store_true", help="interaction itself or not"
@@ -266,6 +277,7 @@ class OneEmbedding(nn.Module):
         table_size_array,
         store_type,
         cache_memory_budget_mb,
+        key_type,
     ):
         assert table_size_array is not None
         vocab_size = sum(table_size_array)
@@ -303,7 +315,7 @@ class OneEmbedding(nn.Module):
             "sparse_embedding",
             embedding_dim=embedding_vec_size,
             dtype=flow.float,
-            key_type=flow.int64,
+            key_type=getattr(flow, key_type),
             tables=tables,
             store_options=store_options,
         )
@@ -322,21 +334,33 @@ class DLRMModule(nn.Module):
         persistent_path=None,
         table_size_array=None,
         one_embedding_store_type="cached_host_mem",
+        one_embedding_key_type="int64",
         cache_memory_budget_mb=8192,
         interaction_itself=True,
         interaction_padding=True,
+        dense_input_padding=True,
     ):
         super(DLRMModule, self).__init__()
         assert (
             embedding_vec_size == bottom_mlp[-1]
         ), "Embedding vector size must equle to bottom MLP output size"
-        self.bottom_mlp = MLP(num_dense_fields, bottom_mlp, fused=use_fusedmlp)
+        self.num_dense_fields = (
+            ((num_dense_fields + 8 - 1) // 8 * 8) if dense_input_padding else num_dense_fields
+        )
+        self.pad = (
+            [0, self.num_dense_fields - num_dense_fields]
+            if self.num_dense_fields > num_dense_fields
+            else None
+        )
+
+        self.bottom_mlp = MLP(self.num_dense_fields, bottom_mlp, fused=use_fusedmlp)
         self.embedding = OneEmbedding(
             embedding_vec_size,
             persistent_path,
             table_size_array,
             one_embedding_store_type,
             cache_memory_budget_mb,
+            one_embedding_key_type,
         )
         self.interaction = Interaction(
             bottom_mlp[-1],
@@ -352,6 +376,8 @@ class DLRMModule(nn.Module):
         )
 
     def forward(self, dense_fields, sparse_fields) -> flow.Tensor:
+        if self.pad:
+            dense_fields = flow.nn.functional.pad(dense_fields, self.pad, "constant")
         dense_fields = flow.log(dense_fields + 1.0)
         dense_fields = self.bottom_mlp(dense_fields)
         embedding = self.embedding(sparse_fields)
@@ -368,9 +394,11 @@ def make_dlrm_module(args):
         persistent_path=args.persistent_path,
         table_size_array=args.table_size_array,
         one_embedding_store_type=args.store_type,
+        one_embedding_key_type=args.one_embedding_key_type,
         cache_memory_budget_mb=args.cache_memory_budget_mb,
         interaction_itself=args.interaction_itself,
         interaction_padding=not args.disable_interaction_padding,
+        dense_input_padding=not args.disable_dense_input_padding,
     )
     return model
 
