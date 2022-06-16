@@ -49,6 +49,7 @@ def get_args(print_args=True):
         "--dnn", type=int_list, default="1000,1000,1000,1000,1000", help="dnn hidden units number"
     )
     parser.add_argument("--net_dropout", type=float, default=0.2, help="net dropout rate")
+    parser.add_argument("--disable_fusedmlp", action="store_true", help="disable fused MLP or not")
 
     parser.add_argument("--lr_factor", type=float, default=0.1)
     parser.add_argument("--min_lr", type=float, default=1.0e-6)
@@ -299,20 +300,37 @@ class OneEmbedding(nn.Module):
 
 class DNN(nn.Module):
     def __init__(
-        self, in_features, hidden_units, out_features, skip_final_activation=False, dropout=0.0
+        self,
+        in_features,
+        hidden_units,
+        out_features,
+        skip_final_activation=False,
+        dropout=0.0,
+        fused=True,
     ) -> None:
         super(DNN, self).__init__()
-        denses = []
-        dropout_rates = [dropout] * len(hidden_units) + [0.0]
-        use_relu = [True] * len(hidden_units) + [not skip_final_activation]
-        hidden_units = [in_features] + hidden_units + [out_features]
-        for idx in range(len(hidden_units) - 1):
-            denses.append(nn.Linear(hidden_units[idx], hidden_units[idx + 1], bias=True))
-            if use_relu[idx]:
-                denses.append(nn.ReLU())
-            if dropout_rates[idx] > 0:
-                denses.append(nn.Dropout(p=dropout_rates[idx]))
-        self.linear_layers = nn.Sequential(*denses)
+        if fused:
+            self.dropout_rates = [dropout] * len(hidden_units)
+            self.linear_layers = nn.FusedMLP(
+                in_features,
+                hidden_units,
+                out_features,
+                self.dropout_rates,
+                0.0,
+                skip_final_activation,
+            )
+        else:
+            denses = []
+            dropout_rates = [dropout] * len(hidden_units) + [0.0]
+            use_relu = [True] * len(hidden_units) + [not skip_final_activation]
+            hidden_units = [in_features] + hidden_units + [out_features]
+            for idx in range(len(hidden_units) - 1):
+                denses.append(nn.Linear(hidden_units[idx], hidden_units[idx + 1], bias=True))
+                if use_relu[idx]:
+                    denses.append(nn.ReLU())
+                if dropout_rates[idx] > 0:
+                    denses.append(nn.Dropout(p=dropout_rates[idx]))
+            self.linear_layers = nn.Sequential(*denses)
 
         for name, param in self.linear_layers.named_parameters():
             if "weight" in name:
@@ -333,6 +351,7 @@ class DeepFMModule(nn.Module):
         self,
         embedding_vec_size=128,
         dnn=[1024, 1024, 512, 256],
+        use_fusedmlp=True,
         persistent_path=None,
         table_size_array=None,
         one_embedding_store_type="cached_host_mem",
@@ -359,6 +378,7 @@ class DeepFMModule(nn.Module):
             out_features=1,
             skip_final_activation=True,
             dropout=dropout,
+            fused=use_fusedmlp,
         )
 
     def forward(self, inputs) -> flow.Tensor:
@@ -381,6 +401,7 @@ def make_deepfm_module(args):
     model = DeepFMModule(
         embedding_vec_size=args.embedding_vec_size,
         dnn=args.dnn,
+        use_fusedmlp=not args.disable_fusedmlp,
         persistent_path=args.persistent_path,
         table_size_array=args.table_size_array,
         one_embedding_store_type=args.store_type,
