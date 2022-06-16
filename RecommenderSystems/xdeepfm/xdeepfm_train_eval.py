@@ -24,10 +24,10 @@ def get_args(print_args=True):
 
     parser.add_argument("--data_dir", type=str, required=True)
     parser.add_argument(
-        "--num_train_samples", type=int, required=True, help="the number of train samples"
+        "--num_train_samples", type=int, required=True, help="the number of train samples",
     )
     parser.add_argument(
-        "--num_val_samples", type=int, required=True, help="the number of validation samples"
+        "--num_val_samples", type=int, required=True, help="the number of validation samples",
     )
     parser.add_argument(
         "--num_test_samples", type=int, required=True, help="the number of test samples"
@@ -36,7 +36,7 @@ def get_args(print_args=True):
     parser.add_argument("--model_load_dir", type=str, default=None, help="model loading directory")
     parser.add_argument("--model_save_dir", type=str, default=None, help="model saving directory")
     parser.add_argument(
-        "--save_initial_model", action="store_true", help="save initial model parameters or not"
+        "--save_initial_model", action="store_true", help="save initial model parameters or not",
     )
     parser.add_argument(
         "--save_model_after_each_eval",
@@ -46,10 +46,15 @@ def get_args(print_args=True):
 
     parser.add_argument("--embedding_vec_size", type=int, default=16, help="embedding vector size")
     parser.add_argument(
-        "--dnn", type=int_list, default="1000,1000,1000,1000,1000", help="dnn hidden units number"
+        "--dnn_hidden_units",
+        type=int_list,
+        default="1000,1000,1000,1000,1000",
+        help="dnn hidden units number",
+    )
+    parser.add_argument(
+        "--cin_layer_units", type=int_list, default="16,16,16", help="cin hidden units number",
     )
     parser.add_argument("--net_dropout", type=float, default=0.2, help="net dropout rate")
-    parser.add_argument("--disable_fusedmlp", action="store_true", help="disable fused MLP or not")
 
     parser.add_argument("--lr_factor", type=float, default=0.1)
     parser.add_argument("--min_lr", type=float, default=1.0e-6)
@@ -59,7 +64,7 @@ def get_args(print_args=True):
         "--batch_size", type=int, default=10000, help="training/evaluation batch size"
     )
     parser.add_argument(
-        "--train_batches", type=int, default=75000, help="the maximum number of training batches"
+        "--train_batches", type=int, default=75000, help="the maximum number of training batches",
     )
     parser.add_argument("--loss_print_interval", type=int, default=100, help="")
 
@@ -83,7 +88,7 @@ def get_args(print_args=True):
         required=True,
     )
     parser.add_argument(
-        "--persistent_path", type=str, required=True, help="path for persistent kv store"
+        "--persistent_path", type=str, required=True, help="path for persistent kv store",
     )
     parser.add_argument(
         "--store_type",
@@ -99,7 +104,7 @@ def get_args(print_args=True):
     )
 
     parser.add_argument(
-        "--amp", action="store_true", help="enable Automatic Mixed Precision(AMP) training or not"
+        "--amp", action="store_true", help="enable Automatic Mixed Precision(AMP) training or not",
     )
     parser.add_argument("--loss_scale_policy", type=str, default="static", help="static or dynamic")
 
@@ -131,7 +136,7 @@ num_dense_fields = 13
 num_sparse_fields = 26
 
 
-class DeepFMDataReader(object):
+class xDeepFMDataReader(object):
     """A context manager that manages the creation and termination of a
     :class:`petastorm.Reader`.
     """
@@ -222,7 +227,7 @@ def make_criteo_dataloader(data_path, batch_size, shuffle=True):
     world_size = flow.env.get_world_size()
     batch_size_per_proc = batch_size // world_size
 
-    return DeepFMDataReader(
+    return xDeepFMDataReader(
         files,
         batch_size_per_proc,
         None,  # TODO: iterate over all eval dataset
@@ -300,37 +305,20 @@ class OneEmbedding(nn.Module):
 
 class DNN(nn.Module):
     def __init__(
-        self,
-        in_features,
-        hidden_units,
-        out_features,
-        skip_final_activation=False,
-        dropout=0.0,
-        fused=True,
+        self, in_features, hidden_units, out_features, skip_final_activation=False, dropout=0.0,
     ) -> None:
         super(DNN, self).__init__()
-        if fused:
-            self.dropout_rates = [dropout] * len(hidden_units)
-            self.linear_layers = nn.FusedMLP(
-                in_features,
-                hidden_units,
-                out_features,
-                self.dropout_rates,
-                0.0,
-                skip_final_activation,
-            )
-        else:
-            denses = []
-            dropout_rates = [dropout] * len(hidden_units) + [0.0]
-            use_relu = [True] * len(hidden_units) + [not skip_final_activation]
-            hidden_units = [in_features] + hidden_units + [out_features]
-            for idx in range(len(hidden_units) - 1):
-                denses.append(nn.Linear(hidden_units[idx], hidden_units[idx + 1], bias=True))
-                if use_relu[idx]:
-                    denses.append(nn.ReLU())
-                if dropout_rates[idx] > 0:
-                    denses.append(nn.Dropout(p=dropout_rates[idx]))
-            self.linear_layers = nn.Sequential(*denses)
+        denses = []
+        dropout_rates = [dropout] * len(hidden_units) + [0.0]
+        use_relu = [True] * len(hidden_units) + [not skip_final_activation]
+        hidden_units = [in_features] + hidden_units + [out_features]
+        for idx in range(len(hidden_units) - 1):
+            denses.append(nn.Linear(hidden_units[idx], hidden_units[idx + 1], bias=True))
+            if use_relu[idx]:
+                denses.append(nn.ReLU())
+            if dropout_rates[idx] > 0:
+                denses.append(nn.Dropout(p=dropout_rates[idx]))
+        self.linear_layers = nn.Sequential(*denses)
 
         for name, param in self.linear_layers.named_parameters():
             if "weight" in name:
@@ -342,23 +330,50 @@ class DNN(nn.Module):
         return self.linear_layers(x)
 
 
-def interaction(embedded_x: flow.Tensor) -> flow.Tensor:
-    return flow._C.fused_dot_feature_interaction([embedded_x], pooling="sum")
+class CIN(nn.Module):
+    def __init__(self, num_fields, cin_layer_units, output_dim=1):
+        super(CIN, self).__init__()
+        self.cin_layer_units = cin_layer_units
+        self.fc = nn.Linear(sum(cin_layer_units), output_dim)
+        self.cin_layer = nn.ModuleDict()
+        for i, unit in enumerate(self.cin_layer_units):
+            in_channels = num_fields * self.cin_layer_units[i - 1] if i > 0 else num_fields ** 2
+            out_channels = unit
+            self.cin_layer["layer_" + str(i + 1)] = nn.Conv1d(
+                in_channels, out_channels, kernel_size=1  # how many filters
+            )  # kernel output shape
+
+    def forward(self, inputs):
+        pooling_outputs = []
+        X_0 = inputs
+        batch_size = X_0.shape[0]
+        embedding_dim = X_0.shape[-1]
+        X_i = X_0
+        for i in range(len(self.cin_layer_units)):
+            hadamard_tensor = flow.einsum("bhd,bmd->bhmd", X_0, X_i)
+            hadamard_tensor = hadamard_tensor.view(batch_size, -1, embedding_dim)
+            X_i = self.cin_layer["layer_" + str(i + 1)](hadamard_tensor).view(
+                batch_size, -1, embedding_dim
+            )
+            pooling_outputs.append(X_i.sum(dim=-1))
+        concate_vec = flow.cat(pooling_outputs, dim=-1)
+        output = self.fc(concate_vec)
+        return output
 
 
-class DeepFMModule(nn.Module):
+class xDeepFMModule(nn.Module):
     def __init__(
         self,
         embedding_vec_size=128,
-        dnn=[1024, 1024, 512, 256],
-        use_fusedmlp=True,
+        dnn_hidden_units=[1024, 1024, 512, 256],
+        cin_layer_units=[16, 16, 16],
         persistent_path=None,
         table_size_array=None,
         one_embedding_store_type="cached_host_mem",
         cache_memory_budget_mb=8192,
         dropout=0.2,
     ):
-        super(DeepFMModule, self).__init__()
+        super(xDeepFMModule, self).__init__()
 
         self.embedding_vec_size = embedding_vec_size
 
@@ -372,36 +387,42 @@ class DeepFMModule(nn.Module):
             size_factor=3,
         )
 
-        self.dnn_layer = DNN(
-            in_features=embedding_vec_size * (num_dense_fields + num_sparse_fields),
-            hidden_units=dnn,
-            out_features=1,
-            skip_final_activation=True,
-            dropout=dropout,
-            fused=use_fusedmlp,
+        self.dnn_layer = (
+            DNN(
+                in_features=embedding_vec_size * (num_dense_fields + num_sparse_fields),
+                hidden_units=dnn_hidden_units,
+                out_features=1,
+                skip_final_activation=True,
+                dropout=dropout,
+            )
+            if dnn_hidden_units
+            else None
         )
+        self.cin = CIN(num_dense_fields + num_sparse_fields, cin_layer_units, output_dim=1)
 
     def forward(self, inputs) -> flow.Tensor:
         multi_embedded_x = self.embedding_layer(inputs)
         embedded_x = multi_embedded_x[:, :, 0 : self.embedding_vec_size]
         lr_embedded_x = multi_embedded_x[:, :, -1]
 
-        # FM
-        lr_out = flow.sum(lr_embedded_x, dim=1, keepdim=True)
-        dot_sum = interaction(embedded_x)
-        fm_pred = lr_out + dot_sum
+        # LR
+        lr_logit = flow.sum(lr_embedded_x, dim=1, keepdim=True)
+        # CIN
+        cin_logit = self.cin(embedded_x)
 
-        # DNN
-        dnn_pred = self.dnn_layer(embedded_x.flatten(start_dim=1))
+        if self.dnn_layer is not None:
+            dnn_logit = self.dnn_layer(embedded_x.flatten(start_dim=1))
+            y_pred = lr_logit + cin_logit + dnn_logit  # LR + CIN + DNN
+        else:
+            y_pred = lr_logit + cin_logit  # only LR + CIN
 
-        return fm_pred + dnn_pred
+        return y_pred
 
 
-def make_deepfm_module(args):
-    model = DeepFMModule(
+def make_xdeepfm_module(args):
+    model = xDeepFMModule(
         embedding_vec_size=args.embedding_vec_size,
-        dnn=args.dnn,
-        use_fusedmlp=not args.disable_fusedmlp,
+        dnn_hidden_units=args.dnn_hidden_units,
         persistent_path=args.persistent_path,
         table_size_array=args.table_size_array,
         one_embedding_store_type=args.store_type,
@@ -411,10 +432,10 @@ def make_deepfm_module(args):
     return model
 
 
-class DeepFMValGraph(flow.nn.Graph):
-    def __init__(self, deepfm_module, amp=False):
-        super(DeepFMValGraph, self).__init__()
-        self.module = deepfm_module
+class xDeepFMValGraph(flow.nn.Graph):
+    def __init__(self, xdeepfm_module, amp=False):
+        super(xDeepFMValGraph, self).__init__()
+        self.module = xdeepfm_module
         if amp:
             self.config.enable_amp(True)
 
@@ -423,12 +444,12 @@ class DeepFMValGraph(flow.nn.Graph):
         return predicts.sigmoid()
 
 
-class DeepFMTrainGraph(flow.nn.Graph):
+class xDeepFMTrainGraph(flow.nn.Graph):
     def __init__(
-        self, deepfm_module, loss, optimizer, grad_scaler=None, amp=False, lr_scheduler=None,
+        self, xdeepfm_module, loss, optimizer, grad_scaler=None, amp=False, lr_scheduler=None,
     ):
-        super(DeepFMTrainGraph, self).__init__()
-        self.module = deepfm_module
+        super(xDeepFMTrainGraph, self).__init__()
+        self.module = xdeepfm_module
         self.loss = loss
         self.add_optimizer(optimizer, lr_sch=lr_scheduler)
         self.config.allow_fuse_model_update_ops(True)
@@ -488,15 +509,15 @@ def early_stop(epoch, monitor_value, best_metric, stopping_steps, patience=2, mi
 def train(args):
     rank = flow.env.get_rank()
 
-    deepfm_module = make_deepfm_module(args)
-    deepfm_module.to_global(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
+    xdeepfm_module = make_xdeepfm_module(args)
+    xdeepfm_module.to_global(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
 
     def load_model(dir):
         if rank == 0:
             print(f"Loading model from {dir}")
         if os.path.exists(dir):
             state_dict = flow.load(dir, global_src_rank=0)
-            deepfm_module.load_state_dict(state_dict, strict=False)
+            xdeepfm_module.load_state_dict(state_dict, strict=False)
         else:
             if rank == 0:
                 print(f"Loading model from {dir} failed: invalid path")
@@ -510,14 +531,14 @@ def train(args):
         save_path = os.path.join(args.model_save_dir, subdir)
         if rank == 0:
             print(f"Saving model to {save_path}")
-        state_dict = deepfm_module.state_dict()
+        state_dict = xdeepfm_module.state_dict()
         flow.save(state_dict, save_path, global_dst_rank=0)
 
     if args.save_initial_model:
         save_model("initial_checkpoint")
 
     # TODO: clip gradient norm
-    opt = flow.optim.Adam(deepfm_module.parameters(), lr=args.learning_rate)
+    opt = flow.optim.Adam(xdeepfm_module.parameters(), lr=args.learning_rate)
     lr_scheduler = make_lr_scheduler(args, opt)
     loss = flow.nn.BCEWithLogitsLoss(reduction="mean").to("cuda")
 
@@ -528,9 +549,9 @@ def train(args):
             init_scale=1073741824, growth_factor=2.0, backoff_factor=0.5, growth_interval=2000,
         )
 
-    eval_graph = DeepFMValGraph(deepfm_module, args.amp)
-    train_graph = DeepFMTrainGraph(
-        deepfm_module, loss, opt, grad_scaler, args.amp, lr_scheduler=lr_scheduler
+    eval_graph = xDeepFMValGraph(xdeepfm_module, args.amp)
+    train_graph = xDeepFMTrainGraph(
+        xdeepfm_module, loss, opt, grad_scaler, args.amp, lr_scheduler=lr_scheduler
     )
 
     batches_per_epoch = math.ceil(args.num_train_samples / args.batch_size)
@@ -541,10 +562,10 @@ def train(args):
     stop_training = False
 
     cached_eval_batches = prefetch_eval_batches(
-        f"{args.data_dir}/val", args.batch_size, math.ceil(args.num_val_samples / args.batch_size)
+        f"{args.data_dir}/val", args.batch_size, math.ceil(args.num_val_samples / args.batch_size),
     )
 
-    deepfm_module.train()
+    xdeepfm_module.train()
     epoch = 0
     with make_criteo_dataloader(f"{args.data_dir}/train", args.batch_size) as loader:
         step, last_step, last_time = -1, 0, time.time()
@@ -595,7 +616,7 @@ def train(args):
                 if not args.disable_early_stop and stop_training:
                     break
 
-                deepfm_module.train()
+                xdeepfm_module.train()
                 last_time = time.time()
 
     if args.save_best_model:
