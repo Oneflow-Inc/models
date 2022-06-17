@@ -1,7 +1,7 @@
 persistent=./persistent
 rm -rf $persistent/*
 
-export CUDA_VISIBLE_DEVICES=1
+#export CUDA_VISIBLE_DEVICES=1
 export ONEFLOW_FUSE_MODEL_UPDATE_CAST=1
 export ONEFLOW_ENABLE_MULTI_TENSOR_MODEL_UPDATE=1
 export ONEFLOW_KERNEL_ENABLE_CUDA_GRAPH=1
@@ -28,19 +28,3 @@ python3 -m oneflow.distributed.launch \
       --one_embedding_key_type int32 \
       --amp
 
-python3 -m oneflow.distributed.launch \
-    --nproc_per_node 1 \
-    --nnodes 1 \
-    --node_rank 0 \
-    --master_addr 127.0.0.1 \
-    dlrm_prefetch_train.py \
-      --data_dir /data/criteo_kaggle/dlrm_parquet_int32 \
-      --persistent_path $persistent \
-      --store_type device_mem \
-      --train_batches 10000 \
-      --train_batch_size 6912 \
-      --learning_rate 3 \
-      --table_size_array $column_size_array \
-      --one_embedding_key_type int32 \
-      --disable_dense_input_padding \
-      --amp

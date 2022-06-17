@@ -1,7 +1,9 @@
-persistent=./persistent
-rm -rf $persistent/*
+prefix=${1:-of24_1gpu_bsz6912}
 
-export CUDA_VISIBLE_DEVICES=1
+persistent=./persistent
+rm -rf ${prefix}.* $persistent/*
+
+#export CUDA_VISIBLE_DEVICES=1
 export ONEFLOW_FUSE_MODEL_UPDATE_CAST=1
 export ONEFLOW_ENABLE_MULTI_TENSOR_MODEL_UPDATE=1
 export ONEFLOW_KERNEL_ENABLE_CUDA_GRAPH=1
@@ -12,7 +14,7 @@ export ONEFLOW_ONE_EMBEDDING_USE_SYSTEM_GATHER=0
 
 column_size_array='1460,583,10131227,2202608,305,24,12517,633,3,93145,5683,8351593,3194,27,14992,5461306,10,5652,2173,4,7046547,18,15,286181,105,142572'
 
-/usr/local/cuda-11.6/bin/nsys profile --stats=true -o of24_1gpu_bsz6912_no-sys-gather_pad-dense-input \
+/usr/local/cuda-11.6/bin/nsys profile --stats=true -o $prefix \
 python3 -m oneflow.distributed.launch \
     --nproc_per_node 1 \
     --nnodes 1 \
@@ -27,6 +29,5 @@ python3 -m oneflow.distributed.launch \
       --learning_rate 3 \
       --table_size_array $column_size_array \
       --one_embedding_key_type int32 \
-      --disable_dense_input_padding \
       --amp
       #--train_batches 300 \
