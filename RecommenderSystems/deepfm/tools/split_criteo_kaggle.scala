@@ -7,11 +7,11 @@ def splitCriteoKaggle(srcDir: String, dstDir:String) = {
    val integer_names = Seq("label") ++ dense_names
    val col_names = integer_names ++ categorical_names
 
-   val inputDF = spark.read.option("delimiter", ",").csv(s"${srcDir}/train.txt").toDF(col_names: _*)
+   val inputDF = spark.read.option("delimiter", "\t").csv(s"${srcDir}/train.txt").toDF(col_names: _*)
 
    val df = inputDF.persist(StorageLevel.MEMORY_AND_DISK)
 
-   val splits = df.randomSplit(Array(0.8, 0.1, 0.1), seed=2020)
+   val splits = df.randomSplit(Array(0.8, 0.1, 0.1), seed=2018)
    val train_samples = splits(0).count()
    println(s"train samples = $train_samples")
    val valid_samples = splits(1).count()
