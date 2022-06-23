@@ -376,9 +376,9 @@ class DLRMModule(nn.Module):
         )
 
     def forward(self, dense_fields, sparse_fields) -> flow.Tensor:
+        dense_fields = flow.log(dense_fields + 1.0)
         if self.pad:
             dense_fields = flow.nn.functional.pad(dense_fields, self.pad, "constant")
-        dense_fields = flow.log(dense_fields + 1.0)
         dense_fields = self.bottom_mlp(dense_fields)
         embedding = self.embedding(sparse_fields)
         features = self.interaction(dense_fields, embedding)
@@ -597,9 +597,9 @@ def np_to_global(np):
 
 
 def batch_to_global(np_label, np_dense, np_sparse, is_train=True):
-    labels = np_to_global(np_label.reshape(-1, 1)) if is_train else np_label.reshape(-1, 1)
     dense_fields = np_to_global(np_dense)
     sparse_fields = np_to_global(np_sparse)
+    labels = np_to_global(np_label.reshape(-1, 1)) if is_train else np_label.reshape(-1, 1)
     return labels, dense_fields, sparse_fields
 
 

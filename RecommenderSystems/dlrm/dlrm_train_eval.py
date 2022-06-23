@@ -542,6 +542,8 @@ def train(args):
                         f"Rank[{rank}], Step {step}, Loss {loss:0.4f}, Latency "
                         + f"{(latency * 1000):0.3f} ms, Throughput {throughput:0.1f}, {strtime}"
                     )
+                if np.isnan(loss):
+                    exit(1)
 
             if args.eval_interval > 0 and step % args.eval_interval == 0:
                 auc = eval(cached_eval_batches, eval_graph, step)
