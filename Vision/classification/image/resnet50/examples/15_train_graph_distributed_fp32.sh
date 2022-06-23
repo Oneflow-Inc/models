@@ -1,4 +1,5 @@
 # set -aux
+clear
 
 DEVICE_NUM_PER_NODE=4
 export ONEFLOW_TEST_DEVICE_NUM=4
@@ -42,7 +43,7 @@ rm -rf ./log
 mkdir ./log
 
 if [ -z $RUN_TYPE ];then
-    RUN_TYPE="NSYS"
+    RUN_TYPE="PURE"
 fi
 
 if [ "$RUN_TYPE" == "PURE" ];then
@@ -52,6 +53,8 @@ elif [ "$RUN_TYPE" == "GDB" ];then
 elif [ "$RUN_TYPE" == "NSYS" ];then
     cmd="nsys profile -f true --trace=cuda,cudnn,cublas,osrt,nvtx -o nsys/$NSYS_FILE python3 -m oneflow.distributed.launch"
 fi
+
+unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY
 
 $cmd \
     --nproc_per_node $DEVICE_NUM_PER_NODE \
