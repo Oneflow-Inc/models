@@ -15,14 +15,12 @@ import time
 import argparse
 
 import pandas as pd
-from sklearn.metrics import roc_auc_score
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import LabelEncoder, MinMaxScaler
+from sklearn.preprocessing import MinMaxScaler
 
 from pyspark.sql import SparkSession
 from pyspark.conf import SparkConf
 from pyspark.sql.functions import rand, udf, lit, xxhash64
-from pyspark.sql.types import FloatType, LongType
+from pyspark.sql.types import FloatType
 
 column_names = ['age', 'class_worker', 'det_ind_code', 'det_occ_code', 'education', 'wage_per_hour', 'hs_college',
                     'marital_stat', 'major_ind_code', 'major_occ_code', 'race', 'hisp_origin', 'sex', 'union_member',
@@ -104,7 +102,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     test_csv = os.path.join(args.input_dir, "census-income.test")
-    train_csv = os.path.join(args.input_dir, "census-income.sample")
+    train_csv = os.path.join(args.input_dir, "census-income.data")
 
     # start spark session
     conf = SparkConf()
