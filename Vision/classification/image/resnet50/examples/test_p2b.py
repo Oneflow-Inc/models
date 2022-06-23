@@ -16,6 +16,5 @@ print(t.to_local())
 
 g = GraphModel()
 y = g(t)
-print(rank)
 print(y)
 print(y.to_local())
