@@ -1,8 +1,9 @@
 # set -aux
 clear
 
-
-DEVICE_NUM_PER_NODE=4
+if [ -z $DEVICE_NUM_PER_NODE ];then
+    DEVICE_NUM_PER_NODE=4
+fi
 MASTER_ADDR=127.0.0.1
 NUM_NODES=1
 NODE_RANK=0
