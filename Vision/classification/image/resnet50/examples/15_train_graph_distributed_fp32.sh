@@ -8,9 +8,15 @@ MASTER_ADDR=127.0.0.1
 NUM_NODES=1
 NODE_RANK=0
 
+GLOG_vmodule="nn_graph=1, plan_util=1, of_collective_actor=1, of_collective_boxing_kernels=1"
+GLOG_v=0
+GLOG_logtostderr=1
+
 echo ONEFLOW_OFCCL_SKIP_NEGO=$ONEFLOW_OFCCL_SKIP_NEGO
-echo ONEFLOW_OFCCL_SHOW_NEGO_LOG=$ONEFLOW_OFCCL_SHOW_NEGO_LOG
 echo ONEFLOW_OFCCL_CHAIN=$ONEFLOW_OFCCL_CHAIN
+echo GLOG_vmodule=$GLOG_vmodule
+echo GLOG_v=$GLOG_v
+echo GLOG_logtostderr=$GLOG_logtostderr
 
 echo DEVICE_NUM_PER_NODE=$DEVICE_NUM_PER_NODE
 
