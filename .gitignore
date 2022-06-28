@@ -150,3 +150,4 @@ result
 imagenette2/
 nanodataset/
 data-test/
+*checkpoints/
