@@ -8,9 +8,9 @@ MASTER_ADDR=127.0.0.1
 NUM_NODES=1
 NODE_RANK=0
 
-# GLOG_vmodule=nn_graph=1,plan_util=1,of_collective_actor=1,of_collective_boxing_kernels=1
-GLOG_v=1
-GLOG_logtostderr=1
+export GLOG_vmodule=nn_graph*=1,plan_util*=1,of_collective_actor*=1,of_collective_boxing_kernels*=1
+# export GLOG_v=1
+export GLOG_logtostderr=1
 
 echo ONEFLOW_OFCCL_SKIP_NEGO=$ONEFLOW_OFCCL_SKIP_NEGO
 echo ONEFLOW_OFCCL_CHAIN=$ONEFLOW_OFCCL_CHAIN
