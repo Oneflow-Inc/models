@@ -74,6 +74,7 @@ def get_args(print_args=True):
     parser.add_argument("--eval_batches", type=int, default=1612, help="number of eval batches")
     parser.add_argument("--eval_batch_size", type=int, default=55296)
     parser.add_argument("--eval_interval", type=int, default=10000)
+    parser.add_argument("--eval_steps", type=int_list, default="58000,59000")
     parser.add_argument("--train_batch_size", type=int, default=55296)
     parser.add_argument("--learning_rate", type=float, default=24)
     parser.add_argument("--warmup_batches", type=int, default=2750)
@@ -545,7 +546,7 @@ def train(args):
                 if np.isnan(loss):
                     exit(1)
 
-            if args.eval_interval > 0 and step % args.eval_interval == 0:
+            if (args.eval_interval > 0 and step % args.eval_interval == 0) or (step in args.eval_steps):
                 auc = eval(cached_eval_batches, eval_graph, step)
                 if args.save_model_after_each_eval:
                     save_model(f"step_{step}_val_auc_{auc:0.5f}")
