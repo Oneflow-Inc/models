@@ -1,4 +1,4 @@
-prefix=${1:-of24_1gpu_bsz6912}
+prefix=${1:-4gpu_bsz27648}
 
 persistent=./persistent
 rm -rf ${prefix}.* $persistent/*
