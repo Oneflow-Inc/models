@@ -20,6 +20,8 @@ def get_args(print_args=True):
         return list(map(int, x.split(",")))
 
     def str_list(x):
+        if x == "":
+            return []
         return list(map(str, x.split(",")))
 
     parser = argparse.ArgumentParser()

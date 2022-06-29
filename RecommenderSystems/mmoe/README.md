@@ -1,9 +1,11 @@
 # MMoE
 
 [Multi-gate Mixture-of-Experts (MMoE)](https://dl.acm.org/doi/pdf/10.1145/3219819.3220007) adapts the Mixture-of- Experts (MoE) structure to multi-task learning by sharing the expert submodels across all tasks, while also having a gating network trained to optimize each task. Its model structure is as follows. Based on this structure, this project uses OneFlow distributed deep learning framework to realize training the model in graph mode on the Criteo data set.
+
 <p align='center'>
   <img width="539" alt="mmoe" src="https://user-images.githubusercontent.com/46690197/172789523-443b5df5-432a-4b96-99ba-7712d46a81ed.png">
 </p>
+
 
 ## Directory description
 
@@ -69,6 +71,24 @@ A hands-on guide to train a MMoe model.
 
 ### Dataset
 
+1. Download the [Census-Income dataset](https://archive.ics.uci.edu/ml/machine-learning-databases/census-income-mld/census.tar.gz). We directly treat the 199,523 samples in the census-income.data as training examples and the 99,762 samples in the census-income.test as test examples.
+
+    ```shell
+    wget https://archive.ics.uci.edu/ml/machine-learning-databases/census-income-mld/census.tar.gz
+    ```
+
+2. Download spark from https://spark.apache.org/downloads.html and then uncompress the tar file into the directory where you want to install Spark. Ensure the `SPARK_HOME` environment variable points to the directory where the spark is.
+
+3. Run ./tools/mmoe_parquet.py to generate the dataset.
+
+    ```shell
+    python3 ./tools/mmoe_parquet.py \
+        --input_dir /path/to/census_income \
+        --output_dir /path/to/mmoe_parquet \
+        --spark_tmp_dir /path/to/spark_tmp_dir \
+        --export_dataset_info
+    ```
+
 ### Start Training by Oneflow
 
 1.   Modify the **train_mmoe.sh** as needed.
@@ -101,5 +121,5 @@ A hands-on guide to train a MMoe model.
            --num_test_samples 99762 \
            --model_save_dir $MODEL_SAVE_DIR
      ```
-     
+
 2.   train a MMoE model by `bash train_mmoe.sh`.
