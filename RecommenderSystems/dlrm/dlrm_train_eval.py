@@ -401,7 +401,7 @@ def make_lr_scheduler(args, optimizer):
         optimizer, start_factor=0, total_iters=args.warmup_batches,
     )
     poly_decay_lr = flow.optim.lr_scheduler.PolynomialLR(
-        optimizer, steps=args.decay_batches, end_learning_rate=0, power=2.0, cycle=False,
+        optimizer, decay_batch=args.decay_batches, end_learning_rate=0, power=2.0, cycle=False,
     )
     sequential_lr = flow.optim.lr_scheduler.SequentialLR(
         optimizer=optimizer,
