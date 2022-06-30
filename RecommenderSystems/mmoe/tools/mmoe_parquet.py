@@ -15,12 +15,15 @@ import time
 import argparse
 
 import pandas as pd
-from sklearn.preprocessing import MinMaxScaler
+# from sklearn.preprocessing import MinMaxScaler
 
 from pyspark.sql import SparkSession
 from pyspark.conf import SparkConf
-from pyspark.sql.functions import rand, udf, lit, xxhash64
+from pyspark.sql.functions import rand, udf, lit, xxhash64, col
 from pyspark.sql.types import FloatType
+from pyspark.ml import Pipeline
+from pyspark.ml.feature import MinMaxScaler
+from pyspark.ml.linalg import VectorAssembler
 
 column_names = ['age', 'class_worker', 'det_ind_code', 'det_occ_code', 'education', 'wage_per_hour', 'hs_college',
                     'marital_stat', 'major_ind_code', 'major_occ_code', 'race', 'hisp_origin', 'sex', 'union_member',
@@ -40,28 +43,40 @@ sparse_features = ['class_worker', 'det_ind_code', 'det_occ_code', 'education', 
 def make_mmoe_parquet(
     spark, input_files, output_dir, part_num=None, shuffle=False
 ):
+    data = spark.read.format("csv").option("header","false").load(input_files).toDF('age', 'class_worker', 'det_ind_code', 'det_occ_code', 'education', 'wage_per_hour', 'hs_college',
+                    'marital_stat', 'major_ind_code', 'major_occ_code', 'race', 'hisp_origin', 'sex', 'union_member',
+                    'unemp_reason', 'full_or_part_emp', 'capital_gains', 'capital_losses', 'stock_dividends',
+                    'tax_filer_stat', 'region_prev_res', 'state_prev_res', 'det_hh_fam_stat', 'det_hh_summ',
+                    'instance_weight', 'mig_chg_msa', 'mig_chg_reg', 'mig_move_reg', 'mig_same', 'mig_prev_sunbelt',
+                    'num_emp', 'fam_under_18', 'country_father', 'country_mother', 'country_self', 'citizenship',
+                    'own_or_self', 'vet_question', 'vet_benefits', 'weeks_worked', 'year', 'income_50k')
     
-    data = pd.read_csv(input_files, header=None, names=column_names)
+    # transform label
+    data.withColumn("label_income", (col("income_50k")==" 50000+.").cast("int"))
+    data.withColumn("label_marital", (col("marital_stat")==" Never married").cast("int"))
+    data.drop(col("income_50k"))
+    data.drop(col("marital_stat"))
 
-    data['label_income'] = data['income_50k'].map({' - 50000.': 0, ' 50000+.': 1})
-    data['label_marital'] = data['marital_stat'].apply(lambda x: 1 if x == ' Never married' else 0)
-    data.drop(labels=['income_50k', 'marital_stat'], axis=1, inplace=True)
-
-    columns = data.columns.values.tolist()
+    columns = data.columns
     
     dense_features = [col for col in columns if
                       col not in sparse_features and col not in ['label_income', 'label_marital']]
 
-    data[sparse_features] = data[sparse_features].fillna('-1', )
-    data[dense_features] = data[dense_features].fillna(0, )
-    mms = MinMaxScaler(feature_range=(0, 1))
-    data[dense_features] = mms.fit_transform(data[dense_features])
+    # deal with na value
+    data[sparse_features] = data[sparse_features].fillna('-1')
+    data[dense_features] = data[dense_features].fillna(0)
+
+    # scale dense features
+    assemblers = [VectorAssembler(inputCols=[col], outputCol=col + "_vec") for col in dense_features]
+    scalers = [MinMaxScaler(inputCol=col + "_vec", outputCol=col + "_scaled") for col in dense_features]
+    pipeline = Pipeline(stages=assemblers + scalers)
+    scalerModel = pipeline.fit(data)
+    data = scalerModel.transform(data)
+
+    dense_names = {x + "_scaled": x for x in dense_features}
+    data = data.select([f.col(c).alias(dense_names[c]) for c in dense_names.keys()] + sparse_features + ["label_income", "label_marital"])
 
     start = time.time()
-    
-    df = spark.createDataFrame(data)
-    columns_new = dense_features + sparse_features + ["label_income", "label_marital"]
-    df = df.select(columns_new)
 
     make_label = udf(lambda s: float(s), FloatType())
     label_cols = [make_label(field).alias(field) for field in ["label_income", "label_marital"]]
@@ -72,17 +87,17 @@ def make_mmoe_parquet(
     dense_cols = [make_dense(field).alias(field) for field in dense_features]
     
     cols = dense_cols + sparse_cols + label_cols
-    df = df.select(cols)
+    data = data.select(cols)
     
     if shuffle:
-        df = df.orderBy(rand())
+        data = data.orderBy(rand())
     if part_num:
-        df = df.repartition(part_num)
+        data = data.repartition(part_num)
 
-    df.write.mode("overwrite").parquet(output_dir)
+    data.write.mode("overwrite").parquet(output_dir)
     num_examples = spark.read.parquet(output_dir).count()
     print(output_dir, num_examples, f"time elapsed: {time.time()-start:0.1f}")
-    return num_examples, columns_new
+    return num_examples
 
 
 if __name__ == "__main__":
