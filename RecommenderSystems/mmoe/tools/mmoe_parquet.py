@@ -14,16 +14,12 @@ import os
 import time
 import argparse
 
-import pandas as pd
-# from sklearn.preprocessing import MinMaxScaler
-
 from pyspark.sql import SparkSession
 from pyspark.conf import SparkConf
 from pyspark.sql.functions import rand, udf, lit, xxhash64, col
 from pyspark.sql.types import FloatType
 from pyspark.ml import Pipeline
-from pyspark.ml.feature import MinMaxScaler
-from pyspark.ml.linalg import VectorAssembler
+from pyspark.ml.feature import MinMaxScaler, VectorAssembler
 
 column_names = ['age', 'class_worker', 'det_ind_code', 'det_occ_code', 'education', 'wage_per_hour', 'hs_college',
                     'marital_stat', 'major_ind_code', 'major_occ_code', 'race', 'hisp_origin', 'sex', 'union_member',
@@ -43,6 +39,8 @@ sparse_features = ['class_worker', 'det_ind_code', 'det_occ_code', 'education', 
 def make_mmoe_parquet(
     spark, input_files, output_dir, part_num=None, shuffle=False
 ):
+    start = time.time()
+
     data = spark.read.format("csv").option("header","false").load(input_files).toDF('age', 'class_worker', 'det_ind_code', 'det_occ_code', 'education', 'wage_per_hour', 'hs_college',
                     'marital_stat', 'major_ind_code', 'major_occ_code', 'race', 'hisp_origin', 'sex', 'union_member',
                     'unemp_reason', 'full_or_part_emp', 'capital_gains', 'capital_losses', 'stock_dividends',
@@ -52,19 +50,27 @@ def make_mmoe_parquet(
                     'own_or_self', 'vet_question', 'vet_benefits', 'weeks_worked', 'year', 'income_50k')
     
     # transform label
-    data.withColumn("label_income", (col("income_50k")==" 50000+.").cast("int"))
-    data.withColumn("label_marital", (col("marital_stat")==" Never married").cast("int"))
-    data.drop(col("income_50k"))
-    data.drop(col("marital_stat"))
+    data = data.withColumn("label_income", (col("income_50k")==" 50000+.").cast("int")).drop(col("income_50k"))
+    data = data.withColumn("label_marital", (col("marital_stat")==" Never married").cast("int")).drop(col("marital_stat"))
 
+    # transform dense, sparse, label
     columns = data.columns
     
-    dense_features = [col for col in columns if
-                      col not in sparse_features and col not in ['label_income', 'label_marital']]
+    dense_features = [col_ for col_ in columns if
+                      col_ not in sparse_features and col_ not in ['label_income', 'label_marital']]
 
-    # deal with na value
-    data[sparse_features] = data[sparse_features].fillna('-1')
-    data[dense_features] = data[dense_features].fillna(0)
+    data.na.fill(value=0,subset=dense_features)
+    data.na.fill(value='-1',subset=sparse_features)
+
+    make_dense = udf(lambda s: float(s), FloatType())
+    dense_cols = [make_dense(field).alias(field) for field in dense_features]
+
+    make_label = udf(lambda s: float(s), FloatType())
+    label_cols = [make_label(field).alias(field) for field in ["label_income", "label_marital"]]
+    
+    sparse_cols = [xxhash64(field, lit(i)).alias(field) for i, field in enumerate(sparse_features)]
+
+    data = data.select(dense_cols + sparse_cols + label_cols)
 
     # scale dense features
     assemblers = [VectorAssembler(inputCols=[col], outputCol=col + "_vec") for col in dense_features]
@@ -73,21 +79,9 @@ def make_mmoe_parquet(
     scalerModel = pipeline.fit(data)
     data = scalerModel.transform(data)
 
-    dense_names = {x + "_scaled": x for x in dense_features}
-    data = data.select([f.col(c).alias(dense_names[c]) for c in dense_names.keys()] + sparse_features + ["label_income", "label_marital"])
-
-    start = time.time()
-
-    make_label = udf(lambda s: float(s), FloatType())
-    label_cols = [make_label(field).alias(field) for field in ["label_income", "label_marital"]]
-    
-    sparse_cols = [xxhash64(field, lit(i)).alias(field) for i, field in enumerate(sparse_features)]
-    
-    make_dense = udf(lambda s: float(s), FloatType())
-    dense_cols = [make_dense(field).alias(field) for field in dense_features]
-    
-    cols = dense_cols + sparse_cols + label_cols
-    data = data.select(cols)
+    scaled_dense_names = {x + "_scaled": x for x in dense_features}
+    vec_to_float = udf(lambda v:float(v[0]),FloatType())
+    data = data.select([vec_to_float(c).alias(scaled_dense_names[c]) for c in scaled_dense_names.keys()] + sparse_features + ["label_income", "label_marital"])
     
     if shuffle:
         data = data.orderBy(rand())
@@ -127,13 +121,13 @@ if __name__ == "__main__":
 
     # create test dataset
     test_output_dir = os.path.join(args.output_dir, "test")
-    test_count, _ = make_mmoe_parquet(
+    test_count = make_mmoe_parquet(
         spark, test_csv, test_output_dir, part_num=32
     )
 
     # create train dataset
     train_output_dir = os.path.join(args.output_dir, "train")
-    train_count, columns = make_mmoe_parquet(
+    train_count = make_mmoe_parquet(
         spark, train_csv, train_output_dir, part_num=64, shuffle=True
     )
 
