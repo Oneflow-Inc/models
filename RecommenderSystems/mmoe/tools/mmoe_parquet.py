@@ -41,13 +41,7 @@ def make_mmoe_parquet(
 ):
     start = time.time()
 
-    data = spark.read.format("csv").option("header","false").load(input_files).toDF('age', 'class_worker', 'det_ind_code', 'det_occ_code', 'education', 'wage_per_hour', 'hs_college',
-                    'marital_stat', 'major_ind_code', 'major_occ_code', 'race', 'hisp_origin', 'sex', 'union_member',
-                    'unemp_reason', 'full_or_part_emp', 'capital_gains', 'capital_losses', 'stock_dividends',
-                    'tax_filer_stat', 'region_prev_res', 'state_prev_res', 'det_hh_fam_stat', 'det_hh_summ',
-                    'instance_weight', 'mig_chg_msa', 'mig_chg_reg', 'mig_move_reg', 'mig_same', 'mig_prev_sunbelt',
-                    'num_emp', 'fam_under_18', 'country_father', 'country_mother', 'country_self', 'citizenship',
-                    'own_or_self', 'vet_question', 'vet_benefits', 'weeks_worked', 'year', 'income_50k')
+    data = spark.read.format("csv").option("header","false").load(input_files).toDF(*column_names)
     
     # transform label
     data = data.withColumn("label_income", (col("income_50k")==" 50000+.").cast("int")).drop(col("income_50k"))
