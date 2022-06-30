@@ -82,7 +82,7 @@ def make_mmoe_parquet(
     df.write.mode("overwrite").parquet(output_dir)
     num_examples = spark.read.parquet(output_dir).count()
     print(output_dir, num_examples, f"time elapsed: {time.time()-start:0.1f}")
-    return num_examples, columns_new
+    return num_examples
 
 
 if __name__ == "__main__":
@@ -112,13 +112,13 @@ if __name__ == "__main__":
 
     # create test dataset
     test_output_dir = os.path.join(args.output_dir, "test")
-    test_count, _ = make_mmoe_parquet(
+    test_count = make_mmoe_parquet(
         spark, test_csv, test_output_dir, part_num=32
     )
 
     # create train dataset
     train_output_dir = os.path.join(args.output_dir, "train")
-    train_count, columns = make_mmoe_parquet(
+    train_count = make_mmoe_parquet(
         spark, train_csv, train_output_dir, part_num=64, shuffle=True
     )
 
