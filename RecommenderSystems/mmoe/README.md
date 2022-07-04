@@ -65,8 +65,6 @@ A hands-on guide to train a MMoe model.
      ```json
      psutil
      petastorm
-     pandas
-     sklearn
      ```
 
 ### Dataset
