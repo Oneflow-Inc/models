@@ -67,7 +67,7 @@ def get_args(print_args=True):
     parser.add_argument(
         "--train_batches", type=int, default=16000, help="the maximum number of training batches"
     )
-    parser.add_argument("--loss_print_interval", type=int, default=100, help="")
+    parser.add_argument("--loss_print_interval", type=int, default=100, help="interval of printing loss")
 
     parser.add_argument(
         "--table_size_array",
@@ -300,7 +300,9 @@ class OneEmbedding(nn.Module):
         ]
         if store_type == "device_mem":
             store_options = flow.one_embedding.make_device_mem_store_options(
-                persistent_path=persistent_path, capacity=vocab_size, size_factor=size_factor,
+                persistent_path=persistent_path,
+                capacity=vocab_size,
+                size_factor=size_factor,
             )
         elif store_type == "cached_host_mem":
             assert cache_memory_budget_mb > 0
@@ -475,7 +477,13 @@ def make_mmoe_module(args):
 
 class MmoeTrainGraph(flow.nn.Graph):
     def __init__(
-        self, mmoe_module, loss, optimizer, grad_scaler=None, amp=False, lr_scheduler=None,
+        self,
+        mmoe_module,
+        loss,
+        optimizer,
+        grad_scaler=None,
+        amp=False,
+        lr_scheduler=None,
     ):
         super(MmoeTrainGraph, self).__init__()
         self.module = mmoe_module
@@ -516,7 +524,9 @@ def make_lr_scheduler(args, optimizer):
         for i in range(math.floor(math.log(args.min_lr / args.learning_rate, args.lr_factor)))
     ]
     multistep_lr = flow.optim.lr_scheduler.MultiStepLR(
-        optimizer=optimizer, milestones=milestones, gamma=args.lr_factor,
+        optimizer=optimizer,
+        milestones=milestones,
+        gamma=args.lr_factor,
     )
 
     return multistep_lr
@@ -562,7 +572,10 @@ def train(args):
         grad_scaler = flow.amp.StaticGradScaler(1024)
     else:
         grad_scaler = flow.amp.GradScaler(
-            init_scale=1073741824, growth_factor=2.0, backoff_factor=0.5, growth_interval=2000,
+            init_scale=1073741824,
+            growth_factor=2.0,
+            backoff_factor=0.5,
+            growth_interval=2000,
         )
 
     eval_graph = MmoeValGraph(mmoe_module, args.amp)
@@ -617,7 +630,11 @@ def train(args):
 
     if step % batches_per_epoch != 0:
         auc_income, auc_marital = eval(
-            args, eval_graph, cur_step=step, epoch=epoch, cached_eval_batches=cached_eval_batches,
+            args,
+            eval_graph,
+            cur_step=step,
+            epoch=epoch,
+            cached_eval_batches=cached_eval_batches,
         )
         if args.save_model_after_each_eval:
             save_model(f"step_{step}_val_auc_income_{auc_income:0.5f}_marital_{auc_marital:0.5f}")
