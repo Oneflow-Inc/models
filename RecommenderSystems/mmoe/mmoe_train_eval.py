@@ -67,7 +67,9 @@ def get_args(print_args=True):
     parser.add_argument(
         "--train_batches", type=int, default=16000, help="the maximum number of training batches"
     )
-    parser.add_argument("--loss_print_interval", type=int, default=100, help="interval of printing loss")
+    parser.add_argument(
+        "--loss_print_interval", type=int, default=100, help="interval of printing loss"
+    )
 
     parser.add_argument(
         "--table_size_array",
@@ -115,8 +117,50 @@ def _print_args(args):
     print("-------------------- end of arguments ---------------------", flush=True)
 
 
-num_dense_fields = 11
-num_sparse_fields = 29
+sparse_features = [
+    "class_worker",
+    "det_ind_code",
+    "det_occ_code",
+    "education",
+    "hs_college",
+    "major_ind_code",
+    "major_occ_code",
+    "race",
+    "hisp_origin",
+    "sex",
+    "union_member",
+    "unemp_reason",
+    "full_or_part_emp",
+    "tax_filer_stat",
+    "region_prev_res",
+    "state_prev_res",
+    "det_hh_fam_stat",
+    "det_hh_summ",
+    "mig_chg_msa",
+    "mig_chg_reg",
+    "mig_move_reg",
+    "mig_same",
+    "mig_prev_sunbelt",
+    "fam_under_18",
+    "country_father",
+    "country_mother",
+    "country_self",
+    "citizenship",
+    "vet_question",
+]
+dense_features = [
+    "age",
+    "wage_per_hour",
+    "capital_gains",
+    "capital_losses",
+    "stock_dividends",
+    "instance_weight",
+    "num_emp",
+    "own_or_self",
+    "vet_benefits",
+    "weeks_worked",
+    "year",
+]
 
 
 class MmoeDataReader(object):
@@ -141,52 +185,6 @@ class MmoeDataReader(object):
         self.shard_seed = shard_seed
         self.shard_count = shard_count
         self.cur_shard = cur_shard
-
-        sparse_features = [
-            "class_worker",
-            "det_ind_code",
-            "det_occ_code",
-            "education",
-            "hs_college",
-            "major_ind_code",
-            "major_occ_code",
-            "race",
-            "hisp_origin",
-            "sex",
-            "union_member",
-            "unemp_reason",
-            "full_or_part_emp",
-            "tax_filer_stat",
-            "region_prev_res",
-            "state_prev_res",
-            "det_hh_fam_stat",
-            "det_hh_summ",
-            "mig_chg_msa",
-            "mig_chg_reg",
-            "mig_move_reg",
-            "mig_same",
-            "mig_prev_sunbelt",
-            "fam_under_18",
-            "country_father",
-            "country_mother",
-            "country_self",
-            "citizenship",
-            "vet_question",
-        ]
-
-        dense_features = [
-            "age",
-            "wage_per_hour",
-            "capital_gains",
-            "capital_losses",
-            "stock_dividends",
-            "instance_weight",
-            "num_emp",
-            "own_or_self",
-            "vet_benefits",
-            "weeks_worked",
-            "year",
-        ]
 
         self.fields = dense_features + sparse_features + ["label_income", "label_marital"]
 
@@ -300,9 +298,7 @@ class OneEmbedding(nn.Module):
         ]
         if store_type == "device_mem":
             store_options = flow.one_embedding.make_device_mem_store_options(
-                persistent_path=persistent_path,
-                capacity=vocab_size,
-                size_factor=size_factor,
+                persistent_path=persistent_path, capacity=vocab_size, size_factor=size_factor,
             )
         elif store_type == "cached_host_mem":
             assert cache_memory_budget_mb > 0
@@ -404,7 +400,7 @@ class MmoeModule(nn.Module):
         self.experts = nn.ModuleList([])
         for _ in range(num_experts):
             expert_net = DNN(
-                in_features=embedding_vec_size * num_sparse_fields + num_dense_fields,
+                in_features=embedding_vec_size * len(sparse_features) + len(dense_features),
                 hidden_units=expert_dnn[:-1],
                 out_features=expert_dnn[-1],
                 skip_final_activation=True,
@@ -416,7 +412,7 @@ class MmoeModule(nn.Module):
         self.towers = nn.ModuleList([])
         for _ in range(num_tasks):
             gate_net = DNN(
-                in_features=embedding_vec_size * num_sparse_fields + num_dense_fields,
+                in_features=embedding_vec_size * len(sparse_features) + len(dense_features),
                 hidden_units=gate_dnn,
                 out_features=num_experts,
                 skip_final_activation=True,
@@ -477,13 +473,7 @@ def make_mmoe_module(args):
 
 class MmoeTrainGraph(flow.nn.Graph):
     def __init__(
-        self,
-        mmoe_module,
-        loss,
-        optimizer,
-        grad_scaler=None,
-        amp=False,
-        lr_scheduler=None,
+        self, mmoe_module, loss, optimizer, grad_scaler=None, amp=False, lr_scheduler=None,
     ):
         super(MmoeTrainGraph, self).__init__()
         self.module = mmoe_module
@@ -524,9 +514,7 @@ def make_lr_scheduler(args, optimizer):
         for i in range(math.floor(math.log(args.min_lr / args.learning_rate, args.lr_factor)))
     ]
     multistep_lr = flow.optim.lr_scheduler.MultiStepLR(
-        optimizer=optimizer,
-        milestones=milestones,
-        gamma=args.lr_factor,
+        optimizer=optimizer, milestones=milestones, gamma=args.lr_factor,
     )
 
     return multistep_lr
@@ -572,10 +560,7 @@ def train(args):
         grad_scaler = flow.amp.StaticGradScaler(1024)
     else:
         grad_scaler = flow.amp.GradScaler(
-            init_scale=1073741824,
-            growth_factor=2.0,
-            backoff_factor=0.5,
-            growth_interval=2000,
+            init_scale=1073741824, growth_factor=2.0, backoff_factor=0.5, growth_interval=2000,
         )
 
     eval_graph = MmoeValGraph(mmoe_module, args.amp)
@@ -630,11 +615,7 @@ def train(args):
 
     if step % batches_per_epoch != 0:
         auc_income, auc_marital = eval(
-            args,
-            eval_graph,
-            cur_step=step,
-            epoch=epoch,
-            cached_eval_batches=cached_eval_batches,
+            args, eval_graph, cur_step=step, epoch=epoch, cached_eval_batches=cached_eval_batches,
         )
         if args.save_model_after_each_eval:
             save_model(f"step_{step}_val_auc_income_{auc_income:0.5f}_marital_{auc_marital:0.5f}")
