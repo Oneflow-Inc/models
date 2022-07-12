@@ -13,10 +13,10 @@ def inference(args):
     tokenizer = RobertaTokenizer.from_pretrained("roberta-base")
     input_ids = tokenizer(args.text)['input_ids']
     attention_mask = tokenizer(args.text)['attention_mask']
-    input_ids = flow.tensor(input_ids, dtype=flow.int32).reshape(1,-1).to('cuda')
-    attention_mask = flow.tensor(attention_mask, dtype=flow.int32).reshape(1,-1).to('cuda')
+    input_ids = flow.tensor(input_ids, dtype=flow.int32).reshape(1,-1).to(args.device)
+    attention_mask = flow.tensor(attention_mask, dtype=flow.int32).reshape(1,-1).to(args.device)
     model = MNLIRoBERTa(args.pretrain_dir, args.kwargs_path,
-                        args.roberta_hidden_size, args.n_classes, args.is_train).to('cuda')
+                        args.roberta_hidden_size, args.n_classes, args.is_train).to(args.device)
     model.load_state_dict(flow.load(args.model_load_dir))
     model.eval()
     output = model(input_ids,attention_mask)
@@ -39,5 +39,6 @@ if __name__ == '__main__':
 
                 
     args = parser.parse_args()
+    args.device = 'cuda' if flow.cuda.is_available() else 'cpu'
     infer_config(args)
     inference(args)

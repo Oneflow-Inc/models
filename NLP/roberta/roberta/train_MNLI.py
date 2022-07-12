@@ -20,8 +20,8 @@ def get_acc(labels, logits, g):
 
 def train(args):
     model = MNLIRoBERTa(args.pretrain_dir, args.kwargs_path,
-                        args.roberta_hidden_size, args.n_classes, args.is_train).to('cuda')
-    criterion = oneflow.nn.CrossEntropyLoss().to('cuda')
+                        args.roberta_hidden_size, args.n_classes, args.is_train).to(args.device)
+    criterion = oneflow.nn.CrossEntropyLoss().to(args.device)
     of_adam = oneflow.optim.Adam(model.parameters(), args.lr)
 
     time_map['t1'] = time.time()
@@ -46,12 +46,12 @@ def train(args):
         losses = 0
         for iter in trainloader:
             input_ids, attention_mask, labels = iter
-            input_ids = input_ids.to('cuda')
-            attention_mask = attention_mask.to('cuda')
-            labels = labels.to('cuda')
+            input_ids = input_ids.to(args.device)
+            attention_mask = attention_mask.to(args.device)
+            labels = labels.to(args.device)
             i += 1
             output = model(input_ids, attention_mask)
-            labels = labels.reshape(-1).to('cuda')
+            labels = labels.reshape(-1).to(args.device)
             loss = criterion(output, labels)
             losses += loss.detach()
             loss.backward()
@@ -65,10 +65,10 @@ def train(args):
         g = {"correct": 0, "total": 0}
         for iter in evalloader:
             input_ids, attention_mask, labels = iter
-            input_ids = input_ids.to('cuda')
-            attention_mask = attention_mask.to('cuda')
-            labels = labels.to('cuda')
-            labels = labels.reshape(-1).to('cuda')
+            input_ids = input_ids.to(args.device)
+            attention_mask = attention_mask.to(args.device)
+            labels = labels.to(args.device)
+            labels = labels.reshape(-1).to(args.device)
             logits = model(input_ids, attention_mask)
             logits = logits.numpy()
             labels = labels.numpy()
@@ -103,5 +103,6 @@ if __name__ == '__main__':
                         default='MNLI')
 
     args = parser.parse_args()
+    args.device = 'cuda' if oneflow.cuda.is_available() else 'cpu'
     train_config(args)
     train(args)
