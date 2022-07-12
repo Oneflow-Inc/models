@@ -1,1 +1,3 @@
 inspect
+filelock
+huggingface_hub
