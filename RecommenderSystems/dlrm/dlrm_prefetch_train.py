@@ -377,9 +377,9 @@ class DLRMModule(nn.Module):
         )
 
     def forward(self, dense_fields, sparse_fields) -> flow.Tensor:
-        dense_fields = flow.log(dense_fields + 1.0)
         if self.pad:
             dense_fields = flow.nn.functional.pad(dense_fields, self.pad, "constant")
+        dense_fields = flow.log(dense_fields + 1.0)
         dense_fields = self.bottom_mlp(dense_fields)
         embedding = self.embedding(sparse_fields)
         features = self.interaction(dense_fields, embedding)
@@ -471,7 +471,8 @@ class DLRMTrainGraph(flow.nn.Graph):
     def build(self, labels, dense_fields, sparse_fields):
         logits = self.module(dense_fields.to("cuda"), sparse_fields.to("cuda"))
         loss = self.loss(logits, labels.to("cuda"))
-        reduce_loss = flow.mean(loss)
+        #reduce_loss = flow.mean(loss)
+        reduce_loss = loss
         reduce_loss.backward()
         return reduce_loss.to("cpu")
 
@@ -510,7 +511,7 @@ def train(args):
 
     opt = flow.optim.SGD(dlrm_module.parameters(), lr=args.learning_rate)
     lr_scheduler = make_lr_scheduler(args, opt)
-    loss = flow.nn.BCEWithLogitsLoss(reduction="none").to("cuda")
+    loss = flow.nn.BCEWithLogitsLoss(reduction="mean").to("cuda")
 
     if args.loss_scale_policy == "static":
         grad_scaler = flow.amp.StaticGradScaler(1024)
