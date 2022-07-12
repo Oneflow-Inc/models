@@ -1,0 +1,10 @@
+*.log
+/log/
+*.swp
+/data/
+/data_big/
+/init_models/
+/npy/
+/persistent/
+/saved_models/
+tmp*
