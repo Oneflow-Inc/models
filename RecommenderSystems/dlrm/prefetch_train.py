@@ -45,6 +45,15 @@ cfg += f"--decay_start {decay_start} "
 cfg += f"--decay_batches {decay_batches} "
 cfg += f"--amp "
 
+
+dl = sys.executable + " -m oneflow.distributed.launch "
+dl += f"--nproc_per_node {num_gpus} "
+dl += "--nnodes 1 "
+dl += "--node_rank 0 "
+dl += "--master_addr 127.0.0.1 "
+dl += "dlrm_prefetch_train.py "
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="flags for OneFlow DLRM")
     parser.add_argument("--log_path", type=str, default="commits.log")
@@ -74,13 +83,6 @@ if __name__ == "__main__":
         # test envs
         for ext_env in ext_envs:
             test_name = ext_env
-            dl = sys.executable + " -m oneflow.distributed.launch "
-            dl += f"--nproc_per_node {num_gpus} "
-            dl += "--nnodes 1 "
-            dl += "--node_rank 0 "
-            dl += "--master_addr 127.0.0.1 "
-            dl += "dlrm_prefetch_train.py "
-
             cmd = env + ext_env + "=1 " + dl + cfg 
             os.system(f'rm -rf {persistent_path}*')
             os.system(f'echo {cmd}')
