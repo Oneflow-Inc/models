@@ -6,7 +6,7 @@ from classifier_SST2 import SST2RoBERTa
 from config import infer_config
 sys.path.append("../")
 from tokenizer.RobertaTokenizer import RobertaTokenizer
-sys.path.append("../roberta")
+# sys.path.append("../roberta")
 
 
 def inference(args):
