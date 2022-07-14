@@ -315,8 +315,9 @@ class DINDataReader(object):
             #     yield r
 
 
+def make_criteo_dataloader(data_path, batch_size, shuffle=False):
 
-def make_criteo_dataloader(data_path, batch_size, shuffle=True):
+# def make_criteo_dataloader(data_path, batch_size, shuffle=True):
     """Make a Criteo Parquet DataLoader.
     :return: a context manager when exit the returned context manager, the reader will be closed.
     """
@@ -412,7 +413,7 @@ class DNN(nn.Module):
         hidden_units = [in_features] + hidden_units + [out_features]
         for idx in range(len(hidden_units) - 1):
             denses.append(
-                nn.Linear(hidden_units[idx], hidden_units[idx + 1], bias=True)
+                nn.Linear(hidden_units[idx], hidden_units[idx + 1], bias=False)
             )
             if use_relu[idx]:
                 denses.append(nn.Sigmoid())
@@ -637,11 +638,13 @@ class DINTrainGraph(flow.nn.Graph):
         super(DINTrainGraph, self).__init__()
         self.module = din_module
         self.loss = loss
-        self.add_optimizer(optimizer, lr_sch=lr_scheduler)
+        # self.add_optimizer(optimizer, lr_sch=lr_scheduler)
+        self.add_optimizer(optimizer)
         self.config.allow_fuse_model_update_ops(True)
         self.config.allow_fuse_add_to_output(True)
         self.config.allow_fuse_cast_scale(True)
         if amp:
+            print("amp : True")
             self.config.enable_amp(True)
             self.set_grad_scaler(grad_scaler)
 
@@ -710,7 +713,9 @@ def train(args):
             print(f"Loading model from {dir}")
         if os.path.exists(dir):
             state_dict = flow.load(dir, global_src_rank=0)
-            din_module.load_state_dict(state_dict, strict=False)
+            # din_module.load_state_dict(state_dict, strict=False)
+            din_module.load_state_dict(state_dict, strict=True)
+            print("din_module.load_state_dict(state_dict, strict=True)")
         else:
             if rank == 0:
                 print(f"Loading model from {dir} failed: invalid path")
