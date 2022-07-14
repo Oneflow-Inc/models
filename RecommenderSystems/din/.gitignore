@@ -7,4 +7,7 @@
 /npy/
 /persistent/
 /saved_models/
+bug.py
+gen_par.sh
 tmp*
+txt2par.py

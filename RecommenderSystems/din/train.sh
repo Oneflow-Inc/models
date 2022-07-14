@@ -1,5 +1,4 @@
 #!/bin/bash
-#rm -rf /minio/sdb/sunbowen/persistent/*
 rm -rf /home/sunbowen/din/persistent/*
 
 export CUDA_VISIBLE_DEVICES=1
@@ -32,7 +31,9 @@ python3 -m oneflow.distributed.launch \
       --attention_layer_hidden_dim "80,40" \
       --net_dropout 0 \
       --learning_rate 0.85 \
-      --embedding_vec_size 64 \
+      --optim "SGD" \
+      --item_emb_size 64 \
+      --cat_emb_size 64 \
       --num_train_samples 2608764 \
       --num_val_samples 384806 \
       --num_test_samples 384806 \

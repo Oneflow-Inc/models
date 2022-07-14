@@ -59,19 +59,16 @@ def get_args(print_args=True):
     )
 
     parser.add_argument(
-        "--embedding_vec_size", type=int, default=16, help="embedding vector size"
+        "--item_emb_size", type=int, default=16, help="embedding vector size"
+    )
+    parser.add_argument(
+        "--cat_emb_size", type=int, default=16, help="embedding vector size"
     )
     parser.add_argument(
         "--attention_layer_hidden_dim",
         type=int_list,
         default="1000,1000,1000,1000,1000",
-        help="dnn hidden units number",
-    )
-    parser.add_argument(
-        "--cin_layer_units",
-        type=int_list,
-        default="16,16,16",
-        help="cin hidden units number",
+        help="attention layer hidden units number",
     )
     parser.add_argument(
         "--net_dropout", type=float, default=0.2, help="net dropout rate"
@@ -82,7 +79,9 @@ def get_args(print_args=True):
     parser.add_argument(
         "--learning_rate", type=float, default=0.001, help="learning rate"
     )
-
+    parser.add_argument(
+        "--optim", type=str, default="SGD", help="optimizer"
+    )
     parser.add_argument(
         "--batch_size", type=int, default=10000, help="training/evaluation batch size"
     )
@@ -106,13 +105,6 @@ def get_args(print_args=True):
         default=1.0e-6,
         help="threshold for measuring the new optimum, to only focus on significant changes",
     )
-
-    # parser.add_argument(
-    #     "--table_size_array",
-    #     type=int_list,
-    #     help="embedding table size array for sparse fields",
-    #     required=True,
-    # )
     parser.add_argument(
         "--id_table_size_array",
         type=int_list,
@@ -179,12 +171,6 @@ def _print_args(args):
     print("-------------------- end of arguments ---------------------", flush=True)
 
 
-num_dense_fields = 13
-num_sparse_fields = 26
-
-item_count: 63001
-cat_count: 801
-
 class DINDataReader(object):
     """A context manager that manages the creation and termination of a
     :class:`petastorm.Reader`.
@@ -214,7 +200,6 @@ class DINDataReader(object):
         self.parquet_file_url_list = parquet_file_url_list
         self.max_len = 32
 
-        self.group_size = (self.batch_size) * 2
 
     def __enter__(self):
         self.reader = make_batch_reader(
@@ -226,7 +211,7 @@ class DINDataReader(object):
             shard_count=self.shard_count,
             cur_shard=self.cur_shard,
         )
-        self.loader = self.get_batches(self.reader)
+        self.loader = self.get_batches(self.reader, self.batch_size)
         return self.loader
 
     def __exit__(self, exc_type, exc_value, exc_traceback):
@@ -234,8 +219,6 @@ class DINDataReader(object):
         self.reader.join()
 
     def get_batches(self, reader, batch_size=None):
-        batch_size, group_size = self.batch_size, self.group_size
-        tail = None
         max_len = self.max_len
         for rg in reader:
             rgdict = rg._asdict()
@@ -337,7 +320,6 @@ def make_criteo_dataloader(data_path, batch_size, shuffle=True):
     """Make a Criteo Parquet DataLoader.
     :return: a context manager when exit the returned context manager, the reader will be closed.
     """
-    # files = [name for name in glob.glob(f"{data_path}/*.txt")]
     files = ["file://" + name for name in glob.glob(f"{data_path}/*.parquet")]
     files.sort()
     world_size = flow.env.get_world_size()
@@ -411,39 +393,7 @@ class OneEmbedding(nn.Module):
 
     def forward(self, ids):
         return self.one_embedding.forward(ids)
-        
-# class DNN(nn.Module):
-#     def __init__(
-#         self,
-#         in_features,
-#         hidden_units,
-#         out_features,
-#         skip_final_activation=False,
-#         dropout=0.0,
-#     ) -> None:
-#         super(DNN, self).__init__()
-#         denses = []
-#         dropout_rates = [dropout] * len(hidden_units) + [0.0]
-#         use_relu = [True] * len(hidden_units) + [not skip_final_activation]
-#         hidden_units = [in_features] + hidden_units + [out_features]
-#         for idx in range(len(hidden_units) - 1):
-#             denses.append(
-#                 nn.Linear(hidden_units[idx], hidden_units[idx + 1], bias=True)
-#             )
-#             if use_relu[idx]:
-#                 denses.append(nn.ReLU())
-#             if dropout_rates[idx] > 0:
-#                 denses.append(nn.Dropout(p=dropout_rates[idx]))
-#         self.linear_layers = nn.Sequential(*denses)
-
-#         for name, param in self.linear_layers.named_parameters():
-#             if "weight" in name:
-#                 nn.init.xavier_normal_(param)
-#             elif "bias" in name:
-#                 param.data.fill_(0.0)
-
-#     def forward(self, x: flow.Tensor) -> flow.Tensor:
-#         return self.linear_layers(x)
+    
 
 
 class DNN(nn.Module):
@@ -483,7 +433,8 @@ class DNN(nn.Module):
 class DINModule(nn.Module):
     def __init__(
         self,
-        embedding_vec_size=64,
+        item_emb_size=64,
+        cat_emb_size=64,
         attention_layer_hidden_dim=[80, 40],
         second_con_layer_hidden_dim=[80, 40],
         persistent_path=None,
@@ -496,18 +447,15 @@ class DINModule(nn.Module):
     ):
         super(DINModule, self).__init__()
 
-        self.embedding_vec_size = embedding_vec_size
+        self.item_emb_size = item_emb_size
 
-        self.item_emb_size = embedding_vec_size
-
-        self.cat_emb_size = embedding_vec_size
-
+        self.cat_emb_size = cat_emb_size
         self.firInDim = self.item_emb_size + self.cat_emb_size
         self.firOutDim = self.item_emb_size + self.cat_emb_size
 
         self.hist_item_emb_attr = OneEmbedding(
             table_name="hist_id_embedding_layer",
-            embedding_vec_size=embedding_vec_size,
+            embedding_vec_size=item_emb_size,
             persistent_path=persistent_path + "1",
             table_size_array=id_table_size_array,
             store_type=one_embedding_store_type,
@@ -517,7 +465,7 @@ class DINModule(nn.Module):
 
         self.hist_cat_emb_attr = OneEmbedding(
             table_name="hist_cat_embedding_layer",
-            embedding_vec_size=embedding_vec_size,
+            embedding_vec_size=cat_emb_size,
             persistent_path=persistent_path + "2",
             table_size_array=cat_table_size_array,
             store_type=one_embedding_store_type,
@@ -527,7 +475,7 @@ class DINModule(nn.Module):
 
         self.target_item_seq_emb_attr = OneEmbedding(
             table_name="tar_seq_id_embedding_layer",
-            embedding_vec_size=embedding_vec_size,
+            embedding_vec_size=item_emb_size,
             persistent_path=persistent_path + "3",
             table_size_array=id_table_size_array,
             store_type=one_embedding_store_type,
@@ -537,7 +485,7 @@ class DINModule(nn.Module):
 
         self.target_cat_seq_emb_attr = OneEmbedding(
             table_name="tar_seq_cat_embedding_layer",
-            embedding_vec_size=embedding_vec_size,
+            embedding_vec_size=cat_emb_size,
             persistent_path=persistent_path + "4",
             table_size_array=cat_table_size_array,
             store_type=one_embedding_store_type,
@@ -547,7 +495,7 @@ class DINModule(nn.Module):
 
         self.target_item_emb_attr = OneEmbedding(
             table_name="tar_id_embedding_layer",
-            embedding_vec_size=embedding_vec_size,
+            embedding_vec_size=item_emb_size,
             persistent_path=persistent_path + "5",
             table_size_array=id_table_size_array,
             store_type=one_embedding_store_type,
@@ -557,7 +505,7 @@ class DINModule(nn.Module):
 
         self.target_cat_emb_attr = OneEmbedding(
             table_name="tar_cat_embedding_layer",
-            embedding_vec_size=embedding_vec_size,
+            embedding_vec_size=cat_emb_size,
             persistent_path=persistent_path + "6",
             table_size_array=cat_table_size_array,
             store_type=one_embedding_store_type,
@@ -585,7 +533,6 @@ class DINModule(nn.Module):
             dropout=dropout,
         )
 
-        # self.first_con_layer = nn.Linear(self.firInDim, self.firOutDim, True)
         self.first_con_layer = DNN(
             in_features=self.firInDim,
             hidden_units=[],
@@ -606,14 +553,15 @@ class DINModule(nn.Module):
 
 
     def forward(self, inputs) -> flow.Tensor:
-        bs, max_len = inputs[0].shape
-        hist_item_emb = self.hist_item_emb_attr(inputs[0])
-        hist_cat_emb = self.hist_cat_emb_attr(inputs[1])
-        target_item_emb = self.target_item_emb_attr(inputs[2])
-        target_cat_emb = self.target_cat_emb_attr(inputs[3])
-        target_item_seq_emb = self.target_item_seq_emb_attr(inputs[5])
-        target_cat_seq_emb = self.target_cat_seq_emb_attr(inputs[6])
-        item_b = self.item_b_attr(inputs[2])
+        hist_item_seq, hist_cat_seq, target_item, target_cat, mask, target_item_seq, target_cat_seq = inputs
+        hist_item_emb = self.hist_item_emb_attr(hist_item_seq)
+        hist_cat_emb = self.hist_cat_emb_attr(hist_cat_seq)
+        target_item_emb = self.target_item_emb_attr(target_item)
+        target_cat_emb = self.target_cat_emb_attr(target_cat)
+        target_item_seq_emb = self.target_item_seq_emb_attr(target_item_seq)
+        target_cat_seq_emb = self.target_cat_seq_emb_attr(target_cat_seq)
+        item_b = self.item_b_attr(target_item)
+
 
         hist_seq_concat = flow.concat([hist_item_emb, hist_cat_emb], dim=2)
         target_seq_concat = flow.concat(
@@ -630,7 +578,6 @@ class DINModule(nn.Module):
             dim=2)
 
         concat = self.attention_layer(concat)
-        mask = inputs[4]
 
         atten_fc3 = concat + mask
         atten_fc3 = flow.transpose(atten_fc3, perm=[0, 2, 1])
@@ -644,11 +591,12 @@ class DINModule(nn.Module):
         embedding_concat = flow.concat([concat, target_concat], dim=1)
         embedding_concat = self.second_con_layer(embedding_concat)
         logit = embedding_concat + item_b
-        return logit
+        return logit.sigmoid()
 
 def make_din_module(args):
     model = DINModule(
-        embedding_vec_size=args.embedding_vec_size,
+        item_emb_size=args.item_emb_size,
+        cat_emb_size=args.cat_emb_size,
         attention_layer_hidden_dim=args.attention_layer_hidden_dim,
         persistent_path=args.persistent_path,
         id_table_size_array=args.id_table_size_array,
@@ -656,6 +604,7 @@ def make_din_module(args):
         one_embedding_store_type=args.store_type,
         cache_memory_budget_mb=args.cache_memory_budget_mb,
         dropout=args.net_dropout,
+        size_factor=1 if args.optim == "SGD" else 3,
     )
     return model
 
@@ -668,11 +617,11 @@ class DINValGraph(flow.nn.Graph):
             self.config.enable_amp(True)
 
     def build(self, features):
-        # predicts = self.module(features.to("cuda"))
         for i in range(len(features)):            
             features[i] = features[i].to("cuda")
         predicts = self.module(features)
-        return predicts.sigmoid()
+        # return predicts.sigmoid()
+        return predicts
 
 
 class DINTrainGraph(flow.nn.Graph):
@@ -698,7 +647,6 @@ class DINTrainGraph(flow.nn.Graph):
 
     def build(self, labels, features):
         print(self.module)
-        # exit()
         for i in range(len(features)):            
             features[i] = features[i].to("cuda")
         logits = self.module(features)
@@ -783,11 +731,17 @@ def train(args):
         save_model("initial_checkpoint")
 
     # TODO: clip gradient norm
-    # opt = flow.optim.Adam(din_module.parameters(), lr=args.learning_rate)
-    opt = flow.optim.SGD(din_module.parameters(), lr=args.learning_rate)
-
+    if args.optim == "SGD":
+        opt = flow.optim.SGD(din_module.parameters(), lr=args.learning_rate)
+    elif args.optim == "Adam":
+        opt = flow.optim.Adam(din_module.parameters(), lr=args.learning_rate)
+    else:
+        print("Only support SGD or Adam")
+        exit()
+    
     lr_scheduler = make_lr_scheduler(args, opt)
-    loss = flow.nn.BCEWithLogitsLoss(reduction="mean").to("cuda")
+    # loss = flow.nn.BCEWithLogitsLoss(reduction="mean").to("cuda")
+    loss = flow.nn.BCELoss(reduction="mean").to("cuda")
 
     if args.loss_scale_policy == "static":
         grad_scaler = flow.amp.StaticGradScaler(1024)
@@ -967,13 +921,15 @@ def eval(args, eval_graph, tag="val", cur_step=0, epoch=0, cached_eval_batches=N
     rank = flow.env.get_rank()
 
     metrics_start_time = time.time()
+    print("labels: ", labels)
+    print("preds: ", preds)
     auc = flow.roc_auc_score(labels, preds).numpy()[0]
     # logloss = flow.nn.BCEWithLogitsLoss(reduction="mean")(preds, labels)
     # logloss = flow._C.binary_cross_entropy_loss(
     #     preds, labels, weight=None, reduction="mean"
     # )
     metrics_time = time.time() - metrics_start_time
-    logloss = 0.00 # fix bug
+    logloss = 0.00 # waiting for fix bug
     if rank == 0:
         host_mem_mb = psutil.Process().memory_info().rss // (1024 * 1024)
         stream = os.popen("nvidia-smi --query-gpu=memory.used --format=csv")
