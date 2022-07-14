@@ -93,6 +93,7 @@ def get_args(print_args=True):
     parser.add_argument("--store_type", type=str, default="cached_host_mem")
     parser.add_argument("--cache_memory_budget_mb", type=int, default=8192)
     parser.add_argument("--amp", action="store_true", help="Run model with amp")
+    parser.add_argument("--prefetch_cuda", action="store_true", help="prefetch data to cuda")
     parser.add_argument("--split_allreduce", action="store_true", help="split bottom and top allreduce")
     parser.add_argument("--loss_scale_policy", type=str, default="static", help="static or dynamic")
 
@@ -469,8 +470,8 @@ class DLRMTrainGraph(flow.nn.Graph):
             self.set_grad_scaler(grad_scaler)
 
     def build(self, labels, dense_fields, sparse_fields):
-        logits = self.module(dense_fields.to("cuda"), sparse_fields.to("cuda"))
-        loss = self.loss(logits, labels.to("cuda"))
+        logits = self.module(dense_fields if dense_fields.is_cuda else dense_fields.to("cuda"), sparse_fields if sparse_fields.is_cuda else sparse_fields.to("cuda"))
+        loss = self.loss(logits, labels if labels.is_cuda else labels.to("cuda"))
         #reduce_loss = flow.mean(loss)
         reduce_loss = loss
         reduce_loss.backward()
@@ -544,7 +545,7 @@ def train(args):
 
     with make_criteo_dataloader(f"{args.data_dir}/train", args.train_batch_size) as loader:
         print('start prefetch training data...')
-        cached_batches = [batch_to_global(*next(loader)) for _ in range(args.train_batches)]
+        cached_batches = [batch_to_global(*next(loader), to_cuda=args.prefetch_cuda) for _ in range(args.train_batches)]
         print('start training ..')
         step, last_step, last_time = 0, 0, time.time()
         for labels, dense_fields, sparse_fields in cached_batches:
@@ -598,10 +599,14 @@ def np_to_global(np):
     return t.to_global(placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0))
 
 
-def batch_to_global(np_label, np_dense, np_sparse, is_train=True):
+def batch_to_global(np_label, np_dense, np_sparse, is_train=True, to_cuda=False):
     dense_fields = np_to_global(np_dense)
     sparse_fields = np_to_global(np_sparse)
     labels = np_to_global(np_label.reshape(-1, 1)) if is_train else np_label.reshape(-1, 1)
+    if to_cuda:
+        labels = labels.to("cuda")
+        dense_fields = dense_fields.to("cuda")
+        sparse_fields = sparse_fields.to("cuda")
     return labels, dense_fields, sparse_fields
 
 

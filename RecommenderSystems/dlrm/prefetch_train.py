@@ -20,11 +20,13 @@ train_batches = num_train_samples // train_batch_size + 1
 decay_start = train_batches - decay_batches + 3700
 
 env = ""
-env += "ONEFLOW_ONE_EMBEDDING_ENABLE_QUANTIZED_COMM=0 "
-env += "ONEFLOW_KERNEL_ENABLE_CUDA_GRAPH=1 "
-env += "ONEFLOW_EAGER_LOCAL_TO_GLOBAL_BALANCED_OVERRIDE=1 "
+env += "ONEFLOW_ONE_EMBEDDING_FUSED_MLP_ASYNC_GRAD=0 "
+env += "ONEFLOW_ONE_EMBEDDING_FUSE_EMBEDDING_INTERACTION=1 "
+env += "ONEFLOW_ONE_EMBEDDING_GRADIENT_SHUFFLE_USE_FP16=1 "
 env += "ONEFLOW_FUSE_MODEL_UPDATE_CAST=1 "
 env += "ONEFLOW_ENABLE_MULTI_TENSOR_MODEL_UPDATE=1 "
+env += "ONEFLOW_KERNEL_ENABLE_CUDA_GRAPH=1 "
+env += "ONEFLOW_EAGER_LOCAL_TO_GLOBAL_BALANCED_OVERRIDE=1 "
 env += "ONEFLOW_ONE_EMBEDDING_USE_SYSTEM_GATHER=0 "
 
 cfg = ""
@@ -60,12 +62,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
     ext_envs = [
         "ONEFLOW_GRAPH_PLACE_TRAINING_STATE_ON_ALL_RANKS",
-        "ONEFLOW_ONE_EMBEDDING_EMBEDDING_GRADIENT_SHUFFLE_INDEPENTENT_STREAM",
-        "ONEFLOW_ONE_EMBEDDING_EMBEDDING_SHUFFLE_INDEPENTENT_STREAM",
-        "ONEFLOW_ONE_EMBEDDING_FUSE_EMBEDDING_INTERACTION",
-        "ONEFLOW_ONE_EMBEDDING_FUSED_MLP_ASYNC_GRAD",
         "ONEFLOW_ONE_EMBEDDING_FUSED_MLP_GRAD_OVERLAP_ALLREDUCE",
         "ONEFLOW_ONE_EMBEDDING_FUSED_MLP_GRAD_UNABLE_ALLREDUCE",
+        "LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libtcmalloc.so.4 "
     ]
     for i in range(10):
         # test baseline
@@ -73,6 +72,12 @@ if __name__ == "__main__":
         os.system(f'rm -rf {persistent_path}*')
         os.system(f'echo {cmd}')
         os.system(cmd + f" | tee baseline_{i}.log")
+
+        # test split allreduce
+        cmd = env + dl + cfg + "--prefetch_cuda"
+        os.system(f'rm -rf {persistent_path}*')
+        os.system(f'echo {cmd}')
+        os.system(cmd + f" | tee prefetch_cuda{i}.log")
 
         # test split allreduce
         cmd = env + dl + cfg + "--split_allreduce " 
