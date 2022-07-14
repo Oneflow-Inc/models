@@ -70,17 +70,16 @@ def get_args(print_args=True):
     parser.add_argument(
         "--save_model_after_each_eval", action="store_true", help="save model after each eval.",
     )
-    parser.add_argument("--data_dir", type=str, required=True)
+    parser.add_argument("--data_dir", type=str, default="/data/criteo1t/criteo1t_dlrm_parquet_40M")
     parser.add_argument("--eval_batches", type=int, default=1612, help="number of eval batches")
     parser.add_argument("--eval_batch_size", type=int, default=55296)
     parser.add_argument("--eval_interval", type=int, default=10000)
-    parser.add_argument("--eval_steps", type=int_list, default="58000,59000")
     parser.add_argument("--train_batch_size", type=int, default=55296)
     parser.add_argument("--learning_rate", type=float, default=24)
     parser.add_argument("--warmup_batches", type=int, default=2750)
     parser.add_argument("--decay_batches", type=int, default=27772)
     parser.add_argument("--decay_start", type=int, default=49315)
-    parser.add_argument("--train_batches", type=int, default=75000)
+    parser.add_argument("--train_batches", type=int, default=300)
     parser.add_argument("--loss_print_interval", type=int, default=1000)
     parser.add_argument(
         "--table_size_array",
@@ -94,6 +93,8 @@ def get_args(print_args=True):
     parser.add_argument("--store_type", type=str, default="cached_host_mem")
     parser.add_argument("--cache_memory_budget_mb", type=int, default=8192)
     parser.add_argument("--amp", action="store_true", help="Run model with amp")
+    parser.add_argument("--prefetch_cuda", action="store_true", help="prefetch data to cuda")
+    parser.add_argument("--split_allreduce", action="store_true", help="split bottom and top allreduce")
     parser.add_argument("--loss_scale_policy", type=str, default="static", help="static or dynamic")
 
     args = parser.parse_args()
@@ -469,9 +470,10 @@ class DLRMTrainGraph(flow.nn.Graph):
             self.set_grad_scaler(grad_scaler)
 
     def build(self, labels, dense_fields, sparse_fields):
-        logits = self.module(dense_fields.to("cuda"), sparse_fields.to("cuda"))
-        loss = self.loss(logits, labels.to("cuda"))
-        reduce_loss = flow.mean(loss)
+        logits = self.module(dense_fields if dense_fields.is_cuda else dense_fields.to("cuda"), sparse_fields if sparse_fields.is_cuda else sparse_fields.to("cuda"))
+        loss = self.loss(logits, labels if labels.is_cuda else labels.to("cuda"))
+        #reduce_loss = flow.mean(loss)
+        reduce_loss = loss
         reduce_loss.backward()
         return reduce_loss.to("cpu")
 
@@ -510,7 +512,7 @@ def train(args):
 
     opt = flow.optim.SGD(dlrm_module.parameters(), lr=args.learning_rate)
     lr_scheduler = make_lr_scheduler(args, opt)
-    loss = flow.nn.BCEWithLogitsLoss(reduction="none").to("cuda")
+    loss = flow.nn.BCEWithLogitsLoss(reduction="mean").to("cuda")
 
     if args.loss_scale_policy == "static":
         grad_scaler = flow.amp.StaticGradScaler(1024)
@@ -527,6 +529,41 @@ def train(args):
     )
 
     dlrm_module.train()
+    # with make_criteo_dataloader(f"{args.data_dir}/train", args.train_batch_size) as loader:
+    #     ts = []
+    #     #labels_0, dense_fields_0, sparse_fields_0 = next(loader)
+    #     for i in range(4000):
+    #         labels, dense_fields, sparse_fields = next(loader)
+    #         #labels, dense_fields, sparse_fields = batch_to_global(*next(loader))
+    #         #labels, dense_fields, sparse_fields = batch_to_global(labels_0, dense_fields_0, sparse_fields_0)
+    #         
+    #         ts.append(time.time())
+    # if rank == 0:
+    #     for t in ts:
+    #         print(t)
+    # exit()
+
+    with make_criteo_dataloader(f"{args.data_dir}/train", args.train_batch_size) as loader:
+        print('start prefetch training data...')
+        cached_batches = [batch_to_global(*next(loader), to_cuda=args.prefetch_cuda) for _ in range(args.train_batches)]
+        print('start training ..')
+        step, last_step, last_time = 0, 0, time.time()
+        for labels, dense_fields, sparse_fields in cached_batches:
+            loss = train_graph(labels, dense_fields, sparse_fields)
+            step += 1
+            if step % args.loss_print_interval == 0:
+                loss = loss.numpy()
+                if rank == 0:
+                    latency = (time.time() - last_time) / (step - last_step)
+                    throughput = args.train_batch_size / latency
+                    last_step, last_time = step, time.time()
+                    strtime = time.strftime("%Y-%m-%d %H:%M:%S")
+                    print(
+                        f"Rank[{rank}], Step {step}, Loss {loss:0.4f}, Latency "
+                        + f"{(latency * 1000):0.3f} ms, Throughput {throughput:0.1f}, {strtime}"
+                    )
+    exit()
+
     with make_criteo_dataloader(f"{args.data_dir}/train", args.train_batch_size) as loader:
         step, last_step, last_time = -1, 0, time.time()
         for step in range(1, args.train_batches + 1):
@@ -543,10 +580,8 @@ def train(args):
                         f"Rank[{rank}], Step {step}, Loss {loss:0.4f}, Latency "
                         + f"{(latency * 1000):0.3f} ms, Throughput {throughput:0.1f}, {strtime}"
                     )
-                if np.isnan(loss):
-                    exit(1)
 
-            if (args.eval_interval > 0 and step % args.eval_interval == 0) or (step in args.eval_steps):
+            if args.eval_interval > 0 and step % args.eval_interval == 0:
                 auc = eval(cached_eval_batches, eval_graph, step)
                 if args.save_model_after_each_eval:
                     save_model(f"step_{step}_val_auc_{auc:0.5f}")
@@ -564,10 +599,14 @@ def np_to_global(np):
     return t.to_global(placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0))
 
 
-def batch_to_global(np_label, np_dense, np_sparse, is_train=True):
-    labels = np_to_global(np_label.reshape(-1, 1)) if is_train else np_label.reshape(-1, 1)
+def batch_to_global(np_label, np_dense, np_sparse, is_train=True, to_cuda=False):
     dense_fields = np_to_global(np_dense)
     sparse_fields = np_to_global(np_sparse)
+    labels = np_to_global(np_label.reshape(-1, 1)) if is_train else np_label.reshape(-1, 1)
+    if to_cuda:
+        labels = labels.to("cuda")
+        dense_fields = dense_fields.to("cuda")
+        sparse_fields = sparse_fields.to("cuda")
     return labels, dense_fields, sparse_fields
 
 
@@ -620,5 +659,7 @@ if __name__ == "__main__":
     os.system(sys.executable + " -m oneflow --doctor")
     flow.boxing.nccl.enable_all_to_all(True)
     args = get_args()
+    if args.split_allreduce:
+        flow.boxing.nccl.set_fusion_max_ops_num(10)
 
     train(args)
