@@ -91,7 +91,7 @@ if __name__=="__main__":
                 print(k)
                 print(v, v.shape)
                 # np.save(name, v.T)
-                np.save(name, v)
+                np.save(name, v.T)
             else:
                 name = path + '/' + k + '.npy'
                 print(k)

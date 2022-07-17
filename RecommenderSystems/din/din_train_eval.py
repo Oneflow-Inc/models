@@ -391,6 +391,7 @@ class OneEmbedding(nn.Module):
             tables=tables,
             store_options=store_options,
         )
+        # ).load_snapshot("2022-07-14-21-53-04-270525")
 
     def forward(self, ids):
         return self.one_embedding.forward(ids)
