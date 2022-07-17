@@ -181,7 +181,7 @@ class DINDataReader(object):
         parquet_file_url_list,
         batch_size,
         num_epochs=1,
-        shuffle_row_groups=True,
+        shuffle_row_groups=False,
         shard_seed=2019,
         shard_count=1,
         cur_shard=0,
@@ -204,7 +204,7 @@ class DINDataReader(object):
     def __enter__(self):
         self.reader = make_batch_reader(
             self.parquet_file_url_list,
-            workers_count=2,
+            workers_count=1,
             shuffle_row_groups=self.shuffle_row_groups,
             num_epochs=self.num_epochs,
             shard_seed=self.shard_seed,
@@ -394,7 +394,6 @@ class OneEmbedding(nn.Module):
 
     def forward(self, ids):
         return self.one_embedding.forward(ids)
-    
 
 
 class DNN(nn.Module):
@@ -413,7 +412,7 @@ class DNN(nn.Module):
         hidden_units = [in_features] + hidden_units + [out_features]
         for idx in range(len(hidden_units) - 1):
             denses.append(
-                nn.Linear(hidden_units[idx], hidden_units[idx + 1], bias=False)
+                nn.Linear(hidden_units[idx], hidden_units[idx + 1], bias=True)
             )
             if use_relu[idx]:
                 denses.append(nn.Sigmoid())
@@ -453,7 +452,7 @@ class DINModule(nn.Module):
         self.cat_emb_size = cat_emb_size
         self.firInDim = self.item_emb_size + self.cat_emb_size
         self.firOutDim = self.item_emb_size + self.cat_emb_size
-
+        # print(persistent_path + "1")
         self.hist_item_emb_attr = OneEmbedding(
             table_name="hist_id_embedding_layer",
             embedding_vec_size=item_emb_size,
@@ -467,7 +466,7 @@ class DINModule(nn.Module):
         self.hist_cat_emb_attr = OneEmbedding(
             table_name="hist_cat_embedding_layer",
             embedding_vec_size=cat_emb_size,
-            persistent_path=persistent_path + "2",
+            persistent_path=persistent_path + "2/0-1/snapshots",
             table_size_array=cat_table_size_array,
             store_type=one_embedding_store_type,
             cache_memory_budget_mb=cache_memory_budget_mb,
@@ -514,7 +513,6 @@ class DINModule(nn.Module):
             size_factor=size_factor,
         )
 
-
         self.item_b_attr = OneEmbedding(
             table_name="tar_b_sparse_embedding",
             embedding_vec_size=1,
@@ -524,6 +522,28 @@ class DINModule(nn.Module):
             cache_memory_budget_mb=cache_memory_budget_mb,
             size_factor=size_factor,
         )
+
+        # self.id_embedding_dict = nn.ModuleList([nn.Linear(63001, 64, bias=False) for _ in range(3)])
+        # for name, param in self.id_embedding_dict.named_parameters():
+        #     if "weight" in name:
+        #         nn.init.xavier_uniform_(param)
+        #     elif "bias" in name:
+        #         param.data.fill_(0.0)
+
+        # self.cat_embedding_dict = nn.ModuleList([nn.Linear(801, 64, bias=False) for _ in range(3)])
+        # for name, param in self.cat_embedding_dict.named_parameters():
+        #     if "weight" in name:
+        #         nn.init.xavier_uniform_(param)
+        #     elif "bias" in name:
+        #         param.data.fill_(0.0)
+
+        # self.item_b_attr = nn.ModuleList([nn.Linear(63001, 1, bias=False)])
+        # for name, param in self.item_b_attr.named_parameters():
+        #     if "weight" in name:
+        #     #     nn.init.xavier_uniform_(param)
+        #     # elif "bias" in name:
+        #         param.data.fill_(0.0)
+
 
         self.attention_layer_input_dim = (self.item_emb_size + self.cat_emb_size) * 4
         self.attention_layer = DNN(
@@ -555,6 +575,7 @@ class DINModule(nn.Module):
 
     def forward(self, inputs) -> flow.Tensor:
         hist_item_seq, hist_cat_seq, target_item, target_cat, mask, target_item_seq, target_cat_seq = inputs
+
         hist_item_emb = self.hist_item_emb_attr(hist_item_seq)
         hist_cat_emb = self.hist_cat_emb_attr(hist_cat_seq)
         target_item_emb = self.target_item_emb_attr(target_item)
@@ -562,14 +583,11 @@ class DINModule(nn.Module):
         target_item_seq_emb = self.target_item_seq_emb_attr(target_item_seq)
         target_cat_seq_emb = self.target_cat_seq_emb_attr(target_cat_seq)
         item_b = self.item_b_attr(target_item)
-
-
         hist_seq_concat = flow.concat([hist_item_emb, hist_cat_emb], dim=2)
         target_seq_concat = flow.concat(
             [target_item_seq_emb, target_cat_seq_emb], dim=2)
         target_concat = flow.concat(
             [target_item_emb, target_cat_emb], dim=1)
-
         concat = flow.concat(
             [
                 hist_seq_concat, target_seq_concat,
@@ -592,7 +610,8 @@ class DINModule(nn.Module):
         embedding_concat = flow.concat([concat, target_concat], dim=1)
         embedding_concat = self.second_con_layer(embedding_concat)
         logit = embedding_concat + item_b
-        return logit.sigmoid()
+        # return logit.sigmoid()
+        return logit, hist_item_seq, hist_item_emb
 
 def make_din_module(args):
     model = DINModule(
@@ -620,9 +639,11 @@ class DINValGraph(flow.nn.Graph):
     def build(self, features):
         for i in range(len(features)):            
             features[i] = features[i].to("cuda")
-        predicts = self.module(features)
-        # return predicts.sigmoid()
-        return predicts
+        predicts, hist_item_emb = self.module(features)
+        print(hist_item_emb)
+        print(predicts.sigmoid())
+        return predicts.sigmoid()
+        # return predicts
 
 
 class DINTrainGraph(flow.nn.Graph):
@@ -649,13 +670,13 @@ class DINTrainGraph(flow.nn.Graph):
             self.set_grad_scaler(grad_scaler)
 
     def build(self, labels, features):
-        print(self.module)
+        # print(self.module)
         for i in range(len(features)):            
             features[i] = features[i].to("cuda")
-        logits = self.module(features)
+        logits, _, __ = self.module(features)
         loss = self.loss(logits, labels.to(dtype=flow.float32, device="cuda"))
         loss.backward()
-        return loss.to("cpu")
+        return loss.to("cpu"), _, __
 
 
 def make_lr_scheduler(args, optimizer):
@@ -713,8 +734,8 @@ def train(args):
             print(f"Loading model from {dir}")
         if os.path.exists(dir):
             state_dict = flow.load(dir, global_src_rank=0)
-            # din_module.load_state_dict(state_dict, strict=False)
             din_module.load_state_dict(state_dict, strict=True)
+            # din_module.load_state_dict(state_dict, strict=True)
             print("din_module.load_state_dict(state_dict, strict=True)")
         else:
             if rank == 0:
@@ -745,8 +766,8 @@ def train(args):
         exit()
     
     lr_scheduler = make_lr_scheduler(args, opt)
-    # loss = flow.nn.BCEWithLogitsLoss(reduction="mean").to("cuda")
-    loss = flow.nn.BCELoss(reduction="mean").to("cuda")
+    loss = flow.nn.BCEWithLogitsLoss(reduction="mean").to("cuda")
+    # loss = flow.nn.BCELoss(reduction="mean").to("cuda")
 
     if args.loss_scale_policy == "static":
         grad_scaler = flow.amp.StaticGradScaler(1024)
@@ -783,7 +804,9 @@ def train(args):
         step, last_step, last_time = -1, 0, time.time()
         for step in range(1, args.train_batches + 1):
             labels, features = batch_to_global(*next(loader))
-            loss = train_graph(labels, features)
+            loss, _, __ = train_graph(labels, features)
+            print(_)
+            print(__)
             if step % args.loss_print_interval == 0:
                 loss = loss.numpy()
                 if rank == 0:
@@ -795,7 +818,7 @@ def train(args):
                         f"Rank[{rank}], Step {step}, Loss {loss:0.4f}, "
                         + f"Latency {(latency * 1000):0.3f} ms, Throughput {throughput:0.1f}, {strtime}"
                     )
-
+            exit()
             if step % batches_per_epoch == 0:
                 epoch += 1
                 auc, logloss = eval(
@@ -918,16 +941,16 @@ def eval(args, eval_graph, tag="val", cur_step=0, epoch=0, cached_eval_batches=N
         .to_global(sbp=flow.sbp.broadcast())
         .to_local()
     )
-    print("labels :", type(labels),labels.shape)
-    print("preds :", type(preds),preds.shape)
+    # print("labels :", type(labels),labels.shape)
+    # print("preds :", type(preds),preds.shape)
     flow.comm.barrier()
     eval_time = time.time() - eval_start_time
 
     rank = flow.env.get_rank()
 
     metrics_start_time = time.time()
-    print("labels: ", labels)
-    print("preds: ", preds)
+    # print("labels: ", labels)
+    # print("preds: ", preds)
     auc = flow.roc_auc_score(labels, preds).numpy()[0]
     # logloss = flow.nn.BCEWithLogitsLoss(reduction="mean")(preds, labels)
     # logloss = flow._C.binary_cross_entropy_loss(

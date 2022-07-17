@@ -1,7 +1,7 @@
 #!/bin/bash
 rm -rf /home/sunbowen/din/persistent/*
 
-export CUDA_VISIBLE_DEVICES=2
+export CUDA_VISIBLE_DEVICES=0
 export ONEFLOW_DEBUG_MODE=INFO
 export ONEFLOW_EAGER_LOCAL_TO_GLOBAL_BALANCED_OVERRIDE=1
 export OMP_NUM_THREADS=1
@@ -10,8 +10,8 @@ NUM_NODES=1
 NODE_RANK=0
 MASTER_ADDR=127.0.0.1
 DATA_DIR=/home/sunbowen/din/data_big
-PERSISTENT_PATH=/home/sunbowen/din/persistent/persistent
-MODEL_LOAD_DIR=/home/sunbowen/one/models/RecommenderSystems/din/models/0/init
+PERSISTENT_PATH=/home/sunbowen/one/models/RecommenderSystems/persistent/persistent
+MODEL_LOAD_DIR=/home/sunbowen/one/models/RecommenderSystems/din/models/0/rec/with_emb
 MODEL_SAVE_DIR=/home/sunbowen/din/saved_models/of_deepfm
 python3 -m oneflow.distributed.launch \
     --nproc_per_node $DEVICE_NUM_PER_NODE \
