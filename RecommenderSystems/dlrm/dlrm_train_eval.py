@@ -443,7 +443,7 @@ class DLRMTrainGraph(flow.nn.Graph):
         logits = self.module(dense_fields.to("cuda"), sparse_fields.to("cuda"))
         loss = self.loss(logits, labels.to("cuda"))
         loss.backward()
-        return reduce_loss.to("cpu")
+        return loss.to("cpu")
 
 
 def prefetch_eval_batches(data_dir, batch_size, num_batches):
