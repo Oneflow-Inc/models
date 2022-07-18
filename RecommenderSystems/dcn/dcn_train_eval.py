@@ -61,6 +61,10 @@ def get_args(print_args=True):
         action="store_true",
         help="save model after each eval.",
     )
+
+    parser.add_argument(
+        "--disable_fusedmlp", action="store_true", help="disable fused MLP or not"
+    )
     parser.add_argument("--embedding_vec_size", type=int, default=16)
     parser.add_argument("--batch_norm", type=bool, default=False)
     parser.add_argument(
@@ -340,22 +344,34 @@ class DNN(nn.Module):
         input_dim,
         hidden_units=[],
         dropout_rates=0,
+        use_fusedmlp=True,
         batch_norm=False,
         use_bias=True,
     ):
         super(DNN, self).__init__()
         dense_layers = []
-        hidden_units = [input_dim] + hidden_units
-        for idx in range(len(hidden_units) - 1):
-            dense_layers.append(
-                nn.Linear(hidden_units[idx], hidden_units[idx + 1], bias=use_bias)
+        if use_fusedmlp and not batch_norm:
+            hidden_dropout_rates_list = [dropout_rates] * (len(hidden_units) - 1)
+            self.dnn = nn.FusedMLP(
+                input_dim,
+                hidden_units[:-1],
+                hidden_units[-1],
+                hidden_dropout_rates_list,
+                dropout_rates,
+                False,
             )
-            dense_layers.append(nn.ReLU())
-            if batch_norm:
-                dense_layers.append(nn.BatchNorm1d(hidden_units[idx + 1]))
-            if dropout_rates > 0:
-                dense_layers.append(nn.Dropout(p=dropout_rates))
-        self.dnn = nn.Sequential(*dense_layers)  # * used to unpack list
+        else:
+            hidden_units = [input_dim] + hidden_units
+            for idx in range(len(hidden_units) - 1):
+                dense_layers.append(
+                    nn.Linear(hidden_units[idx], hidden_units[idx + 1], bias=use_bias)
+                )
+                dense_layers.append(nn.ReLU())
+                if batch_norm:
+                    dense_layers.append(nn.BatchNorm1d(hidden_units[idx + 1]))
+                if dropout_rates > 0:
+                    dense_layers.append(nn.Dropout(p=dropout_rates))
+            self.dnn = nn.Sequential(*dense_layers)  # * used to unpack list
 
     def forward(self, inputs):
         return self.dnn(inputs)
@@ -371,6 +387,7 @@ class DCNModule(nn.Module):
         cache_memory_budget_mb,
         size_factor,
         dnn_hidden_units=[128, 128],
+        use_fusedmlp=True,
         crossing_layers=3,
         net_dropout=0.2,
         batch_norm=False,
@@ -394,6 +411,7 @@ class DCNModule(nn.Module):
                 input_dim=input_dim,
                 hidden_units=dnn_hidden_units,
                 dropout_rates=net_dropout,
+                use_fusedmlp=use_fusedmlp,
                 batch_norm=batch_norm,
                 use_bias=True,
             )
@@ -443,6 +461,7 @@ def make_dcn_module(args):
         one_embedding_store_type=args.store_type,
         cache_memory_budget_mb=args.cache_memory_budget_mb,
         dnn_hidden_units=args.dnn_hidden_units,
+        use_fusedmlp=not args.disable_fusedmlp,
         crossing_layers=args.crossing_layers,
         net_dropout=args.net_dropout,
         batch_norm=args.batch_norm,
