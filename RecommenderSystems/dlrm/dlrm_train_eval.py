@@ -442,8 +442,7 @@ class DLRMTrainGraph(flow.nn.Graph):
     def build(self, labels, dense_fields, sparse_fields):
         logits = self.module(dense_fields.to("cuda"), sparse_fields.to("cuda"))
         loss = self.loss(logits, labels.to("cuda"))
-        reduce_loss = flow.mean(loss)
-        reduce_loss.backward()
+        loss.backward()
         return reduce_loss.to("cpu")
 
 
@@ -481,7 +480,7 @@ def train(args):
 
     opt = flow.optim.SGD(dlrm_module.parameters(), lr=args.learning_rate)
     lr_scheduler = make_lr_scheduler(args, opt)
-    loss = flow.nn.BCEWithLogitsLoss(reduction="none").to("cuda")
+    loss = flow.nn.BCEWithLogitsLoss(reduction="mean").to("cuda")
 
     if args.loss_scale_policy == "static":
         grad_scaler = flow.amp.StaticGradScaler(1024)
