@@ -630,8 +630,8 @@ def prefetch_eval_batches(data_dir, batch_size, num_batches):
     cached_eval_batches = []
     with make_criteo_dataloader(data_dir, batch_size, shuffle=False) as loader:
         for _ in range(num_batches):
-            label, features = batch_to_global(*next(loader), is_train=False)
-            cached_eval_batches.append((label, features))
+            labels, dense_fields, sparse_fields = batch_to_global(*next(loader), is_train=False)
+            cached_eval_batches.append((labels, dense_fields, sparse_fields))
     return cached_eval_batches
 
 
@@ -651,14 +651,14 @@ def eval(args, eval_graph, tag="val", cur_step=0, epoch=0, cached_eval_batches=N
         ) as loader:
             eval_start_time = time.time()
             for i in range(batches_per_epoch):
-                label, features = batch_to_global(*next(loader), is_train=False)
-                pred = eval_graph(features)
+                labels, dense_fields, sparse_fields = batch_to_global(*next(loader), is_train=False)
+                pred = eval_graph(dense_fields, sparse_fields)
                 labels.append(label)
                 preds.append(pred.to_local())
     else:
         for i in range(batches_per_epoch):
-            label, features = cached_eval_batches[i]
-            pred = eval_graph(features)
+            label, dense_fields, sparse_fields = cached_eval_batches[i]
+            pred = eval_graph(dense_fields, sparse_fields)
             labels.append(label)
             preds.append(pred.to_local())
 
