@@ -1,6 +1,6 @@
 oneflow
 numpy
-tensorflow=1.15
+tensorflow==1.15
 typing
 six
 struct
