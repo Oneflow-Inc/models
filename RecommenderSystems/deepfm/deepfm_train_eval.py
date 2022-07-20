@@ -386,15 +386,15 @@ class DeepFMModule(nn.Module):
 
     def forward(self, dense_fields, sparse_fields) -> flow.Tensor:
         dense_features = self.multiply(dense_fields)
-        dense_embedding = dense_features[:, :, 0 : self.feature_vec_size]
-        dense_embedding_lr = dense_features[:, :, -1]
+        dense_embedding = dense_features[:, 0 : self.feature_vec_size].unsqueeze(1)
+        dense_embedding_lr = dense_features[:, -1]
 
         sparse_features = self.embedding_layer(sparse_fields)
         sparse_embedding = sparse_features[:, :, 0 : self.feature_vec_size]
-        sparse_embedding_lr = sparse_features[:, :, -1]
+        sparse_embedding_lr = sparse_features[:, :, -1].squeeze()
 
-        fm_dnn_input = flow.concat([sparse_embedding, dense_embedding], dim=1)
         lr_input = flow.concat([sparse_embedding_lr, dense_embedding_lr], dim=1)
+        fm_dnn_input = flow.concat([sparse_embedding, dense_embedding], dim=1)
         # FM
         lr_out = flow.sum(lr_input, dim=1, keepdim=True)
         dot_sum = interaction(fm_dnn_input)
