@@ -44,7 +44,7 @@ def get_args(print_args=True):
         help="save model after each eval or not",
     )
 
-    parser.add_argument("--embedding_vec_size", type=int, default=16, help="embedding vector size")
+    parser.add_argument("--feature_vec_size", type=int, default=16, help="embedding vector size")
     parser.add_argument(
         "--dnn", type=int_list, default="1000,1000,1000,1000,1000", help="dnn hidden units number"
     )
@@ -142,7 +142,7 @@ class DeepFMDataReader(object):
         batch_size,
         num_epochs=1,
         shuffle_row_groups=True,
-        shard_seed=2019,
+        shard_seed=2022,
         shard_count=1,
         cur_shard=0,
     ):
@@ -154,16 +154,17 @@ class DeepFMDataReader(object):
         self.shard_count = shard_count
         self.cur_shard = cur_shard
 
-        fields = ["Label"]
+        fields = ["label"]
         fields += [f"I{i+1}" for i in range(num_dense_fields)]
+        self.I_end = len(fields)
         fields += [f"C{i+1}" for i in range(num_sparse_fields)]
+        self.C_end = len(fields)
         self.fields = fields
-        self.num_fields = len(fields)
 
     def __enter__(self):
         self.reader = make_batch_reader(
             self.parquet_file_url_list,
-            workers_count=2,
+            workers_count=1,
             shuffle_row_groups=self.shuffle_row_groups,
             num_epochs=self.num_epochs,
             shard_seed=self.shard_seed,
@@ -180,9 +181,7 @@ class DeepFMDataReader(object):
     def get_batches(self, reader, batch_size=None):
         if batch_size is None:
             batch_size = self.batch_size
-
         tail = None
-
         for rg in reader:
             rgdict = rg._asdict()
             rglist = [rgdict[field] for field in self.fields]
@@ -192,24 +191,27 @@ class DeepFMDataReader(object):
                 tail = list(
                     [
                         np.concatenate((tail[i], rglist[i][0 : (batch_size - len(tail[i]))]))
-                        for i in range(self.num_fields)
+                        for i in range(self.C_end)
                     ]
                 )
                 if len(tail[0]) == batch_size:
                     label = tail[0]
-                    features = tail[1 : self.num_fields]
+                    dense = tail[1 : self.I_end]
+                    sparse = tail[self.I_end : self.C_end]
                     tail = None
-                    yield label, np.stack(features, axis=-1)
+                    yield label, np.stack(dense, axis=-1), np.stack(sparse, axis=-1)
                 else:
                     pos = 0
                     continue
             while (pos + batch_size) <= len(rglist[0]):
                 label = rglist[0][pos : pos + batch_size]
-                features = [rglist[j][pos : pos + batch_size] for j in range(1, self.num_fields)]
+                dense = [rglist[j][pos : pos + batch_size] for j in range(1, self.I_end)]
+                sparse = [rglist[j][pos : pos + batch_size] for j in range(self.I_end, self.C_end)]
                 pos += batch_size
-                yield label, np.stack(features, axis=-1)
+                yield label, np.stack(dense, axis=-1), np.stack(sparse, axis=-1)
             if pos != len(rglist[0]):
-                tail = [rglist[i][pos:] for i in range(self.num_fields)]
+                tail = [rglist[i][pos:] for i in range(self.C_end)]
+
 
 
 def make_criteo_dataloader(data_path, batch_size, shuffle=True):
@@ -349,7 +351,7 @@ def interaction(embedded_x: flow.Tensor) -> flow.Tensor:
 class DeepFMModule(nn.Module):
     def __init__(
         self,
-        embedding_vec_size=128,
+        feature_vec_size=128,
         dnn=[1024, 1024, 512, 256],
         use_fusedmlp=True,
         persistent_path=None,
@@ -359,12 +361,13 @@ class DeepFMModule(nn.Module):
         dropout=0.2,
     ):
         super(DeepFMModule, self).__init__()
+        self.multiply = nn.Linear(num_dense_fields, feature_vec_size + 1, bias=False)
 
-        self.embedding_vec_size = embedding_vec_size
+        self.feature_vec_size = feature_vec_size
 
         self.embedding_layer = OneEmbedding(
             table_name="sparse_embedding",
-            embedding_vec_size=[embedding_vec_size, 1],
+            embedding_vec_size=[feature_vec_size, 1],
             persistent_path=persistent_path,
             table_size_array=table_size_array,
             store_type=one_embedding_store_type,
@@ -373,7 +376,7 @@ class DeepFMModule(nn.Module):
         )
 
         self.dnn_layer = DNN(
-            in_features=embedding_vec_size * (num_dense_fields + num_sparse_fields),
+            in_features=feature_vec_size * (num_dense_fields + num_sparse_fields),
             hidden_units=dnn,
             out_features=1,
             skip_final_activation=True,
@@ -381,25 +384,31 @@ class DeepFMModule(nn.Module):
             fused=use_fusedmlp,
         )
 
-    def forward(self, inputs) -> flow.Tensor:
-        multi_embedded_x = self.embedding_layer(inputs)
-        embedded_x = multi_embedded_x[:, :, 0 : self.embedding_vec_size]
-        lr_embedded_x = multi_embedded_x[:, :, -1]
+    def forward(self, dense_fields, sparse_fields) -> flow.Tensor:
+        dense_features = self.multiply(dense_fields)
+        dense_embedding = dense_features[:, :, 0 : self.feature_vec_size]
+        dense_embedding_lr = dense_features[:, :, -1]
 
+        sparse_features = self.embedding_layer(sparse_fields)
+        sparse_embedding = sparse_features[:, :, 0 : self.feature_vec_size]
+        sparse_embedding_lr = sparse_features[:, :, -1]
+
+        fm_dnn_input = flow.concat([sparse_embedding, dense_embedding], dim=1)
+        lr_input = flow.concat([sparse_embedding_lr, dense_embedding_lr], dim=1)
         # FM
-        lr_out = flow.sum(lr_embedded_x, dim=1, keepdim=True)
-        dot_sum = interaction(embedded_x)
+        lr_out = flow.sum(lr_input, dim=1, keepdim=True)
+        dot_sum = interaction(fm_dnn_input)
         fm_pred = lr_out + dot_sum
 
         # DNN
-        dnn_pred = self.dnn_layer(embedded_x.flatten(start_dim=1))
+        dnn_pred = self.dnn_layer(fm_dnn_input.flatten(start_dim=1))
 
         return fm_pred + dnn_pred
 
 
 def make_deepfm_module(args):
     model = DeepFMModule(
-        embedding_vec_size=args.embedding_vec_size,
+        feature_vec_size=args.feature_vec_size,
         dnn=args.dnn,
         use_fusedmlp=not args.disable_fusedmlp,
         persistent_path=args.persistent_path,
@@ -418,8 +427,8 @@ class DeepFMValGraph(flow.nn.Graph):
         if amp:
             self.config.enable_amp(True)
 
-    def build(self, features):
-        predicts = self.module(features.to("cuda"))
+    def build(self, dense_fields, sparse_fields):
+        predicts = self.module(dense_fields.to("cuda"), sparse_fields.to("cuda"))
         return predicts.sigmoid()
 
 
@@ -438,8 +447,8 @@ class DeepFMTrainGraph(flow.nn.Graph):
             self.config.enable_amp(True)
             self.set_grad_scaler(grad_scaler)
 
-    def build(self, labels, features):
-        logits = self.module(features.to("cuda"))
+    def build(self, labels, dense_fields, sparse_fields):
+        logits = self.module(dense_fields.to("cuda"), sparse_fields.to("cuda"))
         loss = self.loss(logits, labels.to("cuda"))
         loss.backward()
         return loss.to("cpu")
@@ -549,8 +558,8 @@ def train(args):
     with make_criteo_dataloader(f"{args.data_dir}/train", args.batch_size) as loader:
         step, last_step, last_time = -1, 0, time.time()
         for step in range(1, args.train_batches + 1):
-            labels, features = batch_to_global(*next(loader))
-            loss = train_graph(labels, features)
+            labels, dense_fields, sparse_fields = batch_to_global(*next(loader))
+            loss = train_graph(labels, dense_fields, sparse_fields)
             if step % args.loss_print_interval == 0:
                 loss = loss.numpy()
                 if rank == 0:
