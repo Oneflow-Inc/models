@@ -46,9 +46,9 @@ def get_args(print_args=True):
     )
     parser.add_argument("--embedding_vec_size", type=int, default=16)
     parser.add_argument("--batch_norm", type=bool, default=False)
-    parser.add_argument("--dnn_hidden_units", type=int_list, default="1000,1000,1000,1000,1000")
-    parser.add_argument("--crossing_layers", type=int, default=3)
-    parser.add_argument("--net_dropout", type=float, default=0.2)
+    parser.add_argument("--dnn_hidden_units", type=int_list, default="1024,1024")
+    parser.add_argument("--crossing_layers", type=int, default=6)
+    parser.add_argument("--net_dropout", type=float, default=0.5)
     parser.add_argument("--embedding_regularizer", type=float, default=None)
     parser.add_argument("--net_regularizer", type=float, default=None)
 
@@ -112,9 +112,9 @@ class DCNDataReader(object):
         self,
         parquet_file_url_list,
         batch_size,
-        num_epochs=1,
+        num_epochs,
         shuffle_row_groups=True,
-        shard_seed=2019,
+        shard_seed=1234,
         shard_count=1,
         cur_shard=0,
     ):
@@ -126,16 +126,17 @@ class DCNDataReader(object):
         self.shard_count = shard_count
         self.cur_shard = cur_shard
 
-        fields = ["Label"]
+        fields = ["label"]
         fields += [f"I{i+1}" for i in range(num_dense_fields)]
+        self.I_end = len(fields)
         fields += [f"C{i+1}" for i in range(num_sparse_fields)]
+        self.C_end = len(fields)
         self.fields = fields
-        self.num_fields = len(fields)
 
     def __enter__(self):
         self.reader = make_batch_reader(
             self.parquet_file_url_list,
-            workers_count=2,
+            workers_count=1,
             shuffle_row_groups=self.shuffle_row_groups,
             num_epochs=self.num_epochs,
             shard_seed=self.shard_seed,
@@ -152,9 +153,7 @@ class DCNDataReader(object):
     def get_batches(self, reader, batch_size=None):
         if batch_size is None:
             batch_size = self.batch_size
-
         tail = None
-
         for rg in reader:
             rgdict = rg._asdict()
             rglist = [rgdict[field] for field in self.fields]
@@ -164,24 +163,26 @@ class DCNDataReader(object):
                 tail = list(
                     [
                         np.concatenate((tail[i], rglist[i][0 : (batch_size - len(tail[i]))]))
-                        for i in range(self.num_fields)
+                        for i in range(self.C_end)
                     ]
                 )
                 if len(tail[0]) == batch_size:
                     label = tail[0]
-                    features = tail[1 : self.num_fields]
+                    dense = tail[1 : self.I_end]
+                    sparse = tail[self.I_end : self.C_end]
                     tail = None
-                    yield label, np.stack(features, axis=-1)
+                    yield label, np.stack(dense, axis=-1), np.stack(sparse, axis=-1)
                 else:
                     pos = 0
                     continue
             while (pos + batch_size) <= len(rglist[0]):
                 label = rglist[0][pos : pos + batch_size]
-                features = [rglist[j][pos : pos + batch_size] for j in range(1, self.num_fields)]
+                dense = [rglist[j][pos : pos + batch_size] for j in range(1, self.I_end)]
+                sparse = [rglist[j][pos : pos + batch_size] for j in range(self.I_end, self.C_end)]
                 pos += batch_size
-                yield label, np.stack(features, axis=-1)
+                yield label, np.stack(dense, axis=-1), np.stack(sparse, axis=-1)
             if pos != len(rglist[0]):
-                tail = [rglist[i][pos:] for i in range(self.num_fields)]
+                tail = [rglist[i][pos:] for i in range(self.C_end)]
 
 
 def make_criteo_dataloader(data_path, batch_size, shuffle=True, shard_seed=2022):
@@ -340,7 +341,7 @@ class DCNModule(nn.Module):
             size_factor=size_factor,
         )
 
-        input_dim = embedding_vec_size * (num_dense_fields + num_sparse_fields)
+        input_dim = embedding_vec_size * num_sparse_fields + num_dense_fields
 
         self.dnn = (
             DNN(
@@ -363,13 +364,12 @@ class DCNModule(nn.Module):
 
         self.reset_parameters()
 
-    def forward(self, X):
-
-        feature_emb = self.embedding_layer(X)
-        flat_feature_emb = feature_emb.flatten(start_dim=1)
-        cross_out = self.crossnet(flat_feature_emb)
+    def forward(self, dense_fields, sparse_fields) -> flow.Tensor:
+        feature_emb = self.embedding_layer(sparse_fields)
+        feature = flow.cat([feature_emb.flatten(start_dim=1), dense_fields], dim=1)
+        cross_out = self.crossnet(feature)
         if self.dnn is not None:
-            dnn_out = self.dnn(flat_feature_emb)
+            dnn_out = self.dnn(feature)
             final_out = flow.cat([cross_out, dnn_out], dim=-1)
         else:
             final_out = cross_out
@@ -409,9 +409,9 @@ class DCNValGraph(flow.nn.Graph):
         if amp:
             self.config.enable_amp(True)
 
-    def build(self, features):
-        predicts = self.module(features.to("cuda"))
-        return predicts
+    def build(self, dense_fields, sparse_fields):
+        predicts = self.module(dense_fields.to("cuda"), sparse_fields.to("cuda"))
+        return predicts.sigmoid() # TODO check sigmoid
 
 
 class DCNTrainGraph(flow.nn.Graph):
@@ -429,14 +429,12 @@ class DCNTrainGraph(flow.nn.Graph):
             self.config.enable_amp(True)
             self.set_grad_scaler(grad_scaler)
 
-    def build(self, labels, features):
-
-        logits = self.module(features.to("cuda")).squeeze()
-        loss = self.loss(logits, labels.squeeze().to("cuda"))
+    def build(self, labels, dense_fields, sparse_fields):
+        logits = self.module(dense_fields.to("cuda"), sparse_fields.to("cuda"))
+        loss = self.loss(logits, labels.to("cuda"))
         reduce_loss = flow.mean(loss)
         reduce_loss.backward()
-
-        return reduce_loss.to("cpu")
+        return reduce_loss.to("cpu")# TODO: checkout to cpu
 
 
 def make_lr_scheduler(args, optimizer):
@@ -535,8 +533,8 @@ def train(args):
         dcn_module.train()
         last_step, last_time = 0, time.time()
         for step in range(1, args.train_batches + 1):
-            labels, features = batch_to_global(*next(loader))
-            loss = train_graph(labels, features)
+            labels, dense_fields, sparse_fields = batch_to_global(*next(loader))
+            loss = train_graph(labels, dense_fields, sparse_fields)
 
             if step % args.loss_print_interval == 0:
                 loss = loss.numpy()
@@ -606,8 +604,8 @@ def prefetch_eval_batches(data_dir, batch_size, num_batches):
     cached_eval_batches = []
     with make_criteo_dataloader(data_dir, batch_size, shuffle=False) as loader:
         for _ in range(num_batches):
-            label, features = batch_to_global(*next(loader), is_train=False)
-            cached_eval_batches.append((label, features))
+            label, dense_fields, sparse_fields = batch_to_global(*next(loader), is_train=False)
+            cached_eval_batches.append((label, dense_fields, sparse_fields))
     return cached_eval_batches
 
 
@@ -627,14 +625,14 @@ def eval(args, eval_graph, tag="val", cur_step=0, epoch=0, cached_eval_batches=N
         with make_criteo_dataloader(f"{args.data_dir}/{tag}", batch_size, shuffle=False) as loader:
             eval_start_time = time.time()
             for i in range(batches_per_epoch):
-                label, features = batch_to_global(*next(loader), is_train=False)
-                pred = eval_graph(features)
+                label, dense_fields, sparse_fields = batch_to_global(*next(loader), is_train=False)
+                pred = eval_graph(dense_fields, sparse_fields)
                 labels.append(label)
                 preds.append(pred.to_local())
     else:
         for i in range(batches_per_epoch):
-            label, features = cached_eval_batches[i]
-            pred = eval_graph(features)
+            label, dense_fields, sparse_fields = cached_eval_batches[i]
+            pred = eval_graph(dense_fields, sparse_fields)
             labels.append(label)
             preds.append(pred.to_local())
 
