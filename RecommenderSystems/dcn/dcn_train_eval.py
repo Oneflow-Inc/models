@@ -584,9 +584,10 @@ def train(args):
                 last_time = time.time()
     if args.save_best_model:
         load_model(f"{args.model_save_dir}/best_checkpoint")
-    if rank == 0:
-        print("================ Test Evaluation ================")
-    eval(args, eval_graph, tag="test", cur_step=step, epoch=epoch)
+    if args.num_test_samples > 0:
+        if rank == 0:
+            print("================ Test Evaluation ================")
+        eval(args, eval_graph, tag="test", cur_step=step, epoch=epoch)
 
 
 def _np_to_global(np_array):
@@ -594,10 +595,11 @@ def _np_to_global(np_array):
     return t.to_global(placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0))
 
 
-def batch_to_global(np_label, np_features, is_train=True):
+def batch_to_global(np_label, np_dense, np_sparse, is_train=True):
     labels = _np_to_global(np_label.reshape(-1, 1)) if is_train else np_label.reshape(-1, 1)
-    features = _np_to_global(np_features)
-    return labels, features
+    dense_fields = _np_to_global(np_dense)
+    sparse_fields = _np_to_global(np_sparse)
+    return labels, dense_fields, sparse_fields
 
 
 def prefetch_eval_batches(data_dir, batch_size, num_batches):
