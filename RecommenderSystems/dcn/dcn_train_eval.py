@@ -10,9 +10,7 @@ import oneflow as flow
 import oneflow.nn as nn
 from petastorm.reader import make_batch_reader
 
-sys.path.append(
-    os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
-)
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
 num_dense_fields = 13
 num_sparse_fields = 26
 
@@ -27,49 +25,30 @@ def get_args(print_args=True):
     parser = argparse.ArgumentParser()
     parser.add_argument("--data_dir", type=str, required=True)
     parser.add_argument(
-        "--num_train_samples",
-        type=int,
-        default=36672493,
-        help="the number of training samples",
+        "--num_train_samples", type=int, default=36672493, help="the number of training samples",
     )
     parser.add_argument(
-        "--num_valid_samples",
-        type=int,
-        default=4584062,
-        help="the number of validation samples",
+        "--num_valid_samples", type=int, default=4584062, help="the number of validation samples",
     )
     parser.add_argument(
-        "--num_test_samples",
-        type=int,
-        default=4584062,
-        help="the number of test samples",
+        "--num_test_samples", type=int, default=4584062, help="the number of test samples",
     )
 
     parser.add_argument("--shard_seed", type=int, default=2022)
     parser.add_argument("--model_load_dir", type=str, default=None)
     parser.add_argument("--model_save_dir", type=str, default=None)
+    parser.add_argument("--save_best_model", action="store_true", help="save best model or not")
     parser.add_argument(
-        "--save_best_model", action="store_true", help="save best model or not"
+        "--save_initial_model", action="store_true", help="save initial model parameters or not.",
     )
     parser.add_argument(
-        "--save_initial_model",
-        action="store_true",
-        help="save initial model parameters or not.",
-    )
-    parser.add_argument(
-        "--save_model_after_each_eval",
-        action="store_true",
-        help="save model after each eval.",
+        "--save_model_after_each_eval", action="store_true", help="save model after each eval.",
     )
 
-    parser.add_argument(
-        "--disable_fusedmlp", action="store_true", help="disable fused MLP or not"
-    )
+    parser.add_argument("--disable_fusedmlp", action="store_true", help="disable fused MLP or not")
     parser.add_argument("--embedding_vec_size", type=int, default=16)
     parser.add_argument("--batch_norm", type=bool, default=False)
-    parser.add_argument(
-        "--dnn_hidden_units", type=int_list, default="1000,1000,1000,1000,1000"
-    )
+    parser.add_argument("--dnn_hidden_units", type=int_list, default="1000,1000,1000,1000,1000")
     parser.add_argument("--crossing_layers", type=int, default=3)
     parser.add_argument("--net_dropout", type=float, default=0.2)
     parser.add_argument("--embedding_regularizer", type=float, default=None)
@@ -86,17 +65,11 @@ def get_args(print_args=True):
     parser.add_argument("--size_factor", type=int, default=3)
 
     parser.add_argument("--valid_batch_size", type=int, default=10000)
-    parser.add_argument(
-        "--valid_batches", type=int, default=1000, help="number of valid batches"
-    )
+    parser.add_argument("--valid_batches", type=int, default=1000, help="number of valid batches")
     parser.add_argument("--test_batch_size", type=int, default=10000)
-    parser.add_argument(
-        "--test_batches", type=int, default=1000, help="number of test batches"
-    )
+    parser.add_argument("--test_batches", type=int, default=1000, help="number of test batches")
     parser.add_argument("--train_batch_size", type=int, default=10000)
-    parser.add_argument(
-        "--train_batches", type=int, default=15000, help="number of train batches"
-    )
+    parser.add_argument("--train_batches", type=int, default=15000, help="number of train batches")
     parser.add_argument("--loss_print_interval", type=int, default=100)
 
     parser.add_argument(
@@ -106,17 +79,12 @@ def get_args(print_args=True):
         required=True,
     )
     parser.add_argument(
-        "--persistent_path",
-        type=str,
-        required=True,
-        help="path for persistent kv store",
+        "--persistent_path", type=str, required=True, help="path for persistent kv store",
     )
     parser.add_argument("--store_type", type=str, default="cached_host_mem")
     parser.add_argument("--cache_memory_budget_mb", type=int, default=8192)
     parser.add_argument("--amp", action="store_true", help="Run model with amp")
-    parser.add_argument(
-        "--loss_scale_policy", type=str, default="static", help="static or dynamic"
-    )
+    parser.add_argument("--loss_scale_policy", type=str, default="static", help="static or dynamic")
 
     args = parser.parse_args()
 
@@ -197,9 +165,7 @@ class DCNDataReader(object):
                 pos = batch_size - len(tail[0])
                 tail = list(
                     [
-                        np.concatenate(
-                            (tail[i], rglist[i][0 : (batch_size - len(tail[i]))])
-                        )
+                        np.concatenate((tail[i], rglist[i][0 : (batch_size - len(tail[i]))]))
                         for i in range(self.num_fields)
                     ]
                 )
@@ -213,9 +179,7 @@ class DCNDataReader(object):
                     continue
             while (pos + batch_size) <= len(rglist[0]):
                 label = rglist[0][pos : pos + batch_size]
-                features = [
-                    rglist[j][pos : pos + batch_size] for j in range(1, self.num_fields)
-                ]
+                features = [rglist[j][pos : pos + batch_size] for j in range(1, self.num_fields)]
                 pos += batch_size
                 yield label, np.stack(features, axis=-1)
             if pos != len(rglist[0]):
@@ -265,9 +229,7 @@ class OneEmbedding(nn.Module):
         ]
         if store_type == "device_mem":
             store_options = flow.one_embedding.make_device_mem_store_options(
-                persistent_path=persistent_path,
-                capacity=vocab_size,
-                size_factor=size_factor,
+                persistent_path=persistent_path, capacity=vocab_size, size_factor=size_factor,
             )
         elif store_type == "cached_host_mem":
             assert cache_memory_budget_mb > 0
@@ -422,9 +384,7 @@ class DCNModule(nn.Module):
         self.crossnet = CrossNet(input_dim, crossing_layers)
 
         final_dim = input_dim
-        if (
-            isinstance(dnn_hidden_units, list) and len(dnn_hidden_units) > 0
-        ):  # if use dnn
+        if isinstance(dnn_hidden_units, list) and len(dnn_hidden_units) > 0:  # if use dnn
             final_dim += dnn_hidden_units[-1]
         self.fc = nn.Linear(final_dim, 1)  # [cross_part, dnn_part] -> logit
 
@@ -484,13 +444,7 @@ class DCNValGraph(flow.nn.Graph):
 
 class DCNTrainGraph(flow.nn.Graph):
     def __init__(
-        self,
-        dcn_module,
-        loss,
-        optimizer,
-        lr_scheduler=None,
-        grad_scaler=None,
-        amp=False,
+        self, dcn_module, loss, optimizer, lr_scheduler=None, grad_scaler=None, amp=False,
     ):
         super(DCNTrainGraph, self).__init__()
         self.module = dcn_module
@@ -586,16 +540,11 @@ def train(args):
         grad_scaler = flow.amp.StaticGradScaler(1024)
     else:
         grad_scaler = flow.amp.GradScaler(
-            init_scale=1073741824,
-            growth_factor=2.0,
-            backoff_factor=0.5,
-            growth_interval=2000,
+            init_scale=1073741824, growth_factor=2.0, backoff_factor=0.5, growth_interval=2000,
         )
 
     eval_graph = DCNValGraph(dcn_module, args.amp)
-    train_graph = DCNTrainGraph(
-        dcn_module, loss_func, opt, lr_scheduler, grad_scaler, args.amp
-    )
+    train_graph = DCNTrainGraph(dcn_module, loss_func, opt, lr_scheduler, grad_scaler, args.amp)
 
     batches_per_epoch = math.ceil(args.num_train_samples / args.train_batch_size)
 
@@ -642,9 +591,7 @@ def train(args):
                 if args.save_model_after_each_eval:
                     save_model(f"step_{step}_val_auc_{val_auc:0.5f}")
 
-                monitor_value = get_metrics(
-                    logs={"auc": val_auc, "logloss": val_logloss}
-                )
+                monitor_value = get_metrics(logs={"auc": val_auc, "logloss": val_logloss})
 
                 stop_training, best_metric, stopping_steps, save_best = early_stop(
                     epoch,
@@ -674,15 +621,11 @@ def train(args):
 
 def _np_to_global(np_array):
     t = flow.from_numpy(np_array)
-    return t.to_global(
-        placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0)
-    )
+    return t.to_global(placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0))
 
 
 def batch_to_global(np_label, np_features, is_train=True):
-    labels = (
-        _np_to_global(np_label.reshape(-1, 1)) if is_train else np_label.reshape(-1, 1)
-    )
+    labels = _np_to_global(np_label.reshape(-1, 1)) if is_train else np_label.reshape(-1, 1)
     features = _np_to_global(np_features)
     return labels, features
 
@@ -709,9 +652,7 @@ def eval(args, eval_graph, tag="val", cur_step=0, epoch=0, cached_eval_batches=N
     eval_start_time = time.time()
 
     if cached_eval_batches == None:
-        with make_criteo_dataloader(
-            f"{args.data_dir}/{tag}", batch_size, shuffle=False
-        ) as loader:
+        with make_criteo_dataloader(f"{args.data_dir}/{tag}", batch_size, shuffle=False) as loader:
             eval_start_time = time.time()
             for i in range(batches_per_epoch):
                 label, features = batch_to_global(*next(loader), is_train=False)
@@ -726,15 +667,11 @@ def eval(args, eval_graph, tag="val", cur_step=0, epoch=0, cached_eval_batches=N
             preds.append(pred.to_local())
 
     labels = (
-        _np_to_global(np.concatenate(labels, axis=0))
-        .to_global(sbp=flow.sbp.broadcast())
-        .to_local()
+        _np_to_global(np.concatenate(labels, axis=0)).to_global(sbp=flow.sbp.broadcast()).to_local()
     )
     preds = (
         flow.cat(preds, dim=0)
-        .to_global(
-            placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0)
-        )
+        .to_global(placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0))
         .to_global(sbp=flow.sbp.broadcast())
         .to_local()
     )
@@ -746,9 +683,7 @@ def eval(args, eval_graph, tag="val", cur_step=0, epoch=0, cached_eval_batches=N
 
     metrics_start_time = time.time()
     auc = flow.roc_auc_score(labels, preds).numpy()[0]
-    logloss = flow._C.binary_cross_entropy_loss(
-        preds, labels, weight=None, reduction="mean"
-    ).item()
+    logloss = flow._C.binary_cross_entropy_loss(preds, labels, weight=None, reduction="mean").item()
     metrics_time = time.time() - metrics_start_time
 
     if rank == 0:
