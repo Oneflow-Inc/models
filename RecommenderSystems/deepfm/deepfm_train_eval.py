@@ -44,11 +44,11 @@ def get_args(print_args=True):
         help="save model after each eval or not",
     )
 
-    parser.add_argument("--feature_vec_size", type=int, default=16, help="embedding vector size")
+    parser.add_argument("--feature_vec_size", type=int, default=10, help="embedding vector size")
     parser.add_argument(
-        "--dnn", type=int_list, default="1000,1000,1000,1000,1000", help="dnn hidden units number"
+        "--dnn", type=int_list, default="400,400,400", help="dnn hidden units number"
     )
-    parser.add_argument("--net_dropout", type=float, default=0.2, help="net dropout rate")
+    parser.add_argument("--net_dropout", type=float, default=0.5, help="net dropout rate")
     parser.add_argument("--disable_fusedmlp", action="store_true", help="disable fused MLP or not")
 
     parser.add_argument("--lr_factor", type=float, default=0.1)
@@ -56,12 +56,12 @@ def get_args(print_args=True):
     parser.add_argument("--learning_rate", type=float, default=0.001, help="learning rate")
 
     parser.add_argument(
-        "--batch_size", type=int, default=10000, help="training/evaluation batch size"
+        "--batch_size", type=int, default=16384, help="training/evaluation batch size"
     )
     parser.add_argument(
         "--train_batches", type=int, default=75000, help="the maximum number of training batches"
     )
-    parser.add_argument("--loss_print_interval", type=int, default=100, help="")
+    parser.add_argument("--loss_print_interval", type=int, default=1000, help="")
 
     parser.add_argument(
         "--patience",
@@ -361,7 +361,7 @@ class DeepFMModule(nn.Module):
         dropout=0.2,
     ):
         super(DeepFMModule, self).__init__()
-        self.multiply = nn.Linear(num_dense_fields, feature_vec_size + 1, bias=False)
+        self.dense_weight = nn.Parameter(flow.Tensor(1, num_dense_fields, feature_vec_size + 1))
 
         self.feature_vec_size = feature_vec_size
 
@@ -385,9 +385,9 @@ class DeepFMModule(nn.Module):
         )
 
     def forward(self, dense_fields, sparse_fields) -> flow.Tensor:
-        dense_features = self.multiply(dense_fields)
-        dense_embedding = dense_features[:, 0 : self.feature_vec_size].unsqueeze(1)
-        dense_embedding_lr = dense_features[:, -1].unsqueeze(1)
+        dense_features = dense_fields.unsqueeze(-1) * self.dense_weight
+        dense_embedding = dense_features[:, :, 0 : self.feature_vec_size]
+        dense_embedding_lr = dense_features[:, :, -1]
 
         sparse_features = self.embedding_layer(sparse_fields)
         sparse_embedding = sparse_features[:, :, 0 : self.feature_vec_size]
@@ -558,8 +558,8 @@ def train(args):
     with make_criteo_dataloader(f"{args.data_dir}/train", args.batch_size) as loader:
         step, last_step, last_time = -1, 0, time.time()
         for step in range(1, args.train_batches + 1):
-            labels, dense_fields, sparse_fields = batch_to_global(*next(loader))
-            loss = train_graph(labels, dense_fields, sparse_fields)
+            label, dense_fields, sparse_fields = batch_to_global(*next(loader))
+            loss = train_graph(label, dense_fields, sparse_fields)
             if step % args.loss_print_interval == 0:
                 loss = loss.numpy()
                 if rank == 0:
@@ -609,9 +609,10 @@ def train(args):
 
     if args.save_best_model:
         load_model(f"{args.model_save_dir}/best_checkpoint")
-    if rank == 0:
-        print("================ Test Evaluation ================")
-    eval(args, eval_graph, tag="test", cur_step=step, epoch=epoch)
+    if args.num_test_samples > 0:
+        if rank == 0:
+            print("================ Test Evaluation ================")
+        eval(args, eval_graph, tag="test", cur_step=step, epoch=epoch)
 
 
 def np_to_global(np):
@@ -630,8 +631,8 @@ def prefetch_eval_batches(data_dir, batch_size, num_batches):
     cached_eval_batches = []
     with make_criteo_dataloader(data_dir, batch_size, shuffle=False) as loader:
         for _ in range(num_batches):
-            labels, dense_fields, sparse_fields = batch_to_global(*next(loader), is_train=False)
-            cached_eval_batches.append((labels, dense_fields, sparse_fields))
+            label, dense_fields, sparse_fields = batch_to_global(*next(loader), is_train=False)
+            cached_eval_batches.append((label, dense_fields, sparse_fields))
     return cached_eval_batches
 
 
@@ -651,7 +652,7 @@ def eval(args, eval_graph, tag="val", cur_step=0, epoch=0, cached_eval_batches=N
         ) as loader:
             eval_start_time = time.time()
             for i in range(batches_per_epoch):
-                labels, dense_fields, sparse_fields = batch_to_global(*next(loader), is_train=False)
+                label, dense_fields, sparse_fields = batch_to_global(*next(loader), is_train=False)
                 pred = eval_graph(dense_fields, sparse_fields)
                 labels.append(label)
                 preds.append(pred.to_local())
