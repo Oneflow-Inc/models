@@ -387,7 +387,7 @@ class DeepFMModule(nn.Module):
     def forward(self, dense_fields, sparse_fields) -> flow.Tensor:
         dense_features = self.multiply(dense_fields)
         dense_embedding = dense_features[:, 0 : self.feature_vec_size].unsqueeze(1)
-        dense_embedding_lr = dense_features[:, -1]
+        dense_embedding_lr = dense_features[:, -1].unsqueeze(1)
 
         sparse_features = self.embedding_layer(sparse_fields)
         sparse_embedding = sparse_features[:, :, 0 : self.feature_vec_size]
