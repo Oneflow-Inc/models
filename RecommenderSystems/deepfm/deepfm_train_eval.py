@@ -614,8 +614,9 @@ def train(args):
     if args.save_graph_for_serving:
         del eval_graph
         recompiled_eval_graph = compile_eval_graph(args, deepfm_module, tag="test")
+        eval_state_dict = recompiled_eval_graph.state_dict()
         flow.save(recompiled_eval_graph, args.model_serving_path)
-        flow.save_one_embedding_info(recompiled_eval_graph, args.model_serving_path)
+        flow.save_one_embedding_info(eval_state_dict, args.model_serving_path)
 
 
 def np_to_global(np):
