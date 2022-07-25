@@ -401,7 +401,6 @@ class DCNModule(nn.Module):
         else:
             final_out = cross_out
         y_pred = self.fc(final_out)
-        print("y pred shape is: ", y_pred.shape)
         return y_pred
 
     def reset_parameters(self):
