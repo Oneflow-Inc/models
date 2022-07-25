@@ -4,6 +4,7 @@
 
 ```
 |-- README.md
+|-- requirements.txt
 |-- roberta
 |   |-- MNLI                         # please download from aliyun
 |   |-- MNLIDataset.py
@@ -20,7 +21,6 @@
 |   |-- models
 |   |-- pretrain_model_MNLI          # please download from aliyun
 |   |-- pretrain_model_SST-2         # please download from aliyun
-|   |-- requirements.txt
 |   |-- train_MNLI.py
 |   |-- train_MNLI.sh
 |   |-- train_SST2.py
