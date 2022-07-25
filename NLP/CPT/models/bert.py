@@ -14,17 +14,17 @@ from .bert_utils import (
 )
 
 ACT2FN = {
-    "relu": flow._C.relu,
+    "relu": flow.nn.functional.relu,
     # "silu": silu,
     # "swish": silu,
-    "gelu": flow._C.gelu,
-    "tanh": flow.tanh,
+    "gelu": flow.nn.functional.gelu,
+    "tanh": flow.nn.functional.tanh,
     # "gelu_new": gelu_new,
     # "gelu_fast": gelu_fast,
     # "quick_gelu": quick_gelu,
     # "mish": mish,
     # "linear": linear_act,
-    "sigmoid": flow.sigmoid,
+    "sigmoid": flow.nn.functional.sigmoid,
 }
 
 
@@ -52,7 +52,7 @@ class BertEmbeddings(nn.Module):
         # position_ids (1, len position emb) is contiguous in memory and exported when serialized
         self.position_embedding_type = position_embedding_type
         self.register_buffer(
-            "position_ids", flow.arange(max_position_embeddings).expand((1, -1))
+            "position_ids", flow.arange(max_position_embeddings).expand(1, -1)
         )
         self.register_buffer(
             "token_type_ids",
