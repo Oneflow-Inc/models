@@ -401,7 +401,8 @@ class DCNModule(nn.Module):
         else:
             final_out = cross_out
         y_pred = self.fc(final_out)
-        return y_pred.sigmoid()
+        print("y pred shape is: ", y_pred.shape)
+        return y_pred
 
     def reset_parameters(self):
         def reset_param(m):
@@ -439,7 +440,7 @@ class DCNValGraph(flow.nn.Graph):
 
     def build(self, features):
         predicts = self.module(features.to("cuda"))
-        return predicts
+        return predicts.sigmoid()
 
 
 class DCNTrainGraph(flow.nn.Graph):
@@ -458,13 +459,10 @@ class DCNTrainGraph(flow.nn.Graph):
             self.set_grad_scaler(grad_scaler)
 
     def build(self, labels, features):
-
-        logits = self.module(features.to("cuda")).squeeze()
-        loss = self.loss(logits, labels.squeeze().to("cuda"))
-        reduce_loss = flow.mean(loss)
-        reduce_loss.backward()
-
-        return reduce_loss.to("cpu")
+        logits = self.module(features.to("cuda"))
+        loss = self.loss(logits, labels.to("cuda"))
+        loss.backward()
+        return loss.to("cpu")
 
 
 def make_lr_scheduler(args, optimizer):
@@ -534,7 +532,7 @@ def train(args):
 
     opt = flow.optim.Adam(dcn_module.parameters(), lr=args.learning_rate)
     lr_scheduler = None
-    loss_func = flow.nn.BCELoss(reduction="none").to("cuda")
+    loss_func = flow.nn.BCEWithLogitsLoss(reduction="mean").to("cuda")
 
     if args.loss_scale_policy == "static":
         grad_scaler = flow.amp.StaticGradScaler(1024)
