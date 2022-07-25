@@ -99,6 +99,7 @@ Please check our the following **demos** for a quick start
 - [Transformer](https://github.com/Oneflow-Inc/models/tree/main/NLP/Transformer)
 - [Bert](https://github.com/Oneflow-Inc/models/tree/main/NLP/bert-oneflow)
 - [CPT](https://github.com/Oneflow-Inc/models/tree/main/NLP/CPT)
+- [Roberta](https://github.com/Oneflow-Inc/models/tree/main/NLP/roberta)
 - [MoE](https://github.com/Oneflow-Inc/models/tree/main/NLP/MoE)
 
 </details>
@@ -115,7 +116,6 @@ Please check our the following **demos** for a quick start
 - [MaskCycleGAN-VC](https://github.com/Oneflow-Inc/models/tree/main/Audio/MaskCycleGAN-VC)
 - [StarGAN-VC](https://github.com/Oneflow-Inc/models/tree/main/Audio/StarGAN-VC)
 - [Adaptive_Voice_Conversion](https://github.com/Oneflow-Inc/models/tree/main/Audio/Adaptive_Voice_Conversion)
-- [Opentransformer](https://github.com/Oneflow-Inc/models/tree/main/Audio/Opentransformer)
 </details>
 
 <details>
