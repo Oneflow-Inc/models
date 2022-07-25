@@ -1,2 +1,3 @@
-filelock
-huggingface_hub
+numpy==1.21.2
+oneflow==0.7.0+cu112
+tokenizer==3.4.1

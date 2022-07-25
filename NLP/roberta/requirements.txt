@@ -1,0 +1,8 @@
+filelock==3.7.1
+huggingface_hub==0.8.1
+numpy==1.21.2
+oneflow==0.7.0+cu112
+packaging==21.0
+regex==2021.8.21
+requests==2.25.1
+tqdm==4.62.1
