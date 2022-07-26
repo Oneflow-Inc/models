@@ -154,7 +154,7 @@ class DeepFMDataReader(object):
         self.shard_count = shard_count
         self.cur_shard = cur_shard
 
-        fields = ["Label"]
+        fields = ["label"]
         fields += [f"I{i+1}" for i in range(num_dense_fields)]
         fields += [f"C{i+1}" for i in range(num_sparse_fields)]
         self.fields = fields
@@ -563,7 +563,7 @@ def train(args):
                         + f"Latency {(latency * 1000):0.3f} ms, Throughput {throughput:0.1f}, {strtime}"
                     )
 
-            if step % batches_per_epoch == 0:
+            if step % 10000 == 0:
                 epoch += 1
                 auc, logloss = eval(
                     args,
@@ -573,30 +573,30 @@ def train(args):
                     epoch=epoch,
                     cached_eval_batches=cached_eval_batches,
                 )
-                if args.save_model_after_each_eval:
-                    save_model(f"step_{step}_val_auc_{auc:0.5f}")
+    #             if args.save_model_after_each_eval:
+    #                 save_model(f"step_{step}_val_auc_{auc:0.5f}")
 
-                monitor_value = get_metrics(logs={"auc": auc, "logloss": logloss})
+    #             monitor_value = get_metrics(logs={"auc": auc, "logloss": logloss})
 
-                stop_training, best_metric, stopping_steps, save_best = early_stop(
-                    epoch,
-                    monitor_value,
-                    best_metric=best_metric,
-                    stopping_steps=stopping_steps,
-                    patience=args.patience,
-                    min_delta=args.min_delta,
-                )
+    #             stop_training, best_metric, stopping_steps, save_best = early_stop(
+    #                 epoch,
+    #                 monitor_value,
+    #                 best_metric=best_metric,
+    #                 stopping_steps=stopping_steps,
+    #                 patience=args.patience,
+    #                 min_delta=args.min_delta,
+    #             )
 
-                if args.save_best_model and save_best:
-                    if rank == 0:
-                        print(f"Save best model: monitor(max): {best_metric:.6f}")
-                    save_model("best_checkpoint")
+    #             if args.save_best_model and save_best:
+    #                 if rank == 0:
+    #                     print(f"Save best model: monitor(max): {best_metric:.6f}")
+    #                 save_model("best_checkpoint")
 
-                if not args.disable_early_stop and stop_training:
-                    break
+    #             if not args.disable_early_stop and stop_training:
+    #                 break
 
-                deepfm_module.train()
-                last_time = time.time()
+    #             deepfm_module.train()
+    #             last_time = time.time()
 
     if args.save_best_model:
         load_model(f"{args.model_save_dir}/best_checkpoint")
