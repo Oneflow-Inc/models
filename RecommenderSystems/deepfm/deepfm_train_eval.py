@@ -154,7 +154,8 @@ class DeepFMDataReader(object):
         self.shard_count = shard_count
         self.cur_shard = cur_shard
 
-        fields = ["Label"]
+        # fields = ["Label"]
+        fields = ["label"]
         fields += [f"I{i+1}" for i in range(num_dense_fields)]
         fields += [f"C{i+1}" for i in range(num_sparse_fields)]
         self.fields = fields
@@ -345,7 +346,6 @@ class DNN(nn.Module):
 def interaction(embedded_x: flow.Tensor) -> flow.Tensor:
     return flow._C.fused_dot_feature_interaction([embedded_x], pooling="sum")
 
-
 class DeepFMModule(nn.Module):
     def __init__(
         self,
@@ -385,7 +385,7 @@ class DeepFMModule(nn.Module):
         multi_embedded_x = self.embedding_layer(inputs)
         embedded_x = multi_embedded_x[:, :, 0 : self.embedding_vec_size]
         lr_embedded_x = multi_embedded_x[:, :, -1]
-
+        
         # FM
         lr_out = flow.sum(lr_embedded_x, dim=1, keepdim=True)
         dot_sum = interaction(embedded_x)
@@ -446,17 +446,19 @@ class DeepFMTrainGraph(flow.nn.Graph):
 
 
 def make_lr_scheduler(args, optimizer):
-    batches_per_epoch = math.ceil(args.num_train_samples / args.batch_size)
-    milestones = [
-        batches_per_epoch * (i + 1)
-        for i in range(math.floor(math.log(args.min_lr / args.learning_rate, args.lr_factor)))
-    ]
-    multistep_lr = flow.optim.lr_scheduler.MultiStepLR(
-        optimizer=optimizer, milestones=milestones, gamma=args.lr_factor,
+    warmup_lr = flow.optim.lr_scheduler.LinearLR(
+        optimizer, start_factor=0, total_iters=3000,
     )
-
-    return multistep_lr
-
+    poly_decay_lr = flow.optim.lr_scheduler.PolynomialLR(
+        optimizer, decay_batch=60000, end_learning_rate=1e-8, power=2.0, cycle=False,
+    )
+    sequential_lr = flow.optim.lr_scheduler.SequentialLR(
+        optimizer=optimizer,
+        schedulers=[warmup_lr, poly_decay_lr],
+        milestones=[10000],
+        interval_rescaling=True,
+    )
+    return sequential_lr
 
 def get_metrics(logs):
     kv = {"auc": 1, "logloss": -1}
@@ -517,7 +519,7 @@ def train(args):
         save_model("initial_checkpoint")
 
     # TODO: clip gradient norm
-    opt = flow.optim.Adam(deepfm_module.parameters(), lr=args.learning_rate)
+    opt = flow.optim.Adam(deepfm_module.parameters(), lr=args.learning_rate, eps=1e-7)
     lr_scheduler = make_lr_scheduler(args, opt)
     loss = flow.nn.BCEWithLogitsLoss(reduction="mean").to("cuda")
 
@@ -563,7 +565,7 @@ def train(args):
                         + f"Latency {(latency * 1000):0.3f} ms, Throughput {throughput:0.1f}, {strtime}"
                     )
 
-            if step % batches_per_epoch == 0:
+            if step % 10000 == 0:
                 epoch += 1
                 auc, logloss = eval(
                     args,
@@ -571,29 +573,29 @@ def train(args):
                     tag="val",
                     cur_step=step,
                     epoch=epoch,
-                    cached_eval_batches=cached_eval_batches,
+                    cached_eval_batches=None,
                 )
-                if args.save_model_after_each_eval:
-                    save_model(f"step_{step}_val_auc_{auc:0.5f}")
+                # if args.save_model_after_each_eval:
+                #     save_model(f"step_{step}_val_auc_{auc:0.5f}")
 
-                monitor_value = get_metrics(logs={"auc": auc, "logloss": logloss})
+                # monitor_value = get_metrics(logs={"auc": auc, "logloss": logloss})
 
-                stop_training, best_metric, stopping_steps, save_best = early_stop(
-                    epoch,
-                    monitor_value,
-                    best_metric=best_metric,
-                    stopping_steps=stopping_steps,
-                    patience=args.patience,
-                    min_delta=args.min_delta,
-                )
+                # stop_training, best_metric, stopping_steps, save_best = early_stop(
+                #     epoch,
+                #     monitor_value,
+                #     best_metric=best_metric,
+                #     stopping_steps=stopping_steps,
+                #     patience=args.patience,
+                #     min_delta=args.min_delta,
+                # )
 
-                if args.save_best_model and save_best:
-                    if rank == 0:
-                        print(f"Save best model: monitor(max): {best_metric:.6f}")
-                    save_model("best_checkpoint")
+                # if args.save_best_model and save_best:
+                #     if rank == 0:
+                #         print(f"Save best model: monitor(max): {best_metric:.6f}")
+                #     save_model("best_checkpoint")
 
-                if not args.disable_early_stop and stop_training:
-                    break
+                # if not args.disable_early_stop and stop_training:
+                #     break
 
                 deepfm_module.train()
                 last_time = time.time()

@@ -1,8 +1,14 @@
 #!/bin/bash
-DEVICE_NUM_PER_NODE=1
-DATA_DIR=/path/to/deepfm_parquet
-PERSISTENT_PATH=/path/to/persistent
-MODEL_SAVE_DIR=/path/to/model/save/dir
+DEVICE_NUM_PER_NODE=4
+DATA_DIR=/RAID0/xiexuan/criteo1t_parquet_40M_long
+PERSISTENT_PATH=/home/zhengzekang/models_dcn/RecommenderSystems/dcn/init_model
+MODEL_SAVE_DIR=/home/zhengzekang/models_dcn/RecommenderSystems/dcn/dcn_model
+
+rm -rf /home/zhengzekang/models_dcn/RecommenderSystems/dcn/init_model/0-4/*
+rm -rf /home/zhengzekang/models_dcn/RecommenderSystems/dcn/init_model/1-4/*
+rm -rf /home/zhengzekang/models_dcn/RecommenderSystems/dcn/init_model/2-4/*
+rm -rf /home/zhengzekang/models_dcn/RecommenderSystems/dcn/init_model/3-4/*
+
 
 python3 -m oneflow.distributed.launch \
     --nproc_per_node $DEVICE_NUM_PER_NODE \
@@ -12,18 +18,18 @@ python3 -m oneflow.distributed.launch \
     deepfm_train_eval.py \
       --data_dir $DATA_DIR \
       --persistent_path $PERSISTENT_PATH \
-      --table_size_array "649,9364,14746,490,476707,11618,4142,1373,7275,13,169,407,1376,1460,583,10131227,2202608,305,24,12517,633,3,93145,5683,8351593,3194,27,14992,5461306,10,5652,2173,4,7046547,18,15,286181,105,142572" \
-      --store_type 'cached_host_mem' \
-      --cache_memory_budget_mb 1024 \
-      --batch_size 10000 \
+      --table_size_array "62866,8001,2901,74623,7530,3391,1400,21705,7937,21,276,1235896,9659,39884301,39040,17291,7421,20263,3,7121,1543,63,38532372,2953790,403302,10,2209,11938,155,4,976,14,39979538,25638302,39665755,585840,12973,108,36" \
+      --store_type 'device_mem' \
+      --batch_size 55296 \
       --train_batches 75000 \
-      --loss_print_interval 100 \
+      --loss_print_interval 1000 \
       --dnn "1000,1000,1000,1000,1000" \
-      --net_dropout 0.2 \
-      --learning_rate 0.001 \
+      --net_dropout 0.05 \
+      --learning_rate 0.0025 \
       --embedding_vec_size 16 \
-      --num_train_samples 36672493 \
-      --num_val_samples 4584062 \
-      --num_test_samples 4584062 \
+      --num_train_samples 4195197692 \
+      --num_test_samples 89137319 \
+      --num_val_samples 89137318 \
       --model_save_dir $MODEL_SAVE_DIR \
-      --save_best_model
+      --save_best_model \
+      --amp
