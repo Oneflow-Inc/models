@@ -4,15 +4,16 @@ Download utils
 
 import os
 import platform
+import shutil
 import subprocess
+import tempfile
 import time
 import urllib
-import requests
-import tempfile
-
 from pathlib import Path
 from urllib.request import urlopen, Request
 from zipfile import ZipFile
+
+import requests
 from tqdm import tqdm
 
 
@@ -20,6 +21,7 @@ def gsutil_getsize(url=''):
     # gs://bucket/file size https://cloud.google.com/storage/docs/gsutil/commands/du
     s = subprocess.check_output(f'gsutil du {url}', shell=True).decode('utf-8')
     return eval(s.split(' ')[0]) if len(s) else 0  # bytes
+
 
 def download_url_to_file(url, dst, hash_prefix=None, progress=True):
     r"""Copied from https://github.com/pytorch/pytorch/blob/master/torch/hub.py#L400
@@ -77,6 +79,7 @@ def download_url_to_file(url, dst, hash_prefix=None, progress=True):
         f.close()
         if os.path.exists(f.name):
             os.remove(f.name)
+
 
 def safe_download(file, url, url2=None, min_bytes=1E0, error_msg=''):
     # Attempts to download file from url or url2, checks and removes incomplete downloads < min_bytes

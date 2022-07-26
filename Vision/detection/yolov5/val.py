@@ -57,19 +57,20 @@ def process_batch(detections, labels, iouv):
     Returns:
         correct (Array[N, 10]), for 10 IoU levels
     """
-    correct = flow.zeros(detections.shape[0], iouv.shape[0], dtype=flow.bool, device=iouv.device)
+    correct = np.zeros((detections.shape[0], iouv.shape[0])).astype(bool)
     iou = box_iou(labels[:, 1:], detections[:, :4])
-    x = flow.where((iou >= iouv[0]) & (labels[:, 0:1] == detections[:, 5]))  # IoU above threshold and classes match
-    if x[0].shape[0]:
-        matches = flow.cat((flow.stack(x, 1), iou[x[0], x[1]][:, None]), 1).cpu().numpy()  # [label, detection, iou]
-        if x[0].shape[0] > 1:
-            matches = matches[matches[:, 2].argsort()[::-1]]
-            matches = matches[np.unique(matches[:, 1], return_index=True)[1]]
-            # matches = matches[matches[:, 2].argsort()[::-1]]
-            matches = matches[np.unique(matches[:, 0], return_index=True)[1]]
-        matches = flow.Tensor(matches).to(iouv.device)
-        correct[matches[:, 1].long()] = matches[:, 2:3] >= iouv
-    return correct
+    correct_class = labels[:, 0:1] == detections[:, 5]
+    for i in range(len(iouv)):
+        x = flow.where((iou >= iouv[i]) & correct_class)  # IoU > threshold and classes match
+        if x[0].shape[0]:
+            matches = flow.cat((flow.stack(x, 1), iou[x[0], x[1]][:, None]), 1).cpu().numpy()  # [label, detect, iou]
+            if x[0].shape[0] > 1:
+                matches = matches[matches[:, 2].argsort()[::-1]]
+                matches = matches[np.unique(matches[:, 1], return_index=True)[1]]
+                # matches = matches[matches[:, 2].argsort()[::-1]]
+                matches = matches[np.unique(matches[:, 0], return_index=True)[1]]
+            correct[matches[:, 1].astype(int), i] = True
+    return flow.tensor(correct, dtype=flow.bool, device=iouv.device)
 
 
 def run(data,
@@ -91,12 +92,12 @@ def run(data,
         project=ROOT / 'runs/val',  # save to project/name
         name='exp',  # save to project/name
         exist_ok=False,  # existing project/name ok, do not increment
-        half=True,  # use FP16 half-precision inference
+        half=False,  # use FP16 half-precision inference
         dnn=False,  # use OpenCV DNN for ONNX inference
         model=None,
         dataloader=None,
         save_dir=Path(''),
-        plots=True,
+        plots=False,
         callbacks=Callbacks(),
         compute_loss=None,
         ):
@@ -153,6 +154,7 @@ def run(data,
             t1 = time_sync()
             im = im.to(device)
             targets = targets.to(device)
+
             im = im.half() if half else im.float()  # uint8 to fp16/32
             im /= 255  # 0 - 255 to 0.0 - 1.0
             nb, _, height, width = im.shape  # batch size, channels, height, width
@@ -162,49 +164,44 @@ def run(data,
             # Inference
             out, train_out = model(im) if training else model(im, augment=augment, val=True)  # inference, loss outputs
             dt[1] += time_sync() - t2
-
             # Loss
             if compute_loss:
                 loss += compute_loss([x.float() for x in train_out], targets)[1]  # box, obj, cls
 
             # NMS
-            targets[:, 2:] *= flow.Tensor([width, height, width, height]).to(device)  # to pixels
+
+            targets[:, 2:] = flow.Tensor([width, height, width, height]).to(device) * targets[:, 2:]  # to pixels
             lb = [targets[targets[:, 0] == i, 1:] for i in range(nb)] if save_hybrid else []  # for autolabelling
             t3 = time_sync()
             out = non_max_suppression(out, conf_thres, iou_thres, labels=lb, multi_label=True, agnostic=single_cls)
             dt[2] += time_sync() - t3
-
             # Metrics
             for si, pred in enumerate(out):
+
                 labels = targets[targets[:, 0] == si, 1:]
-                nl = len(labels)
-                tcls = labels[:, 0].tolist() if nl else []  # target class
+                nl, npr = labels.shape[0], pred.shape[0]  # number of labels, predictions
                 path, shape = Path(paths[si]), shapes[si][0]
+                correct = flow.zeros(npr, niou, dtype=flow.bool, device=device)  # init
                 seen += 1
 
-                if len(pred) == 0:
+                if npr == 0:
                     if nl:
-                        stats.append((flow.zeros(0, niou, dtype=flow.bool), flow.Tensor(), flow.Tensor(), tcls))
+                        stats.append((correct, *flow.zeros((2, 0), device=device), labels[:, 0]))
                     continue
 
-                # Predictions
-                if single_cls:
-                    pred[:, 5] = 0
-                # import pdb; pdb.set_trace()
-                predn = pred.copy()
-                scale_coords(im[si].shape[1:], predn[:, :4], shapes[si][0], shapes[si][1])  # native-space pred
+                predn = pred.clone()
 
-                # Evaluate
-                # if nl:
-                #     tbox = xywh2xyxy(labels[:, 1:5])  # target boxes
-                #     scale_coords(im[si].shape[1:], tbox, shapes[si][0], shapes[si][1])  # native-space labels
-                #     labelsn = flow.cat((labels[:, 0:1], tbox), 1)  # native-space labels
-                #     correct = process_batch(predn, labelsn, iouv)
-                #     if plots:
-                #         confusion_matrix.process_batch(predn, labelsn)
-                # else:
-                #     correct = flow.zeros(pred.shape[0], niou, dtype=flowh.bool)
-                # stats.append((correct.cpu(), pred[:, 4].cpu(), pred[:, 5].cpu(), tcls))  # (correct, conf, pcls, tcls)
+                predn[:, :4] = scale_coords(im[si].shape[1:], predn[:, :4], shapes[si][0],
+                                            shapes[si][1])  # native-space pred
+                if nl:
+                    tbox = xywh2xyxy(labels[:, 1:5])  # target boxes
+                    scale_coords(im[si].shape[1:], tbox, shapes[si][0], shapes[si][1])  # native-space labels
+                    labelsn = flow.cat((labels[:, 0:1], tbox), 1)  # native-space labels
+                    correct = process_batch(predn, labelsn, iouv)
+                    if plots:
+                        confusion_matrix.process_batch(predn, labelsn)
+
+                stats.append((correct, pred[:, 4], pred[:, 5], labels[:, 0]))  # (correct, conf, pcls, tcls)
 
                 # Save/log
                 if save_txt:
@@ -212,7 +209,6 @@ def run(data,
                 if save_json:
                     save_one_json(predn, jdict, path, class_map)  # append to COCO-JSON dictionary
                 callbacks.run('on_val_image_end', pred, predn, path, names, im[si])
-
             # Plot images
             if plots and batch_i < 3:
                 f = save_dir / f'val_batch{batch_i}_labels.jpg'  # labels
@@ -221,7 +217,8 @@ def run(data,
                 Thread(target=plot_images, args=(im, output_to_target(out), paths, f, names), daemon=True).start()
 
     # Compute metrics
-    stats = [np.concatenate(x, 0) for x in zip(*stats)]  # to numpy
+
+    stats = [flow.cat(x, 0).cpu().numpy() for x in zip(*stats)]  # to numpy
     if len(stats) and stats[0].any():
         tp, fp, p, r, f1, ap, ap_class = ap_per_class(*stats, plot=plots, save_dir=save_dir, names=names)
         ap50, ap = ap[:, 0], ap.mean(1)  # AP@0.5, AP@0.5:0.95
@@ -229,10 +226,9 @@ def run(data,
         nt = np.bincount(stats[3].astype(np.int64), minlength=nc)  # number of targets per class
     else:
         nt = flow.zeros(1)
-
     # Print results
     pf = '%20s' + '%11i' * 2 + '%11.3g' * 4  # print format
-    LOGGER.info(pf % ('all', seen, nt.sum().cpu().numpy(), mp, mr, map50, map))
+    LOGGER.info(pf % ('all', seen, nt.sum(), mp, mr, map50, map))
 
     # Print results per class
     if (verbose or (nc < 50 and not training)) and nc > 1 and len(stats):
@@ -259,7 +255,7 @@ def run(data,
         with open(pred_json, 'w') as f:
             json.dump(jdict, f)
 
-        try:  # https://github.com/cocodataset/cocoapi/blob/master/PythonAPI/pycocoEvalDemo.ipynb
+        try:
             check_requirements(['pycocotools'])
             from pycocotools.coco import COCO
             from pycocotools.cocoeval import COCOeval
@@ -277,7 +273,7 @@ def run(data,
             LOGGER.info(f'pycocotools unable to run: {e}')
 
     # Return results
-    model.float()  # for training
+    # model.float()  # for training
     if not training:
         s = f"\n{len(list(save_dir.glob('labels/*.txt')))} labels saved to {save_dir / 'labels'}" if save_txt else ''
         LOGGER.info(f"Results saved to {colorstr('bold', save_dir)}{s}")
@@ -290,14 +286,15 @@ def run(data,
 def parse_opt():
     parser = argparse.ArgumentParser()
     parser.add_argument('--data', type=str, default=ROOT / 'data/coco.yaml', help='dataset.yaml path')
-    parser.add_argument('--weights', nargs='+', type=str, default=ROOT / 'yolov5_ckpt', help='model path(s)')
+    parser.add_argument('--weights', nargs='+', type=str, default=ROOT / 'ckpt',
+                        help='model path(s)')
     parser.add_argument('--batch-size', type=int, default=32, help='batch size')
     parser.add_argument('--imgsz', '--img', '--img-size', type=int, default=640, help='inference size (pixels)')
     parser.add_argument('--conf-thres', type=float, default=0.001, help='confidence threshold')
     parser.add_argument('--iou-thres', type=float, default=0.6, help='NMS IoU threshold')
     parser.add_argument('--task', default='val', help='train, val, test, speed or study')
     parser.add_argument('--device', default='', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
-    parser.add_argument('--workers', type=int, default=8, help='max dataloader workers (per RANK in DDP mode)')
+    parser.add_argument('--workers', type=int, default=0, help='max dataloader workers (per RANK in DDP mode)')
     parser.add_argument('--single-cls', action='store_true', help='treat as single-class dataset')
     parser.add_argument('--augment', action='store_true', help='augmented inference')
     parser.add_argument('--verbose', action='store_true', help='report mAP by class')

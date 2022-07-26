@@ -4,8 +4,8 @@ import sys
 from pathlib import Path
 
 import cv2
-import oneflow as flow
 import numpy as np
+import oneflow as flow
 
 FILE = Path(__file__).resolve()
 ROOT = FILE.parents[0]  # YOLOv5 root directory
@@ -68,7 +68,7 @@ def run(weights=ROOT / 'yolov5s.pt',  # model.pt path(s)
 
     # Half
     half &= device.type != 'cpu'  # FP16 supported on limited backends with CUDA
-    
+
     model.model.half() if half else model.model.float()
 
     # Dataloader
@@ -88,6 +88,7 @@ def run(weights=ROOT / 'yolov5s.pt',  # model.pt path(s)
         for path, im, im0s, vid_cap, s in dataset:
             t1 = time_sync()
             im = flow.tensor(im).to(device)
+
             im = im.half() if half else im.float()  # uint8 to fp16/32
             im /= 255  # 0 - 255 to 0.0 - 1.0
             if im.ndimension() == 3:
@@ -104,11 +105,6 @@ def run(weights=ROOT / 'yolov5s.pt',  # model.pt path(s)
             # NMS
             pred = non_max_suppression(pred, conf_thres, iou_thres, classes, agnostic_nms, max_det=max_det)
             dt[2] += time_sync() - t3
-
-            # Second-stage classifier (optional)
-            # pred = utils.general.apply_classifier(pred, classifier_model, im, im0s)
-
-            # Process predictions
             for i, det in enumerate(pred):  # per image
                 seen += 1
                 if webcam:  # batch_size >= 1
@@ -119,13 +115,13 @@ def run(weights=ROOT / 'yolov5s.pt',  # model.pt path(s)
 
                 p = Path(p)  # to Path
                 save_path = str(save_dir / p.name)  # im.jpg
-                txt_path = str(save_dir / 'labels' / p.stem) + ('' if dataset.mode == 'image' else f'_{frame}')  # im.txt
+                txt_path = str(save_dir / 'labels' / p.stem) + (
+                    '' if dataset.mode == 'image' else f'_{frame}')  # im.txt
                 s += '%gx%g ' % im.shape[2:]  # print string
                 gn = flow.tensor(im0.shape)[[1, 0, 1, 0]]  # normalization gain whwh
                 imc = im0.copy() if save_crop else im0  # for save_crop
                 annotator = Annotator(im0, line_width=line_thickness, example=str(names))
                 if len(det):
-                    # Rescale boxes from img_size to im0 size
                     det[:, :4] = scale_coords(im.shape[2:], det[:, :4], im0.shape).round()
 
                     # Print results
@@ -188,7 +184,7 @@ def run(weights=ROOT / 'yolov5s.pt',  # model.pt path(s)
 
 def parse_opt():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--weights', nargs='+', type=str, default=ROOT / 'yolov5s.pt', help='model path(s)')
+    parser.add_argument('--weights', nargs='+', type=str, default=ROOT / 'skpt', help='model path(s)')
     parser.add_argument('--source', type=str, default=ROOT / 'data/images', help='file/dir/URL/glob, 0 for webcam')
     parser.add_argument('--data', type=str, default=ROOT / 'data/coco128.yaml', help='(optional) dataset.yaml path')
     parser.add_argument('--imgsz', '--img', '--img-size', nargs='+', type=int, default=[640], help='inference size h,w')

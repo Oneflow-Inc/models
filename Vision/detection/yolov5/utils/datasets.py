@@ -4,7 +4,6 @@ Dataloaders and dataset utils
 
 import glob
 import hashlib
-import json
 import math
 import os
 import random
@@ -14,19 +13,17 @@ from itertools import repeat
 from multiprocessing.pool import Pool, ThreadPool
 from pathlib import Path
 from threading import Thread
-from zipfile import ZipFile
 
 import cv2
 import numpy as np
 import oneflow as flow
 import oneflow.nn.functional as F
-import yaml
 from PIL import ExifTags, Image, ImageOps
 from oneflow.utils.data import DataLoader, Dataset, dataloader, distributed
 from tqdm import tqdm
 
 from utils.augmentations import Albumentations, augment_hsv, copy_paste, letterbox, mixup, random_perspective
-from utils.general import (LOGGER, NUM_THREADS, check_dataset, check_requirements, check_yaml, clean_str,
+from utils.general import (LOGGER, NUM_THREADS, check_requirements, clean_str,
                            segments2boxes, xyn2xy, xywh2xyxy, xywhn2xyxy, xyxy2xywhn)
 
 # Parameters
@@ -95,6 +92,7 @@ def create_dataloader(path, imgsz, batch_size, stride, single_cls=False, hyp=Non
     if rect and shuffle:
         LOGGER.warning('WARNING: --rect is incompatible with DataLoader shuffle, setting shuffle=False')
         shuffle = False
+    False
     dataset = LoadImagesAndLabels(path, imgsz, batch_size,
                                   augment=augment,  # augmentation
                                   hyp=hyp,  # hyperparameters

@@ -22,9 +22,9 @@ from zipfile import ZipFile
 
 import cv2
 import numpy as np
+import oneflow as flow
 import pandas as pd
 import pkg_resources as pkg
-import oneflow as flow
 import yaml
 
 from utils.downloads import gsutil_getsize, download_url_to_file
@@ -116,9 +116,14 @@ def print_args(name, opt):
 def init_seeds(seed=0):
     # Initialize random number generator (RNG) seeds https://pytorch.org/docs/stable/notes/randomness.html
     # cudnn seed 0 settings are slower and more reproducible, else faster and less reproducible
+    import oneflow as flow
+    import oneflow.backends.cudnn as cudnn
+
     random.seed(seed)
     np.random.seed(seed)
     flow.manual_seed(seed)
+    flow.cuda.manual_seed(seed)
+    cudnn.benchmark, cudnn.deterministic = (False, True)
 
 
 def intersect_dicts(da, db, exclude=()):
@@ -534,7 +539,7 @@ def coco80_to_coco91_class():  # converts 80-index (val2014) to 91-index (paper)
 
 def xyxy2xywh(x):
     # Convert nx4 boxes from [x1, y1, x2, y2] to [x, y, w, h] where xy1=top-left, xy2=bottom-right
-    y = x.clone() if isinstance(x, flow.Tensor) else np.copy(x)
+    y = x.contiguous().clone() if isinstance(x, flow.Tensor) else np.copy(x)
     y[:, 0] = (x[:, 0] + x[:, 2]) / 2  # x center
     y[:, 1] = (x[:, 1] + x[:, 3]) / 2  # y center
     y[:, 2] = x[:, 2] - x[:, 0]  # width
@@ -544,7 +549,7 @@ def xyxy2xywh(x):
 
 def xywh2xyxy(x):
     # Convert nx4 boxes from [x, y, w, h] to [x1, y1, x2, y2] where xy1=top-left, xy2=bottom-right
-    y = x.clone() if isinstance(x, flow.Tensor) else np.copy(x)
+    y = x.contiguous().clone() if isinstance(x, flow.Tensor) else np.copy(x)
     y[:, 0] = x[:, 0] - x[:, 2] / 2  # top left x
     y[:, 1] = x[:, 1] - x[:, 3] / 2  # top left y
     y[:, 2] = x[:, 0] + x[:, 2] / 2  # bottom right x
@@ -554,7 +559,7 @@ def xywh2xyxy(x):
 
 def xywhn2xyxy(x, w=640, h=640, padw=0, padh=0):
     # Convert nx4 boxes from [x, y, w, h] normalized to [x1, y1, x2, y2] where xy1=top-left, xy2=bottom-right
-    y = x.clone() if isinstance(x, flow.Tensor) else np.copy(x)
+    y = x.contiguous().clone() if isinstance(x, flow.Tensor) else np.copy(x)
     y[:, 0] = w * (x[:, 0] - x[:, 2] / 2) + padw  # top left x
     y[:, 1] = h * (x[:, 1] - x[:, 3] / 2) + padh  # top left y
     y[:, 2] = w * (x[:, 0] + x[:, 2] / 2) + padw  # bottom right x
@@ -616,9 +621,11 @@ def scale_coords(img1_shape, coords, img0_shape, ratio_pad=None):
     else:
         gain = ratio_pad[0][0]
         pad = ratio_pad[1]
-
-    coords[:, [0, 2]] -= pad[0]  # x padding
-    coords[:, [1, 3]] -= pad[1]  # y padding
+    coords = coords.contiguous()
+    coords[:, 2] -= pad[0]  # x padding
+    coords[:, 3] -= pad[1]  # y padding
+    coords[:, 0] -= pad[0]  # x padding
+    coords[:, 1] -= pad[1]  # y padding
     coords[:, :4] /= gain
     clip_coords(coords, img0_shape)
     return coords
@@ -627,10 +634,10 @@ def scale_coords(img1_shape, coords, img0_shape, ratio_pad=None):
 def clip_coords(boxes, shape):
     # Clip bounding xyxy bounding boxes to image shape (height, width)
     if isinstance(boxes, flow.Tensor):  # faster individually
-        boxes[:, 0].clamp_(0, shape[1])  # x1
-        boxes[:, 1].clamp_(0, shape[0])  # y1
-        boxes[:, 2].clamp_(0, shape[1])  # x2
-        boxes[:, 3].clamp_(0, shape[0])  # y2
+        boxes[:, 0] = boxes[:, 0].clamp(0, shape[1])  # x1
+        boxes[:, 1] = boxes[:, 1].clamp(0, shape[0])  # y1
+        boxes[:, 2] = boxes[:, 2].clamp(0, shape[1])  # x2
+        boxes[:, 3] = boxes[:, 3].clamp(0, shape[0])  # y2
     else:  # np.array (faster grouped)
         boxes[:, [0, 2]] = boxes[:, [0, 2]].clip(0, shape[1])  # x1, x2
         boxes[:, [1, 3]] = boxes[:, [1, 3]].clip(0, shape[0])  # y1, y2
@@ -643,10 +650,8 @@ def non_max_suppression(prediction, conf_thres=0.25, iou_thres=0.45, classes=Non
     Returns:
          list of detections, on (n,6) tensor per image [xyxy, conf, cls]
     """
-
     nc = prediction.shape[2] - 5  # number of classes
     xc = prediction[..., 4] > conf_thres  # candidates
-
     # Checks
     assert 0 <= conf_thres <= 1, f'Invalid Confidence threshold {conf_thres}, valid values are between 0.0 and 1.0'
     assert 0 <= iou_thres <= 1, f'Invalid IoU {iou_thres}, valid values are between 0.0 and 1.0'
@@ -673,7 +678,7 @@ def non_max_suppression(prediction, conf_thres=0.25, iou_thres=0.45, classes=Non
             v = flow.zeros((len(l), nc + 5), device=x.device)
             v[:, :4] = l[:, 1:5]  # box
             v[:, 4] = 1.0  # conf
-            v[range(len(l)), l[:, 0].long() + 5] = 1.0  # cls
+            v[range(len(l)), l[:, 0].contiguous().long() + 5] = 1.0  # cls
             x = flow.cat((x, v), 0)
 
         # If none remain process next image
@@ -681,7 +686,7 @@ def non_max_suppression(prediction, conf_thres=0.25, iou_thres=0.45, classes=Non
             continue
 
         # Compute conf
-        x[:, 5:] *= x[:, 4:5]  # conf = obj_conf * cls_conf
+        x[:, 5:] = x[:, 4:5] * x[:, 5:]  # conf = obj_conf * cls_conf
 
         # Box (center x, center y, width, height) to (x1, y1, x2, y2)
         box = xywh2xyxy(x[:, :4])
@@ -700,11 +705,10 @@ def non_max_suppression(prediction, conf_thres=0.25, iou_thres=0.45, classes=Non
         #     x = flow.gather(x, 0, index)
         if multi_label:
             i, j = (x[:, 5:] > conf_thres).nonzero(as_tuple=False).T
-            x = flow.cat((box[i], x[i, j + 5, None], j[:, None].float()), 1)
+            x = flow.cat((box[i], x[i, j + 5, None], j[:, None].contiguous().float()), 1)
         else:  # best class only
             conf, j = x[:, 5:].max(1, keepdim=True)
-            x = flow.cat((box, conf, j.float()), 1)[conf.view(-1) > conf_thres]
-
+            x = flow.cat((box, conf, j.contiguous().float()), 1)[conf.view(-1) > conf_thres]
         # Filter by class
         if classes is not None:
             x = x[(x[:, 5:6] == flow.tensor(classes, device=x.device)).any(1)]
@@ -712,17 +716,16 @@ def non_max_suppression(prediction, conf_thres=0.25, iou_thres=0.45, classes=Non
         # Apply finite constraint
         # if not torch.isfinite(x).all():
         #     x = x[torch.isfinite(x).all(1)]
-
         # Check shape
         n = x.shape[0]  # number of boxes
         if not n:  # no boxes
             continue
         elif n > max_nms:  # excess boxes
             x = x[x[:, 4].argsort(descending=True)[:max_nms]]  # sort by confidence
-
         # Batched NMS
         c = x[:, 5:6] * (0 if agnostic else max_wh)  # classes
         boxes, scores = x[:, :4] + c, x[:, 4]  # boxes (offset by class), scores
+
         i = flow.nms(boxes, scores, iou_thres)  # NMS
         if i.shape[0] > max_det:  # limit detections
             i = i[:max_det]
@@ -734,7 +737,7 @@ def non_max_suppression(prediction, conf_thres=0.25, iou_thres=0.45, classes=Non
             if redundant:
                 i = i[iou.sum(1) > 1]  # require redundancy
 
-        output[xi] = x[i].numpy()
+        output[xi] = x[i]
         if (time.time() - t) > time_limit:
             print(f'WARNING: NMS time limit {time_limit}s exceeded')
             break  # time limit exceeded
@@ -798,13 +801,13 @@ def apply_classifier(x, model, img, im0):
             b = xyxy2xywh(d[:, :4])  # boxes
             b[:, 2:] = b[:, 2:].max(1)[0].unsqueeze(1)  # rectangle to square
             b[:, 2:] = b[:, 2:] * 1.3 + 30  # pad
-            d[:, :4] = xywh2xyxy(b).long()
+            d[:, :4] = xywh2xyxy(b).contiguous().long()
 
             # Rescale boxes from img_size to im0 size
             scale_coords(img.shape[2:], d[:, :4], im0[i].shape)
 
             # Classes
-            pred_cls1 = d[:, 5].long()
+            pred_cls1 = d[:, 5].contiguous.long()
             ims = []
             for j, a in enumerate(d):  # per item
                 cutout = im0[i][int(a[1]):int(a[3]), int(a[0]):int(a[2])]

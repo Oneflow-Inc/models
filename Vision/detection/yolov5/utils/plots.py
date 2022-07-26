@@ -11,15 +11,15 @@ import cv2
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
+import oneflow as flow
 import pandas as pd
 import seaborn as sn
-import oneflow as flow
 from PIL import Image, ImageDraw, ImageFont
 
-from utils.general import (LOGGER, Timeout, check_requirements, clip_coords, increment_path, is_ascii, is_chinese,
-                           try_except, user_config_dir, xywh2xyxy, xyxy2xywh)
-from utils.metrics import fitness
 from utils.downloads import download_url_to_file
+from utils.general import (LOGGER, check_requirements, clip_coords, increment_path, is_ascii, is_chinese,
+                           user_config_dir, xywh2xyxy, xyxy2xywh)
+from utils.metrics import fitness
 
 # Settings
 CONFIG_DIR = user_config_dir()  # Ultralytics settings dir
@@ -120,6 +120,7 @@ class Annotator:
         # Return annotated image as array
         return np.asarray(self.im)
 
+
 def output_to_target(output):
     # Convert model output to target format [batch_id, class_id, x, y, w, h, conf]
     targets = []
@@ -127,6 +128,7 @@ def output_to_target(output):
         for *box, conf, cls in o:
             targets.append([i, cls, *list(*xyxy2xywh(np.array(box)[None])), conf])
     return np.array(targets)
+
 
 def plot_images(images, targets, paths=None, fname='images.jpg', names=None, max_size=1920, max_subplots=16):
     # Plot image grid with labels

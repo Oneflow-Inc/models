@@ -1,28 +1,20 @@
 """
 Common modules
 """
-import json
 import math
-import platform
 import warnings
-from collections import OrderedDict, namedtuple
-from copy import copy
 from pathlib import Path
 
-import cv2
 import numpy as np
-import pandas as pd
-import requests
 import oneflow as flow
 import oneflow.nn as nn
+import requests
 import yaml
 from PIL import Image
 
 from utils.datasets import exif_transpose, letterbox
-from utils.general import (LOGGER, check_requirements, check_suffix, check_version, colorstr, increment_path,
-                           make_divisible, non_max_suppression, scale_coords, xywh2xyxy, xyxy2xywh)
-from utils.plots import colors, save_one_box
 from utils.flow_utils import copy_attr, time_sync
+from utils.general import (LOGGER, make_divisible, non_max_suppression, scale_coords)
 
 
 def autopad(k, p=None):  # kernel, padding
@@ -315,6 +307,7 @@ class AutoShape(nn.Module):
     multi_label = False  # NMS multiple labels per box
     classes = None  # (optional list) filter by class, i.e. = [0, 15, 16] for COCO persons, cats and dogs
     max_det = 1000  # maximum number of detections per image
+
     # amp = False  # Automatic Mixed Precision (AMP) inference
 
     def __init__(self, model):
