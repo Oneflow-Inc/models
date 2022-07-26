@@ -24,7 +24,7 @@ python3 -m oneflow.distributed.launch \
       --train_batches 75000 \
       --loss_print_interval 1000 \
       --dnn "1000,1000,1000,1000,1000" \
-      --net_dropout 0.0 \
+      --net_dropout 0.05 \
       --learning_rate 0.0025 \
       --embedding_vec_size 16 \
       --num_train_samples 4195197692 \
