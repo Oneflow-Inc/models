@@ -4,6 +4,7 @@ Download utils
 
 import os
 import platform
+import shutil
 import subprocess
 import time
 import urllib

@@ -224,8 +224,8 @@ class WandbLogger():
                 self.weights = Path(modeldir) / "last.pt"
                 config = self.wandb_run.config
                 opt.weights, opt.save_period, opt.batch_size, opt.bbox_interval, opt.epochs, opt.hyp, opt.imgsz = str(
-                    self.weights), config.save_period, config.batch_size, config.bbox_interval, config.epochs, \
-                                                                                                                  config.hyp, config.imgsz
+                    self.weights), config.save_period, config.batch_size, config.bbox_interval, config.epochs,\
+                    config.hyp, config.imgsz
         data_dict = self.data_dict
         if self.val_artifact is None:  # If --upload_dataset is set, use the existing artifact, don't download
             self.train_artifact_path, self.train_artifact = self.download_dataset_artifact(
@@ -413,7 +413,7 @@ class WandbLogger():
                 artifact.add_file(img_file, name='data/images/' + Path(img_file).name)
                 label_file = Path(img2label_paths([img_file])[0])
                 artifact.add_file(str(label_file), name='data/labels/' +
-                                                        label_file.name) if label_file.exists() else None
+                                  label_file.name) if label_file.exists() else None
         table = wandb.Table(columns=["id", "train_image", "Classes", "name"])
         class_set = wandb.Classes([{'id': id, 'name': name} for id, name in class_to_id.items()])
         for si, (img, labels, paths, shapes) in enumerate(tqdm(dataset)):

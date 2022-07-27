@@ -12,7 +12,8 @@ import oneflow as flow
 import oneflow.nn as nn
 import oneflow.nn.functional as F
 from oneflow.framework.sysconfig import with_cuda
-
+from oneflow.nn.parallel import DistributedDataParallel as DDP
+import oneflow.distributed as dist
 from utils.general import LOGGER
 
 try:
