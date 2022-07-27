@@ -46,7 +46,10 @@ def get_args(print_args=True):
 
     parser.add_argument("--embedding_vec_size", type=int, default=16, help="embedding vector size")
     parser.add_argument(
-        "--dnn", type=int_list, default="1000,1000,1000,1000,1000", help="dnn hidden units number"
+        "--user_dnn_units", type=int_list, default="400, 400, 400", help="user dnn hidden units"
+    )
+    parser.add_argument(
+        "--item_dnn_units", type=int_list, default="400, 400, 400", help="item dnn hidden units"
     )
     parser.add_argument("--net_dropout", type=float, default=0.2, help="net dropout rate")
     parser.add_argument("--disable_fusedmlp", action="store_true", help="disable fused MLP or not")
@@ -127,8 +130,8 @@ def _print_args(args):
     print("-------------------- end of arguments ---------------------", flush=True)
 
 
-num_dense_fields = 13
-num_sparse_fields = 26
+num_user_fields = 1
+num_item_fields = 2
 
 
 class DssmDataReader(object):
@@ -248,22 +251,17 @@ class OneEmbedding(nn.Module):
         vocab_size = sum(table_size_array)
 
         tables = [
-            flow.one_embedding.make_table_options(
-                [
-                    flow.one_embedding.make_column_options(
-                        flow.one_embedding.make_normal_initializer(mean=0, std=1e-4)
-                    ),
-                    flow.one_embedding.make_column_options(
-                        flow.one_embedding.make_normal_initializer(mean=0, std=1e-4)
-                    ),
-                ]
+            flow.one_embedding.make_table(
+                flow.one_embedding.make_normal_initializer(mean=0.0, std=1e-4)
             )
             for _ in range(len(table_size_array))
         ]
 
         if store_type == "device_mem":
             store_options = flow.one_embedding.make_device_mem_store_options(
-                persistent_path=persistent_path, capacity=vocab_size, size_factor=size_factor,
+                persistent_path=persistent_path,
+                capacity=vocab_size,
+                size_factor=size_factor,
             )
         elif store_type == "cached_host_mem":
             assert cache_memory_budget_mb > 0
@@ -285,7 +283,7 @@ class OneEmbedding(nn.Module):
             raise NotImplementedError("not support", store_type)
 
         super(OneEmbedding, self).__init__()
-        self.one_embedding = flow.one_embedding.MultiTableMultiColumnEmbedding(
+        self.one_embedding = flow.one_embedding.MultiTableEmbedding(
             name=table_name,
             embedding_dim=embedding_vec_size,
             dtype=flow.float,
@@ -349,8 +347,9 @@ def interaction(embedded_x: flow.Tensor) -> flow.Tensor:
 class DssmModule(nn.Module):
     def __init__(
         self,
-        embedding_vec_size=128,
-        dnn=[1024, 1024, 512, 256],
+        embedding_vec_size=10,
+        user_dnn_units=[400, 400, 400],
+        item_dnn_units=[400, 400, 400],
         use_fusedmlp=True,
         persistent_path=None,
         table_size_array=None,
@@ -364,7 +363,7 @@ class DssmModule(nn.Module):
 
         self.embedding_layer = OneEmbedding(
             table_name="sparse_embedding",
-            embedding_vec_size=[embedding_vec_size, 1],
+            embedding_vec_size=embedding_vec_size,
             persistent_path=persistent_path,
             table_size_array=table_size_array,
             store_type=one_embedding_store_type,
@@ -372,35 +371,35 @@ class DssmModule(nn.Module):
             size_factor=3,
         )
 
-        self.dnn_layer = DNN(
-            in_features=embedding_vec_size * (num_dense_fields + num_sparse_fields),
-            hidden_units=dnn,
-            out_features=1,
+        self.user_dnn_layer = DNN(
+            in_features=embedding_vec_size * num_user_fields,
+            hidden_units=user_dnn_units[:-1],
+            out_features=user_dnn_units[-1],
+            skip_final_activation=True,
+            dropout=dropout,
+            fused=use_fusedmlp,
+        )
+
+        self.item_dnn_layer = DNN(
+            in_features=embedding_vec_size * num_item_fields,
+            hidden_units=item_dnn_units[:-1],
+            out_features=item_dnn_units[-1],
             skip_final_activation=True,
             dropout=dropout,
             fused=use_fusedmlp,
         )
 
     def forward(self, inputs) -> flow.Tensor:
-        multi_embedded_x = self.embedding_layer(inputs)
-        embedded_x = multi_embedded_x[:, :, 0 : self.embedding_vec_size]
-        lr_embedded_x = multi_embedded_x[:, :, -1]
+        sparse_emb = self.embedding_layer(sparse_inputs)
 
-        # FM
-        lr_out = flow.sum(lr_embedded_x, dim=1, keepdim=True)
-        dot_sum = interaction(embedded_x)
-        fm_pred = lr_out + dot_sum
-
-        # DNN
-        dnn_pred = self.dnn_layer(embedded_x.flatten(start_dim=1))
-
-        return fm_pred + dnn_pred
+        return y_pred
 
 
 def make_dssm_module(args):
     model = DssmModule(
         embedding_vec_size=args.embedding_vec_size,
-        dnn=args.dnn,
+        user_dnn_units=args.user_dnn_units,
+        item_dnn_units=args.item_dnn_units,
         use_fusedmlp=not args.disable_fusedmlp,
         persistent_path=args.persistent_path,
         table_size_array=args.table_size_array,
@@ -425,7 +424,13 @@ class DssmValGraph(flow.nn.Graph):
 
 class DssmTrainGraph(flow.nn.Graph):
     def __init__(
-        self, dssm_module, loss, optimizer, grad_scaler=None, amp=False, lr_scheduler=None,
+        self,
+        dssm_module,
+        loss,
+        optimizer,
+        grad_scaler=None,
+        amp=False,
+        lr_scheduler=None,
     ):
         super(DssmTrainGraph, self).__init__()
         self.module = dssm_module
@@ -452,7 +457,9 @@ def make_lr_scheduler(args, optimizer):
         for i in range(math.floor(math.log(args.min_lr / args.learning_rate, args.lr_factor)))
     ]
     multistep_lr = flow.optim.lr_scheduler.MultiStepLR(
-        optimizer=optimizer, milestones=milestones, gamma=args.lr_factor,
+        optimizer=optimizer,
+        milestones=milestones,
+        gamma=args.lr_factor,
     )
 
     return multistep_lr
@@ -525,7 +532,10 @@ def train(args):
         grad_scaler = flow.amp.StaticGradScaler(1024)
     else:
         grad_scaler = flow.amp.GradScaler(
-            init_scale=1073741824, growth_factor=2.0, backoff_factor=0.5, growth_interval=2000,
+            init_scale=1073741824,
+            growth_factor=2.0,
+            backoff_factor=0.5,
+            growth_interval=2000,
         )
 
     eval_graph = DssmValGraph(dssm_module, args.amp)
