@@ -2,6 +2,9 @@
 
 [Deep Structured Semantic Model (DSSM)](https://posenhuang.github.io/papers/cikm2013_DSSM_fullversion.pdf) is a two-tower deep learning recall model, which is originially used to calculate the semantic similarity between queries and documents.  Then, this model is applied to the field of personalized advertising recommendation.
 
+<p align='center'>
+  <img width="539" alt="mmoe" src="https://user-images.githubusercontent.com/46690197/181463721-e9ae1e25-b7d9-4653-a11d-da1da5d4926a.png">
+</p>
 
 ## Directory description
 
@@ -15,8 +18,6 @@
 ```
 
 ## Arguments description
-
-We use exactly the same default values as [the DeepFM_Criteo_x4_001 experiment](https://github.com/openbenchmark/BARS/tree/master/ctr_prediction/benchmarks/DeepFM/DeepFM_criteo_x4_001) in FuxiCTR. 
 
 | Argument Name              | Argument Explanation                                         | Default Value       |
 | -------------------------- | ------------------------------------------------------------ | ------------------- |
