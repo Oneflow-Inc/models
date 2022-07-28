@@ -31,7 +31,7 @@ numactl --interleave=all python3 -m oneflow.distributed.launch \
     --nnodes 1 \
     --node_rank 0 \
     --master_addr 127.0.0.1 \
-    dlrm_train_eval_raw.py \
+    dlrm_benchmark_a100.py \
       --persistent_path rocks \
       --data_dir /data/dlrm_parquet_int32 \
       --store_type device_mem \
