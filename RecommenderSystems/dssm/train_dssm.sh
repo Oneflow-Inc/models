@@ -9,7 +9,7 @@ python3 -m oneflow.distributed.launch \
     --nnodes 1 \
     --node_rank 0 \
     --master_addr 127.0.0.1 \
-    deepfm_train_eval.py \
+    dssm_train_eval.py \
       --data_dir $DATA_DIR \
       --persistent_path $PERSISTENT_PATH \
       --table_size_array "17045, 23743, 49657" \

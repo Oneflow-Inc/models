@@ -157,9 +157,9 @@ class DssmDataReader(object):
         self.shard_count = shard_count
         self.cur_shard = cur_shard
 
-        fields = ["Label"]
-        fields += [f"I{i+1}" for i in range(num_dense_fields)]
-        fields += [f"C{i+1}" for i in range(num_sparse_fields)]
+        fields = ["label"]
+        fields += ["user_id"]
+        fields += ["item_id", "tag_id"]
         self.fields = fields
         self.num_fields = len(fields)
 
@@ -390,7 +390,14 @@ class DssmModule(nn.Module):
         )
 
     def forward(self, inputs) -> flow.Tensor:
-        sparse_emb = self.embedding_layer(sparse_inputs)
+        sparse_emb = self.embedding_layer(inputs)
+        user_emb = sparse_emb[:, 0 : num_user_fields, :]
+        item_emb = sparse_emb[:, num_user_fields :, :]
+        
+        user_out = self.user_dnn_layer(user_emb.flatten(start_dim=1))
+        item_out = self.item_dnn_layer(item_emb.flatten(start_dim=1))
+
+        y_pred = (user_out * item_out).sum(dim=-1, keepdim=True)
 
         return y_pred
 
@@ -540,7 +547,7 @@ def train(args):
 
     eval_graph = DssmValGraph(dssm_module, args.amp)
     train_graph = DssmTrainGraph(
-        dssm_module, loss, opt, grad_scaler, args.amp, lr_scheduler=lr_scheduler
+        dssm_module, loss, opt, grad_scaler, args.amp, lr_scheduler=None
     )
 
     batches_per_epoch = math.ceil(args.num_train_samples / args.batch_size)
