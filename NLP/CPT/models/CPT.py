@@ -132,10 +132,10 @@ class BartAttention(nn.Module):
             # if encoder bi-directional self-attention `past_key_value` is always `None`
             past_key_value = (key_states, value_states)
 
-        proj_shape = (bsz * self.num_heads, -1, self.head_dim)
-        query_states = self._shape(query_states, tgt_len, bsz).view(*proj_shape)
-        key_states = key_states.view(*proj_shape)
-        value_states = value_states.view(*proj_shape)
+        proj_shape = [bsz * self.num_heads, -1, self.head_dim]
+        query_states = flow.reshape(self._shape(query_states, tgt_len, bsz), shape=proj_shape)
+        key_states = flow.reshape(key_states, shape=proj_shape)
+        value_states = flow.reshape(value_states, shape=proj_shape)
 
         src_len = key_states.size(1)
         attn_weights = flow.bmm(query_states, key_states.transpose(1, 2))

@@ -263,7 +263,7 @@ class BertSelfAttention(nn.Module):
         new_context_layer_shape = tuple(context_layer.size()[:-2]) + (
             self.all_head_size,
         )
-        context_layer = context_layer.view(*new_context_layer_shape)
+        context_layer = flow.reshape(context_layer, shape=new_context_layer_shape)
 
         outputs = (
             (context_layer, attention_probs) if output_attentions else (context_layer,)
