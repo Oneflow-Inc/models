@@ -12,7 +12,7 @@ python3 -m oneflow.distributed.launch \
     deepfm_train_eval.py \
       --data_dir $DATA_DIR \
       --persistent_path $PERSISTENT_PATH \
-      --table_size_array "649,9364,14746,490,476707,11618,4142,1373,7275,13,169,407,1376,1460,583,10131227,2202608,305,24,12517,633,3,93145,5683,8351593,3194,27,14992,5461306,10,5652,2173,4,7046547,18,15,286181,105,142572" \
+      --table_size_array "17045, 23743, 49657" \
       --store_type 'cached_host_mem' \
       --cache_memory_budget_mb 1024 \
       --batch_size 4096 \
@@ -23,8 +23,8 @@ python3 -m oneflow.distributed.launch \
       --net_dropout 0.2 \
       --learning_rate 0.001 \
       --embedding_vec_size 10 \
-      --num_train_samples 36672493 \
-      --num_val_samples 4584062 \
-      --num_test_samples 4584062 \
+      --num_train_samples 1404801 \
+      --num_val_samples 401372 \
+      --num_test_samples 200686 \
       --model_save_dir $MODEL_SAVE_DIR \
       --save_best_model

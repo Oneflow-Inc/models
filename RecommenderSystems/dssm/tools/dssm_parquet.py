@@ -31,7 +31,7 @@ sparse_names = ["user_id"] + ["item_id", "tag_id"]
 def make_mmoe_parquet(spark, input_files, output_dir, part_num=None, shuffle=False):
     start = time.time()
 
-    data = spark.read.format("csv").option("header", "Trues").load(input_files).toDF(*column_names)
+    data = spark.read.format("csv").option("header", "True").load(input_files).toDF(*column_names)
 
     make_label = udf(lambda s: float(s), FloatType())
     label_cols = [make_label("label").alias("label")]
