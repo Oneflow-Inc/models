@@ -296,7 +296,7 @@ class RobertaSelfAttention(nn.Module):
             self.all_head_size,
         )
         
-        context_layer = context_layer.view(*new_context_layer_shape)
+        context_layer = flow.reshape(context_layer, shape=new_context_layer_shape)
 
         outputs = (
             (context_layer, attention_probs) if output_attentions else (context_layer,)
