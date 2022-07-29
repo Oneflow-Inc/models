@@ -1,6 +1,6 @@
 #!/bin/bash
 DEVICE_NUM_PER_NODE=1
-DATA_DIR=/path/to/deepfm_parquet
+DATA_DIR=/path/to/dssm_parquet
 PERSISTENT_PATH=/path/to/persistent
 MODEL_SAVE_DIR=/path/to/model/save/dir
 
