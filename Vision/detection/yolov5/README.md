@@ -31,6 +31,10 @@ python train.py --data coco.yaml --cfg yolov5n.yaml --weights '' --batch-size 12
                                        yolov5x                                16
 ```
 more parameters can be viewed at train.py.
+To use DDP:
+```
+python3 -m oneflow.distributed.launch --nproc_per_node 2 ./train.py
+```
 ### Val
 To val yolov5 models perfermance:
 ```
