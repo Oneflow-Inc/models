@@ -24,10 +24,10 @@ def get_args(print_args=True):
 
     parser.add_argument("--data_dir", type=str, required=True)
     parser.add_argument(
-        "--num_train_samples", type=int, required=True, help="the number of train samples"
+        "--num_train_samples", type=int, required=True, help="the number of train samples",
     )
     parser.add_argument(
-        "--num_val_samples", type=int, required=True, help="the number of validation samples"
+        "--num_val_samples", type=int, required=True, help="the number of validation samples",
     )
     parser.add_argument(
         "--num_test_samples", type=int, required=True, help="the number of test samples"
@@ -36,7 +36,7 @@ def get_args(print_args=True):
     parser.add_argument("--model_load_dir", type=str, default=None, help="model loading directory")
     parser.add_argument("--model_save_dir", type=str, default=None, help="model saving directory")
     parser.add_argument(
-        "--save_initial_model", action="store_true", help="save initial model parameters or not"
+        "--save_initial_model", action="store_true", help="save initial model parameters or not",
     )
     parser.add_argument(
         "--save_model_after_each_eval",
@@ -46,7 +46,7 @@ def get_args(print_args=True):
 
     parser.add_argument("--embedding_vec_size", type=int, default=16, help="embedding vector size")
     parser.add_argument(
-        "--dnn", type=int_list, default="1000,1000,1000,1000,1000", help="dnn hidden units number"
+        "--dnn", type=int_list, default="1000,1000,1000,1000,1000", help="dnn hidden units number",
     )
     parser.add_argument("--net_dropout", type=float, default=0.2, help="net dropout rate")
     parser.add_argument("--disable_fusedmlp", action="store_true", help="disable fused MLP or not")
@@ -59,7 +59,7 @@ def get_args(print_args=True):
         "--batch_size", type=int, default=10000, help="training/evaluation batch size"
     )
     parser.add_argument(
-        "--train_batches", type=int, default=75000, help="the maximum number of training batches"
+        "--train_batches", type=int, default=75000, help="the maximum number of training batches",
     )
     parser.add_argument("--loss_print_interval", type=int, default=100, help="")
 
@@ -83,7 +83,7 @@ def get_args(print_args=True):
         required=True,
     )
     parser.add_argument(
-        "--persistent_path", type=str, required=True, help="path for persistent kv store"
+        "--persistent_path", type=str, required=True, help="path for persistent kv store",
     )
     parser.add_argument(
         "--store_type",
@@ -99,7 +99,7 @@ def get_args(print_args=True):
     )
 
     parser.add_argument(
-        "--amp", action="store_true", help="enable Automatic Mixed Precision(AMP) training or not"
+        "--amp", action="store_true", help="enable Automatic Mixed Precision(AMP) training or not",
     )
     parser.add_argument("--loss_scale_policy", type=str, default="static", help="static or dynamic")
 
@@ -107,7 +107,14 @@ def get_args(print_args=True):
         "--disable_early_stop", action="store_true", help="enable early stop or not"
     )
     parser.add_argument("--save_best_model", action="store_true", help="save best model or not")
-
+    parser.add_argument(
+        "--save_graph_for_serving",
+        action="store_true",
+        help="Save Graph and OneEmbedding for serving. ",
+    )
+    parser.add_argument(
+        "--model_serving_path", type=str, required=True, help="Graph object path for model serving",
+    )
     args = parser.parse_args()
 
     if print_args and flow.env.get_rank() == 0:
@@ -541,7 +548,7 @@ def train(args):
     stop_training = False
 
     cached_eval_batches = prefetch_eval_batches(
-        f"{args.data_dir}/val", args.batch_size, math.ceil(args.num_val_samples / args.batch_size)
+        f"{args.data_dir}/val", args.batch_size, math.ceil(args.num_val_samples / args.batch_size),
     )
 
     deepfm_module.train()
@@ -604,10 +611,17 @@ def train(args):
         print("================ Test Evaluation ================")
     eval(args, eval_graph, tag="test", cur_step=step, epoch=epoch)
 
+    if args.save_graph_for_serving:
+        del eval_graph
+        recompiled_eval_graph = compile_eval_graph(args, deepfm_module, tag="test")
+        eval_state_dict = recompiled_eval_graph.state_dict()
+        flow.save(recompiled_eval_graph, args.model_serving_path)
+        flow.save_one_embedding_info(eval_state_dict, args.model_serving_path)
+
 
 def np_to_global(np):
     t = flow.from_numpy(np)
-    return t.to_global(placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0))
+    return t.to_global(placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.broadcast)
 
 
 def batch_to_global(np_label, np_features, is_train=True):
@@ -685,6 +699,17 @@ def eval(args, eval_graph, tag="val", cur_step=0, epoch=0, cached_eval_batches=N
         )
 
     return auc, logloss
+
+
+def compile_eval_graph(args, deepfm_module, tag="val"):
+    eval_graph = DeepFMValGraph(deepfm_module, args.amp)
+    eval_graph.module.eval()
+    with make_criteo_dataloader(f"{args.data_dir}/{tag}", args.batch_size, shuffle=False) as loader:
+        label, features = batch_to_global(*next(loader), is_train=False)
+        # Cause we want to infer to GPU, so here set is_train as True to place input Tensor in CUDA Device
+        features = features.to("cuda")
+        pred = eval_graph(features)
+    return eval_graph
 
 
 if __name__ == "__main__":
