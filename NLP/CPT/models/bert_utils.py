@@ -104,20 +104,3 @@ def apply_chunking_to_forward(
         return flow.cat(output_chunks, dim=chunk_dim)
 
     return forward_fn(*input_tensors)
-
-
-def position_scores(layer, embed):
-    # replace flow.einsum when
-    # position_embedding_type == "relative_key" or "relative_key_query"
-
-    assert layer.dim() == 4
-    assert embed.dim() == 3
-    assert layer.shape[3] == embed.shape[2]
-    assert layer.shape[2] == embed.shape[0]
-    b, h, l, d = layer.shape
-    l, r, d = embed.shape
-
-    layer = layer.unsqueeze(-2)
-    embed = embed.transpose(-2, -1).unsqueeze(0).unsqueeze(0).expand(b, h, l, d, r)
-
-    return flow.matmul(layer, embed).squeeze(-2)

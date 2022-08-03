@@ -10,22 +10,8 @@ from .bert_utils import (
     find_pruneable_heads_and_indices,
     prune_linear_layer,
     apply_chunking_to_forward,
-    position_scores,  # replace einsum
 )
-
-ACT2FN = {
-    "relu": flow.nn.functional.relu,
-    # "silu": silu,
-    # "swish": silu,
-    "gelu": flow.nn.functional.gelu,
-    "tanh": flow.nn.functional.tanh,
-    # "gelu_new": gelu_new,
-    # "gelu_fast": gelu_fast,
-    # "quick_gelu": quick_gelu,
-    # "mish": mish,
-    # "linear": linear_act,
-    "sigmoid": flow.nn.functional.sigmoid,
-}
+from .utils import ACT2FN
 
 
 class BertEmbeddings(nn.Module):
@@ -224,17 +210,12 @@ class BertSelfAttention(nn.Module):
             )  # fp16 compatibility
 
             if self.position_embedding_type == "relative_key":
-                relative_position_scores = position_scores(
-                    query_layer, positional_embedding
-                )
+                relative_position_scores = flow.einsum("bhld,lrd->bhlr", query_layer, positional_embedding)
                 attention_scores = attention_scores + relative_position_scores
             elif self.position_embedding_type == "relative_key_query":
-                relative_position_scores_query = position_scores(
-                    query_layer, positional_embedding
-                )
-                relative_position_scores_key = position_scores(
-                    key_layer, positional_embedding
-                )
+                relative_position_scores_query = flow.einsum("bhld,lrd->bhlr", query_layer, positional_embedding)
+                relative_position_scores_key = flow.einsum("bhld,lrd->bhlr", key_layer, positional_embedding)
+                                
                 attention_scores = (
                     attention_scores
                     + relative_position_scores_query
@@ -264,7 +245,6 @@ class BertSelfAttention(nn.Module):
             self.all_head_size,
         )
         context_layer = flow.reshape(context_layer, shape=new_context_layer_shape)
-
         outputs = (
             (context_layer, attention_probs) if output_attentions else (context_layer,)
         )

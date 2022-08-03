@@ -46,7 +46,6 @@ We implemented our model with refernce to `transformers.RobertaModel`, which is 
 
 There are some differences between `transformers.RobertaModel` and ours:
 
-- `oneflow.einsum` and `oneflow.cumsum` has not been implemented yet, So in `roberta_utils.py` we write some new functions to ensure that our model can run correctly.
 
 ## requirement
 

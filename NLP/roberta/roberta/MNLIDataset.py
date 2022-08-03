@@ -7,8 +7,7 @@ from oneflow.utils.data import Dataset
 task_name = 'MNLI'  # MNLI or SST-2
 
 def read_data(split):
-    fn = os.path.join(task_name, split,
-                      '{}.json'.format(split))
+    fn = os.path.join(task_name, split, '{}.json'.format(split))
     input_ids = []
     attention_mask = []
     labels = []

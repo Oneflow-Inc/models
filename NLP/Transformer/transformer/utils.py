@@ -53,7 +53,7 @@ def _in_projection_packed(
     if k is v:
         if q is k:
             # self-attention
-            # dim=-1的时候chunk不起作用
+            # Chunk does not work when dim=-1
             res = linear(q, w, b)
             chunk_dim = len(res.shape)
             return res.chunk(3, dim=chunk_dim - 1)
@@ -70,7 +70,6 @@ def _in_projection_packed(
                 b_kv = flow.cat([b_k, b_v])
             res = linear(k, w_kv, b_kv)
             chunk_dim = len(res.shape)
-            # 似乎与return linear(q, w_q, b_q), linear(k, w_k, b_k), linear(k, w_v, b_v)等效？
             return (linear(q, w_q, b_q), ) + res.chunk(2, dim=chunk_dim - 1)
     else:
         w_q, w_k, w_v = w.chunk(3, dim=0)

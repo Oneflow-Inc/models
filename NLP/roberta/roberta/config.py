@@ -1,4 +1,3 @@
-import argparse
 
 def infer_config(args):
     if args.task == 'SST-2':

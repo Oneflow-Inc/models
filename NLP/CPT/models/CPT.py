@@ -15,21 +15,7 @@ from .bart_utils import (
     init_weights,
     tensor_unique,  # for tensor.unique
 )
-
-ACT2FN = {
-    "relu": flow.nn.functional.relu,
-    # "silu": silu,
-    # "swish": silu,
-    "gelu": flow.nn.functional.gelu,
-    "tanh": flow.nn.functional.tanh,
-    # "gelu_new": gelu_new,
-    # "gelu_fast": gelu_fast,
-    # "quick_gelu": quick_gelu,
-    # "mish": mish,
-    # "linear": linear_act,
-    "sigmoid": flow.nn.functional.sigmoid,
-}
-
+from .utils import ACT2FN
 
 class BartLearnedPositionalEmbedding(nn.Embedding):
     """
@@ -55,7 +41,7 @@ class BartLearnedPositionalEmbedding(nn.Embedding):
 
 
 class BartAttention(nn.Module):
-    """Multi-headed attention from 'Attention Is All You Need' paper"""
+    """Multi-headed attention from 'Attention Is All You Need' paper.See https://doi.org/10.48550/arXiv.1706.03762 """
 
     def __init__(
         self,

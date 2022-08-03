@@ -14,7 +14,6 @@ We implemented some extra functions here:
 
 <!-- - `LayerNorm` in `models/dev_ops.py` -->
 - `tensor_unique` in `models/bart_utils.py`
-- `position_scores` in `models/bert_utils.py`
 
 ## Train
 
