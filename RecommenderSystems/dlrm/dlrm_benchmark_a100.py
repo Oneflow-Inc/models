@@ -24,8 +24,6 @@ import warnings
 import oneflow as flow
 import oneflow.nn as nn
 
-warnings.filterwarnings("ignore", category=FutureWarning)
-from petastorm.reader import make_batch_reader
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
 
@@ -44,7 +42,7 @@ def get_args(print_args=True):
     parser.add_argument(
         "--one_embedding_key_type",
         type=str,
-        default="int64",
+        default="int32",
         help="OneEmbedding key type: int32, int64",
     )
     parser.add_argument("--bottom_mlp", type=int_list, default="512,256,128")
@@ -94,7 +92,9 @@ def get_args(print_args=True):
     parser.add_argument("--store_type", type=str, default="cached_host_mem")
     parser.add_argument("--cache_memory_budget_mb", type=int, default=8192)
     parser.add_argument("--amp", action="store_true", help="Run model with amp")
-    parser.add_argument("--split_allreduce", action="store_true", help="split bottom and top allreduce")
+    parser.add_argument(
+        "--split_allreduce", action="store_true", help="split bottom and top allreduce"
+    )
     parser.add_argument("--loss_scale_policy", type=str, default="static", help="static or dynamic")
 
     args = parser.parse_args()
@@ -118,88 +118,6 @@ def _print_args(args):
 
 num_dense_fields = 13
 num_sparse_fields = 26
-
-
-class DLRMDataReader(object):
-    """A context manager that manages the creation and termination of a
-    :class:`petastorm.Reader`.
-    """
-
-    def __init__(
-        self,
-        parquet_file_url_list,
-        batch_size,
-        num_epochs,
-        shuffle_row_groups=True,
-        shard_seed=1234,
-        shard_count=1,
-        cur_shard=0,
-    ):
-        self.parquet_file_url_list = parquet_file_url_list
-        self.batch_size = batch_size
-        self.num_epochs = num_epochs
-        self.shuffle_row_groups = shuffle_row_groups
-        self.shard_seed = shard_seed
-        self.shard_count = shard_count
-        self.cur_shard = cur_shard
-
-        fields = ["label"]
-        fields += [f"I{i+1}" for i in range(num_dense_fields)]
-        self.I_end = len(fields)
-        fields += [f"C{i+1}" for i in range(num_sparse_fields)]
-        self.C_end = len(fields)
-        self.fields = fields
-
-    def __enter__(self):
-        self.reader = make_batch_reader(
-            self.parquet_file_url_list,
-            workers_count=1,
-            shuffle_row_groups=self.shuffle_row_groups,
-            num_epochs=self.num_epochs,
-            shard_seed=self.shard_seed,
-            shard_count=self.shard_count,
-            cur_shard=self.cur_shard,
-        )
-        self.loader = self.get_batches(self.reader)
-        return self.loader
-
-    def __exit__(self, exc_type, exc_value, exc_traceback):
-        self.reader.stop()
-        self.reader.join()
-
-    def get_batches(self, reader, batch_size=None):
-        if batch_size is None:
-            batch_size = self.batch_size
-        tail = None
-        for rg in reader:
-            rgdict = rg._asdict()
-            rglist = [rgdict[field] for field in self.fields]
-            pos = 0
-            if tail is not None:
-                pos = batch_size - len(tail[0])
-                tail = list(
-                    [
-                        np.concatenate((tail[i], rglist[i][0 : (batch_size - len(tail[i]))]))
-                        for i in range(self.C_end)
-                    ]
-                )
-                if len(tail[0]) == batch_size:
-                    label = tail[0]
-                    dense = tail[1 : self.I_end]
-                    sparse = tail[self.I_end : self.C_end]
-                    tail = None
-                    yield label, np.stack(dense, axis=-1), np.stack(sparse, axis=-1)
-                else:
-                    pos = 0
-                    continue
-            while (pos + batch_size) <= len(rglist[0]):
-                label = rglist[0][pos : pos + batch_size]
-                dense = [rglist[j][pos : pos + batch_size] for j in range(1, self.I_end)]
-                sparse = [rglist[j][pos : pos + batch_size] for j in range(self.I_end, self.C_end)]
-                pos += batch_size
-                yield label, np.stack(dense, axis=-1), np.stack(sparse, axis=-1)
-            if pos != len(rglist[0]):
-                tail = [rglist[i][pos:] for i in range(self.C_end)]
 
 
 class Dense(nn.Module):
@@ -380,7 +298,7 @@ class DLRMModule(nn.Module):
     def forward(self, dense_fields, sparse_fields) -> flow.Tensor:
         if self.pad:
             dense_fields = flow.nn.functional.pad(dense_fields, self.pad, "constant")
-        #dense_fields = flow.log(dense_fields + 1.0)
+        # dense_fields = flow.log(dense_fields + 1.0)
         dense_fields = self.bottom_mlp(dense_fields)
         embedding = self.embedding(sparse_fields)
         features = self.interaction(dense_fields, embedding)
@@ -405,25 +323,24 @@ def make_dlrm_module(args):
     return model
 
 
-def make_criteo_dataloader(data_path, batch_size, shuffle=True):
-    """Make a Criteo Parquet DataLoader.
-    :return: a context manager when exit the returned context manager, the reader will be closed.
-    """
-    files = ["file://" + name for name in glob.glob(f"{data_path}/*.parquet")]
-    files.sort()
+def make_raw_dataloader(data_path, batch_size, shuffle=True):
+    def make_reader(data_file, length, dtype):
+        return flow.nn.RawReader(
+            [data_file],
+            (length,),
+            dtype,
+            batch_size,
+            random_shuffle=shuffle,
+            random_seed=1234,
+            placement=flow.env.all_device_placement("cpu"),
+            sbp=flow.sbp.split(0),
+        )
 
-    world_size = flow.env.get_world_size()
-    batch_size_per_proc = batch_size // world_size
+    label_loader = make_reader(f"{data_path}/label.bin", 1, flow.float32)
+    dense_loader = make_reader(f"{data_path}/dense_norm.bin", num_dense_fields, flow.float32)
+    sparse_loader = make_reader(f"{data_path}/sparse.bin", num_sparse_fields, flow.int32)
 
-    return DLRMDataReader(
-        files,
-        batch_size_per_proc,
-        None,  # TODO: iterate over all eval dataset
-        shuffle_row_groups=shuffle,
-        shard_seed=1234,
-        shard_count=world_size,
-        cur_shard=flow.env.get_rank(),
-    )
+    return label_loader, dense_loader, sparse_loader
 
 
 def make_lr_scheduler(args, optimizer):
@@ -443,12 +360,13 @@ def make_lr_scheduler(args, optimizer):
 
 
 class DLRMValGraph(flow.nn.Graph):
-    def __init__(self, dlrm_module, label_loader, dense_loader, sparse_loader, amp=False):
+    def __init__(self, dlrm_module, data_dir, batch_size, amp=False):
         super(DLRMValGraph, self).__init__()
         self.module = dlrm_module
-        self.label_loader = label_loader
-        self.dense_loader = dense_loader
-        self.sparse_loader = sparse_loader
+        self.label_loader, self.dense_loader, self.sparse_loader = make_raw_dataloader(
+            f"{data_dir}/val", batch_size, shuffle=False
+        )
+
         if amp:
             self.config.enable_amp(True)
 
@@ -462,15 +380,23 @@ class DLRMValGraph(flow.nn.Graph):
 
 class DLRMTrainGraph(flow.nn.Graph):
     def __init__(
-        self, dlrm_module, loss, optimizer, label_loader, dense_loader, sparse_loader, lr_scheduler=None, grad_scaler=None, amp=False,
+        self,
+        dlrm_module,
+        loss,
+        optimizer,
+        data_dir,
+        batch_size,
+        lr_scheduler=None,
+        grad_scaler=None,
+        amp=False,
     ):
         super(DLRMTrainGraph, self).__init__()
         self.module = dlrm_module
         self.loss = loss
         self.add_optimizer(optimizer, lr_sch=lr_scheduler)
-        self.label_loader = label_loader
-        self.dense_loader = dense_loader
-        self.sparse_loader = sparse_loader
+        self.label_loader, self.dense_loader, self.sparse_loader = make_raw_dataloader(
+            f"{data_dir}/train", batch_size
+        )
         self.config.allow_fuse_model_update_ops(True)
         self.config.allow_fuse_add_to_output(True)
         self.config.allow_fuse_cast_scale(True)
@@ -484,87 +410,15 @@ class DLRMTrainGraph(flow.nn.Graph):
         sparse_fields = self.sparse_loader()
         logits = self.module(dense_fields.to("cuda"), sparse_fields.to("cuda"))
         loss = self.loss(logits, labels.to("cuda"))
-        reduce_loss = loss #flow.mean(loss)
-        reduce_loss.backward()
-        return reduce_loss.to("cpu")
+        loss.backward()
+        return loss.to("cpu")
 
-
-def prefetch_eval_batches(data_dir, batch_size, num_batches):
-    cached_eval_batches = []
-    with make_criteo_dataloader(data_dir, batch_size, shuffle=False) as loader:
-        for _ in range(num_batches):
-            label, dense_fields, sparse_fields = batch_to_global(*next(loader), is_train=False)
-            cached_eval_batches.append((label, dense_fields, sparse_fields))
-    return cached_eval_batches
 
 def train(args):
     rank = flow.env.get_rank()
 
     dlrm_module = make_dlrm_module(args)
     dlrm_module.to_global(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
-    label_loader = flow.nn.RawReader(
-            ["/RAID0/raw/train/label.bin"],
-            (1,),
-            flow.float32,
-            args.train_batch_size,
-            random_shuffle=True,
-            random_seed=1234,
-            placement=flow.env.all_device_placement("cpu"),
-            sbp=flow.sbp.split(0)
-        )
-
-    dense_loader = flow.nn.RawReader(
-            ["/RAID0/raw/train/dense_norm.bin"],
-            (13,),
-            flow.float32,
-            args.train_batch_size,
-            random_shuffle=True,
-            random_seed=1234,
-            placement=flow.env.all_device_placement("cpu"),
-            sbp=flow.sbp.split(0)
-        )
-    sparse_loader = flow.nn.RawReader(
-            ["/RAID0/raw/train/sparse.bin"],
-            (26,),
-            flow.int32,
-            args.train_batch_size,
-            random_shuffle=True,
-            random_seed=1234,
-            placement=flow.env.all_device_placement("cpu"),
-            sbp=flow.sbp.split(0)
-        )
-
-    label_loader_val = flow.nn.RawReader(
-            ["/RAID0/raw/val/label.bin"],
-            (1,),
-            flow.float32,
-            args.eval_batch_size,
-            random_shuffle=False,
-            random_seed=1234,
-            placement=flow.env.all_device_placement("cpu"),
-            sbp=flow.sbp.split(0)
-        )
-
-    dense_loader_val = flow.nn.RawReader(
-            ["/RAID0/raw/val/dense_norm.bin"],
-            (13,),
-            flow.float32,
-            args.eval_batch_size,
-            random_shuffle=False,
-            random_seed=1234,
-            placement=flow.env.all_device_placement("cpu"),
-            sbp=flow.sbp.split(0)
-        )
-    sparse_loader_val = flow.nn.RawReader(
-            ["/RAID0/raw/val/sparse.bin"],
-            (26,),
-            flow.int32,
-            args.eval_batch_size,
-            random_shuffle=False,
-            random_seed=1234,
-            placement=flow.env.all_device_placement("cpu"),
-            sbp=flow.sbp.split(0)
-        )
 
     if args.model_load_dir:
         print(f"Loading model from {args.model_load_dir}")
@@ -594,53 +448,56 @@ def train(args):
             init_scale=1073741824, growth_factor=2.0, backoff_factor=0.5, growth_interval=2000,
         )
 
-    eval_graph = DLRMValGraph(dlrm_module, label_loader_val, dense_loader_val, sparse_loader_val, args.amp)
-    train_graph = DLRMTrainGraph(dlrm_module, loss, opt, label_loader, dense_loader, sparse_loader, lr_scheduler, grad_scaler, args.amp)
-
-
+    eval_graph = DLRMValGraph(dlrm_module, args.data_dir, args.eval_batch_size, args.amp)
+    train_graph = DLRMTrainGraph(
+        dlrm_module,
+        loss,
+        opt,
+        args.data_dir,
+        args.train_batch_size,
+        lr_scheduler,
+        grad_scaler,
+        args.amp,
+    )
 
     dlrm_module.train()
-    if True:
-        step, last_step, last_time = -1, 0, time.time()
-        for step in range(1, args.train_batches + 1):
-            loss = train_graph()
-            if step % args.loss_print_interval == 0:
-                loss = loss.numpy()
-                if rank == 0:
-                    latency = (time.time() - last_time) / (step - last_step)
-                    throughput = args.train_batch_size / latency
-                    last_step, last_time = step, time.time()
-                    strtime = time.strftime("%Y-%m-%d %H:%M:%S")
-                    print(
-                        f"Rank[{rank}], Step {step}, Loss {loss:0.4f}, Latency "
-                        + f"{(latency * 1000):0.3f} ms, Throughput {throughput:0.1f}, {strtime}"
-                    )
-                if np.isnan(loss):
-                    exit(1)
+    step, last_step, last_time = -1, 0, time.time()
+    for step in range(1, args.train_batches + 1):
+        loss = train_graph()
+        if step % args.loss_print_interval == 0:
+            loss = loss.numpy()
+            if rank == 0:
+                latency = (time.time() - last_time) / (step - last_step)
+                throughput = args.train_batch_size / latency
+                last_step, last_time = step, time.time()
+                strtime = time.strftime("%Y-%m-%d %H:%M:%S")
+                print(
+                    f"Rank[{rank}], Step {step}, Loss {loss:0.4f}, Latency "
+                    + f"{(latency * 1000):0.3f} ms, Throughput {throughput:0.1f}, {strtime}"
+                )
+            if np.isnan(loss):
+                exit(1)
 
-            if (args.eval_interval > 0 and step % args.eval_interval == 0) or (step in args.eval_steps):
-                auc = eval(eval_graph, step)
-                if args.save_model_after_each_eval:
-                    save_model(f"step_{step}_val_auc_{auc:0.5f}")
-                dlrm_module.train()
-                last_time = time.time()
+        if (args.eval_interval > 0 and step % args.eval_interval == 0) or (step in args.eval_steps):
+            auc = eval(eval_graph, step)
+            if args.save_model_after_each_eval:
+                save_model(f"step_{step}_val_auc_{auc:0.5f}")
+            dlrm_module.train()
+            last_time = time.time()
 
     if args.eval_interval > 0 and step % args.eval_interval != 0:
         auc = eval(eval_graph, step)
-        #if args.save_model_after_each_eval:
-        #    save_model(f"step_{step}_val_auc_{auc:0.5f}")
+        if args.save_model_after_each_eval:
+            save_model(f"step_{step}_val_auc_{auc:0.5f}")
 
 
-def np_to_global(np):
-    t = flow.from_numpy(np)
-    return t.to_global(placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0))
-
-
-def batch_to_global(np_label, np_dense, np_sparse, is_train=True):
-    labels = np_to_global(np_label.reshape(-1, 1)) if is_train else np_label.reshape(-1, 1)
-    dense_fields = np_to_global(np_dense)
-    sparse_fields = np_to_global(np_sparse)
-    return labels, dense_fields, sparse_fields
+def tensor_list_to_local(tensors):
+    return (
+        flow.cat(tensors, dim=0)
+        .to_global(placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0))
+        .to_global(sbp=flow.sbp.broadcast())
+        .to_local()
+    )
 
 
 def eval(eval_graph, cur_step=0):
@@ -652,19 +509,8 @@ def eval(eval_graph, cur_step=0):
         labels.append(label.to_local())
         preds.append(pred.to_local())
 
-    labels = (
-        flow.cat(labels, dim=0)
-        .to_global(placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0))
-        .to_global(sbp=flow.sbp.broadcast())
-        .to_local()
-    )
-
-    preds = (
-        flow.cat(preds, dim=0)
-        .to_global(placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0))
-        .to_global(sbp=flow.sbp.broadcast())
-        .to_local()
-    )
+    labels = tensor_list_to_local(labels)
+    preds = tensor_list_to_local(preds)
 
     flow.comm.barrier()
     eval_time = time.time() - eval_start_time
@@ -698,4 +544,3 @@ if __name__ == "__main__":
         flow.boxing.nccl.set_fusion_max_ops_num(10)
 
     train(args)
-
