@@ -4,6 +4,7 @@ import sys
 import glob
 import time
 import math
+import copy
 import numpy as np
 import psutil
 import oneflow as flow
@@ -395,7 +396,9 @@ class DssmModule(nn.Module):
         item_emb = sparse_emb[:, num_user_fields :, :]
         
         user_out = self.user_dnn_layer(user_emb.flatten(start_dim=1))
+        # user_out = flow.nn.functional.normalize(user_out, p=2.0, dim=-1)
         item_out = self.item_dnn_layer(item_emb.flatten(start_dim=1))
+        # item_out = flow.nn.functional.normalize(item_out, p=2.0, dim=-1)
 
         y_pred = (user_out * item_out).sum(dim=-1, keepdim=True)
 
@@ -660,14 +663,18 @@ def eval(args, eval_graph, tag="val", cur_step=0, epoch=0, cached_eval_batches=N
             for i in range(batches_per_epoch):
                 label, features = batch_to_global(*next(loader), is_train=False)
                 pred = eval_graph(features)
-                labels.append(label)
-                preds.append(pred.to_local())
+                # labels.append(label)
+                # preds.append(pred.to_local())
+                labels.append(copy.deepcopy(label))
+                preds.append(copy.deepcopy((pred.to_local())))
     else:
         for i in range(batches_per_epoch):
             label, features = cached_eval_batches[i]
             pred = eval_graph(features)
-            labels.append(label)
-            preds.append(pred.to_local())
+            labels.append(copy.deepcopy(label))
+            preds.append(copy.deepcopy((pred.to_local())))
+            # labels.append(label)
+            # preds.append(pred.to_local())
 
     labels = (
         np_to_global(np.concatenate(labels, axis=0)).to_global(sbp=flow.sbp.broadcast()).to_local()

@@ -82,7 +82,7 @@ if __name__ == "__main__":
     test_count = make_mmoe_parquet(spark, test_csv, test_output_dir, part_num=32)
 
     # create valid dataset
-    valid_output_dir = os.path.join(args.output_dir, "valid")
+    valid_output_dir = os.path.join(args.output_dir, "val")
     valid_count = make_mmoe_parquet(spark, valid_csv, valid_output_dir, part_num=32)
 
     # create train dataset
