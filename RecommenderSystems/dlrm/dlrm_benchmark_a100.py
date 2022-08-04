@@ -76,9 +76,9 @@ def get_args(print_args=True):
     parser.add_argument("--train_batch_size", type=int, default=55296)
     parser.add_argument("--learning_rate", type=float, default=24)
     parser.add_argument("--warmup_batches", type=int, default=2750)
-    parser.add_argument("--decay_batches", type=int, default=27772)
-    parser.add_argument("--decay_start", type=int, default=49315)
-    parser.add_argument("--train_batches", type=int, default=75000)
+    parser.add_argument("--decay_batches", type=int, default=15406)
+    parser.add_argument("--decay_start", type=int, default=64163)
+    parser.add_argument("--train_batches", type=int, default=75869)
     parser.add_argument("--loss_print_interval", type=int, default=1000)
     parser.add_argument(
         "--table_size_array",
@@ -89,7 +89,7 @@ def get_args(print_args=True):
     parser.add_argument(
         "--persistent_path", type=str, required=True, help="path for persistent kv store",
     )
-    parser.add_argument("--store_type", type=str, default="cached_host_mem")
+    parser.add_argument("--store_type", type=str, default="device_mem")
     parser.add_argument("--cache_memory_budget_mb", type=int, default=8192)
     parser.add_argument("--amp", action="store_true", help="Run model with amp")
     parser.add_argument(
@@ -470,10 +470,9 @@ def train(args):
                 latency = (time.time() - last_time) / (step - last_step)
                 throughput = args.train_batch_size / latency
                 last_step, last_time = step, time.time()
-                strtime = time.strftime("%Y-%m-%d %H:%M:%S")
                 print(
                     f"Rank[{rank}], Step {step}, Loss {loss:0.4f}, Latency "
-                    + f"{(latency * 1000):0.3f} ms, Throughput {throughput:0.1f}, {strtime}"
+                    + f"{(latency * 1000):0.3f} ms, Throughput {throughput:0.1f}, {last_time}"
                 )
             if np.isnan(loss):
                 exit(1)
@@ -537,7 +536,7 @@ def eval(eval_graph, cur_step=0):
 
 if __name__ == "__main__":
     os.system(sys.executable + " -m oneflow --doctor")
-    os.system("env")
+    #os.system("env")
     flow.boxing.nccl.enable_all_to_all(True)
     args = get_args()
     if args.split_allreduce:
