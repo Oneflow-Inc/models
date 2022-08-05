@@ -26,10 +26,10 @@ def get_args(print_args=True):
 
     parser.add_argument("--data_dir", type=str, required=True)
     parser.add_argument(
-        "--num_train_samples", type=int, default=36672493, help="the number of training samples",
+        "--num_train_samples", type=int, default=4195197692, help="the number of training samples",
     )
     parser.add_argument(
-        "--num_test_samples", type=int, default=4584062, help="the number of test samples",
+        "--num_test_samples", type=int, default=89137319, help="the number of test samples",
     )
 
     parser.add_argument("--shard_seed", type=int, default=2022)
@@ -47,8 +47,8 @@ def get_args(print_args=True):
     parser.add_argument("--embedding_vec_size", type=int, default=16)
     parser.add_argument("--batch_norm", type=bool, default=False)
     parser.add_argument("--dnn_hidden_units", type=int_list, default="1000,1000,1000,1000,1000")
-    parser.add_argument("--crossing_layers", type=int, default=3)
-    parser.add_argument("--net_dropout", type=float, default=0.2)
+    parser.add_argument("--crossing_layers", type=int, default=4)
+    parser.add_argument("--net_dropout", type=float, default=0.05)
     parser.add_argument("--embedding_regularizer", type=float, default=None)
     parser.add_argument("--net_regularizer", type=float, default=None)
 
@@ -62,23 +62,23 @@ def get_args(print_args=True):
     parser.add_argument("--learning_rate", type=float, default=0.001)
     parser.add_argument("--size_factor", type=int, default=3)
 
-    parser.add_argument("--test_batch_size", type=int, default=10000)
-    parser.add_argument("--test_batches", type=int, default=1000, help="number of test batches")
-    parser.add_argument("--train_batch_size", type=int, default=10000)
-    parser.add_argument("--train_batches", type=int, default=15000, help="number of train batches")
-    parser.add_argument("--loss_print_interval", type=int, default=100)
+    parser.add_argument("--test_batch_size", type=int, default=55296)
+    parser.add_argument("--test_batches", type=int, default=1612, help="number of test batches")
+    parser.add_argument("--train_batch_size", type=int, default=55296)
+    parser.add_argument("--train_batches", type=int, default=75869, help="number of train batches")
+    parser.add_argument("--loss_print_interval", type=int, default=1000)
     parser.add_argument("--eval_interval", type=int, default=100000)
 
     parser.add_argument(
         "--table_size_array",
         type=int_list,
         help="Embedding table size array for sparse fields",
-        required=True,
+        default="62866,8001,2901,74623,7530,3391,1400,21705,7937,21,276,1235896,9659,39884301,39040,17291,7421,20263,3,7121,1543,63,38532372,2953790,403302,10,2209,11938,155,4,976,14,39979538,25638302,39665755,585840,12973,108,36",
     )
     parser.add_argument(
         "--persistent_path", type=str, required=True, help="path for persistent kv store",
     )
-    parser.add_argument("--store_type", type=str, default="cached_host_mem")
+    parser.add_argument("--store_type", type=str, default="device_mem")
     parser.add_argument("--cache_memory_budget_mb", type=int, default=8192)
     parser.add_argument("--amp", action="store_true", help="Run model with amp")
     parser.add_argument("--loss_scale_policy", type=str, default="static", help="static or dynamic")
