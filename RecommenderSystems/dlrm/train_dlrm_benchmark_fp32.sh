@@ -9,10 +9,6 @@ export ONEFLOW_ONE_EMBEDDING_FUSED_MLP_ASYNC_GRAD=1
 export ONEFLOW_ONE_EMBEDDING_FUSE_EMBEDDING_INTERACTION=1
 export ONEFLOW_EP_CUDA_DEVICE_FLAGS=2
 export ONEFLOW_FUSE_BCE_REDUCE_MEAN_FW_BW=1
-
-#export ONEFLOW_ONE_EMBEDDING_ID_SHUFFLE_USE_P2P=1
-#export ONEFLOW_ONE_EMBEDDING_EMBEDDING_SHUFFLE_USE_P2P=1
-
 export ONEFLOW_RAW_READER_FORCE_DIRECT_IO=1
 
 export CUDA_DEVICE_MAX_CONNECTIONS=32
@@ -30,6 +26,6 @@ python3 -m oneflow.distributed.launch \
     --master_addr 127.0.0.1 \
     dlrm_benchmark_a100.py \
       --persistent_path ./persistent \
-      --data_dir /RAID0/raw \
+      --data_dir /RAID0/criteo1t_oneflow_raw \
       --split_allreduce
 

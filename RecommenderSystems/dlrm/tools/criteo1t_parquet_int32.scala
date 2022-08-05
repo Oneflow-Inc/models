@@ -6,15 +6,6 @@ def makeDlrmDatasetInt32(srcDir: String, dstDir:String) = {
     val integer_names = Seq("label") ++ dense_names
     val col_names = integer_names ++ categorical_names
     
-    val srcDir = "/RAID0/criteo1t_raw"
-    val dstDir = "/RAID0/dlrm_parquet_int32"
-    
-    // split day_23 to test.csv and val.csv
-    // # head -n 89137319 src/day_23 > dst/test.csv
-    // # tail -n +89137320 src/day_23 > dst/val.csv
-    // total 178274637, test 89137319, val 89137318
-    
-    val day_23 = s"${srcDir}/day_23"
     val test_csv = s"${srcDir}/test.csv"
     val val_csv = s"${srcDir}/val.csv"
     
@@ -34,7 +25,7 @@ def makeDlrmDatasetInt32(srcDir: String, dstDir:String) = {
     spark.read.option("delimiter", "\t").csv(day_files:_*).toDF(col_names: _*).select(cols:_*).orderBy(rand()).repartition(2560).write.parquet(s"${dstDir}/train")
     
     // print table size array
-    val df = spark.read.parquet(s"${dstDir}/train", s"${dstDir}/val", s"${dstDir}/test")
+    val df = spark.read.parquet(s"${dstDir}/*/*.parquet")
     println(1.to(26).map{i=>df.select(s"C$i").as[Int].distinct.count}.mkString(","))
 }
 
