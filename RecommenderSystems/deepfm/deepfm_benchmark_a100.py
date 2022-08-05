@@ -26,10 +26,10 @@ def get_args(print_args=True):
 
     parser.add_argument("--data_dir", type=str, required=True)
     parser.add_argument(
-        "--num_train_samples", type=int, required=True, help="the number of train samples"
+        "--num_train_samples", type=int, default=4195197692, help="the number of train samples"
     )
     parser.add_argument(
-        "--num_test_samples", type=int, required=True, help="the number of test samples"
+        "--num_test_samples", type=int, default=89137319, help="the number of test samples"
     )
 
     parser.add_argument("--model_load_dir", type=str, default=None, help="model loading directory")
@@ -43,7 +43,7 @@ def get_args(print_args=True):
         help="save model after each eval or not",
     )
 
-    parser.add_argument("--embedding_vec_size", type=int, default=16, help="embedding vector size")
+    parser.add_argument("--embedding_vec_size", type=int, default=10, help="embedding vector size")
     parser.add_argument(
         "--dnn", type=int_list, default="1000,1000,1000,1000,1000", help="dnn hidden units number"
     )
@@ -54,12 +54,12 @@ def get_args(print_args=True):
     parser.add_argument("--learning_rate", type=float, default=0.001, help="learning rate")
 
     parser.add_argument(
-        "--batch_size", type=int, default=10000, help="training/evaluation batch size"
+        "--batch_size", type=int, default=55296, help="training/evaluation batch size"
     )
     parser.add_argument(
-        "--train_batches", type=int, default=75000, help="the maximum number of training batches"
+        "--train_batches", type=int, default=75869, help="the maximum number of training batches"
     )
-    parser.add_argument("--loss_print_interval", type=int, default=100, help="")
+    parser.add_argument("--loss_print_interval", type=int, default=1000, help="")
     parser.add_argument("--eval_interval", type=int, default=100000)
 
     parser.add_argument(
@@ -73,7 +73,7 @@ def get_args(print_args=True):
         "--table_size_array",
         type=int_list,
         help="embedding table size array for sparse fields",
-        required=True,
+        default="62866,8001,2901,74623,7530,3391,1400,21705,7937,21,276,1235896,9659,39884301,39040,17291,7421,20263,3,7121,1543,63,38532372,2953790,403302,10,2209,11938,155,4,976,14,39979538,25638302,39665755,585840,12973,108,36",
     )
     parser.add_argument(
         "--persistent_path", type=str, required=True, help="path for persistent kv store"
@@ -81,7 +81,7 @@ def get_args(print_args=True):
     parser.add_argument(
         "--store_type",
         type=str,
-        default="cached_host_mem",
+        default="device_mem",
         help="OneEmbeddig persistent kv store type: device_mem, cached_host_mem, cached_ssd",
     )
     parser.add_argument(
