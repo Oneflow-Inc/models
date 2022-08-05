@@ -21,7 +21,7 @@ python3 -m oneflow.distributed.launch \
     --node_rank 0 \
     --master_addr 127.0.0.1 \
     deepfm_benchmark_a100.py \
-      --data_dir /RAID0/xiexuan/criteo1t_oneflow_C39_raw \
+      --data_dir /RAID0/criteo1t_oneflow_raw \
       --persistent_path persistent \
       --amp
 

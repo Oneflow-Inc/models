@@ -339,6 +339,25 @@ class DeepFMTrainGraph(flow.nn.Graph):
         return loss.to("cpu")
 
 
+def make_raw_dataloader(data_path, batch_size, shuffle=True):
+    def make_reader(data_file, length, dtype):
+        return flow.nn.RawReader(
+            [data_file],
+            (length,),
+            dtype,
+            batch_size,
+            random_shuffle=shuffle,
+            random_seed=1234,
+            placement=flow.env.all_device_placement("cpu"),
+            sbp=flow.sbp.split(0),
+        )
+
+    label_loader = make_reader(f"{data_path}/label.bin", 1, flow.float32)
+    sparse_loader = make_reader(f"{data_path}/sparse_C39.bin", 39, flow.int32)
+
+    return label_loader, sparse_loader
+
+
 def make_lr_scheduler(args, optimizer):
     warmup_lr = flow.optim.lr_scheduler.LinearLR(
         optimizer, start_factor=0, total_iters=3000,
@@ -360,49 +379,6 @@ def train(args):
 
     deepfm_module = make_deepfm_module(args)
     deepfm_module.to_global(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
-    label_loader = flow.nn.RawReader(
-            ["/RAID0/xiexuan/criteo1t_oneflow_C39_raw/train/label_float.bin"],
-            (1,),
-            flow.float32,
-            args.batch_size,
-            random_shuffle=True,
-            random_seed=1234,
-            placement=flow.env.all_device_placement("cpu"),
-            sbp=flow.sbp.split(0)
-        )
-
-    sparse_loader = flow.nn.RawReader(
-            ["/RAID0/xiexuan/criteo1t_oneflow_C39_raw/train/sparse_int32.bin"],
-            (39,),
-            flow.int32,
-            args.batch_size,
-            random_shuffle=True,
-            random_seed=1234,
-            placement=flow.env.all_device_placement("cpu"),
-            sbp=flow.sbp.split(0)
-        )
-
-    label_loader_val = flow.nn.RawReader(
-            ["/RAID0/xiexuan/criteo1t_oneflow_C39_raw/test/label_float.bin"],
-            (1,),
-            flow.float32,
-            args.batch_size,
-            random_shuffle=False,
-            random_seed=1234,
-            placement=flow.env.all_device_placement("cpu"),
-            sbp=flow.sbp.split(0)
-        )
-
-    sparse_loader_val = flow.nn.RawReader(
-            ["/RAID0/xiexuan/criteo1t_oneflow_C39_raw/test/sparse_int32.bin"],
-            (39,),
-            flow.int32,
-            args.batch_size,
-            random_shuffle=False,
-            random_seed=1234,
-            placement=flow.env.all_device_placement("cpu"),
-            sbp=flow.sbp.split(0)
-        )
 
     def load_model(dir):
         if rank == 0:
