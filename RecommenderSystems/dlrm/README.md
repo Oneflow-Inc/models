@@ -131,7 +131,7 @@ spark-shell \
 makeDlrmDatasetInt32("/RAID0/criteo1t_raw", "/RAID0/dlrm_parquet_int32")
 ```
   - convert parquet dataset to oneflow raw format
-````
+```
 # create folders manually
 mkdir -p /RAID0/raw/test
 mkdir -p /RAID0/raw/val
@@ -139,6 +139,7 @@ mkdir -p /RAID0/raw/train
 
 python parquet_to_raw.py 
 ```
+
 note: suppose root folder of target raw dataset is `/RAID0/raw`
 
 2. train OneFlow DLRM benchmark in AMP mode
