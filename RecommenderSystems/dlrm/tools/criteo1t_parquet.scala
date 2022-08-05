@@ -6,7 +6,6 @@ def makeDlrmDataset(srcDir: String, dstDir:String, tmpDir:String, modIdx:Long = 
     val integer_names = Seq("label") ++ dense_names
     val col_names = integer_names ++ categorical_names
 
-    val day_23 = s"${srcDir}/day_23"
     val test_csv = s"${tmpDir}/test.csv"
     val val_csv = s"${tmpDir}/val.csv"
 
