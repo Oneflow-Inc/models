@@ -138,18 +138,17 @@ python parquet_to_raw.py \
 ```
 
 2. train OneFlow DLRM benchmark in AMP mode
-modify `data_dir` and `persistent_path` in `train_dlrm_benchmark.sh` and run:
-
 ```
-./train_dlrm_benchmark.sh
-
+./train_dlrm_benchmark.sh /path/to/data_dir 
 ```
+note: `train_dlrm_benchmark.sh` takes 3 arguments:
+- $1 is data_dir pointing to criteo1t_oneflow_raw dataset
+- $2 is number of GPUs, default is `8`
+- $3 is persistent path for OneEmbedding, default is `persistent`
 
 3. or train OneFlow DLRM benchmark in FP32 mode
-modify `data_dir` and `persistent_path` in `train_dlrm_benchmark_fp32.sh` and run:
 
 ```
-./train_dlrm_benchmark_fp32.sh
-
+./train_dlrm_benchmark_fp32.sh /path/to/data_dir
 ```
 
