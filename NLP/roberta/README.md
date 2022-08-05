@@ -61,7 +61,8 @@ tar zxf SST-2.tar.gz
 ```
 ### Pretrain model
 - roberta-base  <br>
-We complete this by moving the weights from already_trained roberta model from transformers. For more details, see weights_transform. 
+We complete this by using the weights from already_trained roberta model from transformers. 
+
 ```bash
 wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/nlp/roberta/roberta-base-oneflow.tar.gz
 tar zxf roberta-base-oneflow.tar.gz
@@ -102,7 +103,7 @@ cd roberta
 sh infer_SST2.sh
 ```
 
-The default parameters are displayed below.
+The default parameters are displayed below:
 
 ```bash
 PRETRAIN_DIR="./roberta-base-oneflow/weights"
@@ -123,7 +124,7 @@ tar zxf MNLI.tar.gz
 ```
 ### Pertrain model
 - roberta-base  <br>
-We complete this by moving the weights from already_trained roberta model from transformers.
+We complete this by using the weights from already_trained roberta model from transformers.
 ```bash
 wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/nlp/roberta/roberta-base-oneflow.tar.gz
 tar zxf roberta-base-oneflow.tar.gz
