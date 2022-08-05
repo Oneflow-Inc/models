@@ -16,12 +16,12 @@ export ONEFLOW_ONE_EMBEDDING_ID_SHUFFLE_USE_P2P=1
 export ONEFLOW_ONE_EMBEDDING_EMBEDDING_SHUFFLE_USE_P2P=1
 
 python3 -m oneflow.distributed.launch \
-    --nproc_per_node $DEVICE_NUM_PER_NODE \
+    --nproc_per_node 4 \
     --nnodes 1 \
     --node_rank 0 \
     --master_addr 127.0.0.1 \
     deepfm_benchmark_a100.py \
-      --data_dir $DATA_DIR \
-      --persistent_path $PERSISTENT_PATH \
+      --data_dir /RAID0/xiexuan/criteo1t_oneflow_C39_raw \
+      --persistent_path persistent \
       --amp
 

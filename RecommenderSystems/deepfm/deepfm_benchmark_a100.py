@@ -47,11 +47,11 @@ def get_args(print_args=True):
     parser.add_argument(
         "--dnn", type=int_list, default="1000,1000,1000,1000,1000", help="dnn hidden units number"
     )
-    parser.add_argument("--net_dropout", type=float, default=0.2, help="net dropout rate")
+    parser.add_argument("--net_dropout", type=float, default=0.05, help="net dropout rate")
     parser.add_argument("--disable_fusedmlp", action="store_true", help="disable fused MLP or not")
     parser.add_argument("--lr_factor", type=float, default=0.1)
     parser.add_argument("--min_lr", type=float, default=1.0e-6)
-    parser.add_argument("--learning_rate", type=float, default=0.001, help="learning rate")
+    parser.add_argument("--learning_rate", type=float, default=0.0025, help="learning rate")
 
     parser.add_argument(
         "--batch_size", type=int, default=55296, help="training/evaluation batch size"
@@ -361,7 +361,7 @@ def train(args):
     deepfm_module = make_deepfm_module(args)
     deepfm_module.to_global(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
     label_loader = flow.nn.RawReader(
-            ["/RAID0/criteo1t_oneflow_raw/train/label_float.bin"],
+            ["/RAID0/xiexuan/criteo1t_oneflow_C39_raw/train/label_float.bin"],
             (1,),
             flow.float32,
             args.batch_size,
@@ -372,7 +372,7 @@ def train(args):
         )
 
     sparse_loader = flow.nn.RawReader(
-            ["/RAID0/criteo1t_oneflow_raw/train/sparse_C39_int32.bin"],
+            ["/RAID0/xiexuan/criteo1t_oneflow_C39_raw/train/sparse_int32.bin"],
             (39,),
             flow.int32,
             args.batch_size,
@@ -383,7 +383,7 @@ def train(args):
         )
 
     label_loader_val = flow.nn.RawReader(
-            ["/RAID0/criteo1t_oneflow_raw/test/label_float.bin"],
+            ["/RAID0/xiexuan/criteo1t_oneflow_C39_raw/test/label_float.bin"],
             (1,),
             flow.float32,
             args.batch_size,
@@ -394,7 +394,7 @@ def train(args):
         )
 
     sparse_loader_val = flow.nn.RawReader(
-            ["/RAID0/criteo1t_oneflow_raw/test/sparse_C39_int32.bin"],
+            ["/RAID0/xiexuan/criteo1t_oneflow_C39_raw/test/sparse_int32.bin"],
             (39,),
             flow.int32,
             args.batch_size,
