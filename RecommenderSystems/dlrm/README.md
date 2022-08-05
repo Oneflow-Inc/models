@@ -112,14 +112,14 @@ python3 -m oneflow.distributed.launch \
 
 ## Run OneFlow DLRM benchmark
 1. make dlrm raw format dataset (sparse feature dtype = int32)
-  - split day_23 to test.csv and val.csv, in criteo terabyte dataset directory where extracted day_0 to day_23 files located, such as `/RAID0/dlrm_parquet_int32`:
+  - split day_23 to test.csv and val.csv, in criteo terabyte dataset directory where extracted day_0 to day_23 files located 
 ```
 head -n 89137319 day_23 > test.csv
 tail -n +89137320 day_23 > val.csv
 ```
   - launch spark shell in "RecommenderSystems/dlrm/tools" directory:  
 ```
-export SPARK_LOCAL_DIRS=/RAID0/tmp_spark
+export SPARK_LOCAL_DIRS=/path/to/tmp_spark
 spark-shell \
     --master "local[*]" \
     --conf spark.driver.maxResultSize=0 \
@@ -128,7 +128,7 @@ spark-shell \
   - load scala file in spark-shell, and execute `makeDlrmDatasetInt32` 
 ```
 :load criteo1t_parquet_int32.scala
-makeDlrmDatasetInt32("/RAID0/criteo1t_raw", "/RAID0/dlrm_parquet_int32")
+makeDlrmDatasetInt32("/path/to/criteo1t_raw", "/path/to/dlrm_parquet_int32")
 ```
   - convert parquet dataset to oneflow raw format
 ```
