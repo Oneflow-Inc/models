@@ -132,17 +132,13 @@ makeDlrmDatasetInt32("/RAID0/criteo1t_raw", "/RAID0/dlrm_parquet_int32")
 ```
   - convert parquet dataset to oneflow raw format
 ```
-# create folders manually
-mkdir -p /RAID0/criteo1t_oneflow_raw/test
-mkdir -p /RAID0/criteo1t_oneflow_raw/val
-mkdir -p /RAID0/criteo1t_oneflow_raw/train
-
-python parquet_to_raw.py 
+python parquet_to_raw.py \
+  --input_dir=/path/to/dlrm_parquet_int32 \
+  --output_dir=/path/to/criteo1t_oneflow_raw
 ```
 
-note: suppose root folder of target raw dataset is `/RAID0/criteo1t_oneflow_raw`
-
 2. train OneFlow DLRM benchmark in AMP mode
+modify `data_dir` and `persistent_path` in `train_dlrm_benchmark.sh` and run:
 
 ```
 ./train_dlrm_benchmark.sh
@@ -150,6 +146,7 @@ note: suppose root folder of target raw dataset is `/RAID0/criteo1t_oneflow_raw`
 ```
 
 3. or train OneFlow DLRM benchmark in FP32 mode
+modify `data_dir` and `persistent_path` in `train_dlrm_benchmark_fp32.sh` and run:
 
 ```
 ./train_dlrm_benchmark_fp32.sh
