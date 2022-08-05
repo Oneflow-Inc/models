@@ -93,7 +93,7 @@ def get_args(print_args=True):
     parser.add_argument("--cache_memory_budget_mb", type=int, default=8192)
     parser.add_argument("--amp", action="store_true", help="Run model with amp")
     parser.add_argument(
-        "--split_allreduce", action="store_true", help="split bottom and top allreduce"
+        "--disable_split_allreduce", action="store_true", help="disable split bottom and top allreduce"
     )
     parser.add_argument("--loss_scale_policy", type=str, default="static", help="static or dynamic")
 
@@ -539,7 +539,7 @@ if __name__ == "__main__":
     #os.system("env")
     flow.boxing.nccl.enable_all_to_all(True)
     args = get_args()
-    if args.split_allreduce:
+    if not args.disable_split_allreduce:
         flow.boxing.nccl.set_fusion_max_ops_num(10)
 
     train(args)
