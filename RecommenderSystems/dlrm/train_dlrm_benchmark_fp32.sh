@@ -15,6 +15,14 @@ export ONEFLOW_FUSE_BCE_REDUCE_MEAN_FW_BW=1
 
 export ONEFLOW_RAW_READER_FORCE_DIRECT_IO=1
 
+export CUDA_DEVICE_MAX_CONNECTIONS=32
+export ONEFLOW_EP_CUDA_STREAM_FLAGS=1
+export ONEFLOW_RAW_READER_PREFETCHING_QUEUE_DEPTH=512
+export ONEFLOW_RAW_READER_NUM_WORKERS=1
+
+export LD_PRELOAD=/usr/lib64/libjemalloc.so.1
+
+numactl --interleave=all \
 python3 -m oneflow.distributed.launch \
     --nproc_per_node 8 \
     --nnodes 1 \
