@@ -242,7 +242,7 @@ class OneEmbedding(nn.Module):
         assert table_size_array is not None
         vocab_size = sum(table_size_array)
         tables = [
-            flow.one_embedding.make_table(
+            flow.one_embedding.make_table_options(
                 flow.one_embedding.make_normal_initializer(mean=0.0, std=1e-4)
             )
             for _ in range(len(table_size_array))
