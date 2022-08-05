@@ -8,7 +8,6 @@ fields += ["I{}".format(i + 1) for i in range(13)]
 fields += ["C{}".format(i + 1) for i in range(26)]
 
 def parquet_to_raw(files, output_dir):
-    #print(files)
     with make_batch_reader(files, workers_count=1, shuffle_row_groups=False) as reader:
         lf = open(f'{output_dir}/label.bin', 'wb')
         df = open(f'{output_dir}/dense.bin', 'wb')
