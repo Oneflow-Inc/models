@@ -21,7 +21,6 @@ def makeDlrmDatasetInt32(srcDir: String, dstDir:String) = {
     spark.read.option("delimiter", "\t").csv(val_csv).toDF(col_names: _*).select(cols:_*).repartition(256).write.parquet(s"${dstDir}/val")
     
     val day_files = 0.until(23).map{day=>s"${srcDir}/day_${day}"}
-    // in one line
     spark.read.option("delimiter", "\t").csv(day_files:_*).toDF(col_names: _*).select(cols:_*).orderBy(rand()).repartition(2560).write.parquet(s"${dstDir}/train")
     
     // print table size array
