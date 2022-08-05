@@ -272,7 +272,7 @@ class OneEmbedding(nn.Module):
 
         scales = np.sqrt(1 / np.array(table_size_array))
         tables = [
-            flow.one_embedding.make_table(
+            flow.one_embedding.make_table_options(
                 flow.one_embedding.make_uniform_initializer(low=-scale, high=scale)
             )
             for scale in scales
