@@ -44,9 +44,6 @@
 
 We implemented our model with refernce to `transformers.RobertaModel`, which is composed of `Roberta`, `RobertaEncoder`, `RobertaLayer`, `RobertaPooler`, `RobertaOutput`, `RobertaIntermediate`, `RobertaAttention`, `RobertaSelfAttention`, `RobertaSelfOutput`, `RobertaEmbedding`.
 
-There are some differences between `transformers.RobertaModel` and ours:
-
-
 ## requirement
 
 ```
@@ -62,7 +59,7 @@ We complete NLP-classification task based on SST-2 dataset in order to test our 
 wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/datasets/models/NLP/SST-2.tar.gz
 tar zxf SST-2.tar.gz
 ```
-### Pertrain model
+### Pretrain model
 - roberta-base  <br>
 We complete this by moving the weights from already_trained roberta model from transformers. For more details, see weights_transform. 
 ```bash
