@@ -144,7 +144,7 @@ python parquet_to_raw.py \
 note: `train_dlrm_benchmark.sh` takes 3 arguments:
 - $1 is data_dir pointing to criteo1t_oneflow_raw dataset
 - $2 is number of GPUs, default is `8`
-- $3 is persistent path for OneEmbedding, default is `persistent`
+- $3 is to enable direct io or not, default is `0`, set `1` to enable direct io  
 
 3. or train OneFlow DLRM benchmark in FP32 mode
 
