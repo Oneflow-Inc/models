@@ -1,6 +1,8 @@
 data_dir=${1}
 ngpus=${2:-8}
-pp=${3:-persistent}
+enable_direct_io=${3:-0}
+
+export ONEFLOW_RAW_READER_FORCE_DIRECT_IO=$enable_direct_io
 
 export NCCL_CHECKS_DISABLE=1
 export ONEFLOW_FUSE_MODEL_UPDATE_CAST=1
@@ -11,9 +13,6 @@ export ONEFLOW_ONE_EMBEDDING_FUSED_MLP_ASYNC_GRAD=1
 export ONEFLOW_ONE_EMBEDDING_FUSE_EMBEDDING_INTERACTION=1
 export ONEFLOW_EP_CUDA_DEVICE_FLAGS=2
 export ONEFLOW_FUSE_BCE_REDUCE_MEAN_FW_BW=1
-
-# optional if batch_size = 55296
-# export ONEFLOW_RAW_READER_FORCE_DIRECT_IO=1
 
 python3 -m oneflow.distributed.launch \
     --nproc_per_node $ngpus \

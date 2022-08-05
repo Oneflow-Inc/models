@@ -1,6 +1,8 @@
 data_dir=${1}
 ngpus=${2:-8}
-pp=${3:-persistent}
+enable_direct_io=${3:-0}
+
+export ONEFLOW_RAW_READER_FORCE_DIRECT_IO=$enable_direct_io
 
 export NCCL_CHECKS_DISABLE=1
 export ONEFLOW_FUSE_MODEL_UPDATE_CAST=1
@@ -15,9 +17,6 @@ export ONEFLOW_FUSE_BCE_REDUCE_MEAN_FW_BW=1
 export ONEFLOW_ONE_EMBEDDING_ID_SHUFFLE_USE_P2P=1
 export ONEFLOW_ONE_EMBEDDING_EMBEDDING_SHUFFLE_USE_P2P=1
 
-# optional if batch_size = 55296
-# export ONEFLOW_RAW_READER_FORCE_DIRECT_IO=1
-
 python3 -m oneflow.distributed.launch \
     --nproc_per_node $ngpus \
     --nnodes 1 \
@@ -25,6 +24,5 @@ python3 -m oneflow.distributed.launch \
     --master_addr 127.0.0.1 \
     dlrm_benchmark_a100.py \
       --data_dir $data_dir \
-      --persistent_path $pp \
       --amp
 

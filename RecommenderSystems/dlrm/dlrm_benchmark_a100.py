@@ -71,7 +71,7 @@ def get_args(print_args=True):
     parser.add_argument("--data_dir", type=str, required=True)
     parser.add_argument("--eval_batches", type=int, default=1612, help="number of eval batches")
     parser.add_argument("--eval_batch_size", type=int, default=55296)
-    parser.add_argument("--eval_interval", type=int, default=10000)
+    parser.add_argument("--eval_interval", type=int, default=100000)
     parser.add_argument("--eval_steps", type=int_list, default="1000000")
     parser.add_argument("--train_batch_size", type=int, default=55296)
     parser.add_argument("--learning_rate", type=float, default=24)
@@ -87,7 +87,7 @@ def get_args(print_args=True):
         help="Embedding table size array for sparse fields",
     )
     parser.add_argument(
-        "--persistent_path", type=str, required=True, help="path for persistent kv store",
+        "--persistent_path", type=str, default="persistent", help="path for persistent kv store",
     )
     parser.add_argument("--store_type", type=str, default="device_mem")
     parser.add_argument("--cache_memory_budget_mb", type=int, default=8192)
