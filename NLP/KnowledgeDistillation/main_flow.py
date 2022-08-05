@@ -1,22 +1,40 @@
 import math
 import argparse
-import oneflow as flow
-import oneflow.nn as nn
-import oneflow.nn.functional as F
-from flowvision import datasets, transforms
-import oneflow.utils.data
-from model import TeacherNet, StudentNet
 import matplotlib.pyplot as plt
 
-flow.manual_seed(0)
-# flow.cuda.manual_seed(0)
+import oneflow as flow
+import oneflow.nn as nn
+import oneflow.utils.data
+import oneflow.nn.functional as F
+from flowvision import datasets, transforms
 
-def train_teacher(model, device, train_loader, optimizer, epoch):
+from model import TeacherNet, StudentNet
+
+parser = argparse.ArgumentParser(description="flags for knowledge distillation")
+
+# Training Parameters
+parser.add_argument("--model_save_dir", type=str, default="./output/model_save",
+        required=False, help="model save directory")
+parser.add_argument('--load_teacher_checkpoint_dir', type=str, default="./output/model_save/teacher")
+parser.add_argument('--model_type', type=str, default="teacher", choices=["teacher", "student_kd", "student", "compare"])
+parser.add_argument('--epochs', type=int, default=10)
+parser.add_argument('--batch_size', type=int, default=100)
+
+# Model Parameters
+parser.add_argument('--temperature', type=float, default=5.0)
+parser.add_argument('--alpha', type=float, default=0.7)
+
+
+args = parser.parse_args()
+args.device = flow.device("cuda" if flow.cuda.is_available() else "cpu")
+
+def train_teacher(model, train_loader, optimizer, epoch):
     print('train_teacher')
     model.train()
     trained_samples = 0
+    print(len(train_loader))
     for batch_idx, (data, target) in enumerate(train_loader):
-        data, target = data.to(device), target.to(device)
+        data, target = data.to(args.device), target.to(args.device)
         optimizer.zero_grad()
         output = model(data)
         loss = F.cross_entropy(output, target)
@@ -37,14 +55,13 @@ def train_teacher(model, device, train_loader, optimizer, epoch):
             end="",
         )
 
-
-def test_teacher(model, device, test_loader):
+def test_teacher(model, test_loader):
     model.eval()
     test_loss = 0
     correct = 0
     with flow.no_grad():
         for data, target in test_loader:
-            data, target = data.to(device), target.to(device)
+            data, target = data.to(args.device), target.to(args.device)
             output = model(data)
             test_loss += F.cross_entropy(
                 output, target, reduction="sum"
@@ -68,13 +85,12 @@ def test_teacher(model, device, test_loader):
     )
     return test_loss, correct / len(test_loader.dataset)
 
-
 def teacher_main():
-    epochs = 10
-    batch_size = 64
-    flow.manual_seed(0)
+    # epochs = 10
+    # batch_size = 64
+    flow.manual_seed(2022)
 
-    device = flow.device("cuda" if flow.cuda.is_available() else "cpu")
+    # device = flow.device("cuda" if flow.cuda.is_available() else "cpu")
 
     train_loader = flow.utils.data.DataLoader(
         datasets.MNIST(
@@ -85,7 +101,7 @@ def teacher_main():
                 [transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]
             ),
         ),
-        batch_size=batch_size,
+        batch_size=args.batch_size,
         shuffle=True,
     )
     test_loader = flow.utils.data.DataLoader(
@@ -101,18 +117,18 @@ def teacher_main():
         shuffle=True,
     )
 
-    model = TeacherNet().to(device)
-    optimizer = flow.optim.Adam(model.parameters())
+    model = TeacherNet().to(args.device)
+    optimizer = flow.optim.Adadelta(model.parameters())
 
     teacher_history = []
 
-    for epoch in range(1, epochs + 1):
-        train_teacher(model, device, train_loader, optimizer, epoch)
-        loss, acc = test_teacher(model, device, test_loader)
+    for epoch in range(1, args.epochs + 1):
+        train_teacher(model, train_loader, optimizer, epoch)
+        loss, acc = test_teacher(model, test_loader)
 
         teacher_history.append((loss, acc))
 
-    flow.save(model.state_dict(), "teacher")
+    flow.save(model.state_dict(), args.model_save_dir + '/teacher')
     return model, teacher_history
 
 
@@ -121,19 +137,19 @@ def distillation(y, labels, teacher_scores, temp, alpha):
             temp * temp * 2.0 * alpha) + F.cross_entropy(y, labels) * (1. - alpha)
 
 
-def train_student_kd(model, device, train_loader, optimizer, epoch):
+def train_student_kd(model, train_loader, optimizer, epoch):
     print('train_student_kd')
     model.train()
     trained_samples = 0
-    teacher_model = TeacherNet().to(device)
-    teacher_model.load_state_dict(flow.load('teacher'))
+    teacher_model = TeacherNet().to(args.device)
+    teacher_model.load_state_dict(flow.load(args.load_teacher_checkpoint_dir))
     for batch_idx, (data, target) in enumerate(train_loader):
-        data, target = data.to(device), target.to(device)
+        data, target = data.to(args.device), target.to(args.device)
         optimizer.zero_grad()
         output = model(data)
         teacher_output = teacher_model(data)
         teacher_output = teacher_output.detach()  # 切断老师网络的反向传播，感谢B站“淡淡的落”的提醒
-        loss = distillation(output, target, teacher_output, temp=5.0, alpha=0.7)
+        loss = distillation(output, target, teacher_output, temp=args.temperature, alpha=args.alpha)
         loss.backward()
         optimizer.step()
 
@@ -144,13 +160,13 @@ def train_student_kd(model, device, train_loader, optimizer, epoch):
                '-' * progress + '>', progress * 2), end='')
 
 
-def test_student_kd(model, device, test_loader):
+def test_student_kd(model, test_loader):
     model.eval()
     test_loss = 0
     correct = 0
     with flow.no_grad():
         for data, target in test_loader:
-            data, target = data.to(device), target.to(device)
+            data, target = data.to(args.device), target.to(args.device)
             output = model(data)
             test_loss += F.cross_entropy(output, target, reduction='sum').item()  # sum up batch loss
             pred = output.argmax(dim=1, keepdim=True)  # get the index of the max log-probability
@@ -164,11 +180,11 @@ def test_student_kd(model, device, test_loader):
     return test_loss, correct / len(test_loader.dataset)
 
 def student_kd_main():
-    epochs = 10
-    batch_size = 64
-    flow.manual_seed(0)
+    # epochs = 10
+    # batch_size = 64
+    flow.manual_seed(2022)
 
-    device = flow.device("cuda" if flow.cuda.is_available() else "cpu")
+    # device = flow.device("cuda" if flow.cuda.is_available() else "cpu")
 
     train_loader = flow.utils.data.DataLoader(
         datasets.MNIST('./', train=True, download=True,
@@ -176,7 +192,7 @@ def student_kd_main():
                            transforms.ToTensor(),
                            transforms.Normalize((0.1307,), (0.3081,))
                        ])),
-        batch_size=batch_size, shuffle=True)
+        batch_size=args.batch_size, shuffle=True)
     test_loader = flow.utils.data.DataLoader(
         datasets.MNIST('./', train=False, download=True, transform=transforms.Compose([
             transforms.ToTensor(),
@@ -184,26 +200,26 @@ def student_kd_main():
         ])),
         batch_size=1000, shuffle=True)
 
-    model = StudentNet().to(device)
-    optimizer = flow.optim.Adam(model.parameters())
+    model = StudentNet().to(args.device)
+    optimizer = flow.optim.Adadelta(model.parameters(), lr=args.learning_rate)
     
     student_history = []
-    for epoch in range(1, epochs + 1):
-        train_student_kd(model, device, train_loader, optimizer, epoch)
-        loss, acc = test_student_kd(model, device, test_loader)
+    for epoch in range(1, args.epochs + 1):
+        train_student_kd(model, train_loader, optimizer, epoch)
+        loss, acc = test_student_kd(model, test_loader)
         student_history.append((loss, acc))
 
-    flow.save(model.state_dict(), "student_kd")
+    flow.save(model.state_dict(), args.model_save_dir + "/student_kd")
     return model, student_history
 
 
 ## 让学生自己学，不使用KD
-def train_student(model, device, train_loader, optimizer, epoch):
+def train_student(model, train_loader, optimizer, epoch):
     print('train_student')
     model.train()
     trained_samples = 0
     for batch_idx, (data, target) in enumerate(train_loader):
-        data, target = data.to(device), target.to(device)
+        data, target = data.to(args.device), target.to(args.device)
         optimizer.zero_grad()
         output = model(data)
         loss = F.cross_entropy(output, target)
@@ -217,13 +233,13 @@ def train_student(model, device, train_loader, optimizer, epoch):
                '-' * progress + '>', progress * 2), end='')
 
 
-def test_student(model, device, test_loader):
+def test_student(model, test_loader):
     model.eval()
     test_loss = 0
     correct = 0
     with flow.no_grad():
         for data, target in test_loader:
-            data, target = data.to(device), target.to(device)
+            data, target = data.to(args.device), target.to(args.device)
             output = model(data)
             test_loss += F.cross_entropy(output, target, reduction='sum').item()  # sum up batch loss
             pred = output.argmax(dim=1, keepdim=True)  # get the index of the max log-probability
@@ -240,9 +256,9 @@ def test_student(model, device, test_loader):
 def student_main():
     epochs = 10
     batch_size = 64
-    flow.manual_seed(0)
+    flow.manual_seed(2022)
 
-    device = flow.device("cuda" if flow.cuda.is_available() else "cpu")
+    # device = flow.device("cuda" if flow.cuda.is_available() else "cpu")
 
     train_loader = flow.utils.data.DataLoader(
         datasets.MNIST('./', train=True, download=True,
@@ -250,7 +266,7 @@ def student_main():
                            transforms.ToTensor(),
                            transforms.Normalize((0.1307,), (0.3081,))
                        ])),
-        batch_size=batch_size, shuffle=True)
+        batch_size=args.batch_size, shuffle=True)
     test_loader = flow.utils.data.DataLoader(
         datasets.MNIST('./', train=False, download=True, transform=transforms.Compose([
             transforms.ToTensor(),
@@ -258,51 +274,64 @@ def student_main():
         ])),
         batch_size=1000, shuffle=True)
 
-    model = StudentNet().to(device)
-    optimizer = flow.optim.Adam(model.parameters())
+    model = StudentNet().to(args.device)
+    optimizer = flow.optim.Adadelta(model.parameters())
     
     student_history = []
     
-    for epoch in range(1, epochs + 1):
-        train_student(model, device, train_loader, optimizer, epoch)
-        loss, acc = test_student(model, device, test_loader)
+    for epoch in range(1, args.epochs + 1):
+        train_student(model, train_loader, optimizer, epoch)
+        loss, acc = test_student(model, test_loader)
         student_history.append((loss, acc))
 
-    flow.save(model.state_dict(), "student")
+    flow.save(model.state_dict(), args.model_save_dir + "/student")
     return model, student_history
 
 
 if __name__ == '__main__':
+    
 
-    teacher_model, teacher_history = teacher_main()
-    student_kd_model, student_kd_history = student_kd_main()
-    student_simple_model, student_simple_history = student_main()
+    flow.manual_seed(2022)
+    flow.cuda.manual_seed(2022)
+    flow.cuda.manual_seed_all(2022)
 
-    if 1 == 1:
-        epochs = 10
-        x = list(range(1, epochs+1))
+    teacher_history = None
+    student_kd_history = None
+    student_simple_history = None
+    if args.model_type == 'teacher' or args.model_type == 'compare':
+        print('===== start training teacher model ... =====')
+        teacher_model, teacher_history = teacher_main()
+    if args.model_type == 'student_kd' or args.model_type == 'compare':
+        print('===== start training student_kd model ... =====')
+        student_kd_model, student_kd_history = student_kd_main()
+    if args.model_type == 'student' or args.model_type == 'compare':
+        student_simple_model, student_simple_history = student_main()
 
-        plt.subplot(2, 1, 1)
-        if teacher_history != None:
-            plt.plot(x, [teacher_history[i][1] for i in range(epochs)], label='teacher')
-        if student_kd_history != None:
-            plt.plot(x, [student_kd_history[i][1] for i in range(epochs)], label='student with KD')
-        if student_simple_history != None:
-            plt.plot(x, [student_simple_history[i][1] for i in range(epochs)], label='student without KD')
+    # epochs = 10
+    x = list(range(1, args.epochs+1))
 
-        plt.title('Test accuracy')
-        plt.legend()
+    plt.subplot(2, 1, 1)
+    if teacher_history != None:
+        plt.plot(x, [teacher_history[i][1] for i in range(args.epochs)], label='teacher')
+    if student_kd_history != None:
+        plt.plot(x, [student_kd_history[i][1] for i in range(args.epochs)], label='student with KD')
+    if student_simple_history != None:
+        plt.plot(x, [student_simple_history[i][1] for i in range(args.epochs)], label='student without KD')
+
+    plt.title('Test accuracy')
+    plt.legend()
 
 
-        plt.subplot(2, 1, 2)
-        if teacher_history != None:
-            plt.plot(x, [teacher_history[i][0] for i in range(epochs)], label='teacher')
-        if student_kd_history != None:
-            plt.plot(x, [student_kd_history[i][0] for i in range(epochs)], label='student with KD')
-        if student_simple_history != None:
-            plt.plot(x, [student_simple_history[i][0] for i in range(epochs)], label='student without KD')
+    plt.subplot(2, 1, 2)
+    if teacher_history != None:
+        plt.plot(x, [teacher_history[i][0] for i in range(args.epochs)], label='teacher')
+    if student_kd_history != None:
+        plt.plot(x, [student_kd_history[i][0] for i in range(args.epochs)], label='student with KD')
+    if student_simple_history != None:
+        plt.plot(x, [student_simple_history[i][0] for i in range(args.epochs)], label='student without KD')
 
-        plt.title('Test loss')
-        plt.legend()
+    plt.title('Test loss')
+    plt.legend()
 
-        plt.savefig('./oneflow_result.jpg')
+    plt.savefig('./oneflow_result.jpg')
+
