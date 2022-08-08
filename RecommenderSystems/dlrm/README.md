@@ -1,6 +1,6 @@
 # DLRM
 [DLRM](https://arxiv.org/pdf/1906.00091.pdf) is a deep learning-based recommendation model that exploits categorical data for click-through rate (CTR) prediction and rankings. Its model structure is as follows. Based on this structure, this project uses OneFlow distributed deep learning framework to realize training the model in graph mode on the Criteo data set.
-![image](https://user-images.githubusercontent.com/63446546/158937131-1a057659-0d49-4bfb-aee2-5568e605fa01.png)
+![image](https://user-images.githubusercontent.com/16327185/182550409-f6923d81-d50b-495e-a178-5e2066a1ead3.png)
 
 ## Directory description
 ```
@@ -70,7 +70,7 @@ In our data preprocess, the label is mapped to integer, literal `1` is added to 
 1. The index count of each features is limited to `mod_idx`(40 million as default), and offset `mod_idx * i` is added to the limited value to make sure each column has different ids, `i` stands for column id.
 2. The original 32 bits hashed value is hashed onto 64 bits alone with column id `i` to make sure each column has different ids.
 
-Please find `tools/criteo1t_parquet.py` for more information. Except `input_dir` and `output_dir`, there are a few more arguments to run `tools/criteo1t_parquet.py`:
+Please find `tools/criteo1t_parquet.py` for more information. Besides `input_dir` and `output_dir`, there are a few more arguments to run `tools/criteo1t_parquet.py`:
 - `spark_tmp_dir`: change the tmp directory used by pyspark, SSD of 2T or above is recommended
 - `spark_driver_memory_gb`: amount of gigabyte memory to use for the driver process, 360 as default
 - `mod_idx`, limited value of index count of each features, `0` or less stands for no limit
