@@ -364,7 +364,7 @@ class DLRMValGraph(flow.nn.Graph):
         super(DLRMValGraph, self).__init__()
         self.module = dlrm_module
         self.label_loader, self.dense_loader, self.sparse_loader = make_raw_dataloader(
-            f"{data_dir}/val", batch_size, shuffle=False
+            f"{data_dir}/test", batch_size, shuffle=False
         )
 
         if amp:
