@@ -85,7 +85,7 @@ class Trainer(object):
 
         if self.is_consistent:
             placement = flow.env.all_device_placement("cuda")
-            self.model = self.model.to_consistent(
+            self.model = self.model.to_global(
                 placement=placement, sbp=flow.sbp.broadcast
             )
         else:
@@ -217,7 +217,10 @@ class Trainer(object):
 
     def train(self):
         self.logger.metric("time").reset()
-        for _ in range(self.num_epochs):
+        for i in range(self.num_epochs):
+            if i == 1:
+                cmd = "nvidia-smi --query-gpu=timestamp,name,driver_version,utilization.gpu,utilization.memory,memory.total,memory.free,memory.used --format=csv"
+                os.system(cmd)
             self.train_one_epoch()
             if self.cur_batch == self.total_batches:
                 break
