@@ -1,6 +1,6 @@
 #!/bin/bash
 DEVICE_NUM_PER_NODE=1
-DATA_DIR=/path/to/dssm_parquet
+DATA_DIR=/path/to/movielens_embdict
 PERSISTENT_PATH=/path/to/persistent
 MODEL_SAVE_DIR=/path/to/model/save/dir
 
@@ -12,7 +12,7 @@ python3 -m oneflow.distributed.launch \
     dssm_train_eval.py \
       --data_dir $DATA_DIR \
       --persistent_path $PERSISTENT_PATH \
-      --table_size_array "17045, 23743, 49657" \
+      --table_size_array "16976, 23605, 49657" \
       --store_type 'cached_host_mem' \
       --cache_memory_budget_mb 1024 \
       --batch_size 4096 \

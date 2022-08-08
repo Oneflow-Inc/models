@@ -296,6 +296,35 @@ class OneEmbedding(nn.Module):
         return self.one_embedding.forward(ids)
 
 
+class EmbeddingDict(nn.Module):
+    def __init__(
+        self,
+        embedding_dim,
+        table_size_array,
+    ):
+        super(EmbeddingDict, self).__init__()
+        self.embedding_layer = nn.ModuleDict()
+        self.embedding_layer["user_id"] = nn.Embedding(table_size_array[0], embedding_dim)
+        self.embedding_layer["item_id"] = nn.Embedding(table_size_array[1], embedding_dim)
+        self.embedding_layer["tag_id"] = nn.Embedding(table_size_array[2], embedding_dim)
+
+        for k, v in self.embedding_layer.items():
+            flow.nn.init.normal_(v.weight[0:-1, :], std=1e-4)
+
+    def forward(self, X):
+        user_feature = []
+        item_feature = []
+        for idx, feature in enumerate(["user_id", "item_id", "tag_id"]):
+            if feature in self.embedding_layer:
+                inp = X[:, idx].long()
+                embedding_vec = self.embedding_layer[feature](inp)
+                if feature in ["user_id"]:
+                    user_feature.append(embedding_vec)
+                else:
+                    item_feature.append(embedding_vec)
+        return flow.stack(user_feature, dim=1), flow.stack(item_feature, dim=1)
+
+
 class DNN(nn.Module):
     def __init__(
         self,
@@ -361,15 +390,7 @@ class DssmModule(nn.Module):
 
         self.embedding_vec_size = embedding_vec_size
 
-        self.embedding_layer = OneEmbedding(
-            table_name="sparse_embedding",
-            embedding_vec_size=embedding_vec_size,
-            persistent_path=persistent_path,
-            table_size_array=table_size_array,
-            store_type=one_embedding_store_type,
-            cache_memory_budget_mb=cache_memory_budget_mb,
-            size_factor=3,
-        )
+        self.embedding_layer = EmbeddingDict(embedding_dim=embedding_vec_size, table_size_array=table_size_array)
 
         self.user_dnn_layer = DNN(
             in_features=embedding_vec_size * num_user_fields,
@@ -390,14 +411,10 @@ class DssmModule(nn.Module):
         )
 
     def forward(self, inputs) -> flow.Tensor:
-        sparse_emb = self.embedding_layer(inputs)
-        user_emb = sparse_emb[:, 0 : num_user_fields, :]
-        item_emb = sparse_emb[:, num_user_fields :, :]
+        user_emb, item_emb = self.embedding_layer(inputs)
         
         user_out = self.user_dnn_layer(user_emb.flatten(start_dim=1))
-        # user_out = flow.nn.functional.normalize(user_out, p=2.0, dim=-1)
         item_out = self.item_dnn_layer(item_emb.flatten(start_dim=1))
-        # item_out = flow.nn.functional.normalize(item_out, p=2.0, dim=-1)
 
         y_pred = (user_out * item_out).sum(dim=-1, keepdim=True)
 
