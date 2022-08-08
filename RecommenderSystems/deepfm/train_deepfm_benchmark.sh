@@ -1,5 +1,9 @@
 #!/bin/bash
-rm -rf ./persistent/*
+data_dir=${1}
+ngpus=${2:-8}
+enable_direct_io=${3:-0}
+
+export ONEFLOW_RAW_READER_FORCE_DIRECT_IO=$enable_direct_io
 
 export NCCL_CHECKS_DISABLE=1
 export ONEFLOW_FUSE_MODEL_UPDATE_CAST=1
@@ -16,12 +20,11 @@ export ONEFLOW_ONE_EMBEDDING_ID_SHUFFLE_USE_P2P=1
 export ONEFLOW_ONE_EMBEDDING_EMBEDDING_SHUFFLE_USE_P2P=1
 
 python3 -m oneflow.distributed.launch \
-    --nproc_per_node 4 \
+    --nproc_per_node $ngpus \
     --nnodes 1 \
     --node_rank 0 \
     --master_addr 127.0.0.1 \
     deepfm_benchmark_a100.py \
-      --data_dir /RAID0/criteo1t_oneflow_raw \
-      --persistent_path persistent \
+      --data_dir $data_dir \
       --amp
 
