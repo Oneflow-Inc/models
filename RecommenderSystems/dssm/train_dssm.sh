@@ -12,7 +12,7 @@ python3 -m oneflow.distributed.launch \
     dssm_train_eval.py \
       --data_dir $DATA_DIR \
       --persistent_path $PERSISTENT_PATH \
-      --table_size_array "17045, 23743, 49657" \
+      --table_size_array "16976, 23605, 49657" \
       --store_type 'cached_host_mem' \
       --cache_memory_budget_mb 1024 \
       --batch_size 4096 \
