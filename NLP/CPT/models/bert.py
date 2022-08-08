@@ -1,10 +1,10 @@
 # referemce to transformers bert model
-import oneflow as flow
-
-import oneflow.nn as nn
-
 import math
 from typing import Tuple, Optional
+
+import oneflow as flow
+import oneflow.nn as nn
+
 from .bert_utils import (
     init_weights,
     find_pruneable_heads_and_indices,

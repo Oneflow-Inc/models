@@ -15,6 +15,20 @@ We implemented some extra functions here:
 <!-- - `LayerNorm` in `models/dev_ops.py` -->
 - `tensor_unique` in `models/bart_utils.py`
 
+## requirement
+
+This project uses the lightly version of oneflow. You can use the following command to install.
+CPU：
+```bash
+python3 -m pip install -f  https://staging.oneflow.info/branch/master/cpu  --pre oneflow
+```
+GPU：
+```bash
+python3 -m pip install -f  https://staging.oneflow.info/branch/master/cu112  --pre oneflow
+```
+You can install other dependencies using the following command.
+```bash
+
 ## Train
 
 We use CLUE(Chinese GLUE)-AFQMC to test our CPT model. You can check [this site](https://www.cluebenchmarks.com/introduce.html) and [this site](https://github.com/CLUEbenchmark/CLUE) for details.

@@ -1,11 +1,10 @@
-from logging import log
 import math
 import random
 from typing import Optional, Tuple
 
 import oneflow as flow
 import oneflow.nn as nn
-from oneflow.nn import CrossEntropyLoss, MSELoss
+from oneflow.nn import CrossEntropyLoss
 
 from .bert import Bert
 from .bart_utils import (
@@ -16,6 +15,7 @@ from .bart_utils import (
     tensor_unique,  # for tensor.unique
 )
 from .utils import ACT2FN
+
 
 class BartLearnedPositionalEmbedding(nn.Embedding):
     """
