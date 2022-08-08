@@ -13,6 +13,7 @@ from petastorm.reader import make_batch_reader
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
 num_dense_fields = 13
 num_sparse_fields = 26
+num_fields = num_dense_fields + num_sparse_fields
 
 
 def get_args(print_args=True):
@@ -35,7 +36,6 @@ def get_args(print_args=True):
     parser.add_argument("--shard_seed", type=int, default=2022)
     parser.add_argument("--model_load_dir", type=str, default=None)
     parser.add_argument("--model_save_dir", type=str, default=None)
-    parser.add_argument("--save_best_model", action="store_true", help="save best model or not")
     parser.add_argument(
         "--save_initial_model", action="store_true", help="save initial model parameters or not.",
     )
@@ -49,14 +49,7 @@ def get_args(print_args=True):
     parser.add_argument("--dnn_hidden_units", type=int_list, default="1000,1000,1000,1000,1000")
     parser.add_argument("--crossing_layers", type=int, default=4)
     parser.add_argument("--net_dropout", type=float, default=0.05)
-    parser.add_argument("--embedding_regularizer", type=float, default=None)
-    parser.add_argument("--net_regularizer", type=float, default=None)
 
-    parser.add_argument(
-        "--disable_early_stop", action="store_true", help="enable early stop or not"
-    )
-    parser.add_argument("--patience", type=int, default=2)
-    parser.add_argument("--min_delta", type=float, default=1.0e-6)
     parser.add_argument("--lr_factor", type=float, default=0.1)
     parser.add_argument("--min_lr", type=float, default=1.0e-6)
     parser.add_argument("--learning_rate", type=float, default=0.001)
@@ -76,7 +69,7 @@ def get_args(print_args=True):
         default="62866,8001,2901,74623,7530,3391,1400,21705,7937,21,276,1235896,9659,39884301,39040,17291,7421,20263,3,7121,1543,63,38532372,2953790,403302,10,2209,11938,155,4,976,14,39979538,25638302,39665755,585840,12973,108,36",
     )
     parser.add_argument(
-        "--persistent_path", type=str, required=True, help="path for persistent kv store",
+        "--persistent_path", type=str, default="persistent", help="path for persistent kv store",
     )
     parser.add_argument("--store_type", type=str, default="device_mem")
     parser.add_argument("--cache_memory_budget_mb", type=int, default=8192)
@@ -262,7 +255,7 @@ class DCNModule(nn.Module):
             size_factor=size_factor,
         )
 
-        input_dim = embedding_vec_size * (num_dense_fields + num_sparse_fields)
+        input_dim = embedding_vec_size * num_fields
 
         self.dnn = (
             DNN(
@@ -327,11 +320,12 @@ def make_dcn_module(args):
 
 
 class DCNValGraph(flow.nn.Graph):
-    def __init__(self, dcn_module, label_loader, sparse_loader, amp=False):
+    def __init__(self, dcn_module, data_dir, batch_size, amp=False):
         super(DCNValGraph, self).__init__()
         self.module = dcn_module
-        self.label_loader = label_loader
-        self.sparse_loader = sparse_loader
+        self.label_loader, self.sparse_loader = make_raw_dataloader(
+            f"{data_dir}/test", batch_size, shuffle=False
+        )
         if amp:
             self.config.enable_amp(True)
 
@@ -344,7 +338,7 @@ class DCNValGraph(flow.nn.Graph):
 
 class DCNTrainGraph(flow.nn.Graph):
     def __init__(
-        self, dcn_module, loss, optimizer, label_loader, sparse_loader, grad_scaler=None, amp=False, lr_scheduler=None, 
+        self, dcn_module, data_dir, batch_size, loss, optimizer, grad_scaler=None, amp=False, lr_scheduler=None, 
     ):
         super(DCNTrainGraph, self).__init__()
         self.module = dcn_module
@@ -353,8 +347,9 @@ class DCNTrainGraph(flow.nn.Graph):
         self.config.allow_fuse_model_update_ops(True)
         self.config.allow_fuse_add_to_output(True)
         self.config.allow_fuse_cast_scale(True)
-        self.label_loader = label_loader
-        self.sparse_loader = sparse_loader
+        self.label_loader, self.sparse_loader = make_raw_dataloader(
+            f"{data_dir}/train", batch_size
+        )
         if amp:
             self.config.enable_amp(True)
             self.set_grad_scaler(grad_scaler)
@@ -366,6 +361,25 @@ class DCNTrainGraph(flow.nn.Graph):
         loss = self.loss(logits, labels.to("cuda"))
         loss.backward()
         return loss.to("cpu")
+
+
+def make_raw_dataloader(data_path, batch_size, shuffle=True):
+    def make_reader(data_file, length, dtype):
+        return flow.nn.RawReader(
+            [data_file],
+            (length,),
+            dtype,
+            batch_size,
+            random_shuffle=shuffle,
+            random_seed=1234,
+            placement=flow.env.all_device_placement("cpu"),
+            sbp=flow.sbp.split(0),
+        )
+
+    label_loader = make_reader(f"{data_path}/label.bin", 1, flow.float32)
+    sparse_loader = make_reader(f"{data_path}/sparse_C39.bin", num_fields, flow.int32)
+
+    return label_loader, sparse_loader
 
 
 def make_lr_scheduler(args, optimizer):
@@ -470,8 +484,8 @@ def train(args):
             init_scale=1073741824, growth_factor=2.0, backoff_factor=0.5, growth_interval=2000,
         )
 
-    eval_graph = DCNValGraph(dcn_module, label_loader_val, sparse_loader_val, args.amp)
-    train_graph = DCNTrainGraph(dcn_module, loss_func, opt, label_loader, sparse_loader, grad_scaler, args.amp, lr_scheduler=lr_scheduler)
+    eval_graph = DCNValGraph(dcn_module, args.data_dir, args.test_batch_size, args.amp)
+    train_graph = DCNTrainGraph(dcn_module, args.data_dir, args.train_batch_size, loss_func, opt, grad_scaler, args.amp, lr_scheduler=lr_scheduler)
 
     best_metric = -np.inf
     stopping_steps = 0
@@ -497,31 +511,26 @@ def train(args):
                     )
 
             if (args.eval_interval > 0 and step % args.eval_interval == 0):
-                val_auc, val_logloss = eval(
-                    args,
-                    eval_graph,
-                    cur_step=step,
-                )
-                # if args.save_model_after_each_eval:
-                #     save_model(f"step_{step}_val_auc_{val_auc:0.5f}")
-
-                # if args.save_best_model and save_best:
-                #     if rank == 0:
-                #         print(f"Save best model: monitor(max): {best_metric:.6f}")
-                #     save_model("best_checkpoint")
-
-                # if not args.disable_early_stop and stop_training:
-                #     break
+                val_auc = eval(args, eval_graph, cur_step=step)
+                if args.save_model_after_each_eval:
+                    save_model(f"step_{step}_val_auc_{val_auc:0.5f}")
 
                 dcn_module.train()
                 last_time = time.time()
 
-    if args.save_best_model:
-        load_model(f"{args.model_save_dir}/best_checkpoint")
     if rank == 0:
         print("================ Test Evaluation ================")
     if (args.eval_interval > 0 and step % args.eval_interval != 0):
         eval(args, eval_graph, cur_step=step)
+
+
+def tensor_list_to_local(tensors):
+    return (
+        flow.cat(tensors, dim=0)
+        .to_global(placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0))
+        .to_global(sbp=flow.sbp.broadcast())
+        .to_local()
+    )
 
 
 def eval(args, eval_graph, cur_step=0):
@@ -537,18 +546,8 @@ def eval(args, eval_graph, cur_step=0):
         labels.append(label.to_local())
         preds.append(pred.to_local())
 
-    labels = (
-        flow.cat(labels, dim=0)
-        .to_global(placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0))
-        .to_global(sbp=flow.sbp.broadcast())
-        .to_local()
-    )
-    preds = (
-        flow.cat(preds, dim=0)
-        .to_global(placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0))
-        .to_global(sbp=flow.sbp.broadcast())
-        .to_local()
-    )
+    labels = tensor_list_to_local(labels)
+    preds = tensor_list_to_local(preds)
 
     flow.comm.barrier()
     eval_time = time.time() - eval_start_time
@@ -557,8 +556,6 @@ def eval(args, eval_graph, cur_step=0):
 
     metrics_start_time = time.time()
     auc = flow.roc_auc_score(labels, preds).numpy()[0]
-    #logloss = flow._C.binary_cross_entropy_loss(preds, labels, weight=None, reduction="mean").item()
-    logloss = 0
     metrics_time = time.time() - metrics_start_time
 
     if rank == 0:
@@ -568,12 +565,12 @@ def eval(args, eval_graph, cur_step=0):
 
         strtime = time.strftime("%Y-%m-%d %H:%M:%S")
         print(
-            f"Rank[{rank}], Step {cur_step}, AUC {auc:0.6f}, LogLoss {logloss:0.6f}, "
+            f"Rank[{rank}], Step {cur_step}, AUC {auc:0.6f}, "
             + f"Eval_time {eval_time:0.2f} s, Metrics_time {metrics_time:0.2f} s, Eval_samples {labels.shape[0]}, "
             + f"GPU_Memory {device_mem_str}, Host_Memory {host_mem_mb} MiB, {strtime}"
         )
 
-    return auc, logloss
+    return auc
 
 
 if __name__ == "__main__":
