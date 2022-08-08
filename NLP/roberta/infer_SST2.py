@@ -5,7 +5,8 @@ import oneflow as flow
 from classifier_SST2 import SST2RoBERTa
 from config import infer_config
 sys.path.append("../")
-from tokenizer.RobertaTokenizer import RobertaTokenizer
+# from tokenizer.RobertaTokenizer import RobertaTokenizer
+from transformers import RobertaTokenizer
 
 
 def inference(args):

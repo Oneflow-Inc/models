@@ -46,7 +46,17 @@ We implemented our model with refernce to `transformers.RobertaModel`, which is 
 
 ## requirement
 
+This project uses the lightly version of oneflow. You can use the following command to install.
+CPU：
+```bash
+python3 -m pip install -f  https://staging.oneflow.info/branch/master/cpu  --pre oneflow
 ```
+GPU：
+```bash
+python3 -m pip install -f  https://staging.oneflow.info/branch/master/cu112  --pre oneflow
+```
+You can install other dependencies using the following command.
+```bash
 pip install -r requirements.txt
 ```
 

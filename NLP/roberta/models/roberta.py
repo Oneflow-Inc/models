@@ -12,9 +12,9 @@ from .roberta_utils import (
     create_position_ids_from_input_ids,
     find_pruneable_heads_and_indices,
     prune_linear_layer,
-    apply_chunking_to_forward
+    apply_chunking_to_forward,
+    ACT2FN
 )
-from .roberta_utils import ACT2FN
 
 class RobertaEmbeddings(nn.Module):
 
