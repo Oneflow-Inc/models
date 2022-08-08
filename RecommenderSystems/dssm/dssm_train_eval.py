@@ -110,6 +110,7 @@ def get_args(print_args=True):
         "--disable_early_stop", action="store_true", help="enable early stop or not"
     )
     parser.add_argument("--save_best_model", action="store_true", help="save best model or not")
+    parser.add_argument("--use_embdict", action="store_true", help="use embedding dict or not")
 
     args = parser.parse_args()
 
@@ -385,12 +386,18 @@ class DssmModule(nn.Module):
         one_embedding_store_type="cached_host_mem",
         cache_memory_budget_mb=8192,
         dropout=0.2,
+        use_embdict=True,
     ):
         super(DssmModule, self).__init__()
 
         self.embedding_vec_size = embedding_vec_size
+        self.use_embdict = use_embdict
 
-        self.embedding_layer = EmbeddingDict(embedding_dim=embedding_vec_size, table_size_array=table_size_array)
+        if self.use_embdict:
+            self.embedding_layer = EmbeddingDict(embedding_dim=embedding_vec_size, table_size_array=table_size_array)
+        else:
+            self.embedding_layer = nn.Embedding(sum(table_size_array), embedding_vec_size)
+            flow.nn.init.normal_(self.embedding_layer.weight[0:-1, :], std=1e-4)
 
         self.user_dnn_layer = DNN(
             in_features=embedding_vec_size * num_user_fields,
@@ -411,7 +418,12 @@ class DssmModule(nn.Module):
         )
 
     def forward(self, inputs) -> flow.Tensor:
-        user_emb, item_emb = self.embedding_layer(inputs)
+        if self.use_embdict:
+            user_emb, item_emb = self.embedding_layer(inputs)
+        else:
+            sparse_emb = self.embedding_layer(inputs)
+            user_emb = sparse_emb[:, 0 : num_user_fields, :]
+            item_emb = sparse_emb[:, num_user_fields :, :]
         
         user_out = self.user_dnn_layer(user_emb.flatten(start_dim=1))
         item_out = self.item_dnn_layer(item_emb.flatten(start_dim=1))
@@ -432,6 +444,7 @@ def make_dssm_module(args):
         one_embedding_store_type=args.store_type,
         cache_memory_budget_mb=args.cache_memory_budget_mb,
         dropout=args.net_dropout,
+        use_embdict=args.use_embdict
     )
     return model
 
