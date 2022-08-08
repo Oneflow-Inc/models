@@ -33,8 +33,8 @@ if __name__ == "__main__":
     def str_list(x):
         return list(map(str, x.split(",")))
     parser = argparse.ArgumentParser(description="convert parquet dataset to oneflow row")
-    parser.add_argument("--input_dir", type=str, default="/RAID0/dlrm_parquet_int32")
-    parser.add_argument("--output_dir", type=str, default="/RAID0/criteo1t_oneflow_raw")
+    parser.add_argument("--input_dir", type=str, required=True)
+    parser.add_argument("--output_dir", type=str, required=True)
     parser.add_argument("--sub_sets", type=str_list, default="test,val,train")
     args = parser.parse_args()
 
