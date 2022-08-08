@@ -184,7 +184,7 @@ spark-shell \
 ```
   - load scala file in spark-shell, and execute `makeCriteo1tC39Int32` 
 ```
-:load criteo1t_parquet_int32.scala
+:load criteo1t_parquet_C39.scala
 makeCriteo1tC39Int32("/path/to/criteo1t_raw", "/path/to/criteo1t_parquet_C39")
 ```
   - convert parquet dataset to oneflow raw format
