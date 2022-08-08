@@ -20,6 +20,5 @@ python3 -m oneflow.distributed.launch \
     --node_rank 0 \
     --master_addr 127.0.0.1 \
     dlrm_benchmark_a100.py \
-      --data_dir $data_dir \
-      --persistent_path $pp
+      --data_dir $data_dir
 
