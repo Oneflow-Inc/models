@@ -162,7 +162,7 @@ bash train.sh
 `
 
 ## Run OneFlow DeepFM benchmark
-Note: DCN benchmark uses the same dataset as DeepFM. Please follow the dataset preparing instruction in DeepFM [README](../DeepFM/README.md#run-oneflow-deepfm-benchmark).
+Note: DCN benchmark uses the same dataset as DeepFM. Please follow the dataset preparing instruction in DeepFM [README](../deepfm#run-oneflow-deepfm-benchmark).
 1. train OneFlow DeepFM benchmark in AMP mode
 ```
 ./train_dcn_benchmark.sh /path/to/data_dir 
