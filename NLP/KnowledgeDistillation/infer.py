@@ -2,6 +2,7 @@ import argparse
 import matplotlib.pyplot as plt
 import numpy as np
 import time
+import os
 
 import oneflow as flow
 from flowvision import datasets, transforms
@@ -13,26 +14,37 @@ def softmax_t(x, t):
     x_exp = np.exp(x / t)
     return x_exp / np.sum(x_exp)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
 
     parser = argparse.ArgumentParser("flags for test resnet50")
     parser.add_argument(
         "--model_load_dir", type=str, default="./output/model_save/teacher"
     )
-    parser.add_argument('--model_type', type=str, default="teacher", choices=["teacher", "student_kd", "student"])
-    parser.add_argument('--picture_index', type=int, default=0)
-    parser.add_argument('--temperature', type=float, default=10.0)
-    parser.add_argument("--image_save_name", type=str, default="./output/images/infer.jpg",
-        required=False, help="images save name")
+    parser.add_argument(
+        "--model_type",
+        type=str,
+        default="teacher",
+        choices=["teacher", "student_kd", "student"],
+    )
+    parser.add_argument("--picture_index", type=int, default=0)
+    parser.add_argument("--temperature", type=float, default=10.0)
+    parser.add_argument(
+        "--image_save_name",
+        type=str,
+        default="./output/images/infer.jpg",
+        required=False,
+        help="images save name",
+    )
 
     args = parser.parse_args()
     args.device = flow.device("cuda" if flow.cuda.is_available() else "cpu")
 
     start_t = time.perf_counter()
     print("***** Model Init *****")
-    if args.model_type == 'teacher':
+    if args.model_type == "teacher":
         model = TeacherNet()
-    else: # student_ks, student
+    else:  # student_ks, student
         model = StudentNet()
     model.load_state_dict(flow.load(args.model_load_dir))
     end_t = time.perf_counter()
@@ -43,13 +55,13 @@ if __name__ == '__main__':
 
     # dataset
     dataset = datasets.MNIST(
-            './',
-            train=False,
-            download=True,
-            transform=transforms.Compose(
-                [transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]
-            ),
-        )
+        "./",
+        train=False,
+        download=True,
+        transform=transforms.Compose(
+            [transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))]
+        ),
+    )
     subset_indices = [args.picture_index]
     subset = flow.utils.data.Subset(dataset, subset_indices)
     # dataloader
@@ -66,7 +78,7 @@ if __name__ == '__main__':
     test_x = data.cpu().numpy()
     y_out = output.cpu().numpy()
     y_out = y_out[0, ::]
-    print('Output (NO softmax):', y_out)
+    print("Output (NO softmax):", y_out)
     print("the number is", flow.argmax(output).cpu().numpy())
 
     plt.subplot(3, 1, 1)
@@ -77,5 +89,12 @@ if __name__ == '__main__':
 
     plt.subplot(3, 1, 3)
     plt.bar(list(range(10)), softmax_t(y_out, args.temperature), width=0.3)
+
+    directory = os.path.abspath(
+        os.path.dirname(args.image_save_name) + os.path.sep + "."
+    )  # If the path does not exist, create it.
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+
     plt.savefig(args.image_save_name)
     print("picture saved.")

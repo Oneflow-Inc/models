@@ -2,6 +2,7 @@ import oneflow as flow
 import oneflow.nn as nn
 import oneflow.nn.functional as F
 
+
 class TeacherNet(nn.Module):
     def __init__(self):
         super(TeacherNet, self).__init__()
@@ -25,6 +26,7 @@ class TeacherNet(nn.Module):
         x = self.dropout2(x)
         output = self.fc2(x)
         return output
+
 
 class StudentNet(nn.Module):
     def __init__(self):
