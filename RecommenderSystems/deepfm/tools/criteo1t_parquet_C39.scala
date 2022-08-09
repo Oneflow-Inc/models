@@ -10,11 +10,11 @@ def makeCriteo1tC39Int32(srcDir: String, dstDir:String) = {
     val val_csv = s"${srcDir}/val.csv"
     
     val make_label = udf((str:String) => str.toFloat)
-    val make_dense = udf((str:String, i:Int) => (if (str == null) 1  else str.toFloat + 1) + i * 40000000)
+    val make_dense = udf((str:String, i:Int) => (if (str == null) 1  else str.toInt + 1) + i * 40000000)
     val make_sparse = udf((str:String, i:Int) => (if (str == null) 0 else Math.floorMod(Integer.parseUnsignedInt(str, 16).toInt, 40000000)) +  i * 40000000)
     val label_cols = Seq(make_label($"label").as("label"))
-    val dense_cols = 1.to(13).map{i=>make_dense(col(s"I$i"), lit(i)).as(s"C${i}")}
-    val sparse_cols = 1.to(26).map{i=>make_sparse(col(s"C$i"), lit(i + 13)).as(s"C${i+13}")}
+    val dense_cols = 1.to(13).map{i=>make_dense(col(s"I$i"), lit(i - 1)).as(s"C${i}")}
+    val sparse_cols = 1.to(26).map{i=>make_sparse(col(s"C$i"), lit(i + 12)).as(s"C${i + 13}")}
     val cols = label_cols ++ dense_cols ++ sparse_cols
     
     spark.read.option("delimiter", "\t").csv(test_csv).toDF(col_names: _*).select(cols:_*).repartition(256).write.parquet(s"${dstDir}/test")
