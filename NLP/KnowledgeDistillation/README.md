@@ -17,6 +17,21 @@ In addition, we will also test the student model that has not been taught by the
 MNIST（training data:60000，testing data:10000）
 Oneflow has implemented the data acquisition code (ofrecord format), so the subsequent code will be downloaded automatically without manual downloading. If you view specific data, please look up the details:http://yann.lecun.com/exdb/mnist/
 
+## requirement
+
+This project uses the lightly version of oneflow. You can use the following command to install.
+CPU：
+```bash
+python3 -m pip install -f  https://staging.oneflow.info/branch/master/cpu  --pre oneflow
+```
+GPU：
+```bash
+python3 -m pip install -f  https://staging.oneflow.info/branch/master/cu112  --pre oneflow
+```
+You can install other dependencies using the following command.
+```bash
+pip install -r requirements.txt
+```
 
 ## Experiment Settings
 
