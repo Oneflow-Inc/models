@@ -110,6 +110,7 @@ def get_args(print_args=True):
         "--disable_early_stop", action="store_true", help="enable early stop or not"
     )
     parser.add_argument("--save_best_model", action="store_true", help="save best model or not")
+    parser.add_argument("--use_oneemb", action="store_true", help="use oneembedding or not")
 
     args = parser.parse_args()
 
@@ -356,20 +357,25 @@ class DssmModule(nn.Module):
         one_embedding_store_type="cached_host_mem",
         cache_memory_budget_mb=8192,
         dropout=0.2,
+        use_oneemb=True,
     ):
         super(DssmModule, self).__init__()
 
         self.embedding_vec_size = embedding_vec_size
 
-        self.embedding_layer = OneEmbedding(
-            table_name="sparse_embedding",
-            embedding_vec_size=embedding_vec_size,
-            persistent_path=persistent_path,
-            table_size_array=table_size_array,
-            store_type=one_embedding_store_type,
-            cache_memory_budget_mb=cache_memory_budget_mb,
-            size_factor=3,
-        )
+        if use_oneemb:
+            self.embedding_layer = OneEmbedding(
+                table_name="sparse_embedding",
+                embedding_vec_size=embedding_vec_size,
+                persistent_path=persistent_path,
+                table_size_array=table_size_array,
+                store_type=one_embedding_store_type,
+                cache_memory_budget_mb=cache_memory_budget_mb,
+                size_factor=3,
+            )
+        else:
+            self.embedding_layer = nn.Embedding(sum(table_size_array), embedding_vec_size)
+            flow.nn.init.normal_(self.embedding_layer.weight[0:-1, :], std=1e-4)
 
         self.user_dnn_layer = DNN(
             in_features=embedding_vec_size * num_user_fields,
@@ -395,9 +401,7 @@ class DssmModule(nn.Module):
         item_emb = sparse_emb[:, num_user_fields :, :]
         
         user_out = self.user_dnn_layer(user_emb.flatten(start_dim=1))
-        # user_out = flow.nn.functional.normalize(user_out, p=2.0, dim=-1)
         item_out = self.item_dnn_layer(item_emb.flatten(start_dim=1))
-        # item_out = flow.nn.functional.normalize(item_out, p=2.0, dim=-1)
 
         y_pred = (user_out * item_out).sum(dim=-1, keepdim=True)
 
@@ -415,6 +419,7 @@ def make_dssm_module(args):
         one_embedding_store_type=args.store_type,
         cache_memory_budget_mb=args.cache_memory_budget_mb,
         dropout=args.net_dropout,
+        use_oneemb=args.use_oneemb,
     )
     return model
 
