@@ -281,6 +281,7 @@ class OneEmbedding(nn.Module):
     ):
         assert table_size_array is not None
         vocab_size = sum(table_size_array)
+        assert key_type in ["int32", "int64"], "OneEmbedding key_type must be integers"
 
         scales = np.sqrt(1 / np.array(table_size_array))
         tables = [
