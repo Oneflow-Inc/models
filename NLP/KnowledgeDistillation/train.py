@@ -11,41 +11,6 @@ from flowvision import datasets, transforms
 from model import TeacherNet, StudentNet
 
 
-parser = argparse.ArgumentParser(description="flags for knowledge distillation")
-# Training Parameters
-parser.add_argument(
-    "--model_save_dir",
-    type=str,
-    default="./output/model_save",
-    required=False,
-    help="model save directory",
-)
-parser.add_argument(
-    "--image_save_name",
-    type=str,
-    default="./output/images/result.jpg",
-    required=False,
-    help="image save name",
-)
-parser.add_argument(
-    "--load_teacher_checkpoint_dir", type=str, default="./output/model_save/teacher"
-)
-parser.add_argument(
-    "--model_type",
-    type=str,
-    default="teacher",
-    choices=["teacher", "student_kd", "student", "compare"],
-)
-parser.add_argument("--epochs", type=int, default=10)
-parser.add_argument("--batch_size", type=int, default=128)
-# Model Parameters
-parser.add_argument("--temperature", type=float, default=5.0)
-parser.add_argument("--alpha", type=float, default=0.7)
-
-args = parser.parse_args()
-args.device = flow.device("cuda" if flow.cuda.is_available() else "cpu")
-
-
 def train_teacher(model, train_loader, optimizer, epoch):
     model.train()
     trained_samples = 0
@@ -358,6 +323,40 @@ if __name__ == "__main__":
     flow.manual_seed(2022)
     flow.cuda.manual_seed(2022)
     flow.cuda.manual_seed_all(2022)
+
+    parser = argparse.ArgumentParser(description="flags for knowledge distillation")
+    # Training Parameters
+    parser.add_argument(
+        "--model_save_dir",
+        type=str,
+        default="./output/model_save",
+        required=False,
+        help="model save directory",
+    )
+    parser.add_argument(
+        "--image_save_name",
+        type=str,
+        default="./output/images/result.jpg",
+        required=False,
+        help="image save name",
+    )
+    parser.add_argument(
+        "--load_teacher_checkpoint_dir", type=str, default="./output/model_save/teacher"
+    )
+    parser.add_argument(
+        "--model_type",
+        type=str,
+        default="teacher",
+        choices=["teacher", "student_kd", "student", "compare"],
+    )
+    parser.add_argument("--epochs", type=int, default=10)
+    parser.add_argument("--batch_size", type=int, default=128)
+    # Model Parameters
+    parser.add_argument("--temperature", type=float, default=5.0)
+    parser.add_argument("--alpha", type=float, default=0.7)
+
+    args = parser.parse_args()
+    args.device = flow.device("cuda" if flow.cuda.is_available() else "cpu")
 
     teacher_history = None
     student_kd_history = None
