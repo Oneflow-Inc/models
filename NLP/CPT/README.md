@@ -28,6 +28,8 @@ python3 -m pip install -f  https://staging.oneflow.info/branch/master/cu112  --p
 ```
 You can install other dependencies using the following command.
 ```bash
+pip install -r requirements.txt
+```
 
 ## Train
 
