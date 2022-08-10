@@ -130,6 +130,12 @@ OneFlow-Models目录下提供了各种经典图形分类、目标检测、图像
 - [Quantization](https://github.com/Oneflow-Inc/models/tree/main/Quantization)
 </details>
 
+<details>
+<summary> <b> 知识蒸馏 </b> </summary>
+
+- [KnowledgeDistillation](https://github.com/Oneflow-Inc/models/tree/main/KnowledgeDistillation/KnowledgeDistillation)
+</details>
+
 ## 安装与环境配置
 **安装最新的OneFlow**
 

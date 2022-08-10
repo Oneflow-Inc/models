@@ -130,6 +130,12 @@ Please check our the following **demos** for a quick start
 - [Quantization](https://github.com/Oneflow-Inc/models/tree/main/Quantization)
 </details>
 
+<details>
+<summary> <b> Knowledge Distillation </b> </summary>
+
+- [KnowledgeDistillation](https://github.com/Oneflow-Inc/models/tree/main/KnowledgeDistillation/KnowledgeDistillation)
+</details>
+
 ## Installation and Environment setup
 **Install Oneflow**
 
