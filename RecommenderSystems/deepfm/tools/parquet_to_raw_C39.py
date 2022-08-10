@@ -12,7 +12,7 @@ def parquet_to_raw(files, output_dir):
     fields += ["C{}".format(i + 1) for i in range(39)]
     with make_batch_reader(files, workers_count=1, shuffle_row_groups=False) as reader:
         lf = open(f'{output_dir}/label.bin', 'wb')
-        sf = open(f'{output_dir}/sparse.bin', 'wb')
+        sf = open(f'{output_dir}/sparse_C39.bin', 'wb')
         for rg in reader:
             rgdict = rg._asdict()
             rglist = [rgdict[field] for field in fields]
