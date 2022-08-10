@@ -105,7 +105,7 @@ def teacher_main():
 
     flow.save(
         model.state_dict(), args.model_save_dir + "/teacher"
-    )  # # If the path does not exist, oneflow will automatically create it.
+    )  # If the path does not exist, oneflow will automatically create it.
     return model, teacher_history
 
 
@@ -217,7 +217,7 @@ def student_kd_main():
 
     flow.save(
         model.state_dict(), args.model_save_dir + "/student_kd"
-    )  # # If the path does not exist, oneflow will automatically create it.
+    )  # If the path does not exist, oneflow will automatically create it.
     return model, student_history
 
 
