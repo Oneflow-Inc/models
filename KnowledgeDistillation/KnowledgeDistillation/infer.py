@@ -65,11 +65,7 @@ if __name__ == "__main__":
     subset_indices = [args.picture_index]
     subset = flow.utils.data.Subset(dataset, subset_indices)
     # dataloader
-    data_loader = flow.utils.data.DataLoader(
-        subset,
-        batch_size=1,
-        shuffle=False,
-    )
+    data_loader = flow.utils.data.DataLoader(subset, batch_size=1, shuffle=False,)
     with flow.no_grad():
         data, target = next(iter(data_loader))
         data, target = data.to(args.device), target.to(args.device)
