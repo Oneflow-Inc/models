@@ -56,7 +56,7 @@ or the pretrained model `cpt-large`, which contains 24 encoder layers and 4 deco
 
 ```bash
 wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/nlp/CPT/cpt-large.tar.gz
-tar -xzf cpt-base.tar.gz
+tar -xzf cpt-large.tar.gz
 ```
 
 Finally, run bash `train.sh` can train the model. Remember to change parameter `CPT_PRETRAIN_DIR` to correctly load the pretrained parameters.
