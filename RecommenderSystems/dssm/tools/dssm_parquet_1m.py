@@ -13,7 +13,9 @@ limitations under the License.
 
 import os
 import time
+from tqdm import tqdm
 import argparse
+import pandas as pd
 import numpy as np
 
 from pyspark.sql import SparkSession
@@ -37,25 +39,21 @@ def gen_data_set(
     seq_max_len = args.seq_len
     negsample = args.negsample
 
-    data = data.sort(data.timestamp.asc())
+    data.sort_values("timestamp", inplace=True)
 
     train_set = []
     test_set = []
-    for row in data.select("user_id").distinct().collect():
-        user_id = row.user_id
-        filtered_data = data.where(data.user_id == user_id)
-        pos_movie_list = [int(tmp.movie_id) for tmp in filtered_data.select("movie_id").collect()]
-        genres_list = [int(tmp.genres) for tmp in filtered_data.select("genres").collect()]
-        gender_list = [int(tmp.gender) for tmp in filtered_data.select("gender").collect()]
-        age_list = [int(tmp.age) for tmp in filtered_data.select("age").collect()]
-        occup_list = [int(tmp.occupation) for tmp in filtered_data.select("occupation").collect()]
-        zip_list = [int(tmp.zip) for tmp in filtered_data.select("zip").collect()]
+    for user_id, records in tqdm(data.groupby("user_id")):
+        pos_movie_list = records["movie_id"].tolist()
+        genres_list = records["genres"].tolist()
+        gender_list = records["gender"].tolist()
+        age_list = records["age"].tolist()
+        occup_list = records["occupation"].tolist()
+        zip_list = records["zip"].tolist()
 
         if negsample > 0:
-            uni_movie_ids = [tmp.movie_id for tmp in data.select("movie_id").distinct().collect()]
-            all_movie_ids = [tmp.movie_id for tmp in data.select("movie_id").collect()]
-            all_genres_ids = [tmp.genres for tmp in data.select("genres").collect()]
-            item_id_genres_map = dict(zip(all_movie_ids, all_genres_ids))
+            uni_movie_ids = data["movie_id"].unique()
+            item_id_genres_map = dict(zip(data["movie_id"].values, data["genres"].values))
             candidate_set = list(
                 set(uni_movie_ids) - set(pos_movie_list)
             )  # find those not in the user's selection
@@ -91,7 +89,7 @@ def gen_data_set(
                             float(seq_len),
                             int(neg_movie_list[i * negsample + neg_i]),
                             pos_movie_hist[::-1][:seq_len] + [0] * (seq_max_len - seq_len),
-                            item_id_genres_map[neg_movie_list[i * negsample + neg_i]],
+                            int(item_id_genres_map[neg_movie_list[i * negsample + neg_i]]),
                             genres_hist[::-1][:seq_len] + [0] * (seq_max_len - seq_len),
                             gender_list[i],
                             age_list[i],
@@ -234,6 +232,10 @@ if __name__ == "__main__":
             .drop(col("u.user_id"))
         )
 
+        print("Saving merged dataset to {args.output_dit}/ml-1m.csv")
+        data.toPandas().to_csv(os.path.join(args.output_dir, "ml-1m.csv"), index=False)
+        print("done!")
+
     user_sparse = ["user_id", "gender", "age", "occupation", "zip"]
     item_sparse = ["movie_id", "genres"]
     sparse_cols = [
@@ -247,8 +249,6 @@ if __name__ == "__main__":
     print("Merged dataset schema:")
     data.printSchema()
 
-    if not args.merged_dataset_dir:
-        print("Saving merged dataset to {args.output_dit}/ml-1m.csv")
-        data.toPandas().to_csv(os.path.join(args.output_dir, "ml-1m.csv"), index=False)
+    data = data.toPandas()
 
     gen_data_set(args, data, user_sparse, item_sparse, spark, train_part_num=128, test_part_num=32)
