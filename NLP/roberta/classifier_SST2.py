@@ -8,7 +8,6 @@ from models.roberta import Roberta
 class SST2RoBERTa(nn.Module):
     def __init__(self, pretrain_dir, kwargs_path, hidden_size, num_labels, is_train):
         super(SST2RoBERTa, self).__init__()
-        
         self.roberta = self.load_model(pretrain_dir, kwargs_path, is_train)
         self.classifier = nn.Linear(hidden_size, num_labels)
         self.softmax = nn.Softmax(dim=1)
