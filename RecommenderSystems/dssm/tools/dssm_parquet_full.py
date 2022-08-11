@@ -22,31 +22,45 @@ from sklearn.preprocessing import LabelEncoder
 
 from pyspark.sql import SparkSession
 from pyspark.conf import SparkConf
-from pyspark.sql.functions import rand, udf, lit, xxhash64, col
+from pyspark.sql.functions import rand, udf, lit, xxhash64, col, array
 from pyspark.sql.types import FloatType
 
 
-def gen_data_set(args, data):
+def gen_data_set(
+    args,
+    data,
+    user_sparse,
+    item_sparse,
+    spark,
+    train_part_num=None,
+    test_part_num=None,
+    train_shuffle=True,
+    test_shuffle=True,
+):
     seq_max_len = args.seq_len
     negsample = args.negsample
 
-    data.sort_values("timestamp", inplace=True)
+    data = data.sort(data.timestamp.asc())
 
     train_set = []
     test_set = []
-    for user_id, records in tqdm(data.groupby("user_id")):
-        pos_movie_list = records["movie_id"].tolist()
-        genres_list = records["genres"].tolist()
-        gender_list = records["gender"].tolist()
-        age_list = records["age"].tolist()
-        occup_list = records["occupation"].tolist()
-        zip_list = records["zip"].tolist()
+    for row in data.select("user_id").collect():
+        user_id = row.user_id
+        filtered_data = data.where(data.user_id == user_id)
+        pos_movie_list = [tmp.movie_id for tmp in filtered_data.select("movie_id").collect()]
+        genres_list = [tmp.genres for tmp in filtered_data.select("genres").collect()]
+        gender_list = [tmp.gender for tmp in filtered_data.select("gender").collect()]
+        age_list = [tmp.age for tmp in filtered_data.select("age").collect()]
+        occup_list = [tmp.occupation for tmp in filtered_data.select("occupation").collect()]
+        zip_list = [tmp.zip for tmp in filtered_data.select("zip").collect()]
 
         if negsample > 0:
-            item_ids = data["movie_id"].unique()
-            item_id_genres_map = dict(zip(data["movie_id"].values, data["genres"].values))
+            uni_movie_ids = [tmp.movie_id for tmp in data.select("movie_id").distinct().collect()]
+            all_movie_ids = [tmp.movie_id for tmp in data.select("movie_id").collect()]
+            all_genres_ids = [tmp.genres for tmp in data.select("genres").collect()]
+            item_id_genres_map = dict(zip(all_movie_ids, all_genres_ids))
             candidate_set = list(
-                set(item_ids) - set(pos_movie_list)
+                set(uni_movie_ids) - set(pos_movie_list)
             )  # find those not in the user's selection
             neg_movie_list = np.random.choice(
                 candidate_set, size=len(pos_movie_list) * negsample, replace=True
@@ -106,47 +120,50 @@ def gen_data_set(args, data):
                     )
                 )
 
-    random.shuffle(train_set)
-    random.shuffle(test_set)
+    columns = [
+        "label",
+        "user_id",
+        "seq_len",
+        "movie_id",
+        "movie_hist",
+        "genres",
+        "genres_hist",
+        "gender",
+        "age",
+        "occupation",
+        "zip",
+    ]
 
-    train_df = pd.DataFrame(
-        train_set,
-        columns=[
-            "label",
-            "user_id",
-            "seq_len",
-            "movie_id",
-            "movie_hist",
-            "genres",
-            "genres_hist",
-            "gender",
-            "age",
-            "occupation",
-            "zip",
-        ],
-    )
-    test_df = pd.DataFrame(
-        test_set,
-        columns=[
-            "label",
-            "user_id",
-            "seq_len",
-            "movie_id",
-            "movie_hist",
-            "genres",
-            "genres_hist",
-            "gender",
-            "age",
-            "occupation",
-            "zip",
-        ],
-    )
+    make_sparse = udf(lambda s: int(s), LongType())
+    user_sparse_cols = [make_sparse(field).alias(field) for field in user_sparse]
+    item_sparse_cols = [make_sparse(field).alias(field) for field in item_sparse]
 
-    print(f"Saving to {args.output_dir}")
-    train_file = os.path.join(args.output_dir, "train.csv")
-    train_df.to_csv(train_file, index=False)
-    test_file = os.path.join(args.output_dir, "test.csv")
-    test_df.to_csv(test_file, index=False)
+    make_seq = udf(lambda s: list(s), ArrayType(LongType()))
+    user_seq_cols = [make_seq(field).alias(field) for field in ["movie_hist", "genres_hist"]]
+
+    make_dense = udf(lambda s: float(s), FloatType())
+    dense_cols = [make_dense(field).alias(field) for field in ["label", "seq_len"]]
+
+    train_df = spark.createDataFrame(data=train_set, schema=columns).select(
+        dense_cols + user_sparse_cols + user_seq_cols + item_sparse_cols
+    )
+    test_df = spark.createDataFrame(data=test_set, schema=columns).select(
+        dense_cols + user_sparse_cols + user_seq_cols + item_sparse_cols
+    )
+    train_df.printSchema()
+    test_df.printSchema()
+    if train_shuffle:
+        train_df = train_df.orderBy(rand())
+    if test_shuffle:
+        test_df = test_df.orderBy(rand())
+    if train_part_num:
+        train_df = train_df.repartition(train_part_num)
+    if test_part_num:
+        test_df = test_df.repartition(test_part_num)
+
+    train_df.write.mode("overwrite").parquet(os.path.join(args.output_dir, "train"))
+    test_df.write.mode("overwrite").parquet(os.path.join(args.output_dir, "test"))
+    print(output_dir, f"time elapsed: {time.time()-start:0.1f}")
 
 
 if __name__ == "__main__":
@@ -155,7 +172,7 @@ if __name__ == "__main__":
         "--input_dir",
         type=str,
         required=True,
-        help="Path to downloaded and unzipd criteo terabyte datasets: day_0, day_1, ..., day_23",
+        help="Path to downloaded and unziped movielens ml-1m datasets",
     )
     parser.add_argument("--output_dir", type=str, required=True)
     parser.add_argument("--seq_len", type=int, default=50)
@@ -169,32 +186,61 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    user_data = pd.read_csv(
-        os.path.join(args.input_dir, "users.dat"),
-        sep="::",
-        names=["user_id", "gender", "age", "occupation", "zip"],
-    )
-    movie_data = pd.read_csv(
-        os.path.join(args.input_dir, "movies.dat"),
-        sep="::",
-        names=["movie_id", "title", "genres"],
-        encoding="latin-1",
-    )
-    rating_data = pd.read_csv(
-        os.path.join(args.input_dir, "ratings.dat"),
-        sep="::",
-        names=["user_id", "movie_id", "rating", "timestamp"],
+    # start spark session
+    conf = SparkConf()
+    conf.set("spark.driver.memory", f"{args.spark_driver_memory_gb}g")
+    conf.set("spark.local.dir", args.spark_tmp_dir)
+    spark = SparkSession.builder.config(conf=conf).master("local[*]").getOrCreate()
+
+    user_col_name = ["user_id", "gender", "age", "occupation", "zip"]
+    user_data = (
+        spark.read.format("csv")
+        .option("header", "false")
+        .option("delimiter", "::")
+        .load(os.path.join(args.input_dir, "users.dat"))
+        .toDF(*user_col_name)
     )
 
-    tmp = pd.merge(rating_data, movie_data, how="left", on="movie_id", validate="many_to_one")
-    data = pd.merge(tmp, user_data, how="left", on="user_id", validate="many_to_one")
+    movie_col_name = ["movie_id", "title", "genres"]
+    movie_data = (
+        spark.read.format("csv")
+        .option("header", "false")
+        .option("delimiter", "::")
+        .load(os.path.join(args.input_dir, "movies.dat"))
+        .toDF(*movie_col_name)
+    )
 
-    sparse_features = ["movie_id", "user_id", "gender", "age", "occupation", "zip", "genres"]
+    rating_col_name = ["user_id", "movie_id", "rating", "timestamp"]
+    rating_data = (
+        spark.read.format("csv")
+        .option("header", "false")
+        .option("delimiter", "::")
+        .load(os.path.join(args.input_dir, "ratings.dat"))
+        .toDF(*rating_col_name)
+    )
 
-    feature_max_idx = {}
-    for feature in sparse_features:
-        lbe = LabelEncoder()
-        data[feature] = lbe.fit_transform(data[feature]) + 1
-        feature_max_idx[feature] = data[feature].max() + 1
+    tmp = (
+        rating_data.alias("r")
+        .join(movie_data.alias("m"), col("r.movie_id") == col("m.movie_id"), "left")
+        .drop(col("m.movie_id"))
+    )
+    data = (
+        tmp.alias("t")
+        .join(user_data.alias("u"), col("t.user_id") == col("u.user_id"), "left")
+        .drop(col("u.user_id"))
+    )
+    data.printSchema()
 
-    gen_data_set(args, data)
+    user_sparse = ["user_id", "gender", "age", "occupation", "zip"]
+    item_sparse = ["movie_id", "genres"]
+    sparse_cols = [
+        xxhash64(field, lit(i)).alias(field) for i, field in enumerate(user_sparse + item_sparse)
+    ]
+
+    make_dense = udf(lambda s: float(s), FloatType())
+    dense_cols = [make_dense(field).alias(field) for field in ["timestamp"]]
+
+    data = data.select(sparse_cols + dense_cols)
+    data.printSchema()
+
+    gen_data_set(args, data, user_sparse, item_sparse, spark, train_part_num=128, test_part_num=32)
