@@ -171,6 +171,7 @@ if __name__ == "__main__":
         help="Path to downloaded and unziped movielens ml-1m datasets",
     )
     parser.add_argument("--output_dir", type=str, required=True)
+    parser.add_argument("--merged_dataset_dir", type=str, default=None, help="path to merged ml-1m dataset ml-1m.csv")
     parser.add_argument("--seq_len", type=int, default=50)
     parser.add_argument(
         "--negsample", type=int, default=10, help="num_pos_sample : num_neg_sample = 1 : negsample"
@@ -188,44 +189,51 @@ if __name__ == "__main__":
     conf.set("spark.local.dir", args.spark_tmp_dir)
     spark = SparkSession.builder.config(conf=conf).master("local[*]").getOrCreate()
 
-    user_col_name = ["user_id", "gender", "age", "occupation", "zip"]
-    user_data = (
-        spark.read.format("csv")
-        .option("header", "false")
-        .option("delimiter", "::")
-        .load(os.path.join(args.input_dir, "users.dat"))
-        .toDF(*user_col_name)
-    )
 
-    movie_col_name = ["movie_id", "title", "genres"]
-    movie_data = (
-        spark.read.format("csv")
-        .option("header", "false")
-        .option("delimiter", "::")
-        .load(os.path.join(args.input_dir, "movies.dat"))
-        .toDF(*movie_col_name)
-    )
+    if args.merged_dataset_dir:
+        data = (
+            spark.read.format("csv")
+            .option("header", "true")
+            .load(os.path.join(args.merged_dataset_dir, "ml-1m.csv"))
+        )
+    else:
+        user_col_name = ["user_id", "gender", "age", "occupation", "zip"]
+        user_data = (
+            spark.read.format("csv")
+            .option("header", "false")
+            .option("delimiter", "::")
+            .load(os.path.join(args.input_dir, "users.dat"))
+            .toDF(*user_col_name)
+        )
 
-    rating_col_name = ["user_id", "movie_id", "rating", "timestamp"]
-    rating_data = (
-        spark.read.format("csv")
-        .option("header", "false")
-        .option("delimiter", "::")
-        .load(os.path.join(args.input_dir, "ratings.dat"))
-        .toDF(*rating_col_name)
-    )
+        movie_col_name = ["movie_id", "title", "genres"]
+        movie_data = (
+            spark.read.format("csv")
+            .option("header", "false")
+            .option("delimiter", "::")
+            .load(os.path.join(args.input_dir, "movies.dat"))
+            .toDF(*movie_col_name)
+        )
 
-    tmp = (
-        rating_data.alias("r")
-        .join(movie_data.alias("m"), col("r.movie_id") == col("m.movie_id"), "left")
-        .drop(col("m.movie_id"))
-    )
-    data = (
-        tmp.alias("t")
-        .join(user_data.alias("u"), col("t.user_id") == col("u.user_id"), "left")
-        .drop(col("u.user_id"))
-    )
-    data.printSchema()
+        rating_col_name = ["user_id", "movie_id", "rating", "timestamp"]
+        rating_data = (
+            spark.read.format("csv")
+            .option("header", "false")
+            .option("delimiter", "::")
+            .load(os.path.join(args.input_dir, "ratings.dat"))
+            .toDF(*rating_col_name)
+        )
+
+        tmp = (
+            rating_data.alias("r")
+            .join(movie_data.alias("m"), col("r.movie_id") == col("m.movie_id"), "left")
+            .drop(col("m.movie_id"))
+        )
+        data = (
+            tmp.alias("t")
+            .join(user_data.alias("u"), col("t.user_id") == col("u.user_id"), "left")
+            .drop(col("u.user_id"))
+        )
 
     user_sparse = ["user_id", "gender", "age", "occupation", "zip"]
     item_sparse = ["movie_id", "genres"]
@@ -234,9 +242,14 @@ if __name__ == "__main__":
     ]
 
     make_dense = udf(lambda s: float(s), FloatType())
-    dense_cols = [make_dense(field).alias(field) for field in ["timestamp"]]
+    dense_cols = [make_dense(field).alias(field) for field in ["rating", "timestamp"]]
 
     data = data.select(sparse_cols + dense_cols)
+    print("Merged dataset schema:")
     data.printSchema()
+
+    if not args.merged_dataset_dir:
+        print("Saving merged dataset to {args.output_dit}/ml-1m.csv")
+        data.toPandas().to_csv(os.path.join(args.output_dir, "ml-1m.csv"), index=False)
 
     gen_data_set(args, data, user_sparse, item_sparse, spark, train_part_num=128, test_part_num=32)
