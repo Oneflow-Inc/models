@@ -19,7 +19,7 @@ import numpy as np
 from pyspark.sql import SparkSession
 from pyspark.conf import SparkConf
 from pyspark.sql.functions import rand, udf, lit, xxhash64, col
-from pyspark.sql.types import FloatType, ArrayType, LongType
+from pyspark.sql.types import FloatType, ArrayType, LongType, StructType, StructField
 
 
 def gen_data_set(
@@ -33,6 +33,7 @@ def gen_data_set(
     train_shuffle=True,
     test_shuffle=True,
 ):
+    start = time.time()
     seq_max_len = args.seq_len
     negsample = args.negsample
 
@@ -43,12 +44,12 @@ def gen_data_set(
     for row in data.select("user_id").distinct().collect():
         user_id = row.user_id
         filtered_data = data.where(data.user_id == user_id)
-        pos_movie_list = [tmp.movie_id for tmp in filtered_data.select("movie_id").collect()]
-        genres_list = [tmp.genres for tmp in filtered_data.select("genres").collect()]
-        gender_list = [tmp.gender for tmp in filtered_data.select("gender").collect()]
-        age_list = [tmp.age for tmp in filtered_data.select("age").collect()]
-        occup_list = [tmp.occupation for tmp in filtered_data.select("occupation").collect()]
-        zip_list = [tmp.zip for tmp in filtered_data.select("zip").collect()]
+        pos_movie_list = [int(tmp.movie_id) for tmp in filtered_data.select("movie_id").collect()]
+        genres_list = [int(tmp.genres) for tmp in filtered_data.select("genres").collect()]
+        gender_list = [int(tmp.gender) for tmp in filtered_data.select("gender").collect()]
+        age_list = [int(tmp.age) for tmp in filtered_data.select("age").collect()]
+        occup_list = [int(tmp.occupation) for tmp in filtered_data.select("occupation").collect()]
+        zip_list = [int(tmp.zip) for tmp in filtered_data.select("zip").collect()]
 
         if negsample > 0:
             uni_movie_ids = [tmp.movie_id for tmp in data.select("movie_id").distinct().collect()]
@@ -69,9 +70,9 @@ def gen_data_set(
             if i != len(pos_movie_list) - 1:
                 train_set.append(
                     (
-                        1,
+                        1.0,
                         user_id,
-                        seq_len,
+                        float(seq_len),
                         pos_movie_list[i],
                         pos_movie_hist[::-1][:seq_len] + [0] * (seq_max_len - seq_len),
                         genres_list[i],
@@ -85,10 +86,10 @@ def gen_data_set(
                 for neg_i in range(negsample):
                     train_set.append(
                         (
-                            0,
+                            0.0,
                             user_id,
-                            seq_len,
-                            neg_movie_list[i * negsample + neg_i],
+                            float(seq_len),
+                            int(neg_movie_list[i * negsample + neg_i]),
                             pos_movie_hist[::-1][:seq_len] + [0] * (seq_max_len - seq_len),
                             item_id_genres_map[neg_movie_list[i * negsample + neg_i]],
                             genres_hist[::-1][:seq_len] + [0] * (seq_max_len - seq_len),
@@ -102,9 +103,9 @@ def gen_data_set(
                 # one test sample for each user
                 test_set.append(
                     (
-                        1,
+                        1.0,
                         user_id,
-                        seq_len,
+                        float(seq_len),
                         pos_movie_list[i],
                         pos_movie_hist[::-1][:seq_len] + [0] * (seq_max_len - seq_len),
                         genres_list[i],
@@ -116,38 +117,32 @@ def gen_data_set(
                     )
                 )
 
-    columns = [
-        "label",
-        "user_id",
-        "seq_len",
-        "movie_id",
-        "movie_hist",
-        "genres",
-        "genres_hist",
-        "gender",
-        "age",
-        "occupation",
-        "zip",
-    ]
-
-    make_sparse = udf(lambda s: int(s), LongType())
-    user_sparse_cols = [make_sparse(field).alias(field) for field in user_sparse]
-    item_sparse_cols = [make_sparse(field).alias(field) for field in item_sparse]
-
-    make_seq = udf(lambda s: list(s), ArrayType(LongType()))
-    user_seq_cols = [make_seq(field).alias(field) for field in ["movie_hist", "genres_hist"]]
-
-    make_dense = udf(lambda s: float(s), FloatType())
-    dense_cols = [make_dense(field).alias(field) for field in ["label", "seq_len"]]
-
-    train_df = spark.createDataFrame(data=train_set, schema=columns).select(
-        dense_cols + user_sparse_cols + user_seq_cols + item_sparse_cols
+    schema = StructType(
+        [
+            StructField("label", FloatType(), False),
+            StructField("user_id", LongType(), False),
+            StructField("seq_len", FloatType(), False),
+            StructField("movie_id", LongType(), False),
+            StructField("movie_hist", ArrayType(LongType()), False),
+            StructField("genres", LongType(), False),
+            StructField("genres_hist", ArrayType(LongType()), False),
+            StructField("gender", LongType(), False),
+            StructField("age", LongType(), False),
+            StructField("occupation", LongType(), False),
+            StructField("zip", LongType(), False),
+        ]
     )
-    test_df = spark.createDataFrame(data=test_set, schema=columns).select(
-        dense_cols + user_sparse_cols + user_seq_cols + item_sparse_cols
+
+    train_df = spark.createDataFrame(data=train_set, schema=schema).select(
+        ["label", "seq_len"] + user_sparse + ["movie_hist", "genres_hist"] + item_sparse
     )
+    test_df = spark.createDataFrame(data=test_set, schema=schema).select(
+        ["label", "seq_len"] + user_sparse + ["movie_hist", "genres_hist"] + item_sparse
+    )
+
+    print("train dataframe schema:")
     train_df.printSchema()
-    test_df.printSchema()
+
     if train_shuffle:
         train_df = train_df.orderBy(rand())
     if test_shuffle:
@@ -159,7 +154,7 @@ def gen_data_set(
 
     train_df.write.mode("overwrite").parquet(os.path.join(args.output_dir, "train"))
     test_df.write.mode("overwrite").parquet(os.path.join(args.output_dir, "test"))
-    print(output_dir, f"time elapsed: {time.time()-start:0.1f}")
+    print(args.output_dir, f"time elapsed: {time.time()-start:0.1f}")
 
 
 if __name__ == "__main__":
@@ -171,7 +166,12 @@ if __name__ == "__main__":
         help="Path to downloaded and unziped movielens ml-1m datasets",
     )
     parser.add_argument("--output_dir", type=str, required=True)
-    parser.add_argument("--merged_dataset_dir", type=str, default=None, help="path to merged ml-1m dataset ml-1m.csv")
+    parser.add_argument(
+        "--merged_dataset_dir",
+        type=str,
+        default=None,
+        help="path to merged ml-1m dataset ml-1m.csv",
+    )
     parser.add_argument("--seq_len", type=int, default=50)
     parser.add_argument(
         "--negsample", type=int, default=10, help="num_pos_sample : num_neg_sample = 1 : negsample"
@@ -188,7 +188,6 @@ if __name__ == "__main__":
     conf.set("spark.driver.memory", f"{args.spark_driver_memory_gb}g")
     conf.set("spark.local.dir", args.spark_tmp_dir)
     spark = SparkSession.builder.config(conf=conf).master("local[*]").getOrCreate()
-
 
     if args.merged_dataset_dir:
         data = (
