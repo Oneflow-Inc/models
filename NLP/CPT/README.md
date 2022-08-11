@@ -14,7 +14,22 @@ We implemented some extra functions here:
 
 <!-- - `LayerNorm` in `models/dev_ops.py` -->
 - `tensor_unique` in `models/bart_utils.py`
-- `position_scores` in `models/bert_utils.py`
+
+## requirement
+
+This project uses the lightly version of oneflow. You can use the following command to install.
+CPU：
+```bash
+python3 -m pip install -f  https://staging.oneflow.info/branch/master/cpu  --pre oneflow
+```
+GPU：
+```bash
+python3 -m pip install -f  https://staging.oneflow.info/branch/master/cu112  --pre oneflow
+```
+You can install other dependencies using the following command.
+```bash
+pip install -r requirements.txt
+```
 
 ## Train
 
@@ -41,7 +56,7 @@ or the pretrained model `cpt-large`, which contains 24 encoder layers and 4 deco
 
 ```bash
 wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/model_zoo/nlp/CPT/cpt-large.tar.gz
-tar -xzf cpt-base.tar.gz
+tar -xzf cpt-large.tar.gz
 ```
 
 Finally, run bash `train.sh` can train the model. Remember to change parameter `CPT_PRETRAIN_DIR` to correctly load the pretrained parameters.

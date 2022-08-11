@@ -1,9 +1,9 @@
 import argparse
 
 import oneflow as flow
+from transformers import BertTokenizer
 
 from classifier_flow import ClueAFQMCCPT
-from tokenizer.tokenization_bert import BertTokenizer
 
 
 def inference_afqmc(args):

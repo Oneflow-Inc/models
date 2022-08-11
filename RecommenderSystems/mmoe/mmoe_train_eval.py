@@ -10,7 +10,9 @@ import oneflow as flow
 import oneflow.nn as nn
 from petastorm.reader import make_batch_reader
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
+sys.path.append(
+    os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
+)
 
 
 def get_args(print_args=True):
@@ -28,16 +30,25 @@ def get_args(print_args=True):
 
     parser.add_argument("--data_dir", type=str, required=True)
     parser.add_argument(
-        "--num_train_samples", type=int, required=True, help="the number of train samples"
+        "--num_train_samples",
+        type=int,
+        required=True,
+        help="the number of train samples",
     )
     parser.add_argument(
         "--num_test_samples", type=int, required=True, help="the number of test samples"
     )
 
-    parser.add_argument("--model_load_dir", type=str, default=None, help="model loading directory")
-    parser.add_argument("--model_save_dir", type=str, default=None, help="model saving directory")
     parser.add_argument(
-        "--save_initial_model", action="store_true", help="save initial model parameters or not"
+        "--model_load_dir", type=str, default=None, help="model loading directory"
+    )
+    parser.add_argument(
+        "--model_save_dir", type=str, default=None, help="model saving directory"
+    )
+    parser.add_argument(
+        "--save_initial_model",
+        action="store_true",
+        help="save initial model parameters or not",
     )
     parser.add_argument(
         "--save_model_after_each_eval",
@@ -45,27 +56,43 @@ def get_args(print_args=True):
         help="save model after each eval or not",
     )
 
-    parser.add_argument("--num_experts", type=int, default=3, help="the number of experts")
-    parser.add_argument("--num_tasks", type=int, default=2, help="the number of tasks")
-    parser.add_argument("--embedding_vec_size", type=int, default=4, help="embedding vector size")
     parser.add_argument(
-        "--expert_dnn", type=int_list, default="256, 128", help="expert dnn hidden units number"
+        "--num_experts", type=int, default=3, help="the number of experts"
     )
-    parser.add_argument("--gate_dnn", type=int_list, default="", help="gate hidden units number")
+    parser.add_argument("--num_tasks", type=int, default=2, help="the number of tasks")
+    parser.add_argument(
+        "--embedding_vec_size", type=int, default=4, help="embedding vector size"
+    )
+    parser.add_argument(
+        "--expert_dnn",
+        type=int_list,
+        default="256, 128",
+        help="expert dnn hidden units number",
+    )
+    parser.add_argument(
+        "--gate_dnn", type=int_list, default="", help="gate hidden units number"
+    )
     parser.add_argument(
         "--tower_dnn", type=int_list, default="", help="tower dnn hidden units number"
     )
-    parser.add_argument("--net_dropout", type=float, default=0.0, help="net dropout rate")
+    parser.add_argument(
+        "--net_dropout", type=float, default=0.0, help="net dropout rate"
+    )
 
     parser.add_argument("--lr_factor", type=float, default=0.1)
     parser.add_argument("--min_lr", type=float, default=1.0e-6)
-    parser.add_argument("--learning_rate", type=float, default=0.001, help="learning rate")
+    parser.add_argument(
+        "--learning_rate", type=float, default=0.001, help="learning rate"
+    )
 
     parser.add_argument(
         "--batch_size", type=int, default=256, help="training/evaluation batch size"
     )
     parser.add_argument(
-        "--train_batches", type=int, default=16000, help="the maximum number of training batches"
+        "--train_batches",
+        type=int,
+        default=16000,
+        help="the maximum number of training batches",
     )
     parser.add_argument(
         "--loss_print_interval", type=int, default=100, help="interval of printing loss"
@@ -78,7 +105,10 @@ def get_args(print_args=True):
         required=True,
     )
     parser.add_argument(
-        "--persistent_path", type=str, required=True, help="path for persistent kv store"
+        "--persistent_path",
+        type=str,
+        required=True,
+        help="path for persistent kv store",
     )
     parser.add_argument(
         "--store_type",
@@ -94,9 +124,13 @@ def get_args(print_args=True):
     )
 
     parser.add_argument(
-        "--amp", action="store_true", help="enable Automatic Mixed Precision(AMP) training or not"
+        "--amp",
+        action="store_true",
+        help="enable Automatic Mixed Precision(AMP) training or not",
     )
-    parser.add_argument("--loss_scale_policy", type=str, default="static", help="static or dynamic")
+    parser.add_argument(
+        "--loss_scale_policy", type=str, default="static", help="static or dynamic"
+    )
 
     args = parser.parse_args()
 
@@ -186,7 +220,9 @@ class MmoeDataReader(object):
         self.shard_count = shard_count
         self.cur_shard = cur_shard
 
-        self.fields = dense_features + sparse_features + ["label_income", "label_marital"]
+        self.fields = (
+            dense_features + sparse_features + ["label_income", "label_marital"]
+        )
 
         self.dense_end = len(dense_features)
         self.sparse_end = len(dense_features + sparse_features)
@@ -223,7 +259,9 @@ class MmoeDataReader(object):
                 pos = batch_size - len(tail[0])
                 tail = list(
                     [
-                        np.concatenate((tail[i], rglist[i][0 : (batch_size - len(tail[i]))]))
+                        np.concatenate(
+                            (tail[i], rglist[i][0 : (batch_size - len(tail[i]))])
+                        )
                         for i in range(self.num_fields)
                     ]
                 )
@@ -233,14 +271,16 @@ class MmoeDataReader(object):
                     label_income = tail[self.sparse_end]
                     label_marital = tail[self.sparse_end + 1]
                     tail = None
-                    yield label_income, label_marital, np.stack(dense, axis=-1), np.stack(
-                        sparse, axis=-1
-                    )
+                    yield label_income, label_marital, np.stack(
+                        dense, axis=-1
+                    ), np.stack(sparse, axis=-1)
                 else:
                     pos = 0
                     continue
             while (pos + batch_size) <= len(rglist[0]):
-                dense = [rglist[j][pos : pos + batch_size] for j in range(0, self.dense_end)]
+                dense = [
+                    rglist[j][pos : pos + batch_size] for j in range(0, self.dense_end)
+                ]
                 sparse = [
                     rglist[j][pos : pos + batch_size]
                     for j in range(self.dense_end, self.sparse_end)
@@ -298,7 +338,9 @@ class OneEmbedding(nn.Module):
         ]
         if store_type == "device_mem":
             store_options = flow.one_embedding.make_device_mem_store_options(
-                persistent_path=persistent_path, capacity=vocab_size, size_factor=size_factor,
+                persistent_path=persistent_path,
+                capacity=vocab_size,
+                size_factor=size_factor,
             )
         elif store_type == "cached_host_mem":
             assert cache_memory_budget_mb > 0
@@ -350,7 +392,9 @@ class DNN(nn.Module):
         use_bias = [True] * len(hidden_units) + [use_final_bias]
         hidden_units = [in_features] + hidden_units + [out_features]
         for idx in range(len(hidden_units) - 1):
-            denses.append(nn.Linear(hidden_units[idx], hidden_units[idx + 1], bias=use_bias[idx]))
+            denses.append(
+                nn.Linear(hidden_units[idx], hidden_units[idx + 1], bias=use_bias[idx])
+            )
             if use_relu[idx]:
                 denses.append(nn.ReLU())
             if dropout_rates[idx] > 0:
@@ -400,7 +444,8 @@ class MmoeModule(nn.Module):
         self.experts = nn.ModuleList([])
         for _ in range(num_experts):
             expert_net = DNN(
-                in_features=embedding_vec_size * len(sparse_features) + len(dense_features),
+                in_features=embedding_vec_size * len(sparse_features)
+                + len(dense_features),
                 hidden_units=expert_dnn[:-1],
                 out_features=expert_dnn[-1],
                 skip_final_activation=True,
@@ -412,7 +457,8 @@ class MmoeModule(nn.Module):
         self.towers = nn.ModuleList([])
         for _ in range(num_tasks):
             gate_net = DNN(
-                in_features=embedding_vec_size * len(sparse_features) + len(dense_features),
+                in_features=embedding_vec_size * len(sparse_features)
+                + len(dense_features),
                 hidden_units=gate_dnn,
                 out_features=num_experts,
                 skip_final_activation=True,
@@ -473,7 +519,13 @@ def make_mmoe_module(args):
 
 class MmoeTrainGraph(flow.nn.Graph):
     def __init__(
-        self, mmoe_module, loss, optimizer, grad_scaler=None, amp=False, lr_scheduler=None,
+        self,
+        mmoe_module,
+        loss,
+        optimizer,
+        grad_scaler=None,
+        amp=False,
+        lr_scheduler=None,
     ):
         super(MmoeTrainGraph, self).__init__()
         self.module = mmoe_module
@@ -511,7 +563,9 @@ def make_lr_scheduler(args, optimizer):
     batches_per_epoch = math.ceil(args.num_train_samples / args.batch_size)
     milestones = [
         batches_per_epoch * (i + 1)
-        for i in range(math.floor(math.log(args.min_lr / args.learning_rate, args.lr_factor)))
+        for i in range(
+            math.floor(math.log(args.min_lr / args.learning_rate, args.lr_factor))
+        )
     ]
     multistep_lr = flow.optim.lr_scheduler.MultiStepLR(
         optimizer=optimizer, milestones=milestones, gamma=args.lr_factor,
@@ -560,16 +614,23 @@ def train(args):
         grad_scaler = flow.amp.StaticGradScaler(1024)
     else:
         grad_scaler = flow.amp.GradScaler(
-            init_scale=1073741824, growth_factor=2.0, backoff_factor=0.5, growth_interval=2000,
+            init_scale=1073741824,
+            growth_factor=2.0,
+            backoff_factor=0.5,
+            growth_interval=2000,
         )
 
     eval_graph = MmoeValGraph(mmoe_module, args.amp)
-    train_graph = MmoeTrainGraph(mmoe_module, loss, opt, grad_scaler, args.amp, lr_scheduler=None)
+    train_graph = MmoeTrainGraph(
+        mmoe_module, loss, opt, grad_scaler, args.amp, lr_scheduler=None
+    )
 
     batches_per_epoch = math.ceil(args.num_train_samples / args.batch_size)
 
     cached_eval_batches = prefetch_eval_batches(
-        f"{args.data_dir}/test", args.batch_size, math.ceil(args.num_test_samples / args.batch_size)
+        f"{args.data_dir}/test",
+        args.batch_size,
+        math.ceil(args.num_test_samples / args.batch_size),
     )
 
     mmoe_module.train()
@@ -615,20 +676,32 @@ def train(args):
 
     if step % batches_per_epoch != 0:
         auc_income, auc_marital = eval(
-            args, eval_graph, cur_step=step, epoch=epoch, cached_eval_batches=cached_eval_batches,
+            args,
+            eval_graph,
+            cur_step=step,
+            epoch=epoch,
+            cached_eval_batches=cached_eval_batches,
         )
         if args.save_model_after_each_eval:
-            save_model(f"step_{step}_val_auc_income_{auc_income:0.5f}_marital_{auc_marital:0.5f}")
+            save_model(
+                f"step_{step}_val_auc_income_{auc_income:0.5f}_marital_{auc_marital:0.5f}"
+            )
 
 
 def np_to_global(np):
     t = flow.from_numpy(np)
-    return t.to_global(placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0))
+    return t.to_global(
+        placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0)
+    )
 
 
-def batch_to_global(np_label_income, np_label_marital, np_dense, np_sparse, is_train=True):
+def batch_to_global(
+    np_label_income, np_label_marital, np_dense, np_sparse, is_train=True
+):
     label_income = (
-        np_to_global(np_label_income.reshape(-1, 1)) if is_train else np_label_income.reshape(-1, 1)
+        np_to_global(np_label_income.reshape(-1, 1))
+        if is_train
+        else np_label_income.reshape(-1, 1)
     )
     label_marital = (
         np_to_global(np_label_marital.reshape(-1, 1))
@@ -648,7 +721,9 @@ def prefetch_eval_batches(data_dir, batch_size, num_batches):
             label_income, label_marital, dense_fields, sparse_fields = batch_to_global(
                 *next(loader), is_train=False
             )
-            cached_eval_batches.append((label_income, label_marital, dense_fields, sparse_fields))
+            cached_eval_batches.append(
+                (label_income, label_marital, dense_fields, sparse_fields)
+            )
     return cached_eval_batches
 
 
@@ -661,7 +736,9 @@ def eval(args, eval_graph, cur_step=0, epoch=0, cached_eval_batches=None):
     eval_start_time = time.time()
 
     for i in range(batches_per_epoch):
-        label_income, label_marital, dense_fields, sparse_fields = cached_eval_batches[i]
+        label_income, label_marital, dense_fields, sparse_fields = cached_eval_batches[
+            i
+        ]
         pred_income, pred_marital = eval_graph(dense_fields, sparse_fields)
         label_incomes.append(label_income)
         label_maritals.append(label_marital)
@@ -680,13 +757,17 @@ def eval(args, eval_graph, cur_step=0, epoch=0, cached_eval_batches=None):
     )
     pred_incomes = (
         flow.cat(pred_incomes, dim=0)
-        .to_global(placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0))
+        .to_global(
+            placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0)
+        )
         .to_global(sbp=flow.sbp.broadcast())
         .to_local()
     )
     pred_maritals = (
         flow.cat(pred_maritals, dim=0)
-        .to_global(placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0))
+        .to_global(
+            placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0)
+        )
         .to_global(sbp=flow.sbp.broadcast())
         .to_local()
     )

@@ -1,11 +1,10 @@
-from logging import log
 import math
 import random
 from typing import Optional, Tuple
 
 import oneflow as flow
 import oneflow.nn as nn
-from oneflow.nn import CrossEntropyLoss, MSELoss
+from oneflow.nn import CrossEntropyLoss
 
 from .bert import Bert
 from .bart_utils import (
@@ -15,20 +14,7 @@ from .bart_utils import (
     init_weights,
     tensor_unique,  # for tensor.unique
 )
-
-ACT2FN = {
-    "relu": flow._C.relu,
-    # "silu": silu,
-    # "swish": silu,
-    "gelu": flow._C.gelu,
-    "tanh": flow.tanh,
-    # "gelu_new": gelu_new,
-    # "gelu_fast": gelu_fast,
-    # "quick_gelu": quick_gelu,
-    # "mish": mish,
-    # "linear": linear_act,
-    "sigmoid": flow.sigmoid,
-}
+from .utils import ACT2FN
 
 
 class BartLearnedPositionalEmbedding(nn.Embedding):
@@ -55,7 +41,7 @@ class BartLearnedPositionalEmbedding(nn.Embedding):
 
 
 class BartAttention(nn.Module):
-    """Multi-headed attention from 'Attention Is All You Need' paper"""
+    """Multi-headed attention from 'Attention Is All You Need' paper.See https://doi.org/10.48550/arXiv.1706.03762 """
 
     def __init__(
         self,
@@ -132,10 +118,12 @@ class BartAttention(nn.Module):
             # if encoder bi-directional self-attention `past_key_value` is always `None`
             past_key_value = (key_states, value_states)
 
-        proj_shape = (bsz * self.num_heads, -1, self.head_dim)
-        query_states = self._shape(query_states, tgt_len, bsz).view(*proj_shape)
-        key_states = key_states.view(*proj_shape)
-        value_states = value_states.view(*proj_shape)
+        proj_shape = [bsz * self.num_heads, -1, self.head_dim]
+        query_states = flow.reshape(
+            self._shape(query_states, tgt_len, bsz), shape=proj_shape
+        )
+        key_states = flow.reshape(key_states, shape=proj_shape)
+        value_states = flow.reshape(value_states, shape=proj_shape)
 
         src_len = key_states.size(1)
         attn_weights = flow.bmm(query_states, key_states.transpose(1, 2))
@@ -189,7 +177,7 @@ class BartAttention(nn.Module):
         # attn_probs = flow.F.dropout(attn_weights, p=prob)
         # attn_output = flow.bmm(attn_probs, value_states)
         if self.training:
-            attn_weights = flow._C.dropout(attn_weights, p=self.dropout)
+            attn_weights = flow.nn.functional.dropout(attn_weights, p=self.dropout)
         attn_output = flow.bmm(attn_weights, value_states)
 
         assert attn_output.size() == (
@@ -271,7 +259,7 @@ class BartDecoderLayer(nn.Module):
             output_attentions,
         )
         if self.training:
-            hidden_states = flow._C.dropout(hidden_states, p=self.dropout)
+            hidden_states = flow.nn.functional.dropout(hidden_states, p=self.dropout)
         hidden_states = residual + hidden_states
         hidden_states = self.self_attn_layer_norm(hidden_states)
 
@@ -298,7 +286,9 @@ class BartDecoderLayer(nn.Module):
                 output_attentions,
             )
             if self.training:
-                hidden_states = flow._C.dropout(hidden_states, p=self.dropout)
+                hidden_states = flow.nn.functional.dropout(
+                    hidden_states, p=self.dropout
+                )
             hidden_states = residual + hidden_states
             hidden_states = self.encoder_attn_layer_norm(hidden_states)
 
@@ -309,10 +299,12 @@ class BartDecoderLayer(nn.Module):
         residual = hidden_states
         hidden_states = self.activation_fn(self.fc1(hidden_states))
         if self.training:
-            hidden_states = flow._C.dropout(hidden_states, p=self.activation_dropout)
+            hidden_states = flow.nn.functional.dropout(
+                hidden_states, p=self.activation_dropout
+            )
         hidden_states = self.fc2(hidden_states)
         if self.training:
-            hidden_states = flow._C.dropout(hidden_states, p=self.dropout)
+            hidden_states = flow.nn.functional.dropout(hidden_states, p=self.dropout)
         hidden_states = residual + hidden_states
         hidden_states = self.final_layer_norm(hidden_states)
 
@@ -472,7 +464,7 @@ class BartDecoder(nn.Module):
         hidden_states = self.layernorm_embedding(hidden_states)
 
         if self.training:
-            hidden_states = flow._C.dropout(hidden_states, p=self.dropout)
+            hidden_states = flow.nn.functional.dropout(hidden_states, p=self.dropout)
 
         # decoder layers
         all_hidden_states = () if output_hidden_states else None
@@ -1494,10 +1486,7 @@ class CPTForQuestionAnswering(nn.Module):
         else:
             raise NotImplementedError
 
-        # start_logits, end_logits = logits.split(1, dim=-1)
-        # oneflow does not support split.
-        split_half = logits.shape[-1] // 2
-        start_logits, end_logits = logits[:, :, :split_half], logits[:, :, split_half:]
+        start_logits, end_logits = logits.split(1, dim=-1)
         start_logits = start_logits.squeeze(-1)
         end_logits = end_logits.squeeze(-1)
 

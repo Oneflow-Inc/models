@@ -4,6 +4,20 @@ import inspect
 from typing import Callable, List, Set, Tuple
 
 
+def gelu_new(x):
+    gelu = flow.nn.GELU(approximate="tanh")
+    return gelu(x)
+
+
+ACT2FN = {
+    "relu": flow.nn.functional.relu,
+    "gelu": flow.nn.functional.gelu,
+    "tanh": flow.nn.functional.tanh,
+    "gelu_new": gelu_new,
+    "sigmoid": flow.nn.functional.sigmoid,
+}
+
+
 def init_weights(module):
 
     if isinstance(module, nn.Linear):
@@ -17,6 +31,17 @@ def init_weights(module):
     elif isinstance(module, nn.LayerNorm):
         module.bias.data.fill_(0.0)
         module.weight.data.fill_(1.0)
+
+
+def create_position_ids_from_input_ids(
+    input_ids, padding_idx, past_key_values_length=0
+):
+
+    # The series of casts and type-conversions here are carefully balanced to both work with ONNX export and XLA.
+    mask = input_ids.ne(padding_idx).to(flow.int32)
+    mask_cumsum = flow.cumsum(mask, dim=1)
+    incremental_indices = (mask_cumsum + past_key_values_length) * mask
+    return incremental_indices.to(flow.int64) + padding_idx
 
 
 def find_pruneable_heads_and_indices(
