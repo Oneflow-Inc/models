@@ -18,7 +18,7 @@ class SST2RoBERTa(nn.Module):
         outputs = self.classifier(outputs)
         outputs = self.softmax(outputs)
         return outputs
-    
+
     def load_model(self, pretrain_dir, kwargs_path, is_train):
         with open(kwargs_path, "r") as f:
             kwargs = json.load(f)
@@ -26,4 +26,3 @@ class SST2RoBERTa(nn.Module):
         if is_train == True:
             model.load_state_dict(flow.load(pretrain_dir))
         return model
-

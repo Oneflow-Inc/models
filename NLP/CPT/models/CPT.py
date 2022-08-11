@@ -119,7 +119,9 @@ class BartAttention(nn.Module):
             past_key_value = (key_states, value_states)
 
         proj_shape = [bsz * self.num_heads, -1, self.head_dim]
-        query_states = flow.reshape(self._shape(query_states, tgt_len, bsz), shape=proj_shape)
+        query_states = flow.reshape(
+            self._shape(query_states, tgt_len, bsz), shape=proj_shape
+        )
         key_states = flow.reshape(key_states, shape=proj_shape)
         value_states = flow.reshape(value_states, shape=proj_shape)
 
@@ -284,7 +286,9 @@ class BartDecoderLayer(nn.Module):
                 output_attentions,
             )
             if self.training:
-                hidden_states = flow.nn.functional.dropout(hidden_states, p=self.dropout)
+                hidden_states = flow.nn.functional.dropout(
+                    hidden_states, p=self.dropout
+                )
             hidden_states = residual + hidden_states
             hidden_states = self.encoder_attn_layer_norm(hidden_states)
 
@@ -295,7 +299,9 @@ class BartDecoderLayer(nn.Module):
         residual = hidden_states
         hidden_states = self.activation_fn(self.fc1(hidden_states))
         if self.training:
-            hidden_states = flow.nn.functional.dropout(hidden_states, p=self.activation_dropout)
+            hidden_states = flow.nn.functional.dropout(
+                hidden_states, p=self.activation_dropout
+            )
         hidden_states = self.fc2(hidden_states)
         if self.training:
             hidden_states = flow.nn.functional.dropout(hidden_states, p=self.dropout)

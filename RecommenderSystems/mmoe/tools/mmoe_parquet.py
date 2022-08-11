@@ -102,12 +102,17 @@ sparse_features = [
 def make_mmoe_parquet(spark, input_files, output_dir, part_num=None, shuffle=False):
     start = time.time()
 
-    data = spark.read.format("csv").option("header", "false").load(input_files).toDF(*column_names)
+    data = (
+        spark.read.format("csv")
+        .option("header", "false")
+        .load(input_files)
+        .toDF(*column_names)
+    )
 
     # transform label
-    data = data.withColumn("label_income", (col("income_50k") == " 50000+.").cast("int")).drop(
-        col("income_50k")
-    )
+    data = data.withColumn(
+        "label_income", (col("income_50k") == " 50000+.").cast("int")
+    ).drop(col("income_50k"))
     data = data.withColumn(
         "label_marital", (col("marital_stat") == " Never married").cast("int")
     ).drop(col("marital_stat"))
@@ -128,18 +133,24 @@ def make_mmoe_parquet(spark, input_files, output_dir, part_num=None, shuffle=Fal
     dense_cols = [make_dense(field).alias(field) for field in dense_features]
 
     make_label = udf(lambda s: float(s), FloatType())
-    label_cols = [make_label(field).alias(field) for field in ["label_income", "label_marital"]]
+    label_cols = [
+        make_label(field).alias(field) for field in ["label_income", "label_marital"]
+    ]
 
-    sparse_cols = [xxhash64(field, lit(i)).alias(field) for i, field in enumerate(sparse_features)]
+    sparse_cols = [
+        xxhash64(field, lit(i)).alias(field) for i, field in enumerate(sparse_features)
+    ]
 
     data = data.select(dense_cols + sparse_cols + label_cols)
 
     # scale dense features
     assemblers = [
-        VectorAssembler(inputCols=[col], outputCol=col + "_vec") for col in dense_features
+        VectorAssembler(inputCols=[col], outputCol=col + "_vec")
+        for col in dense_features
     ]
     scalers = [
-        MinMaxScaler(inputCol=col + "_vec", outputCol=col + "_scaled") for col in dense_features
+        MinMaxScaler(inputCol=col + "_vec", outputCol=col + "_scaled")
+        for col in dense_features
     ]
     pipeline = Pipeline(stages=assemblers + scalers)
     scalerModel = pipeline.fit(data)
@@ -148,7 +159,10 @@ def make_mmoe_parquet(spark, input_files, output_dir, part_num=None, shuffle=Fal
     scaled_dense_names = {x + "_scaled": x for x in dense_features}
     vec_to_float = udf(lambda v: float(v[0]), FloatType())
     data = data.select(
-        [vec_to_float(c).alias(scaled_dense_names[c]) for c in scaled_dense_names.keys()]
+        [
+            vec_to_float(c).alias(scaled_dense_names[c])
+            for c in scaled_dense_names.keys()
+        ]
         + sparse_features
         + ["label_income", "label_marital"]
     )
@@ -176,7 +190,9 @@ if __name__ == "__main__":
     parser.add_argument("--spark_tmp_dir", type=str, default=None)
     parser.add_argument("--spark_driver_memory_gb", type=int, default=360)
     parser.add_argument(
-        "--export_dataset_info", action="store_true", help="export dataset infomation or not"
+        "--export_dataset_info",
+        action="store_true",
+        help="export dataset infomation or not",
     )
     args = parser.parse_args()
 
@@ -195,11 +211,15 @@ if __name__ == "__main__":
 
     # create train dataset
     train_output_dir = os.path.join(args.output_dir, "train")
-    train_count = make_mmoe_parquet(spark, train_csv, train_output_dir, part_num=64, shuffle=True)
+    train_count = make_mmoe_parquet(
+        spark, train_csv, train_output_dir, part_num=64, shuffle=True
+    )
 
     if args.export_dataset_info:
         df = spark.read.parquet(train_output_dir, test_output_dir)
-        table_size_array = [df.select(field).distinct().count() for field in sparse_features]
+        table_size_array = [
+            df.select(field).distinct().count() for field in sparse_features
+        ]
         print(table_size_array)
         with open(os.path.join(args.output_dir, "README.md"), "w") as f:
             f.write("## number of examples:\n")

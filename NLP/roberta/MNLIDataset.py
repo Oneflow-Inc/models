@@ -4,14 +4,15 @@ import json
 import oneflow as flow
 from oneflow.utils.data import Dataset
 
-task_name = 'MNLI'  # MNLI or SST-2
+task_name = "MNLI"  # MNLI or SST-2
+
 
 def read_data(split):
-    fn = os.path.join(task_name, split, '{}.json'.format(split))
+    fn = os.path.join(task_name, split, "{}.json".format(split))
     input_ids = []
     attention_mask = []
     labels = []
-    with open(fn, 'r') as f:
+    with open(fn, "r") as f:
         result = json.load(f)
         for pack_data in result:
             input_ids.append(pack_data["input_ids"])
@@ -24,16 +25,14 @@ def read_data(split):
 
 
 class MNLIDataset(Dataset):
-  def __init__(self, input_ids, attention_mask, labels):
-    super(MNLIDataset, self).__init__()
-    self.input_ids = input_ids
-    self.attention_mask = attention_mask
-    self.labels = labels
+    def __init__(self, input_ids, attention_mask, labels):
+        super(MNLIDataset, self).__init__()
+        self.input_ids = input_ids
+        self.attention_mask = attention_mask
+        self.labels = labels
 
-  def __getitem__(self, key):
-    return self.input_ids[key], self.attention_mask[key], self.labels[key]
+    def __getitem__(self, key):
+        return self.input_ids[key], self.attention_mask[key], self.labels[key]
 
-  def __len__(self):
-    return self.input_ids.shape[0]
-
-
+    def __len__(self):
+        return self.input_ids.shape[0]

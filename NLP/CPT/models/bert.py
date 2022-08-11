@@ -210,12 +210,18 @@ class BertSelfAttention(nn.Module):
             )  # fp16 compatibility
 
             if self.position_embedding_type == "relative_key":
-                relative_position_scores = flow.einsum("bhld,lrd->bhlr", query_layer, positional_embedding)
+                relative_position_scores = flow.einsum(
+                    "bhld,lrd->bhlr", query_layer, positional_embedding
+                )
                 attention_scores = attention_scores + relative_position_scores
             elif self.position_embedding_type == "relative_key_query":
-                relative_position_scores_query = flow.einsum("bhld,lrd->bhlr", query_layer, positional_embedding)
-                relative_position_scores_key = flow.einsum("bhld,lrd->bhlr", key_layer, positional_embedding)
-                                
+                relative_position_scores_query = flow.einsum(
+                    "bhld,lrd->bhlr", query_layer, positional_embedding
+                )
+                relative_position_scores_key = flow.einsum(
+                    "bhld,lrd->bhlr", key_layer, positional_embedding
+                )
+
                 attention_scores = (
                     attention_scores
                     + relative_position_scores_query

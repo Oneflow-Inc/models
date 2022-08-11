@@ -70,7 +70,7 @@ def _in_projection_packed(
                 b_kv = flow.cat([b_k, b_v])
             res = linear(k, w_kv, b_kv)
             chunk_dim = len(res.shape)
-            return (linear(q, w_q, b_q), ) + res.chunk(2, dim=chunk_dim - 1)
+            return (linear(q, w_q, b_q),) + res.chunk(2, dim=chunk_dim - 1)
     else:
         w_q, w_k, w_v = w.chunk(3, dim=0)
         if b is None:
