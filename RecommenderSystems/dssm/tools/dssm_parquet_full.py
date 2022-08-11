@@ -14,16 +14,12 @@ limitations under the License.
 import os
 import time
 import argparse
-import random
 import numpy as np
-import pandas as pd
-from tqdm import tqdm
-from sklearn.preprocessing import LabelEncoder
 
 from pyspark.sql import SparkSession
 from pyspark.conf import SparkConf
-from pyspark.sql.functions import rand, udf, lit, xxhash64, col, array
-from pyspark.sql.types import FloatType
+from pyspark.sql.functions import rand, udf, lit, xxhash64, col
+from pyspark.sql.types import FloatType, ArrayType, LongType
 
 
 def gen_data_set(
