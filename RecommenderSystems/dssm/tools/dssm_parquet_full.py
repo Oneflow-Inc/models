@@ -40,7 +40,7 @@ def gen_data_set(
 
     train_set = []
     test_set = []
-    for row in data.select("user_id").collect():
+    for row in data.select("user_id").distinct().collect():
         user_id = row.user_id
         filtered_data = data.where(data.user_id == user_id)
         pos_movie_list = [tmp.movie_id for tmp in filtered_data.select("movie_id").collect()]
