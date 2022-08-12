@@ -130,9 +130,11 @@ def gen_data_set(
         ]
     )
 
+    train_count = len(train_set)
     train_df = spark.createDataFrame(data=train_set, schema=schema).select(
         ["label", "seq_len"] + user_sparse + ["movie_hist", "genres_hist"] + item_sparse
     )
+    test_count = len(test_set)
     test_df = spark.createDataFrame(data=test_set, schema=schema).select(
         ["label", "seq_len"] + user_sparse + ["movie_hist", "genres_hist"] + item_sparse
     )
@@ -152,6 +154,8 @@ def gen_data_set(
     train_df.write.mode("overwrite").parquet(os.path.join(args.output_dir, "train"))
     test_df.write.mode("overwrite").parquet(os.path.join(args.output_dir, "test"))
     print(args.output_dir, f"time elapsed: {time.time()-start:0.1f}")
+
+    return train_count, test_count
 
 
 if __name__ == "__main__":
@@ -250,4 +254,17 @@ if __name__ == "__main__":
 
     data = data.toPandas()
 
-    gen_data_set(args, data, user_sparse, item_sparse, spark, train_part_num=128, test_part_num=32)
+    train_count, test_count = gen_data_set(args, data, user_sparse, item_sparse, spark, train_part_num=128, test_part_num=32)
+
+    if args.export_dataset_info:
+        df = spark.read.parquet(os.path.join(args.output_dir, "train"), os.path.join(args.output_dir, "test"))
+        table_size_array = [df.select(field).distinct().count() for field in (user_sparse + item_sparse)]
+        print(table_size_array)
+        with open(os.path.join(args.output_dir, "README.md"), "w") as f:
+            f.write("## number of examples:\n")
+            f.write(f"train: {train_count}\n")
+            f.write(f"test: {test_count}\n")
+            f.write("## table size array\n")
+            f.write("table_size_array = [")
+            f.write(", ".join([str(i) for i in table_size_array]))
+            f.write("]\n")
