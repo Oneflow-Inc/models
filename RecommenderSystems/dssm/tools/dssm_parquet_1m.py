@@ -254,11 +254,17 @@ if __name__ == "__main__":
 
     data = data.toPandas()
 
-    train_count, test_count = gen_data_set(args, data, user_sparse, item_sparse, spark, train_part_num=128, test_part_num=32)
+    train_count, test_count = gen_data_set(
+        args, data, user_sparse, item_sparse, spark, train_part_num=128, test_part_num=32
+    )
 
     if args.export_dataset_info:
-        df = spark.read.parquet(os.path.join(args.output_dir, "train"), os.path.join(args.output_dir, "test"))
-        table_size_array = [df.select(field).distinct().count() for field in (user_sparse + item_sparse)]
+        df = spark.read.parquet(
+            os.path.join(args.output_dir, "train"), os.path.join(args.output_dir, "test")
+        )
+        table_size_array = [
+            df.select(field).distinct().count() for field in (user_sparse + item_sparse)
+        ]
         print(table_size_array)
         with open(os.path.join(args.output_dir, "README.md"), "w") as f:
             f.write("## number of examples:\n")
