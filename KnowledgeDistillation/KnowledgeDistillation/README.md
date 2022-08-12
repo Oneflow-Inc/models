@@ -1,5 +1,5 @@
 # Knowledge Distillation
-[OneFlow](https://github.com/Oneflow-Inc/oneflow#install-with-pip-package) implement for（Knowledge Distillation, KD）Algorithm
+Implementation of the knowledge distillation algorithm with [OneFlow](https://github.com/Oneflow-Inc/oneflow#install-with-pip-package).
 
 ---
 ## Knowledge Distillation：
