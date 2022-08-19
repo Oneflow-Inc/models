@@ -827,7 +827,8 @@ class Bert(nn.Module):
         else:
             raise ValueError("You have to specify either input_ids or inputs_embeds")
 
-        device = input_ids.device if input_ids is not None else inputs_embeds.device
+        # device = input_ids.device if input_ids is not None else inputs_embeds.device
+        device = flow.device("cuda")
 
         # past_key_values_length
         past_key_values_length = (
@@ -907,9 +908,9 @@ class Bert(nn.Module):
         return BaseModelOutputWithPoolingAndCrossAttentions(
             last_hidden_state=sequence_output,
             pooler_output=pooled_output,
-            # past_key_values=encoder_outputs.past_key_values,
-            # hidden_states=encoder_outputs.hidden_states,
-            # attentions=encoder_outputs.attentions,
-            # cross_attentions=encoder_outputs.cross_attentions,
+            past_key_values=encoder_outputs[1],
+            hidden_states=encoder_outputs[2],
+            attentions=encoder_outputs[3],
+            cross_attentions=encoder_outputs[4],
         )
 
