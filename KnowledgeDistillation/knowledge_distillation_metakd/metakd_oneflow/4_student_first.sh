@@ -11,7 +11,7 @@ python meta_student_distill.py \
 --second_sequence=text_b \
 --label_name=label \
 --label_enumerate_values=positive,negative \
---checkpoint_dir=./tmp/$genre/meta_student_pretrain_for_review/ \
+--checkpoint_dir=./tmp/$genre/meta_student_pretrain/ \
 --learning_rate=3e-5  \
 --epoch_num=5  \
 --random_seed=42 \
@@ -22,7 +22,7 @@ python meta_student_distill.py \
 --user_defined_parameters="
       pretrain_model_name_or_path=$model
       student_config_path=./bert-tiny-uncased-oneflow
-      teacher_model_path=./tmp/meta_teacher_review/
+      teacher_model_path=./tmp/meta_teacher/
       teacher_config_path=./bert-base-uncased-oneflow
       domain_loss_weight=0.5
       distill_stage=first

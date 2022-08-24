@@ -2,7 +2,7 @@ model=bert-tiny-uncased
 
 # In domain_sentiment_data, genre is one of ["books", "dvd", "electronics", "kitchen"]
 genre=books
-pretrained_path="./tmp/$genre/meta_student_pretrain_for_review"
+pretrained_path="./tmp/$genre/meta_student_pretrain"
 
 python meta_student_distill.py \
 --mode train \
@@ -22,11 +22,11 @@ python meta_student_distill.py \
 --micro_batch_size=16 \
 --app_name=text_classify \
 --user_defined_parameters="
-        pretrain_model_name_or_path=./tmp/$genre/meta_student_pretrain
+        pretrain_model_name_or_path=bert-tiny-uncased
         student_config_path=./bert-tiny-uncased-oneflow
         student_model_path=$pretrained_path
         teacher_config_path=./bert-base-uncased-oneflow
-        teacher_model_path=./tmp/meta_teacher_review/
+        teacher_model_path=./tmp/meta_teacher/
         domain_loss_weight=0.5
         distill_stage=second
         genre=$genre

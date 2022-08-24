@@ -7,7 +7,7 @@ python meta_teacher_train.py \
 --second_sequence=text_b \
 --label_name=label \
 --label_enumerate_values=positive,negative \
---checkpoint_dir=./tmp/meta_teacher_review/ \
+--checkpoint_dir=./tmp/meta_teacher/ \
 --learning_rate=3e-5  \
 --epoch_num=5  \
 --random_seed=42 \
