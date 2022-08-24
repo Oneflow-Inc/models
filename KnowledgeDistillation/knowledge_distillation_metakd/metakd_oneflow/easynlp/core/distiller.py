@@ -102,18 +102,13 @@ class MetaTeacherTrainer(Trainer):
                         self._global_step += 1
                     continue
                 self.before_iter()
-                device = torch.device("cuda:0")
                 batch = {
-                    # key: val.to(args.local_rank) if isinstance(
-                    #     val, torch.Tensor) else val
-                    # for key, val in batch.items()
-                    key: val.to(device) if isinstance(
+                    key: val.to(args.local_rank) if isinstance(
                         val, torch.Tensor) else val
                     for key, val in batch.items()
                 }
                 label_ids = batch.pop('label_ids')
                 forward_outputs = self._model(batch)
-                print("是否前向传播")
                 loss_input = {
                     'forward_outputs': forward_outputs,
                     'label_ids': label_ids,
@@ -132,9 +127,7 @@ class MetaTeacherTrainer(Trainer):
                 _loss.backward()
 
                 self.after_iter(_step, _epoch, loss_dict)
-                print('self.after_iter')
             self.after_epoch()
-            print('self.after_epoch')
         print('Training Time: {}, rank {}, gsteps {}'.format(
             time.time() - self._start_time, args.rank, self._global_step))
         self.after_train()
@@ -181,6 +174,7 @@ class MetaDistillationTrainer(Trainer):
                         self._global_step += 1
                     continue
                 self.before_iter()
+                
                 input_dict = {
                     'input_ids': batch['input_ids'].to(args.local_rank),
                     'token_type_ids':
@@ -192,13 +186,10 @@ class MetaDistillationTrainer(Trainer):
                     'sample_weights':
                     batch['sample_weights'].to(args.local_rank),
                 }
-                label_ids = batch.pop('label_ids')
+                label_ids = batch.pop('label_ids').to(args.local_rank)
                 if self.distill_stage == 'first':
                     # student_atts, student_reps, student_domain_rep
-                    student_output = self._model(
-                        input_dict,
-                        is_student=True,
-                        distill_stage=self.distill_stage)
+                    student_output = self._model(input_dict, is_student=True, distill_stage=self.distill_stage)
                     with torch.no_grad():
                         # logits, teacher_atts, teacher_reps, teacher_domain_rep
                         teacher_output = self._teacher(input_dict,
@@ -206,12 +197,8 @@ class MetaDistillationTrainer(Trainer):
                                                        distill_stage='all')
                         teacher_probs = torch.softmax(teacher_output['logits'],
                                                       dim=-1)
-                        label_onehots = torch.eye(
-                            self.num_labels)[label_ids].to(args.local_rank)
-                        grt_sample_weights = 1 / (torch.exp(
-                            torch.sum(((teacher_probs - label_onehots) *
-                                       label_onehots)**2,
-                                      dim=-1)) + 1)
+                        label_onehots = torch.eye(self.num_labels)[label_ids].to(args.local_rank)
+                        grt_sample_weights = 1 / (torch.exp(torch.sum(((teacher_probs - label_onehots) * label_onehots)**2, dim=-1)) + 1)
 
                     compute_loss_input = {
                         'distill_stage':

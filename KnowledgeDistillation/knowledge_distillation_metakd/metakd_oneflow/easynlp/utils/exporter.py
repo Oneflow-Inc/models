@@ -35,7 +35,7 @@ def export_train_config(saved_path, vocab_dir, label_enumerate_values,
     train_config_dict = dict()
     for key, val in cfg.__dict__.items():
         train_config_dict[key] = val
-
+    train_config_dict["local_rank"] = 0
     if isinstance(label_enumerate_values, list):
         num_label = len(label_enumerate_values)
         label_enumerate_values = ','.join(label_enumerate_values)

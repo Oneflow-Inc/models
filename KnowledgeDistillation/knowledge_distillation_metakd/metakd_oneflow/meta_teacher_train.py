@@ -25,18 +25,18 @@ if __name__ == "__main__":
     if args.mode != 'train' and args.checkpoint_dir:
         args.pretrained_model_name_or_path = args.checkpoint_dir
 
-    
+    print(user_defined_parameters)
     print('log: starts to process dataset...\n')
     train_dataset = MetakdSentiClassificationDataset(
         pretrained_model_name_or_path=args.pretrained_model_name_or_path,
-        data_file=args.tables.split(",")[0], # train_with_weights.tsv
-        max_seq_length=args.sequence_length, # 128
-        input_schema=args.input_schema, # guid:str:1,text_a:str:1,text_b:str:1,label:str:1,domain:str:1,weight:str:1
-        first_sequence=args.first_sequence, # text_a
-        second_sequence=args.second_sequence, # text_b
-        label_name=args.label_name, # label
-        label_enumerate_values=args.label_enumerate_values, # positive,negative
-        # user_defined_parameters=user_defined_parameters,
+        data_file=args.tables.split(",")[0], 
+        max_seq_length=args.sequence_length, 
+        input_schema=args.input_schema, 
+        first_sequence=args.first_sequence, 
+        second_sequence=args.second_sequence, 
+        label_name=args.label_name, 
+        label_enumerate_values=args.label_enumerate_values, 
+        user_defined_parameters=user_defined_parameters,
         is_training=True,
         skip_first_line=True)
     
@@ -54,13 +54,10 @@ if __name__ == "__main__":
 
     print('log: starts to run...\n')
 
-    # model = MetaTeacherForSequenceClassification(pretrained_model_name_or_path=args.pretrained_model_name_or_path, num_labels=2, 
-    #     num_domains=4)
-    model = MetaTeacherForSequenceClassification(pretrained_model_name_or_path="./bert-base-uncased-oneflow", num_labels=2, 
+    model = MetaTeacherForSequenceClassification(user_defined_parameters['pretrain_model_name_or_path_oneflow'], num_labels=2, 
         num_domains=4)
     evaluator = SequenceClassificationEvaluator(valid_dataset=valid_dataset, user_defined_parameters=user_defined_parameters)
 
     trainer = MetaTeacherTrainer(model=model, train_dataset=train_dataset,
-                      evaluator=evaluator, user_defined_parameters=user_defined_parameters)
-                      
+                        evaluator=evaluator, user_defined_parameters=user_defined_parameters)
     trainer.train()

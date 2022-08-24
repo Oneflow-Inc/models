@@ -63,6 +63,7 @@ def initialize_easynlp(extra_args_provider=None,
         args.pretrained_model_name_or_path = args.checkpoint_dir
 
     args.data_threads = max(args.data_threads, 5)
+    args.local_rank = torch.device("cuda")
     # Compile dependencies.
     #_compile_dependencies()
 

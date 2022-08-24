@@ -21,7 +21,7 @@ import time
 from ast import literal_eval
 
 import oneflow as torch
-from oneflow.utils.data import DataLoader, RandomSampler, SequentialSampler
+from oneflow.utils.data import DataLoader, RandomSampler
 from oneflow.utils.data.distributed import DistributedSampler
 
 from ..utils import (exporter, get_args, get_dir_name, get_pretrain_model_path,
@@ -52,7 +52,6 @@ class Trainer(object):
                 self._scaler = GradScaler()
             else:
                 self._scaler = torch.cuda.amp.GradScaler()
-        self.device = torch.device("cuda")
         self.optimizer_type = self.args.optimizer_type # add by ruihan.wjn
         self.max_grad_norm = self.args.max_grad_norm # add by ruihan.wjn
         self._model = None
@@ -83,19 +82,14 @@ class Trainer(object):
 
     @property
     def learning_rate(self):
-        # return self._optimizer.get_current_lr(self._lr_scheduler) if self._lr_scheduler else self._optimizer.get_current_lr()
-        return 0
+        return self._lr_scheduler.get_last_lr()[0]
 
     def set_model_and_optimizer(self, model, args):
         if self.args.use_torchacc:
             self._model = model.to(self._device)
         elif self.args.n_gpu == 1:
-            # self._device = self.args.local_rank
-            self._device = torch.device("cuda")
-            # self._model = model.to(self.args.local_rank)
-            self._model = model.to(self._device)
-            print(self._device)
-            # print(self._model)
+            self._device = self.args.local_rank
+            self._model = model.to(self.args.local_rank)
         elif self.args.n_gpu > 1:
             self._device = self.args.local_rank
             self._model = torch.nn.parallel.DistributedDataParallel(
@@ -353,11 +347,8 @@ class Trainer(object):
             self._epoch_stats.update(loss_dict)
             if self._global_step == 0 or (self._global_step + 1) % args.logging_steps == 0:
                 self._epoch_stats.output(self._global_step + 1, _epoch, self.learning_rate)
-                # self._epoch_stats.output(self._global_step + 1, _epoch, 0)
             self._epoch_stats.log_tensorboard(writer=self.tensorboard,
                                               learning_rate=self.learning_rate,
-                                            #   learning_rate=self._lr_scheduler.get_lr()[0],
-                                            #   learning_rate=0,
                                               current_loss=self.pred_loss,
                                               global_step=self._global_step,
                                               output_dir=os.path.join(
@@ -375,14 +366,13 @@ class Trainer(object):
                             1] > self.evaluator.best_valid_score:
                         logger.info(
                             'Saving best model to %s...' % os.path.join(
-                                args.checkpoint_dir, 'pytorch_model'))
+                                args.checkpoint_dir, 'oneflow_model'))
                         self.save_checkpoint(save_best=True)
                         self.evaluator.best_valid_score = self._eval_scores[0][1]
                     logger.info('Best score: {}'.format(self.evaluator.best_valid_score))
-                    # logger.info('Learning rate: {:.8f}'.format(
-                    #     self._optimizer.get_current_lr(
-                    #         self._lr_scheduler) if self._lr_scheduler else self._optimizer.get_current_lr()
-                    # ))
+                    logger.info('Learning rate: {:.8f}'.format(
+                        self._lr_scheduler.get_last_lr()[0]
+                    ))
                     self._epoch_stats.log_tensorboard(
                         writer=self.tensorboard,
                         learning_rate=self.learning_rate,
@@ -399,7 +389,7 @@ class Trainer(object):
 
         if args.save_checkpoint_steps is None:
             logger.info('Saving best model to %s...' %
-                        os.path.join(args.checkpoint_dir, 'pytorch_model.bin'))
+                        os.path.join(args.checkpoint_dir, 'oneflow_model'))
             self.save_checkpoint(save_best=True)
         elif self.evaluator is not None:
             self._eval_scores = self.evaluator.evaluate(
@@ -407,7 +397,7 @@ class Trainer(object):
             if self._eval_scores[0][1] > self.evaluator.best_valid_score:
                 logger.info(
                     'Saving best model to %s...' %
-                    os.path.join(args.checkpoint_dir, 'pytorch_model.bin'))
+                    os.path.join(args.checkpoint_dir, 'oneflow_model'))
                 self.save_checkpoint(save_best=True)
                 self.evaluator.best_valid_score = self._eval_scores[0][1]
             logger.info('Best score: {}'.format(
@@ -420,13 +410,12 @@ class Trainer(object):
             return
 
         exporter.export_train_config(
-            saved_path=os.path.join(self.args.checkpoint_dir,
-                                    'train_config.json'),
+            saved_path=os.path.join(self.args.checkpoint_dir, 'train_config.json'),
             vocab_dir=get_dir_name(self.args.checkpoint_dir),
-            label_enumerate_values=self._train_loader.dataset.
-            label_enumerate_values,
-            model_config=self.model_module.config,
-            cfg=self.args)
+            label_enumerate_values=self._train_loader.dataset.label_enumerate_values,
+            model_config=self.model_module.config, 
+            cfg=self.args
+            )
 
         exporter.export_label_mapping(
             saved_path=os.path.join(self.args.checkpoint_dir,
@@ -487,64 +476,19 @@ class Trainer(object):
                                 'spiece.model'))
 
         # Save the model
-        model_to_save_prefix = 'pytorch_model' if save_best else 'pytorch_model_step_%d' % (
+        model_to_save_prefix = 'oneflow_model' if save_best else 'oneflow_model_step_%d' % (
             self._global_step + 1)
+        torch.save(self.model_module.state_dict(), os.path.join(self.args.checkpoint_dir, model_to_save_prefix))
 
-        # with io.open(os.path.join(self.args.checkpoint_dir, model_to_save_prefix + '.bin'), 'wb') \
-        #         as output_model_file:
-        # with io.open(os.path.join(self.args.checkpoint_dir, model_to_save_prefix), 'wb') \
-        #         as output_model_file:
-        #     torch.save(self.model_module.state_dict(), os.path.join(self.args.checkpoint_dir, model_to_save_prefix))
-        # print('save')
-        torch.save(self.model_module.state_dict(), './tmp/meta_teacher_private')
-        # print(os.path.join(self.args.checkpoint_dir, model_to_save_prefix))
-        # print("save_finish")
         meta_data = {
             'epoch': self._current_epoch,
             'global_step': self._global_step,
             'optimizer': self._optimizer.state_dict()
         }
-
-        # with io.open(os.path.join(self.args.checkpoint_dir, model_to_save_prefix + '.meta.bin'), 'wb') \
-        #         as output_model_file:
-        #     # torch.save(meta_data, output_model_file)
-        #     torch.save(meta_data, os.path.join(self.args.checkpoint_dir, model_to_save_prefix + '_meta'))
-        torch.save(meta_data, "./tmp/meta_teacher_private_meta")
+        torch.save(meta_data, os.path.join(self.args.checkpoint_dir, model_to_save_prefix) + '_meta')
 
         if not save_best:
             return
-        # print("save_meta_finish")
-        # if self.args.export_tf_checkpoint_type != 'none' and hasattr(
-        #         self.model_module, 'model_name'):
-        #     # If the student is pre-defined EasyTransfer AppZoo model
-        #     # Save train_config.json, model.ckpt.* for EasyTransfer
-        #     logger.info('Export tensorflow checkpoint (%s format) to %s' %
-        #                 (self.args.export_tf_checkpoint_type,
-        #                  os.path.join(get_dir_name(self.args.checkpoint_dir),
-        #                               'model.ckpt')))
-
-        #     if self.args.export_tf_checkpoint_type == 'easytransfer':
-        #         exporter.export_pytorch_checkpoint_to_tf(
-        #             model=self.model_module,
-        #             ckpt_dir=get_dir_name(self.args.checkpoint_dir),
-        #             bert_output_prefix='bert_pre_trained_model',
-        #             appended_val_map=(('classifier', 'app/ez_dense'), ),
-        #             appended_tensors_to_transpose=('classifier.weight', ))
-        #     elif self.args.export_tf_checkpoint_type == 'google':
-        #         exporter.export_pytorch_checkpoint_to_tf(
-        #             model=self.model_module,
-        #             ckpt_dir=get_dir_name(self.args.checkpoint_dir),
-        #             bert_output_prefix='',
-        #             appended_val_map=(('classifier.weight', 'output_weights'),
-        #                               ('classifier.bias', 'output_bias')),
-        #             appended_tensors_to_transpose=())
-        #     else:
-        #         raise RuntimeError('Invalid export_tf_checkpoint_type %s' %
-        #                            self.args.export_tf_checkpoint_type)
-        # This is a hack
-        # if torch.cuda.is_available():
-        #     # torch.cuda.set_device(self.args.local_rank)
-        #     torch.cuda.set_device(self.args.local_rank)
 
     def train(self):
         self.log_train_infos()

@@ -3,11 +3,13 @@ import csv
 import os
 import sys
 import uuid
-import oneflow as torch
+import json
 from tqdm import tqdm
-# from easynlp.modelzoo.models.bert import BertTokenizer, BertModel
-from bert import Bert as BertModel
+
+import oneflow as torch
 from transformers import BertTokenizer
+
+from bert import Bert as BertModel
 
 
 class InputExample(object):
@@ -119,13 +121,11 @@ class SentiProcessor(DataProcessor):
             if i == 0:
                 continue
             if len(line) != 3:
-                # 调试代码，程序运行到这里就会暂停
                 import pdb
                 pdb.set_trace()
             review, domain, sentiment = line
             if genre and genre != "mix" and domain != genre:
                 continue
-            # TODO:为什么需要一个主键
             guid = uuid.uuid4()
             text_a = review
             examples.append(InputExample(guid=guid, text_a=text_a, text_b=None, label=sentiment, domain=domain))
@@ -239,9 +239,11 @@ if __name__ == "__main__":
     tokenizer = BertTokenizer.from_pretrained(args.bert_path)
     examples = processor.get_examples(args.input)
     features = convert_examples_to_features(examples, args.max_seq_length, tokenizer)
-    # bert_model = BertModel.from_pretrained(args.bert_path)
-    bert_model = BertModel()
-    bert_model.load_state_dict(torch.load("./bert-base-uncased-oneflow"))
+    args.bert_path = './bert-base-uncased-oneflow'
+    with open(args.bert_path + '/parameters.json', "r") as f:
+        config = json.load(f)
+    bert_model = BertModel(**config)
+    bert_model.load_state_dict(torch.load(args.bert_path + "/weights"))
 
     bert_model.to(device)
 
@@ -249,17 +251,11 @@ if __name__ == "__main__":
     fout = open(args.output, "w")
     fout.write("\t".join(["guid", "text_a", "text_b", "label", "domain", "embeddings"]) + "\n")
     for step in tqdm(range(total_steps)):
-        # 每次循环就是一个batch
-        # 下面这一行就是取出来一个batch
         batch_features = features[step * args.batch_size: (step + 1) * args.batch_size]
         input_ids = torch.tensor([f.input_ids for f in batch_features], dtype=torch.long).to(device)
         input_mask = torch.tensor([f.input_mask for f in batch_features], dtype=torch.long).to(device)
         segment_ids = torch.tensor([f.segment_ids for f in batch_features], dtype=torch.long).to(device)
         with torch.no_grad():
-            # sequence_output = bert_model(input_ids, input_mask, segment_ids)[0]
-            # 一个batch的bert输出
-            # TODO：为什么选用list_hidden_state（bs,sequence_len,hidden_size=768）
-            # 论文中有求和， 有求平均
             sequence_output = bert_model(input_ids, input_mask, segment_ids).last_hidden_state
         content_embeddings = torch.mean(sequence_output[:, 1:, :], dim=1).tolist()
         for idx, content_embedding in enumerate(content_embeddings):

@@ -1,9 +1,9 @@
 if [ ! -f data/SENTI/train.embeddings.tsv ];then
 python extract_embeddings.py \
---bert_path bert-base-uncased \
+--bert_path "bert-base-uncased" \
 --input data/SENTI/train.tsv \
 --output data/SENTI/train.embeddings.tsv \
---task_name senti --gpu 7
+--task_name senti
 fi
 
 if [ ! -f data/SENTI/train_with_weights.tsv ];then

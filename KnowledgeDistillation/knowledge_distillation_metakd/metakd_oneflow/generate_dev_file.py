@@ -1,8 +1,8 @@
 import uuid
 import argparse
 
+
 if __name__ == "__main__":
-    # 将dev数据集也转换为统一格式
     
     parser = argparse.ArgumentParser()
     parser.add_argument("--input", default=None, type=str)
@@ -10,8 +10,6 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     
-    # args.input = "data/SENTI_FULL/dev.tsv"
-    # args.output = "data/SENTI/dev.tsv"
     with open(args.input, "r") as f:
         contents = f.readlines()
     with open(args.output, "w") as f:

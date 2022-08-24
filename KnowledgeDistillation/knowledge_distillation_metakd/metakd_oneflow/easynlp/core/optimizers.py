@@ -18,12 +18,10 @@ import abc
 import logging
 import math
 import sys
-import warnings
 import oneflow as torch
 from oneflow.nn.utils import clip_grad_norm_
 from oneflow.optim import Adam, Optimizer
 from oneflow.nn.optimizer.optimizer import required
-# from torch.optim.optimizer import required
 from oneflow.optim.lr_scheduler import LambdaLR
 from typing import Union, Tuple, Iterable, List
 

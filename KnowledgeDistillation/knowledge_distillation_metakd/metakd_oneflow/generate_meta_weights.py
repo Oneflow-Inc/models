@@ -13,7 +13,6 @@ def read_embeddings(input_str):
 
 
 def compute_weight(domain, current_embedding, centroid_embeddings):
-    # 构建本domain的词向量和其他类的词向量
     current_centroid = centroid_embeddings[domain]
     other_centroids = list()
     for label in centroid_embeddings.keys():
@@ -38,7 +37,6 @@ for domain in domains:
     domain_embeddings[domain] = list()
 
 print("Computing centroid embedding...")
-# 获取每一个 domain 的所有 embedding
 with open(dataset_file, 'r') as f:
     lines = f.readlines()
     for i, line in enumerate(tqdm(lines)):
@@ -50,11 +48,9 @@ with open(dataset_file, 'r') as f:
         embeddings = read_embeddings(items[-1])
         domain_embeddings[domain].append(embeddings)
 
-# 计算每一个 label 的centroid_embedding
 centroid_embeddings = dict()
 for label in domain_embeddings:
     data_embeddings = np.array(domain_embeddings[label])
-    # print(data_embeddings.shape)
     centroid_embeddings[label] = np.mean(data_embeddings, axis=0)
 
 # weight computation

@@ -1,11 +1,10 @@
-# import sys
-# import os
-
 from easynlp.core.distiller import MetaDistillationTrainer
-from easynlp.distillation.distill_metakd_application import MetaStudentForSequenceClassification
+from easynlp.distillation.distill_metakd_application import MetaStudentForSequenceClassification, MetaTeacherForSequenceClassification
 
 print('*'*50)
 print('running local main...\n')
+
+import oneflow as torch
 
 from easynlp.distillation.distill_metakd_dataset import MetakdSentiClassificationDataset
 from easynlp.utils import initialize_easynlp, get_args
@@ -13,10 +12,9 @@ from easynlp.utils.global_vars import parse_user_defined_parameters
 from easynlp.appzoo import SequenceClassificationEvaluator
 
 
+
 if __name__ == "__main__":
     print('log: starts to init...\n')
-    # os.environ["NCCL_DEBUG_SUBSYS"] = "ALL"
-    # os.environ["NCCL_DEBUG"] = "INFO"
 
     initialize_easynlp()
     args = get_args()
@@ -43,8 +41,6 @@ if __name__ == "__main__":
         genre=user_defined_parameters["genre"],
         is_training=True,
         skip_first_line=True)
-    
-    # train_dataset = MetaDistillationDataset(path, user_defined_parameters["genre"])
 
     valid_dataset = MetakdSentiClassificationDataset(
         pretrained_model_name_or_path=args.pretrained_model_name_or_path,
@@ -62,12 +58,16 @@ if __name__ == "__main__":
     print('log: starts to run...\n')
 
     print('log: start to load teacher model...\n')
-    teacher = MetaStudentForSequenceClassification(pretrained_model_name_or_path=user_defined_parameters["teacher_model_path"], teacher=True)
+    # Configuration file path required to instantiate the model
+    teacher = MetaStudentForSequenceClassification(pretrained_model_name_or_path=user_defined_parameters['teacher_config_path'], num_labels=2, num_domains=4)
+    # Path to save the model
+    teacher.load_state_dict(torch.load(user_defined_parameters['teacher_model_path'] + "/oneflow_model"))
     print('log: start to load student model...\n')
     if user_defined_parameters["distill_stage"] == "first":
-        student = MetaStudentForSequenceClassification(args.pretrained_model_name_or_path, distill_stage=user_defined_parameters["distill_stage"], num_labels=2, num_domains=4)
+        student = MetaStudentForSequenceClassification(pretrained_model_name_or_path=user_defined_parameters['student_config_path'], num_labels=2, num_domains=4)
     else:
-        student = MetaStudentForSequenceClassification.from_pretrained(args.pretrained_model_name_or_path)
+        student = MetaStudentForSequenceClassification(pretrained_model_name_or_path=user_defined_parameters['student_config_path'], num_labels=2, num_domains=4)
+        student.load_state_dict(torch.load(user_defined_parameters['student_model_path'] + "/oneflow_model"))
     
     evaluator = SequenceClassificationEvaluator(valid_dataset=valid_dataset, user_defined_parameters=user_defined_parameters)
 
