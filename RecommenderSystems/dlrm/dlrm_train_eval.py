@@ -361,6 +361,7 @@ class DLRMModule(nn.Module):
         freeze_backbone=False,
     ):
         super(DLRMModule, self).__init__()
+        assert not(freeze_embedding and freeze_backbone), "Freezing all models are not allowed."
         assert (
             embedding_vec_size == bottom_mlp[-1]
         ), "Embedding vector size must equle to bottom MLP output size"
