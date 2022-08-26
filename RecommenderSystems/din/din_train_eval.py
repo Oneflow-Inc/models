@@ -10,9 +10,7 @@ import oneflow as flow
 import oneflow.nn as nn
 from petastorm.reader import make_batch_reader
 
-sys.path.append(
-    os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
-)
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
 
 
 def get_args(print_args=True):
@@ -26,31 +24,16 @@ def get_args(print_args=True):
 
     parser.add_argument("--data_dir", type=str, required=True)
     parser.add_argument(
-        "--num_train_samples",
-        type=int,
-        required=True,
-        help="the number of train samples",
+        "--num_train_samples", type=int, default=2608764, help="the number of train samples",
     )
     parser.add_argument(
-        "--num_val_samples",
-        type=int,
-        required=True,
-        help="the number of validation samples",
-    )
-    parser.add_argument(
-        "--num_test_samples", type=int, required=True, help="the number of test samples"
+        "--num_test_samples", type=int, default=384806, help="the number of validation samples",
     )
 
+    parser.add_argument("--model_load_dir", type=str, default=None, help="model loading directory")
+    parser.add_argument("--model_save_dir", type=str, default=None, help="model saving directory")
     parser.add_argument(
-        "--model_load_dir", type=str, default=None, help="model loading directory"
-    )
-    parser.add_argument(
-        "--model_save_dir", type=str, default=None, help="model saving directory"
-    )
-    parser.add_argument(
-        "--save_initial_model",
-        action="store_true",
-        help="save initial model parameters or not",
+        "--save_initial_model", action="store_true", help="save initial model parameters or not",
     )
     parser.add_argument(
         "--save_model_after_each_eval",
@@ -58,75 +41,38 @@ def get_args(print_args=True):
         help="save model after each eval or not",
     )
 
-    parser.add_argument(
-        "--item_emb_size", type=int, default=16, help="embedding vector size"
-    )
-    parser.add_argument(
-        "--cat_emb_size", type=int, default=16, help="embedding vector size"
-    )
+    parser.add_argument("--max_len", type=int, default=512, help="max sequence length")
+    parser.add_argument("--embedding_size", type=int, default=64, help="embedding vector size")
     parser.add_argument(
         "--attention_layer_hidden_dim",
         type=int_list,
-        default="1000,1000,1000,1000,1000",
+        default="80,40",
         help="attention layer hidden units number",
-    )
-    parser.add_argument(
-        "--net_dropout", type=float, default=0.2, help="net dropout rate"
     )
 
     parser.add_argument("--lr_factor", type=float, default=0.1)
     parser.add_argument("--min_lr", type=float, default=1.0e-6)
+    parser.add_argument("--learning_rate", type=float, default=1, help="learning rate")
+    parser.add_argument("--optim", type=str, default="SGD", help="optimizer")
+    parser.add_argument("--batch_size", type=int, default=32, help="training/evaluation batch size")
     parser.add_argument(
-        "--learning_rate", type=float, default=0.001, help="learning rate"
+        "--train_batches", type=int, default=652192, help="the maximum number of training batches",
     )
-    parser.add_argument(
-        "--optim", type=str, default="SGD", help="optimizer"
-    )
-    parser.add_argument(
-        "--batch_size", type=int, default=10000, help="training/evaluation batch size"
-    )
-    parser.add_argument(
-        "--train_batches",
-        type=int,
-        default=75000,
-        help="the maximum number of training batches",
-    )
-    parser.add_argument("--loss_print_interval", type=int, default=100, help="")
+    parser.add_argument("--loss_print_interval", type=int, default=1000, help="")
 
     parser.add_argument(
-        "--patience",
-        type=int,
-        default=2,
-        help="number of epochs with no improvement after which learning rate will be reduced",
-    )
-    parser.add_argument(
-        "--min_delta",
-        type=float,
-        default=1.0e-6,
-        help="threshold for measuring the new optimum, to only focus on significant changes",
-    )
-    parser.add_argument(
-        "--id_table_size_array",
+        "--table_size_array",
         type=int_list,
+        default="63001,801",
         help="embedding table size array for sparse fields",
-        required=True,
     )
     parser.add_argument(
-        "--cat_table_size_array",
-        type=int_list,
-        help="embedding table size array for sparse fields",
-        required=True,
-    )
-    parser.add_argument(
-        "--persistent_path",
-        type=str,
-        required=True,
-        help="path for persistent kv store",
+        "--persistent_path", type=str, default="./persistent", help="path for persistent kv store",
     )
     parser.add_argument(
         "--store_type",
         type=str,
-        default="cached_host_mem",
+        default="device_mem",
         help="OneEmbeddig persistent kv store type: device_mem, cached_host_mem, cached_ssd",
     )
     parser.add_argument(
@@ -137,20 +83,11 @@ def get_args(print_args=True):
     )
 
     parser.add_argument(
-        "--amp",
-        action="store_true",
-        help="enable Automatic Mixed Precision(AMP) training or not",
+        "--amp", action="store_true", help="enable Automatic Mixed Precision(AMP) training or not",
     )
-    parser.add_argument(
-        "--loss_scale_policy", type=str, default="static", help="static or dynamic"
-    )
+    parser.add_argument("--loss_scale_policy", type=str, default="static", help="static or dynamic")
 
-    parser.add_argument(
-        "--disable_early_stop", action="store_true", help="enable early stop or not"
-    )
-    parser.add_argument(
-        "--save_best_model", action="store_true", help="save best model or not"
-    )
+    parser.add_argument("--save_best_model", action="store_true", help="save best model or not")
 
     args = parser.parse_args()
 
@@ -185,6 +122,7 @@ class DINDataReader(object):
         shard_seed=2019,
         shard_count=1,
         cur_shard=0,
+        max_len=32,
     ):
         self.batch_size = batch_size
         self.num_epochs = num_epochs
@@ -193,13 +131,12 @@ class DINDataReader(object):
         self.shard_count = shard_count
         self.cur_shard = cur_shard
 
-        fields = ['item_his', 'cat_his', 'tar_id', 'tar_cat', 'label']
+        fields = ["label", "item", "cat", "item_hist", "cat_hist", "mask"]
         self.fields = fields
         self.num_fields = len(fields)
 
         self.parquet_file_url_list = parquet_file_url_list
-        self.max_len = 32
-
+        self.max_len = max_len
 
     def __enter__(self):
         self.reader = make_batch_reader(
@@ -220,104 +157,48 @@ class DINDataReader(object):
 
     def get_batches(self, reader, batch_size=None):
         max_len = self.max_len
+        if batch_size is None:
+            batch_size = self.batch_size
+        tail = None
         for rg in reader:
             rgdict = rg._asdict()
             rglist = [rgdict[field] for field in self.fields]
-            sortb = []
-            for line in zip(*rglist):
-                if len(line) < 5:
+            pos = 0
+            if tail is not None:
+                pos = batch_size - len(tail[0])
+                tail = list(
+                    [
+                        np.concatenate((tail[i], rglist[i][0 : (batch_size - len(tail[i]))]))
+                        for i in range(self.num_fields)
+                    ]
+                )
+                if len(tail[0]) == batch_size:
+                    label = tail[0]
+                    item = tail[1]
+                    cat = tail[2]
+                    item_hist = tail[3]
+                    cat_hist = tail[4]
+                    mask = tail[5]
+                    tail = None
+                    yield label, item, cat, item_hist, cat_hist, mask
+                else:
+                    pos = 0
                     continue
-                hist = line[0].split()
-                cate = line[1].split()
-                sortb.append([hist, cate, line[2], line[3], float(line[4])])
-
-            batches = len(rglist[0]) // batch_size
-            for i in range(0, batches * batch_size, batch_size):
-                b = sortb[i : i + batch_size]
-                len_array = [len(x[0]) for x in b]
-
-                itemInput = [x[0] for x in b]
-                catInput = [x[1] for x in b]
-                itemRes0 = []
-                catRes0 = []
-                mask = []
-                for idx, l in enumerate(len_array):
-                    if l < max_len:
-                        itemRes0.append(itemInput[idx] + [0] * (max_len - l))
-                        catRes0.append(catInput[idx] + [0] * (max_len - l))
-                        mask.append([0] * l + [-1e9] * (max_len - l))
-                    else:
-                        itemRes0.append(itemInput[idx][:max_len])
-                        catRes0.append(catInput[idx][:max_len])
-                        mask.append([0] * max_len)
-                item = np.array(itemRes0).astype("int64").reshape([-1, max_len])
-                cat = np.array(catRes0).astype("int64").reshape([-1, max_len])
-                mask = np.array(mask).reshape([-1, max_len, 1])
-
-                target_item_seq = (
-                    np.array([[x[2]] * max_len for x in b])
-                    .astype("int64")
-                    .reshape([-1, max_len])
-                )
-                target_cat_seq = (
-                    np.array([[x[3]] * max_len for x in b])
-                    .astype("int64")
-                    .reshape([-1, max_len])
-                )
-
-                r = []
-                r.append(np.array([int(x[4]) for x in b]))
-                res = []
-                res.append(np.array(item))
-                res.append(np.array(cat))
-                res.append(np.array([int(x[2]) for x in b]))
-                res.append(np.array([int(x[3]) for x in b]))
-                res.append(np.array(mask).astype("int64"))
-                res.append(np.array(target_item_seq))
-                res.append(np.array(target_cat_seq))
-                r.append(res)
-                yield r
-            # b = sortb[batches * batch_size : ]
-            # len_bg = len(b)
-            # if len_bg != 0:
-            #     itemInput = [x[0] for x in b]
-            #     itemRes0 = np.array([x + [0] * (max_len - len(x)) for x in itemInput])
-            #     item = itemRes0.astype("int64").reshape([-1, max_len])
-            #     catInput = [x[1] for x in b]
-            #     catRes0 = np.array([x + [0] * (max_len - len(x)) for x in catInput])
-            #     cat = catRes0.astype("int64").reshape([-1, max_len])
-
-            #     len_array = [len(x[0]) for x in b]
-            #     mask = np.array(
-            #         [[0] * x + [-1e9] * (max_len - x) for x in len_array]
-            #     ).reshape([-1, max_len, 1])
-            #     target_item_seq = (
-            #         np.array([[x[2]] * max_len for x in b])
-            #         .astype("int64")
-            #         .reshape([-1, max_len])
-            #     )
-            #     target_cat_seq = (
-            #         np.array([[x[3]] * max_len for x in b])
-            #         .astype("int64")
-            #         .reshape([-1, max_len])
-            #     )
-            #     r = []
-            #     r.append([np.array([int(x[4]) for x in b])])
-            #     res = []
-            #     res.append(np.array(item))
-            #     res.append(np.array(cat))
-            #     res.append(np.array([int(x[2]) for x in b]))
-            #     res.append(np.array([int(x[3]) for x in b]))
-            #     res.append(np.array(mask).astype("int64"))
-            #     res.append(np.array(target_item_seq))
-            #     res.append(np.array(target_cat_seq))
-            #     r.append(res)
-            #     yield r
+            while (pos + batch_size) <= len(rglist[0]):
+                label = rglist[0][pos : pos + batch_size]
+                item = rglist[1][pos : pos + batch_size]
+                cat = rglist[2][pos : pos + batch_size]
+                item_hist = rglist[3][pos : pos + batch_size]
+                cat_hist = rglist[4][pos : pos + batch_size]
+                mask = rglist[5][pos : pos + batch_size]
+                pos += batch_size
+                yield label, item, cat, item_hist, cat_hist, mask
+            if pos != len(rglist[0]):
+                tail = [rglist[i][pos:] for i in range(self.num_fields)]
+                #tail = [rglist[i][pos:] for i in range(self.C_end)]
 
 
-def make_criteo_dataloader(data_path, batch_size, shuffle=False):
-
-# def make_criteo_dataloader(data_path, batch_size, shuffle=True):
+def make_criteo_dataloader(data_path, batch_size, shuffle=False, max_len=32):
     """Make a Criteo Parquet DataLoader.
     :return: a context manager when exit the returned context manager, the reader will be closed.
     """
@@ -334,6 +215,7 @@ def make_criteo_dataloader(data_path, batch_size, shuffle=False):
         shard_seed=2019,
         shard_count=world_size,
         cur_shard=flow.env.get_rank(),
+        max_len=max_len,
     )
 
 
@@ -351,17 +233,21 @@ class OneEmbedding(nn.Module):
         assert table_size_array is not None
         vocab_size = sum(table_size_array)
 
+        # todo: last column should be initialized to 0
+        b = [math.sqrt(6 / (table_size + embedding_vec_size[0])) for table_size in table_size_array]
+        embd_initializer = [flow.one_embedding.make_uniform_initializer(-a, a) for a in b]
+        embd_columns = [flow.one_embedding.make_column_options(e) for e in embd_initializer]
+
+        bias_initializer = flow.one_embedding.make_constant_initializer(0)
+        bias_column = flow.one_embedding.make_column_options(bias_initializer)
         tables = [
-            flow.one_embedding.make_table(
-                flow.one_embedding.make_normal_initializer(mean=0.0, std=1e-4)
-            )
-            for _ in range(len(table_size_array))
+            flow.one_embedding.make_table_options([embd_column, bias_column])
+            for embd_column in embd_columns
         ]
+
         if store_type == "device_mem":
             store_options = flow.one_embedding.make_device_mem_store_options(
-                persistent_path=persistent_path, 
-                capacity=vocab_size,
-                size_factor=size_factor,
+                persistent_path=persistent_path, capacity=vocab_size, size_factor=size_factor,
             )
         elif store_type == "cached_host_mem":
             assert cache_memory_budget_mb > 0
@@ -383,7 +269,7 @@ class OneEmbedding(nn.Module):
             raise NotImplementedError("not support", store_type)
 
         super(OneEmbedding, self).__init__()
-        self.one_embedding = flow.one_embedding.MultiTableEmbedding(
+        self.one_embedding = flow.one_embedding.MultiTableMultiColumnEmbedding(
             name=table_name,
             embedding_dim=embedding_vec_size,
             dtype=flow.float,
@@ -391,20 +277,14 @@ class OneEmbedding(nn.Module):
             tables=tables,
             store_options=store_options,
         )
-        # ).load_snapshot("2022-07-14-21-53-04-270525")
 
-    def forward(self, ids):
-        return self.one_embedding.forward(ids)
+    def forward(self, ids, table_ids):
+        return self.one_embedding.forward(ids, table_ids=table_ids)
 
 
 class DNN(nn.Module):
     def __init__(
-        self,
-        in_features,
-        hidden_units,
-        out_features,
-        skip_final_activation=False,
-        dropout=0.0,
+        self, in_features, hidden_units, out_features, skip_final_activation=False, dropout=0.0,
     ) -> None:
         super(DNN, self).__init__()
         denses = []
@@ -412,9 +292,7 @@ class DNN(nn.Module):
         use_relu = [True] * len(hidden_units) + [not skip_final_activation]
         hidden_units = [in_features] + hidden_units + [out_features]
         for idx in range(len(hidden_units) - 1):
-            denses.append(
-                nn.Linear(hidden_units[idx], hidden_units[idx + 1], bias=True)
-            )
+            denses.append(nn.Linear(hidden_units[idx], hidden_units[idx + 1], bias=True))
             if use_relu[idx]:
                 denses.append(nn.Sigmoid())
             if dropout_rates[idx] > 0:
@@ -434,198 +312,128 @@ class DNN(nn.Module):
 class DINModule(nn.Module):
     def __init__(
         self,
-        item_emb_size=64,
-        cat_emb_size=64,
+        embedding_size=64,
         attention_layer_hidden_dim=[80, 40],
         second_con_layer_hidden_dim=[80, 40],
         persistent_path=None,
-        id_table_size_array=None,
-        cat_table_size_array=None,
+        table_size_array=None,
         one_embedding_store_type="cached_host_mem",
         cache_memory_budget_mb=8192,
-        dropout=0.2,
-        size_factor = 1
+        size_factor=1,
+        max_len=32,
     ):
         super(DINModule, self).__init__()
 
-        self.item_emb_size = item_emb_size
+        self.embedding_size = embedding_size
+        self.num_items = table_size_array[0]
 
-        self.cat_emb_size = cat_emb_size
-        self.firInDim = self.item_emb_size + self.cat_emb_size
-        self.firOutDim = self.item_emb_size + self.cat_emb_size
-        # print(persistent_path + "1")
-        self.hist_item_emb_attr = OneEmbedding(
-            table_name="hist_id_embedding_layer",
-            embedding_vec_size=item_emb_size,
-            persistent_path=persistent_path + "1",
-            table_size_array=id_table_size_array,
-            store_type=one_embedding_store_type,
-            cache_memory_budget_mb=cache_memory_budget_mb,
-            size_factor=size_factor,
-        ) 
-
-        self.hist_cat_emb_attr = OneEmbedding(
-            table_name="hist_cat_embedding_layer",
-            embedding_vec_size=cat_emb_size,
-            persistent_path=persistent_path + "2/0-1/snapshots",
-            table_size_array=cat_table_size_array,
+        self.firInDim = 2 * self.embedding_size
+        self.firOutDim = 2 * self.embedding_size
+        self.embedding = OneEmbedding(
+            table_name="oneembedding",
+            embedding_vec_size=[embedding_size, 1],
+            persistent_path=persistent_path,
+            table_size_array=table_size_array,
             store_type=one_embedding_store_type,
             cache_memory_budget_mb=cache_memory_budget_mb,
             size_factor=size_factor,
         )
+        self.table_ids = flow.tensor(
+            [0] + [1] + [0] * max_len + [1] * max_len, dtype=flow.int64
+        ).to_global(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
 
-        self.target_item_seq_emb_attr = OneEmbedding(
-            table_name="tar_seq_id_embedding_layer",
-            embedding_vec_size=item_emb_size,
-            persistent_path=persistent_path + "3",
-            table_size_array=id_table_size_array,
-            store_type=one_embedding_store_type,
-            cache_memory_budget_mb=cache_memory_budget_mb,
-            size_factor=size_factor,
-        )
-
-        self.target_cat_seq_emb_attr = OneEmbedding(
-            table_name="tar_seq_cat_embedding_layer",
-            embedding_vec_size=cat_emb_size,
-            persistent_path=persistent_path + "4",
-            table_size_array=cat_table_size_array,
-            store_type=one_embedding_store_type,
-            cache_memory_budget_mb=cache_memory_budget_mb,
-            size_factor=size_factor,
-        )
-
-        self.target_item_emb_attr = OneEmbedding(
-            table_name="tar_id_embedding_layer",
-            embedding_vec_size=item_emb_size,
-            persistent_path=persistent_path + "5",
-            table_size_array=id_table_size_array,
-            store_type=one_embedding_store_type,
-            cache_memory_budget_mb=cache_memory_budget_mb,
-            size_factor=size_factor,
-        )
-
-        self.target_cat_emb_attr = OneEmbedding(
-            table_name="tar_cat_embedding_layer",
-            embedding_vec_size=cat_emb_size,
-            persistent_path=persistent_path + "6",
-            table_size_array=cat_table_size_array,
-            store_type=one_embedding_store_type,
-            cache_memory_budget_mb=cache_memory_budget_mb,
-            size_factor=size_factor,
-        )
-
-        self.item_b_attr = OneEmbedding(
-            table_name="tar_b_sparse_embedding",
-            embedding_vec_size=1,
-            persistent_path=persistent_path + "7",
-            table_size_array=id_table_size_array,
-            store_type=one_embedding_store_type,
-            cache_memory_budget_mb=cache_memory_budget_mb,
-            size_factor=size_factor,
-        )
-
-        # self.id_embedding_dict = nn.ModuleList([nn.Linear(63001, 64, bias=False) for _ in range(3)])
-        # for name, param in self.id_embedding_dict.named_parameters():
-        #     if "weight" in name:
-        #         nn.init.xavier_uniform_(param)
-        #     elif "bias" in name:
-        #         param.data.fill_(0.0)
-
-        # self.cat_embedding_dict = nn.ModuleList([nn.Linear(801, 64, bias=False) for _ in range(3)])
-        # for name, param in self.cat_embedding_dict.named_parameters():
-        #     if "weight" in name:
-        #         nn.init.xavier_uniform_(param)
-        #     elif "bias" in name:
-        #         param.data.fill_(0.0)
-
-        # self.item_b_attr = nn.ModuleList([nn.Linear(63001, 1, bias=False)])
-        # for name, param in self.item_b_attr.named_parameters():
-        #     if "weight" in name:
-        #     #     nn.init.xavier_uniform_(param)
-        #     # elif "bias" in name:
-        #         param.data.fill_(0.0)
-
-
-        self.attention_layer_input_dim = (self.item_emb_size + self.cat_emb_size) * 4
+        self.attention_layer_input_dim = self.embedding_size * 8
         self.attention_layer = DNN(
             in_features=self.attention_layer_input_dim,
             hidden_units=attention_layer_hidden_dim,
             out_features=1,
             skip_final_activation=True,
-            dropout=dropout,
         )
 
+        self.bn1 = flow.nn.BatchNorm1d(2 * self.embedding_size)
         self.first_con_layer = DNN(
             in_features=self.firInDim,
             hidden_units=[],
             out_features=self.firOutDim,
             skip_final_activation=True,
-            dropout=dropout,
         )
-
         
-        self.second_con_layer_input_dim = self.item_emb_size + self.cat_emb_size + self.item_emb_size + self.cat_emb_size
+        self.bn2 = flow.nn.BatchNorm1d(6 * self.embedding_size)
+        self.second_con_layer_input_dim = 6 * self.embedding_size
         self.second_con_layer = DNN(
             in_features=self.second_con_layer_input_dim,
             hidden_units=second_con_layer_hidden_dim,
             out_features=1,
             skip_final_activation=True,
-            dropout=dropout,
         )
 
-
     def forward(self, inputs) -> flow.Tensor:
-        hist_item_seq, hist_cat_seq, target_item, target_cat, mask, target_item_seq, target_cat_seq = inputs
+        target_item, target_cat, hist_item_seq, hist_cat_seq, mask = inputs
+        # (b, 1) (b, 1) (b, s) (b, s) (b, s, 1)
+        b, s = hist_item_seq.shape
+        e = self.embedding_size
+        target_item = target_item.view(b, 1)
+        target_cat = target_cat.view(b, 1)
+        # target_cat += self.num_items
+        # hist_cat_seq += self.num_items
 
-        hist_item_emb = self.hist_item_emb_attr(hist_item_seq)
-        hist_cat_emb = self.hist_cat_emb_attr(hist_cat_seq)
-        target_item_emb = self.target_item_emb_attr(target_item)
-        target_cat_emb = self.target_cat_emb_attr(target_cat)
-        target_item_seq_emb = self.target_item_seq_emb_attr(target_item_seq)
-        target_cat_seq_emb = self.target_cat_seq_emb_attr(target_cat_seq)
-        item_b = self.item_b_attr(target_item)
+        ids = flow.cat(
+            [target_item, target_cat, hist_item_seq, hist_cat_seq], dim=1
+        )  # (b, 1+1+s+s)
+        table_ids = self.table_ids.unsqueeze(0).expand(b, -1)
+        embeddings = self.embedding(ids, table_ids)  # (b, 1+1+s+s, e+1)
+
+        target_item_emb = embeddings[:, 0, :e]
+        target_cat_emb = embeddings[:, 1, :e]
+        hist_item_emb = embeddings[:, 2 : (2 + s), :e]
+        hist_cat_emb = embeddings[:, (2 + s) : (2 + s + s), :e]
+        item_b = embeddings[:, 0, -1]
+        target_item_seq_emb = target_item_emb.unsqueeze(1).expand(-1, s, -1)
+        target_cat_seq_emb = target_cat_emb.unsqueeze(1).expand(-1, s, -1)
+
         hist_seq_concat = flow.concat([hist_item_emb, hist_cat_emb], dim=2)
-        target_seq_concat = flow.concat(
-            [target_item_seq_emb, target_cat_seq_emb], dim=2)
-        target_concat = flow.concat(
-            [target_item_emb, target_cat_emb], dim=1)
+        target_seq_concat = flow.concat([target_item_seq_emb, target_cat_seq_emb], dim=2)
+        target_concat = flow.concat([target_item_emb, target_cat_emb], dim=1)
         concat = flow.concat(
             [
-                hist_seq_concat, target_seq_concat,
+                hist_seq_concat,
+                target_seq_concat,
                 hist_seq_concat - target_seq_concat,
-                hist_seq_concat * target_seq_concat
+                hist_seq_concat * target_seq_concat,
             ],
-            dim=2)
+            dim=2,
+        )
 
         concat = self.attention_layer(concat)
 
-        atten_fc3 = concat + mask
+        atten_fc3 = concat + mask.unsqueeze(-1)
         atten_fc3 = flow.transpose(atten_fc3, perm=[0, 2, 1])
-        atten_fc3 /= self.firInDim**-0.5
+        atten_fc3 /= self.firInDim ** -0.5
 
         weight = flow.nn.functional.softmax(atten_fc3)
         output = flow.matmul(weight, hist_seq_concat)
         output = flow.squeeze(output)
-    
+        output = self.bn1(output)
+
         concat = self.first_con_layer(output)
-        embedding_concat = flow.concat([concat, target_concat], dim=1)
+        embedding_concat = flow.concat([concat, target_concat, concat * target_concat], dim=1)
+        embedding_concat = self.bn2(embedding_concat)
         embedding_concat = self.second_con_layer(embedding_concat)
-        logit = embedding_concat + item_b
+        logit = embedding_concat + item_b.unsqueeze(1)
         # return logit.sigmoid()
-        return logit, hist_item_seq, hist_item_emb
+        return logit
+
 
 def make_din_module(args):
     model = DINModule(
-        item_emb_size=args.item_emb_size,
-        cat_emb_size=args.cat_emb_size,
+        embedding_size=args.embedding_size,
         attention_layer_hidden_dim=args.attention_layer_hidden_dim,
         persistent_path=args.persistent_path,
-        id_table_size_array=args.id_table_size_array,
-        cat_table_size_array=args.cat_table_size_array,
+        table_size_array=args.table_size_array,
         one_embedding_store_type=args.store_type,
         cache_memory_budget_mb=args.cache_memory_budget_mb,
-        dropout=args.net_dropout,
         size_factor=1 if args.optim == "SGD" else 3,
+        max_len=args.max_len,
     )
     return model
 
@@ -638,24 +446,16 @@ class DINValGraph(flow.nn.Graph):
             self.config.enable_amp(True)
 
     def build(self, features):
-        for i in range(len(features)):            
+        for i in range(len(features)):
             features[i] = features[i].to("cuda")
-        predicts, hist_item_emb = self.module(features)
-        print(hist_item_emb)
-        print(predicts.sigmoid())
+        predicts = self.module(features)
         return predicts.sigmoid()
         # return predicts
 
 
 class DINTrainGraph(flow.nn.Graph):
     def __init__(
-        self,
-        din_module,
-        loss,
-        optimizer,
-        grad_scaler=None,
-        amp=False,
-        lr_scheduler=None,
+        self, din_module, loss, optimizer, grad_scaler=None, amp=False, lr_scheduler=None,
     ):
         super(DINTrainGraph, self).__init__()
         self.module = din_module
@@ -666,62 +466,31 @@ class DINTrainGraph(flow.nn.Graph):
         self.config.allow_fuse_add_to_output(True)
         self.config.allow_fuse_cast_scale(True)
         if amp:
-            print("amp : True")
             self.config.enable_amp(True)
             self.set_grad_scaler(grad_scaler)
 
     def build(self, labels, features):
-        # print(self.module)
-        for i in range(len(features)):            
+        for i in range(len(features)):
             features[i] = features[i].to("cuda")
-        logits, _, __ = self.module(features)
+        logits = self.module(features)
         loss = self.loss(logits, labels.to(dtype=flow.float32, device="cuda"))
+        #loss = flow.mean(loss)
         loss.backward()
-        return loss.to("cpu"), _, __
+        return loss.to("cpu")
 
 
 def make_lr_scheduler(args, optimizer):
     batches_per_epoch = math.ceil(args.num_train_samples / args.batch_size)
     milestones = [
         batches_per_epoch * (i + 1)
-        for i in range(
-            math.floor(math.log(args.min_lr / args.learning_rate, args.lr_factor))
-        )
+        for i in range(math.floor(math.log(args.min_lr / args.learning_rate, args.lr_factor)))
     ]
+    milestones = [336000]
     multistep_lr = flow.optim.lr_scheduler.MultiStepLR(
         optimizer=optimizer, milestones=milestones, gamma=args.lr_factor,
     )
 
     return multistep_lr
-
-
-def get_metrics(logs):
-    kv = {"auc": 1, "logloss": -1}
-    monitor_value = 0
-    for k, v in kv.items():
-        monitor_value += logs.get(k, 0) * v
-    return monitor_value
-
-
-def early_stop(
-    epoch, monitor_value, best_metric, stopping_steps, patience=2, min_delta=1e-6
-):
-    rank = flow.env.get_rank()
-    stop_training = False
-    save_best = False
-    if monitor_value < best_metric + min_delta:
-        stopping_steps += 1
-        if rank == 0:
-            print("Monitor(max) STOP: {:.6f}!".format(monitor_value))
-    else:
-        stopping_steps = 0
-        best_metric = monitor_value
-        save_best = True
-    if stopping_steps >= patience:
-        stop_training = True
-        if rank == 0:
-            print(f"Early stopping at epoch={epoch}!")
-    return stop_training, best_metric, stopping_steps, save_best
 
 
 def train(args):
@@ -765,7 +534,7 @@ def train(args):
     else:
         print("Only support SGD or Adam")
         exit()
-    
+
     lr_scheduler = make_lr_scheduler(args, opt)
     loss = flow.nn.BCEWithLogitsLoss(reduction="mean").to("cuda")
     # loss = flow.nn.BCELoss(reduction="mean").to("cuda")
@@ -774,10 +543,7 @@ def train(args):
         grad_scaler = flow.amp.StaticGradScaler(1024)
     else:
         grad_scaler = flow.amp.GradScaler(
-            init_scale=1073741824,
-            growth_factor=2.0,
-            backoff_factor=0.5,
-            growth_interval=2000,
+            init_scale=1073741824, growth_factor=2.0, backoff_factor=0.5, growth_interval=2000,
         )
 
     eval_graph = DINValGraph(din_module, args.amp)
@@ -793,21 +559,31 @@ def train(args):
     stop_training = False
 
     cached_eval_batches = prefetch_eval_batches(
-        f"{args.data_dir}/val",
+        f"{args.data_dir}/test",
         args.batch_size,
-        math.ceil(args.num_val_samples / args.batch_size),
+        math.ceil(args.num_test_samples / args.batch_size),
+        max_len=args.max_len,
     )
 
     din_module.train()
     epoch = 0
 
-    with make_criteo_dataloader(f"{args.data_dir}/train", args.batch_size) as loader:
+    def pprint(n, v):
+        a = v.numpy()
+        print(n, a.mean(), a.std(), a.max(), a.min(), v.shape)
+        
+    for n, v in din_module.named_parameters():
+        pprint(n, v)
+    for n, v in din_module.named_buffers():
+        pprint(n, v)
+
+    with make_criteo_dataloader(
+        f"{args.data_dir}/train", args.batch_size, max_len=args.max_len
+    ) as loader:
         step, last_step, last_time = -1, 0, time.time()
         for step in range(1, args.train_batches + 1):
-            labels, features = batch_to_global(*next(loader))
-            loss, _, __ = train_graph(labels, features)
-            print(_)
-            print(__)
+            labels, features = batch_to_global(next(loader))
+            loss = train_graph(labels, features)
             if step % args.loss_print_interval == 0:
                 loss = loss.numpy()
                 if rank == 0:
@@ -819,13 +595,11 @@ def train(args):
                         f"Rank[{rank}], Step {step}, Loss {loss:0.4f}, "
                         + f"Latency {(latency * 1000):0.3f} ms, Throughput {throughput:0.1f}, {strtime}"
                     )
-            exit()
             if step % batches_per_epoch == 0:
                 epoch += 1
                 auc, logloss = eval(
                     args,
                     eval_graph,
-                    tag="val",
                     cur_step=step,
                     epoch=epoch,
                     cached_eval_batches=cached_eval_batches,
@@ -833,24 +607,10 @@ def train(args):
                 if args.save_model_after_each_eval:
                     save_model(f"step_{step}_val_auc_{auc:0.5f}")
 
-                monitor_value = get_metrics(logs={"auc": auc, "logloss": logloss})
-
-                stop_training, best_metric, stopping_steps, save_best = early_stop(
-                    epoch,
-                    monitor_value,
-                    best_metric=best_metric,
-                    stopping_steps=stopping_steps,
-                    patience=args.patience,
-                    min_delta=args.min_delta,
-                )
-
                 if args.save_best_model and save_best:
                     if rank == 0:
                         print(f"Save best model: monitor(max): {best_metric:.6f}")
                     save_model("best_checkpoint")
-
-                if not args.disable_early_stop and stop_training:
-                    break
 
                 din_module.train()
                 last_time = time.time()
@@ -859,52 +619,31 @@ def train(args):
         load_model(f"{args.model_save_dir}/best_checkpoint")
     if rank == 0:
         print("================ Test Evaluation ================")
-    eval(args, eval_graph, tag="test", cur_step=step, epoch=epoch)
+    eval(args, eval_graph, cur_step=step, epoch=epoch)
 
 
-def np_to_global(np_list):
-    res = []
-    for np in np_list:
-        t = flow.from_numpy(np)
-        res.append(
-            t.to_global(
-                placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0)
-            )
+def batch_to_global(np_list):
+    tensor_list = [
+        flow.from_numpy(arr).to_global(
+            placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0)
         )
-    return res
+        for arr in np_list
+    ]
+    return tensor_list[0].reshape(-1, 1), tensor_list[1:]
 
 
-def batch_to_global(np_label, np_features, is_train=True):
-    labels = (
-        flow.from_numpy((np.array(np_label).reshape(-1, 1))).to_global(
-                placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0)
-        )
-        if is_train
-        else np.array(np_label).reshape(-1, 1)
-    )
-    
-    features = np_to_global(np_features)
-    return labels, features
-
-
-def prefetch_eval_batches(data_dir, batch_size, num_batches):
+def prefetch_eval_batches(data_dir, batch_size, num_batches, max_len):
     cached_eval_batches = []
-    with make_criteo_dataloader(data_dir, batch_size, shuffle=False) as loader:
-
+    with make_criteo_dataloader(data_dir, batch_size, shuffle=False, max_len=max_len) as loader:
         for _ in range(num_batches):
-
-            label, features = batch_to_global(*next(loader), is_train=False)
-
-            cached_eval_batches.append((label, features))
+            batch_data = batch_to_global(next(loader))
+            cached_eval_batches.append(batch_data)
 
     return cached_eval_batches
 
 
-def eval(args, eval_graph, tag="val", cur_step=0, epoch=0, cached_eval_batches=None):
-    if tag == "val":
-        batches_per_epoch = math.ceil(args.num_val_samples / args.batch_size)
-    else:
-        batches_per_epoch = math.ceil(args.num_test_samples / args.batch_size)
+def eval(args, eval_graph, cur_step=0, epoch=0, cached_eval_batches=None):
+    batches_per_epoch = math.ceil(args.num_test_samples / args.batch_size)
 
     eval_graph.module.eval()
     labels, preds = [], []
@@ -913,11 +652,11 @@ def eval(args, eval_graph, tag="val", cur_step=0, epoch=0, cached_eval_batches=N
     if cached_eval_batches == None:
         print("cached_eval_batches == None")
         with make_criteo_dataloader(
-            f"{args.data_dir}/{tag}", args.batch_size, shuffle=False
+            f"{args.data_dir}/test", args.batch_size, shuffle=False
         ) as loader:
             eval_start_time = time.time()
             for i in range(batches_per_epoch):
-                label, features = batch_to_global(*next(loader), is_train=False)
+                label, features = batch_to_global(next(loader))
                 pred = eval_graph(features)
                 labels.append(label)
                 preds.append(pred.to_local())
@@ -929,16 +668,14 @@ def eval(args, eval_graph, tag="val", cur_step=0, epoch=0, cached_eval_batches=N
             preds.append(pred.to_local())
 
     labels = (
-        flow.from_numpy(np.concatenate(labels, axis=0)).to_global(
-        placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0)
-        ).to_global(sbp=flow.sbp.broadcast())
+        flow.from_numpy(np.concatenate(labels, axis=0))
+        .to_global(placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0))
+        .to_global(sbp=flow.sbp.broadcast())
         .to_local()
     )
     preds = (
         flow.cat(preds, dim=0)
-        .to_global(
-            placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0)
-        )
+        .to_global(placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0))
         .to_global(sbp=flow.sbp.broadcast())
         .to_local()
     )
@@ -958,7 +695,7 @@ def eval(args, eval_graph, tag="val", cur_step=0, epoch=0, cached_eval_batches=N
     #     preds, labels, weight=None, reduction="mean"
     # )
     metrics_time = time.time() - metrics_start_time
-    logloss = 0.00 # waiting for fix bug
+    logloss = 0.00  # waiting for fix bug
     if rank == 0:
         host_mem_mb = psutil.Process().memory_info().rss // (1024 * 1024)
         stream = os.popen("nvidia-smi --query-gpu=memory.used --format=csv")
