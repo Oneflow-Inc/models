@@ -249,7 +249,7 @@ class MLP(nn.Module):
             elif "bias" in name:
                 nn.init.normal_(param, 0.0, np.sqrt(1 / param.shape[0]))
             if freeze_model:
-                print(f"model {name} is freezed")
+                print(f"Model {name} in MLP is freezed")
                 param.requires_grad = False
 
     def forward(self, x: flow.Tensor) -> flow.Tensor:
@@ -335,7 +335,7 @@ class OneEmbedding(nn.Module):
         )
         for name, param in self.one_embedding.named_parameters():
             if freeze_model:
-                print(f"model {name} is freezed")
+                print(f"Model {name} in OneEmbedding is freezed")
                 param.requires_grad = False
 
     def forward(self, ids):
