@@ -20,118 +20,118 @@ sys.path.append("./")
 sys.path.append("../")
 sys.path.append("../../")
 
-from easynlp.appzoo import SequenceClassification, SequenceMultiLabelClassification, DistillatorySequenceClassification, FewshotSequenceClassification, CptFewshotSequenceClassification
-from easynlp.appzoo import TextMatch, TextMatchTwoTower, DistillatoryTextMatch, FewshotSingleTowerTextMatch, CptFewshotSingleTowerTextMatch
-from easynlp.appzoo import SequenceLabeling, LanguageModeling, FeatureVectorization, DataAugmentation, GEEPClassification
-from easynlp.appzoo import MultiModal
-from easynlp.appzoo import WukongCLIP
-from easynlp.appzoo import TextImageGeneration, ImageTextGeneration
-from easynlp.appzoo.sequence_generation.model import SequenceGeneration
+# from easynlp.appzoo import SequenceClassification, SequenceMultiLabelClassification, DistillatorySequenceClassification, FewshotSequenceClassification, CptFewshotSequenceClassification
+# from easynlp.appzoo import TextMatch, TextMatchTwoTower, DistillatoryTextMatch, FewshotSingleTowerTextMatch, CptFewshotSingleTowerTextMatch
+# from easynlp.appzoo import SequenceLabeling, LanguageModeling, FeatureVectorization, DataAugmentation, GEEPClassification
+# from easynlp.appzoo import MultiModal
+# from easynlp.appzoo import WukongCLIP
+# from easynlp.appzoo import TextImageGeneration, ImageTextGeneration
+# from easynlp.appzoo.sequence_generation.model import SequenceGeneration
 
 from easynlp.fewshot_learning.fewshot_evaluator import PromptEvaluator as FewshotSequenceClassificationEvaluator
 from easynlp.fewshot_learning.fewshot_evaluator import CPTEvaluator as CptFewshotSequenceClassificationEvaluator
-from easynlp.fewshot_learning.fewshot_evaluator import PromptEvaluator as FewshotSingleTowerTextMatchEvaluator
-from easynlp.fewshot_learning.fewshot_evaluator import CPTEvaluator as CptFewshotSingleTowerTextMatchEvaluator
+# from easynlp.fewshot_learning.fewshot_evaluator import PromptEvaluator as FewshotSingleTowerTextMatchEvaluator
+# from easynlp.fewshot_learning.fewshot_evaluator import CPTEvaluator as CptFewshotSingleTowerTextMatchEvaluator
 from easynlp.appzoo import SequenceClassificationEvaluator, SequenceMultiLabelClassificationEvaluator
-from easynlp.appzoo import SequenceLabelingEvaluator, LanguageModelingEvaluator, TextMatchEvaluator, GEEPClassificationEvaluator
-from easynlp.appzoo import MultiModalEvaluator
-from easynlp.appzoo import WukongEvaluator
-from easynlp.appzoo import TextImageGenerationEvaluator, ImageTextGenerationEvaluator
-from easynlp.appzoo import SequenceGenerationEvaluator
+# from easynlp.appzoo import SequenceLabelingEvaluator, LanguageModelingEvaluator, TextMatchEvaluator, GEEPClassificationEvaluator
+# from easynlp.appzoo import MultiModalEvaluator
+# from easynlp.appzoo import WukongEvaluator
+# from easynlp.appzoo import TextImageGenerationEvaluator, ImageTextGenerationEvaluator
+# from easynlp.appzoo import SequenceGenerationEvaluator
 
-from easynlp.appzoo import SequenceClassificationPredictor, FewshotSequenceClassificationPredictor, CptFewshotSequenceClassificationPredictor
-from easynlp.appzoo import SequenceLabelingPredictor, FeatureVectorizationPredictor
-from easynlp.appzoo import TextMatchPredictor, TextMatchTwoTowerPredictor, FewshotSingleTowerTextMatchPredictor, CptFewshotSingleTowerTextMatchPredictor
-from easynlp.appzoo import DataAugmentationPredictor, GEEPClassificationPredictor
-from easynlp.appzoo import MultiModalPredictor
-from easynlp.appzoo import WukongPredictor
-from easynlp.appzoo import TextImageGenerationPredictor, ImageTextGenerationPredictor
-from easynlp.appzoo import SequenceGenerationPredictor
+# from easynlp.appzoo import SequenceClassificationPredictor, FewshotSequenceClassificationPredictor, CptFewshotSequenceClassificationPredictor
+# from easynlp.appzoo import SequenceLabelingPredictor, FeatureVectorizationPredictor
+# from easynlp.appzoo import TextMatchPredictor, TextMatchTwoTowerPredictor, FewshotSingleTowerTextMatchPredictor, CptFewshotSingleTowerTextMatchPredictor
+# from easynlp.appzoo import DataAugmentationPredictor, GEEPClassificationPredictor
+# from easynlp.appzoo import MultiModalPredictor
+# from easynlp.appzoo import WukongPredictor
+# from easynlp.appzoo import TextImageGenerationPredictor, ImageTextGenerationPredictor
+# from easynlp.appzoo import SequenceGenerationPredictor
 
-from easynlp.appzoo import ClassificationDataset, DistillatoryClassificationDataset, FewshotSequenceClassificationDataset
-from easynlp.appzoo import SequenceLabelingDataset, LanguageModelingDataset
-from easynlp.appzoo import SingleTowerDataset, TwoTowerDataset, DistillatorySingleTowerDataset, FewshotSingleTowerTextMatchDataset, SiameseDataset
-from easynlp.appzoo import SequenceGenerationDataset
-from easynlp.appzoo import GEEPClassificationDataset
-from easynlp.appzoo import MultiModalDataset
-from easynlp.appzoo import WukongDataset
-from easynlp.appzoo import TextImageDataset, ImageTextDataset
+# from easynlp.appzoo import ClassificationDataset, DistillatoryClassificationDataset, FewshotSequenceClassificationDataset
+# from easynlp.appzoo import SequenceLabelingDataset, LanguageModelingDataset
+# from easynlp.appzoo import SingleTowerDataset, TwoTowerDataset, DistillatorySingleTowerDataset, FewshotSingleTowerTextMatchDataset, SiameseDataset
+# from easynlp.appzoo import SequenceGenerationDataset
+# from easynlp.appzoo import GEEPClassificationDataset
+# from easynlp.appzoo import MultiModalDataset
+# from easynlp.appzoo import WukongDataset
+# from easynlp.appzoo import TextImageDataset, ImageTextDataset
 
-from easynlp.core import PredictorManager, Trainer, DistillatoryTrainer
+from easynlp.core import Trainer, DistillatoryTrainer
 from easynlp.utils.logger import logger
 from easynlp.utils.global_vars import parse_user_defined_parameters
 from easynlp.utils import initialize_easynlp, get_args
 
 
 Dataset_Mapping = {
-    'text_classify': {
-        'enable_distillation': DistillatoryClassificationDataset,
-        'enable_fewshot': FewshotSequenceClassificationDataset,
-        'others': ClassificationDataset,
-    },
-    'text_match': {
-        'two_tower.siamese': ClassificationDataset,
-        'two_tower.others': TwoTowerDataset,
-        'enable_distillation': DistillatorySingleTowerDataset,
-        'enable_fewshot': FewshotSingleTowerTextMatchDataset,
-        'others': SingleTowerDataset,
-    },
-    'sequence_labeling': SequenceLabelingDataset,
-    'language_modeling': LanguageModelingDataset,
-    'geep_classify': GEEPClassificationDataset,
-    'clip': MultiModalDataset,
-    'wukong': WukongDataset,
-    'text2image_generation': TextImageDataset,
-    'image2text_generation': ImageTextDataset,
-    'sequence_generation': SequenceGenerationDataset,
+    # 'text_classify': {
+    #     'enable_distillation': DistillatoryClassificationDataset,
+    #     'enable_fewshot': FewshotSequenceClassificationDataset,
+    #     'others': ClassificationDataset,
+    # },
+    # 'text_match': {
+    #     'two_tower.siamese': ClassificationDataset,
+    #     'two_tower.others': TwoTowerDataset,
+    #     'enable_distillation': DistillatorySingleTowerDataset,
+    #     'enable_fewshot': FewshotSingleTowerTextMatchDataset,
+    #     'others': SingleTowerDataset,
+    # },
+    # 'sequence_labeling': SequenceLabelingDataset,
+    # 'language_modeling': LanguageModelingDataset,
+    # 'geep_classify': GEEPClassificationDataset,
+    # 'clip': MultiModalDataset,
+    # 'wukong': WukongDataset,
+    # 'text2image_generation': TextImageDataset,
+    # 'image2text_generation': ImageTextDataset,
+    # 'sequence_generation': SequenceGenerationDataset,
 }
 
 ModelMapping = {
-    'text_classify': {
-        'multi_label': SequenceMultiLabelClassification,
-        'enable_distillation': DistillatorySequenceClassification,
-        'enable_fewshot.pet_fewshot': FewshotSequenceClassification,
-        'enable_fewshot.cpt_fewshot': CptFewshotSequenceClassification,
-        'others': SequenceClassification
-    },
-    'text_match': {
-        'two_tower': TextMatchTwoTower,
-        'enable_distillation': DistillatoryTextMatch,
-        'enable_fewshot.pet_fewshot': FewshotSingleTowerTextMatch,
-        'enable_fewshot.cpt_fewshot': CptFewshotSingleTowerTextMatch,
-        'others': TextMatch
-    },
-    'language_modeling': LanguageModeling,
-    'sequence_labeling': SequenceLabeling,
-    'vectorization': FeatureVectorization,
-    'data_augmentation': DataAugmentation,
-    'geep_classify': GEEPClassification,
-    'clip': MultiModal,
-    'wukong': WukongCLIP,
-    'text2image_generation': TextImageGeneration,
-    'image2text_generation': ImageTextGeneration,
-    'sequence_generation': SequenceGeneration,
+    # 'text_classify': {
+    #     'multi_label': SequenceMultiLabelClassification,
+    #     'enable_distillation': DistillatorySequenceClassification,
+    #     'enable_fewshot.pet_fewshot': FewshotSequenceClassification,
+    #     'enable_fewshot.cpt_fewshot': CptFewshotSequenceClassification,
+    #     'others': SequenceClassification
+    # },
+    # 'text_match': {
+    #     'two_tower': TextMatchTwoTower,
+    #     'enable_distillation': DistillatoryTextMatch,
+    #     'enable_fewshot.pet_fewshot': FewshotSingleTowerTextMatch,
+    #     'enable_fewshot.cpt_fewshot': CptFewshotSingleTowerTextMatch,
+    #     'others': TextMatch
+    # },
+    # 'language_modeling': LanguageModeling,
+    # 'sequence_labeling': SequenceLabeling,
+    # 'vectorization': FeatureVectorization,
+    # 'data_augmentation': DataAugmentation,
+    # 'geep_classify': GEEPClassification,
+    # 'clip': MultiModal,
+    # 'wukong': WukongCLIP,
+    # 'text2image_generation': TextImageGeneration,
+    # 'image2text_generation': ImageTextGeneration,
+    # 'sequence_generation': SequenceGeneration,
 }
 
 Eval_Model_Mapping = {
-    'text_classify': {
-        'multi_label': SequenceMultiLabelClassification,
-        'enable_fewshot.pet_fewshot': FewshotSequenceClassification,
-        'enable_fewshot.cpt_fewshot': CptFewshotSequenceClassification,
-        'others': SequenceClassification
-    },
-    'text_match': {
-        'enable_fewshot.pet_fewshot': FewshotSingleTowerTextMatch,
-        'enable_fewshot.cpt_fewshot': CptFewshotSingleTowerTextMatch,
-        'others': TextMatch
-    },
-    'sequence_labeling': SequenceLabeling,
-    'geep_classify': GEEPClassification,
-    'clip': MultiModal,
-    'wukong': WukongCLIP,
-    'text2image_generation': TextImageGeneration,
-    'image2text_generation': ImageTextGeneration,
-    'sequence_generation': SequenceGeneration,
+    # 'text_classify': {
+    #     'multi_label': SequenceMultiLabelClassification,
+    #     'enable_fewshot.pet_fewshot': FewshotSequenceClassification,
+    #     'enable_fewshot.cpt_fewshot': CptFewshotSequenceClassification,
+    #     'others': SequenceClassification
+    # },
+    # 'text_match': {
+    #     'enable_fewshot.pet_fewshot': FewshotSingleTowerTextMatch,
+    #     'enable_fewshot.cpt_fewshot': CptFewshotSingleTowerTextMatch,
+    #     'others': TextMatch
+    # },
+    # 'sequence_labeling': SequenceLabeling,
+    # 'geep_classify': GEEPClassification,
+    # 'clip': MultiModal,
+    # 'wukong': WukongCLIP,
+    # 'text2image_generation': TextImageGeneration,
+    # 'image2text_generation': ImageTextGeneration,
+    # 'sequence_generation': SequenceGeneration,
 }
 
 Evaluator_Mapping = {
@@ -140,43 +140,43 @@ Evaluator_Mapping = {
         'enable_fewshot.pet_fewshot': FewshotSequenceClassificationEvaluator,
         'enable_fewshot.cpt_fewshot': CptFewshotSequenceClassificationEvaluator,
         'others': SequenceClassificationEvaluator
-    },
-    'text_match': {
-        'enable_fewshot.pet_fewshot': FewshotSingleTowerTextMatchEvaluator,
-        'enable_fewshot.cpt_fewshot': CptFewshotSingleTowerTextMatchEvaluator,
-        'others': TextMatchEvaluator
-    },
-    'language_modeling': LanguageModelingEvaluator,
-    'sequence_labeling': SequenceLabelingEvaluator,
-    'geep_classify': GEEPClassificationEvaluator,
-    'clip': MultiModalEvaluator,
-    'wukong': WukongEvaluator,
-    'text2image_generation': TextImageGenerationEvaluator,
-    'image2text_generation': ImageTextGenerationEvaluator,
-    'sequence_generation': SequenceGenerationEvaluator,
+    }
+    # 'text_match': {
+    #     'enable_fewshot.pet_fewshot': FewshotSingleTowerTextMatchEvaluator,
+    #     'enable_fewshot.cpt_fewshot': CptFewshotSingleTowerTextMatchEvaluator,
+    #     'others': TextMatchEvaluator
+    # },
+    # 'language_modeling': LanguageModelingEvaluator,
+    # 'sequence_labeling': SequenceLabelingEvaluator,
+    # 'geep_classify': GEEPClassificationEvaluator,
+    # 'clip': MultiModalEvaluator,
+    # 'wukong': WukongEvaluator,
+    # 'text2image_generation': TextImageGenerationEvaluator,
+    # 'image2text_generation': ImageTextGenerationEvaluator,
+    # 'sequence_generation': SequenceGenerationEvaluator,
 }
 
 Predictor_Mapping = {
-    'text_classify': {
-        'enable_fewshot.pet_fewshot': [FewshotSequenceClassificationPredictor, FewshotSequenceClassification],
-        'enable_fewshot.cpt_fewshot': [CptFewshotSequenceClassificationPredictor, CptFewshotSequenceClassification],
-        'others': [SequenceClassificationPredictor, SequenceClassification]
-    },
-    'text_match': {
-        'two_tower': [TextMatchTwoTowerPredictor, TextMatchTwoTower],
-        'enable_fewshot.pet_fewshot': [FewshotSingleTowerTextMatchPredictor, FewshotSequenceClassification],
-        'enable_fewshot.cpt_fewshot': [CptFewshotSingleTowerTextMatchPredictor, CptFewshotSequenceClassification],
-        'others': [TextMatchPredictor, TextMatch]
-    },
-    'sequence_labeling': [SequenceLabelingPredictor, SequenceLabeling],
-    'vectorization': [FeatureVectorizationPredictor, FeatureVectorization],
-    'data_augmentation': [DataAugmentationPredictor, DataAugmentation],
-    'geep_classify': [GEEPClassificationPredictor, GEEPClassification],
-    'clip': [MultiModalPredictor, MultiModal],
-    'wukong': [WukongPredictor, WukongCLIP],
-    'text2image_generation': [TextImageGenerationPredictor, TextImageGeneration],
-    'image2text_generation': [ImageTextGenerationPredictor, ImageTextGeneration],
-    'sequence_generation': [SequenceGenerationPredictor, SequenceGeneration],
+    # 'text_classify': {
+    #     'enable_fewshot.pet_fewshot': [FewshotSequenceClassificationPredictor, FewshotSequenceClassification],
+    #     'enable_fewshot.cpt_fewshot': [CptFewshotSequenceClassificationPredictor, CptFewshotSequenceClassification],
+    #     'others': [SequenceClassificationPredictor, SequenceClassification]
+    # },
+    # 'text_match': {
+    #     'two_tower': [TextMatchTwoTowerPredictor, TextMatchTwoTower],
+    #     'enable_fewshot.pet_fewshot': [FewshotSingleTowerTextMatchPredictor, FewshotSequenceClassification],
+    #     'enable_fewshot.cpt_fewshot': [CptFewshotSingleTowerTextMatchPredictor, CptFewshotSequenceClassification],
+    #     'others': [TextMatchPredictor, TextMatch]
+    # },
+    # 'sequence_labeling': [SequenceLabelingPredictor, SequenceLabeling],
+    # 'vectorization': [FeatureVectorizationPredictor, FeatureVectorization],
+    # 'data_augmentation': [DataAugmentationPredictor, DataAugmentation],
+    # 'geep_classify': [GEEPClassificationPredictor, GEEPClassification],
+    # 'clip': [MultiModalPredictor, MultiModal],
+    # 'wukong': [WukongPredictor, WukongCLIP],
+    # 'text2image_generation': [TextImageGenerationPredictor, TextImageGeneration],
+    # 'image2text_generation': [ImageTextGenerationPredictor, ImageTextGeneration],
+    # 'sequence_generation': [SequenceGenerationPredictor, SequenceGeneration],
 }
 
 

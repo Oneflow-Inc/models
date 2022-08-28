@@ -19,7 +19,7 @@ import torch.nn as nn
 
 from ...distillation.distill_application import DistillatoryBaseApplication
 from ...fewshot_learning.fewshot_application import FewshotClassification, CPTClassification
-from ...modelzoo import AutoConfig, AutoModel
+from ...modelzoo import AutoConfig
 from ...utils import losses
 from ..application import Application
 
@@ -32,7 +32,7 @@ class SequenceClassification(Application):
         if kwargs.get('from_config'):
             # for evaluation and prediction
             self.config = kwargs.get('from_config')
-            self.backbone = AutoModel.from_config(self.config)
+            # self.backbone = AutoModel.from_config(self.config)
         elif kwargs.get('user_defined_parameters') is not None and \
             "model_parameters" in kwargs.get('user_defined_parameters'):
             # for model random initialization
@@ -40,11 +40,11 @@ class SequenceClassification(Application):
             user_defined_parameters = kwargs.get('user_defined_parameters')
             user_defined_parameters_dict = literal_eval(user_defined_parameters)
             self.config.update(user_defined_parameters_dict['model_parameters'])
-            self.backbone = AutoModel.from_config(self.config)
+            # self.backbone = AutoModel.from_config(self.config)
         else:
             # for pretrained model, initialize from the pretrained model
             self.config = AutoConfig.from_pretrained(pretrained_model_name_or_path)
-            self.backbone = AutoModel.from_pretrained(pretrained_model_name_or_path)
+            # self.backbone = AutoModel.from_pretrained(pretrained_model_name_or_path)
         if 'num_labels' in kwargs:
             self.config.num_labels = kwargs['num_labels']
         self.classifier = nn.Linear(self.config.hidden_size, self.config.num_labels)

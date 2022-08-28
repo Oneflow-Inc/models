@@ -1,5 +1,5 @@
 from easynlp.core.distiller import MetaDistillationTrainer
-from easynlp.distillation.distill_metakd_application import MetaStudentForSequenceClassification, MetaTeacherForSequenceClassification
+from easynlp.distillation.distill_metakd_application import MetaStudentForSequenceClassification
 
 print('*'*50)
 print('running local main...\n')

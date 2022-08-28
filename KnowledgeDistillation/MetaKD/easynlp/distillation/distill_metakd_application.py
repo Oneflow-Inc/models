@@ -22,7 +22,6 @@ from oneflow import nn
 
 from bert import Bert
 from ..appzoo.application import Application
-from ..modelzoo import AutoModel
 from ..utils.losses import cross_entropy, mse_loss, soft_cross_entropy
 
 
@@ -62,7 +61,7 @@ class MetaTeacherForSequenceClassification(Application):
         if kwargs.get('from_config'):
             # for evaluation and prediction
             self.config = kwargs.get('from_config')
-            self.backbone = AutoModel.from_config(self.config)
+            # self.backbone = AutoModel.from_config(self.config)
         else:
             # for pretrained model, load from the pretrained model
             with open(pretrained_model_name_or_path + '/parameters.json', "r") as f:
@@ -159,7 +158,7 @@ class MetaStudentForSequenceClassification(Application):
         if kwargs.get('from_config'):
             # for evaluation and prediction
             self.config = kwargs.get('from_config')
-            self.backbone = AutoModel.from_config(self.config)
+            # self.backbone = AutoModel.from_config(self.config)
         else:
             # for pretrained model, load from the pretrained model
             with open(pretrained_model_name_or_path + '/parameters.json', "r") as f:

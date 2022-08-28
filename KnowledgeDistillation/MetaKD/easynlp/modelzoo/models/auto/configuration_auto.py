@@ -19,39 +19,39 @@ from collections import OrderedDict
 
 from ...configuration_utils import PretrainedConfig
 from ..bert.configuration_bert import BertConfig
-from ..dkplm.configuration_dkplm import DkplmConfig
-from ..megatron_bert.configuration_megatron_bert import MegatronBertConfig
-from ..gpt2.configuration_gpt2 import GPT2Config
+# from ..dkplm.configuration_dkplm import DkplmConfig
+# from ..megatron_bert.configuration_megatron_bert import MegatronBertConfig
+# from ..gpt2.configuration_gpt2 import GPT2Config
 
-from ..roberta.configuration_roberta import RobertaConfig
-from ..cnn.configuration_cnn import TextCNNConfig
-from ..artist.configuration_artist import ARTISTConfig
-from ..artist_i2t.configuration_artist import ARTISTConfig as ARTISTI2TConfig
-from ..clip.configuration_clip import CLIPConfig
-from ..kbert.configuration_kbert import KBertConfig
+# from ..roberta.configuration_roberta import RobertaConfig
+# from ..cnn.configuration_cnn import TextCNNConfig
+# from ..artist.configuration_artist import ARTISTConfig
+# from ..artist_i2t.configuration_artist import ARTISTConfig as ARTISTI2TConfig
+# from ..clip.configuration_clip import CLIPConfig
+# from ..kbert.configuration_kbert import KBertConfig
 
-from ..bart.configuration_bart import BartConfig
-from ..mt5.configuration_mt5 import MT5Config
-from ..pegasus.configuration_pegasus import PegasusConfig
-from ..t5.configuration_t5 import T5Config
+# from ..bart.configuration_bart import BartConfig
+# from ..mt5.configuration_mt5 import MT5Config
+# from ..pegasus.configuration_pegasus import PegasusConfig
+# from ..t5.configuration_t5 import T5Config
 
 
 CONFIG_MAPPING = OrderedDict(
     [
-        ("roberta", RobertaConfig),
+        # ("roberta", RobertaConfig),
         ("bert", BertConfig),
-        ("dkplm", DkplmConfig),
-        ("megatron-bert", MegatronBertConfig),
-        ("gpt2", GPT2Config),
-        ("cnn", TextCNNConfig),
-        ("artist", ARTISTConfig),
-        ("artist_i2t", ARTISTI2TConfig),
-        ("clip", CLIPConfig),
-        ("kbert", KBertConfig),
-        ("mt5", MT5Config),
-        ("t5", T5Config),
-        ("pegasus", PegasusConfig),
-        ("bart", BartConfig)
+        # ("dkplm", DkplmConfig),
+        # ("megatron-bert", MegatronBertConfig),
+        # ("gpt2", GPT2Config),
+        # ("cnn", TextCNNConfig),
+        # ("artist", ARTISTConfig),
+        # ("artist_i2t", ARTISTI2TConfig),
+        # ("clip", CLIPConfig),
+        # ("kbert", KBertConfig),
+        # ("mt5", MT5Config),
+        # ("t5", T5Config),
+        # ("pegasus", PegasusConfig),
+        # ("bart", BartConfig)
     ]
 )
 

@@ -19,9 +19,9 @@ import traceback
 
 import oneflow as torch
 
-from easynlp.appzoo.dataset import BaseDataset
-from easynlp.modelzoo import AutoTokenizer
-from easynlp.utils import io
+from easynlp_.appzoo.dataset import BaseDataset
+from easynlp_.modelzoo import AutoTokenizer
+from easynlp_.utils import io
 
 
 def _truncate_seq_pair(tokens_a, tokens_b, max_length):
