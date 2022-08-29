@@ -73,15 +73,15 @@ class DataInputTest:
     assert len(ts) == self.batch_size
     self.i += 1
 
-    u, i, y, sl = [], [], [], []
+    u, i_p, i_n, y_p, y_n, sl = [], [], [], [], [], []
     for t in ts:
       u.append(t[0])
-      u.append(t[0])
-      i.append(t[2][0])
-      i.append(t[2][1])
-      y.append([1])
-      y.append([0])
-      sl.append(len(t[1]))
+      i_p.append(t[2][0])
+      i_n.append(t[2][1])
+      y_p.append(1)
+      y_n.append(0)
+      #y.append([1])
+      #y.append([0])
       sl.append(len(t[1]))
     max_sl = max(sl)
     if self.max_sl:
@@ -97,7 +97,7 @@ class DataInputTest:
         hist_i[k+self.batch_size][l] = t[1][l]
       k += 1
 
-    return self.i, (u, i, y, hist_i, sl)
+    return self.i, (u*2, i_p + i_n, y_p + y_n, hist_i, sl * 2)
 
 
 if __name__ == "__main__":
@@ -111,17 +111,25 @@ if __name__ == "__main__":
     batch_size = 32
     epoch_size = round(len(train_set) / batch_size)
     start = time.time()
-    for i, uij in DataInputTest(test_set, batch_size):
+    for i, uij in DataInputTest(test_set, batch_size, max_sl=512):
         if i % 1000 == 0:
+            print("*"*30)
             for e in uij:
                 n = np.array(e)
-                print(n.shape)
+                print("test", n.shape)
+            print(uij[2], uij[1])
+            break
     print(time.time() - start)
     start = time.time()
     for i, uij in DataInput(train_set, batch_size):
         if i % 1000 == 0:
-            print(i)
+            for e in uij:
+                n = np.array(e)
+                print("test", n.shape)
+            print(uij[2], uij[1])
+            break
     print(time.time() - start)
+    exit()
     
     start = time.time()
     for i, uij in DataInput(train_set, batch_size, max_sl=512):
