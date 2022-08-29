@@ -116,18 +116,20 @@ if __name__ == "__main__":
             for e in uij:
                 n = np.array(e)
                 print(n.shape)
-    print(time.time() - start)
-    start = time.time()
-    for i, uij in DataInput(train_set, batch_size):
-        if i % 1000 == 0:
-            print(i)
-    print(time.time() - start)
+    # print(time.time() - start)
+    # start = time.time()
+    # for i, uij in DataInput(train_set, batch_size):
+    #     if i % 1000 == 0:
+    #         print(i)
+    # print(time.time() - start)
     
-    start = time.time()
-    for i, uij in DataInput(train_set, batch_size, max_sl=512):
-        if i % 1000 == 0:
-            print(i, np.array(uij[3]).shape)
-    print(time.time() - start)
+    # start = time.time()
+    # for i, uij in DataInput(train_set, batch_size, max_sl=512):
+    #     if i % 1000 == 0:
+    #         print(i, np.array(uij[3]).shape)
+    # print(time.time() - start)
+
+
     # for python2
     # with open('/data/xiexuan/dataset/din_pkl/dataset.pkl', 'rb') as f:
     #     u = pickle._Unpickler(f)

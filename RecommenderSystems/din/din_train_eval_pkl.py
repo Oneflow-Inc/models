@@ -118,6 +118,7 @@ class OneEmbedding(nn.Module):
         store_type,
         cache_memory_budget_mb,
         size_factor,
+        padding_idx, 
     ):
         assert table_size_array is not None
         vocab_size = sum(table_size_array)
@@ -136,7 +137,7 @@ class OneEmbedding(nn.Module):
 
         if store_type == "device_mem":
             store_options = flow.one_embedding.make_device_mem_store_options(
-                persistent_path=persistent_path, capacity=vocab_size, size_factor=size_factor,
+                persistent_path=persistent_path, capacity=vocab_size, size_factor=size_factor, padding_idx=padding_idx
             )
         elif store_type == "cached_host_mem":
             assert cache_memory_budget_mb > 0
@@ -145,6 +146,7 @@ class OneEmbedding(nn.Module):
                 persistent_path=persistent_path,
                 capacity=vocab_size,
                 size_factor=size_factor,
+                padding_idx=padding_idx, 
             )
         elif store_type == "cached_ssd":
             assert cache_memory_budget_mb > 0
@@ -153,6 +155,7 @@ class OneEmbedding(nn.Module):
                 persistent_path=persistent_path,
                 capacity=vocab_size,
                 size_factor=size_factor,
+                padding_idx=padding_idx, 
             )
         else:
             raise NotImplementedError("not support", store_type)
@@ -165,6 +168,7 @@ class OneEmbedding(nn.Module):
             key_type=flow.int64,
             tables=tables,
             store_options=store_options,
+            padding_idx=padding_idx, 
         )
 
     def forward(self, ids, table_ids):
@@ -211,6 +215,7 @@ class DINModule(nn.Module):
         size_factor=1,
         max_len=32,
         cate_list=None,
+        padding_idx=0, 
     ):
         super(DINModule, self).__init__()
 
@@ -230,6 +235,7 @@ class DINModule(nn.Module):
             store_type=one_embedding_store_type,
             cache_memory_budget_mb=cache_memory_budget_mb,
             size_factor=size_factor,
+            padding_idx=padding_idx, 
         )
         self.table_ids = flow.tensor(
             [0] + [1] + [0] * max_len + [1] * max_len, dtype=flow.int64
@@ -323,7 +329,7 @@ class DINModule(nn.Module):
         return logit 
 
 
-def make_din_module(args, cate_list):
+def make_din_module(args, cate_list, padding_idx):
     model = DINModule(
         embedding_size=args.embedding_size,
         attention_layer_hidden_dim=args.attention_layer_hidden_dim,
@@ -334,6 +340,7 @@ def make_din_module(args, cate_list):
         size_factor=1 if args.optim == "SGD" else 3,
         max_len=args.max_len,
         cate_list=cate_list,
+        padding_idx=padding_idx
     )
     return model
 
@@ -405,6 +412,7 @@ def prefetch_eval_batches(dataset, batch_size):
 
 def train(args):
     rank = flow.env.get_rank()
+    padding_idx = 0
 
     print("load dataset form", f'{args.data_dir}/dataset.pkl')
     with open(f'{args.data_dir}/dataset.pkl', 'rb') as f:
@@ -418,7 +426,7 @@ def train(args):
         )
         print(cate_list)
 
-    din_module = make_din_module(args, cate_list)
+    din_module = make_din_module(args, cate_list, padding_idx)
     din_module.to_global(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
 
     def load_model(dir):
