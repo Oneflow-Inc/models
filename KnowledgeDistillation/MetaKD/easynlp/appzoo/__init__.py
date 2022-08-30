@@ -70,48 +70,9 @@ _import_structure = {
 
 if TYPE_CHECKING:
     from .sequence_classification.model import SequenceClassification, SequenceMultiLabelClassification, DistillatorySequenceClassification, FewshotSequenceClassification, CptFewshotSequenceClassification
-    from .sequence_labeling.model import SequenceLabeling
-    from .language_modeling.model import LanguageModeling
-    from .feature_vectorization.model import FeatureVectorization
-    from .text_match.model import TextMatch, TextMatchTwoTower, DistillatoryTextMatch, FewshotSingleTowerTextMatch, CptFewshotSingleTowerTextMatch
-    from .data_augmentation.model import DataAugmentation
-    from .geep_classification.model import GEEPClassification
-    from .multi_modal.model import MultiModal
-    from .wukong.model import WukongCLIP
-    from .text2image_generation.model import TextImageGeneration
-    from .image2text_generation.model import ImageTextGeneration
-    from .sequence_generation.model import SequenceGeneration
 
     from .sequence_classification.evaluator import SequenceClassificationEvaluator, SequenceMultiLabelClassificationEvaluator
-    from .sequence_labeling.evaluator import SequenceLabelingEvaluator
-    from .language_modeling.evaluator import LanguageModelingEvaluator
-    from .text_match.evaluator import TextMatchEvaluator
-    from .geep_classification.evaluator import GEEPClassificationEvaluator
-    from .multi_modal.evaluator import MultiModalEvaluator
-    from .wukong.evaluator import WukongEvaluator
-    from .text2image_generation.evaluator import TextImageGenerationEvaluator
-    from .sequence_generation.evaluator import SequenceGenerationEvaluator
 
-    from .sequence_classification.predictor import SequenceClassificationPredictor, FewshotSequenceClassificationPredictor, CptFewshotSequenceClassificationPredictor
-    from .sequence_labeling.predictor import SequenceLabelingPredictor
-    from .feature_vectorization.predictor import FeatureVectorizationPredictor
-    from .text_match.predictor import TextMatchPredictor, TextMatchTwoTowerPredictor, FewshotSingleTowerTextMatchPredictor, CptFewshotSingleTowerTextMatchPredictor
-    from .data_augmentation.predictor import DataAugmentationPredictor
-    from .geep_classification.predictor import GEEPClassificationPredictor
-    from .multi_modal.predictor import MultiModalPredictor
-    from .wukong.predictor import WukongPredictor
-    from .text2image_generation.predictor import TextImageGenerationPredictor
-    from .sequence_generation.predictor import SequenceGenerationPredictor
-
-    from .sequence_classification.data import ClassificationDataset, DistillatoryClassificationDataset, FewshotSequenceClassificationDataset
-    from .sequence_labeling.data import SequenceLabelingDataset, SequenceLabelingAutoDataset
-    from .language_modeling.data import LanguageModelingDataset
-    from .text_match.data import TwoTowerDataset, SingleTowerDataset, DistillatorySingleTowerDataset, FewshotSingleTowerTextMatchDataset, SiameseDataset
-    from .geep_classification.data import GEEPClassificationDataset
-    from .multi_modal.data import MultiModalDataset
-    from .wukong.data import WukongDataset
-    from .text2image_generation.data import TextImageDataset
-    from .sequence_generation.data import SequenceGenerationDataset
 
     from .dataset import BaseDataset, GeneralDataset
     from .dataset import load_dataset, list_datasets

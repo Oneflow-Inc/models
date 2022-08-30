@@ -17,8 +17,7 @@ from typing import TYPE_CHECKING
 
 from ...file_utils import (
     _BaseLazyModule,
-    is_tokenizers_available,
-    is_torch_available,
+    is_tokenizers_available
 )
 
 
@@ -30,22 +29,6 @@ _import_structure = {
 if is_tokenizers_available():
     _import_structure["tokenization_bert_fast"] = ["BertTokenizerFast"]
 
-if is_torch_available():
-    _import_structure["modeling_bert"] = [
-        "BERT_PRETRAINED_MODEL_ARCHIVE_LIST",
-        "BertForMaskedLM",
-        "BertForMultipleChoice",
-        "BertForNextSentencePrediction",
-        "BertForPreTraining",
-        "BertForQuestionAnswering",
-        "BertForSequenceClassification",
-        "BertForTokenClassification",
-        "BertLayer",
-        "BertLMHeadModel",
-        "BertModel",
-        "BertPreTrainedModel",
-    ]
-
 if TYPE_CHECKING:
     # from .configuration_bert import BERT_PRETRAINED_CONFIG_ARCHIVE_MAP, BertConfig
     from .configuration_bert import BertConfig
@@ -54,22 +37,6 @@ if TYPE_CHECKING:
     if is_tokenizers_available():
         from .tokenization_bert_fast import BertTokenizerFast
 
-    if is_torch_available():
-        from .modeling_bert import (
-            # BERT_PRETRAINED_MODEL_ARCHIVE_LIST,
-            BertForMaskedLM,
-            BertForMultipleChoice,
-            BertForNextSentencePrediction,
-            BertForPreTraining,
-            BertForQuestionAnswering,
-            BertForSequenceClassification,
-            BertForTokenClassification,
-            BertLayer,
-            BertLMHeadModel,
-            BertModel,
-            BertPreTrainedModel,
-            # load_tf_weights_in_bert,
-        )
 
 else:
     import importlib

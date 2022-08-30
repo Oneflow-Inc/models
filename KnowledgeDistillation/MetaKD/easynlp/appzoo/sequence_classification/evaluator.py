@@ -24,7 +24,6 @@ from sklearn.metrics import f1_score, precision_score, recall_score
 from ...utils import losses
 from ...utils.logger import logger
 from ...core.evaluator import Evaluator
-from ...fewshot_learning.fewshot_evaluator import PromptEvaluator, CPTEvaluator
 
 
 class SequenceClassificationEvaluator(Evaluator):

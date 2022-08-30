@@ -20,7 +20,6 @@ import oneflow.nn as nn
 from ..utils import io
 from ..utils.logger import logger
 from ..modelzoo import AutoConfig
-from ..modelzoo.modeling_utils import print_init_keys_info
 
 
 class Application(nn.Module):

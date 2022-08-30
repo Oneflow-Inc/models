@@ -177,11 +177,12 @@ if is_tokenizers_available():
 if is_sentencepiece_available() and is_tokenizers_available():
     _import_structure["convert_slow_tokenizer"] = ["SLOW_TO_FAST_CONVERTERS", "convert_slow_tokenizer"]
 else:
-    from .utils import dummy_sentencepiece_and_tokenizers_objects
+    pass
+    # from .utils import dummy_sentencepiece_and_tokenizers_objects_
 
-    _import_structure["utils.dummy_sentencepiece_and_tokenizers_objects"] = [
-        name for name in dir(dummy_sentencepiece_and_tokenizers_objects) if not name.startswith("_")
-    ]
+    # _import_structure["utils.dummy_sentencepiece_and_tokenizers_objects"] = [
+    #     name for name in dir(dummy_sentencepiece_and_tokenizers_objects_) if not name.startswith("_")
+    # ]
 
 # PyTorch-backed objects
 if is_torch_available():
@@ -342,7 +343,7 @@ else:
 # Direct imports for type-checking
 if TYPE_CHECKING:
     # Configuration
-    from .configuration_utils import PretrainedConfig
+    from .configuration_utils_ import PretrainedConfig
 
     # Data
     from .data import (
@@ -370,7 +371,7 @@ if TYPE_CHECKING:
     from .feature_extraction_utils import BatchFeature, SequenceFeatureExtractor
 
     # Files and general utilities
-    from .file_utils import (
+    from .file_utils_ import (
         CONFIG_NAME,
         MODEL_CARD_NAME,
         PYTORCH_PRETRAINED_BERT_CACHE,
@@ -439,7 +440,7 @@ if TYPE_CHECKING:
     from .models.gpt2 import GPT2Config, GPT2Tokenizer
     from .models.roberta import ROBERTA_PRETRAINED_CONFIG_ARCHIVE_MAP, RobertaConfig, RobertaTokenizer
 
-    # Tokenization
+    Tokenization
     from .tokenization_utils import PreTrainedTokenizer
     from .tokenization_utils_base import (
         AddedToken,
@@ -473,14 +474,11 @@ if TYPE_CHECKING:
         from .models.roberta import RobertaTokenizerFast
 
     if is_sentencepiece_available() and is_tokenizers_available():
-        from .convert_slow_tokenizer import SLOW_TO_FAST_CONVERTERS, convert_slow_tokenizer
+        from .convert_slow_tokenizer_ import SLOW_TO_FAST_CONVERTERS, convert_slow_tokenizer
     else:
         # from .utils.dummies_sentencepiece_and_tokenizers_objects import *
-        from .utils.dummy_sentencepiece_and_tokenizers_objects import *
+        from .utils.dummy_sentencepiece_and_tokenizers_objects_ import *
 
-    from .utils.dummy_speech_objects import *
-    from .utils.dummy_sentencepiece_and_speech_objects import *
-    from .utils.dummy_timm_objects import *
 
     if is_torch_available():
         # Benchmarks
@@ -508,31 +506,6 @@ if TYPE_CHECKING:
             TextDataset,
             TextDatasetForNextSentencePrediction,
         )
-        from .generation_beam_search import BeamScorer, BeamSearchScorer
-        from .generation_logits_process import (
-            ForcedBOSTokenLogitsProcessor,
-            ForcedEOSTokenLogitsProcessor,
-            HammingDiversityLogitsProcessor,
-            InfNanRemoveLogitsProcessor,
-            LogitsProcessor,
-            LogitsProcessorList,
-            LogitsWarper,
-            MinLengthLogitsProcessor,
-            NoBadWordsLogitsProcessor,
-            NoRepeatNGramLogitsProcessor,
-            PrefixConstrainedLogitsProcessor,
-            RepetitionPenaltyLogitsProcessor,
-            TemperatureLogitsWarper,
-            TopKLogitsWarper,
-            TopPLogitsWarper,
-        )
-        from .generation_stopping_criteria import (
-            MaxLengthCriteria,
-            MaxTimeCriteria,
-            StoppingCriteria,
-            StoppingCriteriaList,
-        )
-        from .generation_utils import top_k_top_p_filtering
         from .modeling_utils import Conv1D, PreTrainedModel, apply_chunking_to_forward, prune_layer
         from .models.bert import (
             BERT_PRETRAINED_MODEL_ARCHIVE_LIST,

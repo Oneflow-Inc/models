@@ -19,6 +19,7 @@ import os
 import sys
 import time
 from ast import literal_eval
+from tensorboardX import SummaryWriter
 
 import oneflow as torch
 from oneflow.utils.data import DataLoader, RandomSampler
@@ -30,11 +31,6 @@ from ..utils.logger import logger
 from ..utils.statistics import Statistics
 from .optimizers import get_optimizer
 
-try:
-    from torch.utils.tensorboard import SummaryWriter
-except:
-    #EAS need this
-    from tensorboardX import SummaryWriter
 
 class Trainer(object):
     def __init__(self, model, train_dataset, evaluator=None, **kwargs):

@@ -17,8 +17,6 @@
 import json
 from typing import List, Optional, Tuple
 
-from tokenizers import normalizers
-
 from ...tokenization_utils_fast import PreTrainedTokenizerFast
 from ...utils import logging
 from .tokenization_bert import BertTokenizer

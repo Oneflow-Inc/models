@@ -26,7 +26,6 @@ from tokenizers import Encoding as EncodingFast
 from tokenizers import Tokenizer as TokenizerFast
 from tokenizers.decoders import Decoder as DecoderFast
 
-from .convert_slow_tokenizer import convert_slow_tokenizer
 from .file_utils import PaddingStrategy, add_end_docstrings
 from .tokenization_utils import PreTrainedTokenizer
 from .tokenization_utils_base import (
