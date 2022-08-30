@@ -1,5 +1,5 @@
 persistent=./persistent
-rm -rf ${prefix}.* $persistent/*
+rm -rf $persistent/*
 
 #export CUDA_VISIBLE_DEVICES=1
 export ONEFLOW_FUSE_MODEL_UPDATE_CAST=1
