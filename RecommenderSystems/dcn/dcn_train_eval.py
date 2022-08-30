@@ -10,9 +10,7 @@ import oneflow as flow
 import oneflow.nn as nn
 from petastorm.reader import make_batch_reader
 
-sys.path.append(
-    os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
-)
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir)))
 num_dense_fields = 13
 num_sparse_fields = 26
 
@@ -27,45 +25,30 @@ def get_args(print_args=True):
     parser = argparse.ArgumentParser()
     parser.add_argument("--data_dir", type=str, required=True)
     parser.add_argument(
-        "--num_train_samples",
-        type=int,
-        default=36672493,
-        help="the number of training samples",
+        "--num_train_samples", type=int, default=36672493, help="the number of training samples"
     )
     parser.add_argument(
-        "--num_valid_samples",
-        type=int,
-        default=4584062,
-        help="the number of validation samples",
+        "--num_valid_samples", type=int, default=4584062, help="the number of validation samples"
     )
     parser.add_argument(
-        "--num_test_samples",
-        type=int,
-        default=4584062,
-        help="the number of test samples",
+        "--num_test_samples", type=int, default=4584062, help="the number of test samples"
     )
 
     parser.add_argument("--shard_seed", type=int, default=2022)
     parser.add_argument("--model_load_dir", type=str, default=None)
     parser.add_argument("--model_save_dir", type=str, default=None)
+    parser.add_argument("--save_best_model", action="store_true", help="save best model or not")
     parser.add_argument(
-        "--save_best_model", action="store_true", help="save best model or not"
+        "--save_initial_model", action="store_true", help="save initial model parameters or not."
     )
     parser.add_argument(
-        "--save_initial_model",
-        action="store_true",
-        help="save initial model parameters or not.",
+        "--save_model_after_each_eval", action="store_true", help="save model after each eval."
     )
-    parser.add_argument(
-        "--save_model_after_each_eval",
-        action="store_true",
-        help="save model after each eval.",
-    )
+
+    parser.add_argument("--disable_fusedmlp", action="store_true", help="disable fused MLP or not")
     parser.add_argument("--embedding_vec_size", type=int, default=16)
     parser.add_argument("--batch_norm", type=bool, default=False)
-    parser.add_argument(
-        "--dnn_hidden_units", type=int_list, default="1000,1000,1000,1000,1000"
-    )
+    parser.add_argument("--dnn_hidden_units", type=int_list, default="1000,1000,1000,1000,1000")
     parser.add_argument("--crossing_layers", type=int, default=3)
     parser.add_argument("--net_dropout", type=float, default=0.2)
     parser.add_argument("--embedding_regularizer", type=float, default=None)
@@ -82,17 +65,11 @@ def get_args(print_args=True):
     parser.add_argument("--size_factor", type=int, default=3)
 
     parser.add_argument("--valid_batch_size", type=int, default=10000)
-    parser.add_argument(
-        "--valid_batches", type=int, default=1000, help="number of valid batches"
-    )
+    parser.add_argument("--valid_batches", type=int, default=1000, help="number of valid batches")
     parser.add_argument("--test_batch_size", type=int, default=10000)
-    parser.add_argument(
-        "--test_batches", type=int, default=1000, help="number of test batches"
-    )
+    parser.add_argument("--test_batches", type=int, default=1000, help="number of test batches")
     parser.add_argument("--train_batch_size", type=int, default=10000)
-    parser.add_argument(
-        "--train_batches", type=int, default=15000, help="number of train batches"
-    )
+    parser.add_argument("--train_batches", type=int, default=15000, help="number of train batches")
     parser.add_argument("--loss_print_interval", type=int, default=100)
 
     parser.add_argument(
@@ -102,17 +79,12 @@ def get_args(print_args=True):
         required=True,
     )
     parser.add_argument(
-        "--persistent_path",
-        type=str,
-        required=True,
-        help="path for persistent kv store",
+        "--persistent_path", type=str, required=True, help="path for persistent kv store"
     )
     parser.add_argument("--store_type", type=str, default="cached_host_mem")
     parser.add_argument("--cache_memory_budget_mb", type=int, default=8192)
     parser.add_argument("--amp", action="store_true", help="Run model with amp")
-    parser.add_argument(
-        "--loss_scale_policy", type=str, default="static", help="static or dynamic"
-    )
+    parser.add_argument("--loss_scale_policy", type=str, default="static", help="static or dynamic")
 
     args = parser.parse_args()
 
@@ -193,9 +165,7 @@ class DCNDataReader(object):
                 pos = batch_size - len(tail[0])
                 tail = list(
                     [
-                        np.concatenate(
-                            (tail[i], rglist[i][0 : (batch_size - len(tail[i]))])
-                        )
+                        np.concatenate((tail[i], rglist[i][0 : (batch_size - len(tail[i]))]))
                         for i in range(self.num_fields)
                     ]
                 )
@@ -209,9 +179,7 @@ class DCNDataReader(object):
                     continue
             while (pos + batch_size) <= len(rglist[0]):
                 label = rglist[0][pos : pos + batch_size]
-                features = [
-                    rglist[j][pos : pos + batch_size] for j in range(1, self.num_fields)
-                ]
+                features = [rglist[j][pos : pos + batch_size] for j in range(1, self.num_fields)]
                 pos += batch_size
                 yield label, np.stack(features, axis=-1)
             if pos != len(rglist[0]):
@@ -261,9 +229,7 @@ class OneEmbedding(nn.Module):
         ]
         if store_type == "device_mem":
             store_options = flow.one_embedding.make_device_mem_store_options(
-                persistent_path=persistent_path,
-                capacity=vocab_size,
-                size_factor=size_factor,
+                persistent_path=persistent_path, capacity=vocab_size, size_factor=size_factor,
             )
         elif store_type == "cached_host_mem":
             assert cache_memory_budget_mb > 0
@@ -298,39 +264,63 @@ class OneEmbedding(nn.Module):
         return self.one_embedding.forward(ids)
 
 
-class CrossInteractionLayer(nn.Module):
-    """
-    Follow the same CrossInteractionLayer implementation of FuxiCTR
-    """
-
-    def __init__(self, input_dim):
-        super(CrossInteractionLayer, self).__init__()
-        self.weight = nn.Linear(input_dim, 1, bias=False)
-        self.bias = nn.Parameter(flow.zeros(input_dim))
-
-    def forward(self, X_0, X_i):
-        interaction_out = self.weight(X_i) * X_0 + self.bias
-        return interaction_out
-
-
 class CrossNet(nn.Module):
-    """
+    '''
     Follow the same CrossNet implementation of FuxiCTR
-    """
-
+    '''
     def __init__(self, input_dim, num_layers):
         super(CrossNet, self).__init__()
         self.num_layers = num_layers
-        self.cross_net = nn.ModuleList(
-            CrossInteractionLayer(input_dim) for _ in range(self.num_layers)
-        )
+        self.input_dim = input_dim
+        self.add_parameters()
+        self.reset_parameters()
+
+    def add_parameters(self) -> None:
+        for idx in range(self.num_layers):
+            self.register_parameter(
+                f"weight_{idx}", flow.nn.Parameter(flow.Tensor(1, self.input_dim,)),
+            )
+            self.register_parameter(
+                f"bias_{idx}", flow.nn.Parameter(flow.zeros(self.input_dim)),
+            )
+
+    def weight(self, i):
+        return getattr(self, f"weight_{i}")
+
+    def bias(self, i):
+        return getattr(self, f"bias_{i}")
+
+    def reset_parameters(self) -> None:
+        for i in range(self.num_layers):
+            flow.nn.init.kaiming_uniform_(self.weight(i), a=math.sqrt(5))
 
     def forward(self, X_0):
         X_i = X_0  # b x dim
         for i in range(self.num_layers):
-            X_i = X_i + self.cross_net[i](X_0, X_i)
+            X_i = flow._C.fused_cross_feature_interaction(
+                X_i, self.weight(i), X_0, self.bias(i), "vector"
+            )
         return X_i
 
+
+class DNN1(nn.Module):
+    def __init__(
+        self, input_dim, hidden_units=[], dropout_rates=0, batch_norm=False, use_bias=True, use_fusedmlp=True,
+    ):
+        super(DNN, self).__init__()
+        dense_layers = []
+        hidden_units = [input_dim] + hidden_units
+        for idx in range(len(hidden_units) - 1):
+            dense_layers.append(nn.Linear(hidden_units[idx], hidden_units[idx + 1], bias=use_bias))
+            dense_layers.append(nn.ReLU())
+            if batch_norm:
+                dense_layers.append(nn.BatchNorm1d(hidden_units[idx + 1]))
+            if dropout_rates > 0:
+                dense_layers.append(nn.Dropout(p=dropout_rates))
+        self.dnn = nn.Sequential(*dense_layers)  # * used to unpack list
+
+    def forward(self, inputs):
+        return self.dnn(inputs)
 
 class DNN(nn.Module):
     def __init__(
@@ -338,22 +328,40 @@ class DNN(nn.Module):
         input_dim,
         hidden_units=[],
         dropout_rates=0,
+        use_fusedmlp=True,
         batch_norm=False,
         use_bias=True,
     ):
         super(DNN, self).__init__()
         dense_layers = []
-        hidden_units = [input_dim] + hidden_units
-        for idx in range(len(hidden_units) - 1):
-            dense_layers.append(
-                nn.Linear(hidden_units[idx], hidden_units[idx + 1], bias=use_bias)
+        if use_fusedmlp and not batch_norm:
+            hidden_dropout_rates_list = [dropout_rates] * (len(hidden_units) - 1)
+            self.dnn = nn.FusedMLP(
+                input_dim,
+                hidden_units[:-1],
+                hidden_units[-1],
+                hidden_dropout_rates_list,
+                dropout_rates,
+                False,
             )
-            dense_layers.append(nn.ReLU())
-            if batch_norm:
-                dense_layers.append(nn.BatchNorm1d(hidden_units[idx + 1]))
-            if dropout_rates > 0:
-                dense_layers.append(nn.Dropout(p=dropout_rates))
-        self.dnn = nn.Sequential(*dense_layers)  # * used to unpack list
+        else:
+            hidden_units = [input_dim] + hidden_units
+            for idx in range(len(hidden_units) - 1):
+                dense_layers.append(
+                    nn.Linear(hidden_units[idx], hidden_units[idx + 1], bias=use_bias)
+                )
+                dense_layers.append(nn.ReLU())
+                if batch_norm:
+                    dense_layers.append(nn.BatchNorm1d(hidden_units[idx + 1]))
+                if dropout_rates > 0:
+                    dense_layers.append(nn.Dropout(p=dropout_rates))
+            self.dnn = nn.Sequential(*dense_layers)  # * used to unpack list
+
+        for name, param in self.dnn.named_parameters():
+            if "weight" in name:
+                nn.init.normal_(param, 0.0, np.sqrt(2 / sum(param.shape)))
+            elif "bias" in name:
+                nn.init.normal_(param, 0.0, np.sqrt(1 / param.shape[0]))
 
     def forward(self, inputs):
         return self.dnn(inputs)
@@ -369,6 +377,7 @@ class DCNModule(nn.Module):
         cache_memory_budget_mb,
         size_factor,
         dnn_hidden_units=[128, 128],
+        use_fusedmlp=True,
         crossing_layers=3,
         net_dropout=0.2,
         batch_norm=False,
@@ -392,6 +401,7 @@ class DCNModule(nn.Module):
                 input_dim=input_dim,
                 hidden_units=dnn_hidden_units,
                 dropout_rates=net_dropout,
+                use_fusedmlp=use_fusedmlp,
                 batch_norm=batch_norm,
                 use_bias=True,
             )
@@ -402,9 +412,7 @@ class DCNModule(nn.Module):
         self.crossnet = CrossNet(input_dim, crossing_layers)
 
         final_dim = input_dim
-        if (
-            isinstance(dnn_hidden_units, list) and len(dnn_hidden_units) > 0
-        ):  # if use dnn
+        if isinstance(dnn_hidden_units, list) and len(dnn_hidden_units) > 0:  # if use dnn
             final_dim += dnn_hidden_units[-1]
         self.fc = nn.Linear(final_dim, 1)  # [cross_part, dnn_part] -> logit
 
@@ -441,6 +449,7 @@ def make_dcn_module(args):
         one_embedding_store_type=args.store_type,
         cache_memory_budget_mb=args.cache_memory_budget_mb,
         dnn_hidden_units=args.dnn_hidden_units,
+        use_fusedmlp=not args.disable_fusedmlp,
         crossing_layers=args.crossing_layers,
         net_dropout=args.net_dropout,
         batch_norm=args.batch_norm,
@@ -463,13 +472,7 @@ class DCNValGraph(flow.nn.Graph):
 
 class DCNTrainGraph(flow.nn.Graph):
     def __init__(
-        self,
-        dcn_module,
-        loss,
-        optimizer,
-        lr_scheduler=None,
-        grad_scaler=None,
-        amp=False,
+        self, dcn_module, loss, optimizer, lr_scheduler=None, grad_scaler=None, amp=False,
     ):
         super(DCNTrainGraph, self).__init__()
         self.module = dcn_module
@@ -565,16 +568,11 @@ def train(args):
         grad_scaler = flow.amp.StaticGradScaler(1024)
     else:
         grad_scaler = flow.amp.GradScaler(
-            init_scale=1073741824,
-            growth_factor=2.0,
-            backoff_factor=0.5,
-            growth_interval=2000,
+            init_scale=1073741824, growth_factor=2.0, backoff_factor=0.5, growth_interval=2000,
         )
 
     eval_graph = DCNValGraph(dcn_module, args.amp)
-    train_graph = DCNTrainGraph(
-        dcn_module, loss_func, opt, lr_scheduler, grad_scaler, args.amp
-    )
+    train_graph = DCNTrainGraph(dcn_module, loss_func, opt, lr_scheduler, grad_scaler, args.amp)
 
     batches_per_epoch = math.ceil(args.num_train_samples / args.train_batch_size)
 
@@ -621,9 +619,7 @@ def train(args):
                 if args.save_model_after_each_eval:
                     save_model(f"step_{step}_val_auc_{val_auc:0.5f}")
 
-                monitor_value = get_metrics(
-                    logs={"auc": val_auc, "logloss": val_logloss}
-                )
+                monitor_value = get_metrics(logs={"auc": val_auc, "logloss": val_logloss})
 
                 stop_training, best_metric, stopping_steps, save_best = early_stop(
                     epoch,
@@ -653,15 +649,11 @@ def train(args):
 
 def _np_to_global(np_array):
     t = flow.from_numpy(np_array)
-    return t.to_global(
-        placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0)
-    )
+    return t.to_global(placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0))
 
 
 def batch_to_global(np_label, np_features, is_train=True):
-    labels = (
-        _np_to_global(np_label.reshape(-1, 1)) if is_train else np_label.reshape(-1, 1)
-    )
+    labels = _np_to_global(np_label.reshape(-1, 1)) if is_train else np_label.reshape(-1, 1)
     features = _np_to_global(np_features)
     return labels, features
 
@@ -688,9 +680,7 @@ def eval(args, eval_graph, tag="val", cur_step=0, epoch=0, cached_eval_batches=N
     eval_start_time = time.time()
 
     if cached_eval_batches == None:
-        with make_criteo_dataloader(
-            f"{args.data_dir}/{tag}", batch_size, shuffle=False
-        ) as loader:
+        with make_criteo_dataloader(f"{args.data_dir}/{tag}", batch_size, shuffle=False) as loader:
             eval_start_time = time.time()
             for i in range(batches_per_epoch):
                 label, features = batch_to_global(*next(loader), is_train=False)
@@ -705,15 +695,11 @@ def eval(args, eval_graph, tag="val", cur_step=0, epoch=0, cached_eval_batches=N
             preds.append(pred.to_local())
 
     labels = (
-        _np_to_global(np.concatenate(labels, axis=0))
-        .to_global(sbp=flow.sbp.broadcast())
-        .to_local()
+        _np_to_global(np.concatenate(labels, axis=0)).to_global(sbp=flow.sbp.broadcast()).to_local()
     )
     preds = (
         flow.cat(preds, dim=0)
-        .to_global(
-            placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0)
-        )
+        .to_global(placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0))
         .to_global(sbp=flow.sbp.broadcast())
         .to_local()
     )
@@ -725,9 +711,7 @@ def eval(args, eval_graph, tag="val", cur_step=0, epoch=0, cached_eval_batches=N
 
     metrics_start_time = time.time()
     auc = flow.roc_auc_score(labels, preds).numpy()[0]
-    logloss = flow._C.binary_cross_entropy_loss(
-        preds, labels, weight=None, reduction="mean"
-    ).item()
+    logloss = flow._C.binary_cross_entropy_loss(preds, labels, weight=None, reduction="mean").item()
     metrics_time = time.time() - metrics_start_time
 
     if rank == 0:
@@ -750,3 +734,5 @@ if __name__ == "__main__":
     flow.boxing.nccl.enable_all_to_all(True)
     args = get_args()
     train(args)
+
+
