@@ -217,10 +217,7 @@ class Trainer(object):
 
     def train(self):
         self.logger.metric("time").reset()
-        for i in range(self.num_epochs):
-            if i == 1:
-                cmd = "nvidia-smi --query-gpu=timestamp,name,driver_version,utilization.gpu,utilization.memory,memory.total,memory.free,memory.used --format=csv"
-                os.system(cmd)
+        for _ in range(self.num_epochs):
             self.train_one_epoch()
             if self.cur_batch == self.total_batches:
                 break
@@ -239,7 +236,10 @@ class Trainer(object):
         self.model.train()
         self.is_train = True
 
-        for _ in range(self.batches_per_epoch):
+        for i in range(self.batches_per_epoch):
+            if i == 100:
+                cmd = "nvidia-smi --query-gpu=timestamp,name,driver_version,utilization.gpu,utilization.memory,memory.total,memory.free,memory.used --format=csv"
+                os.system(cmd)
             if self.graph:
                 loss, pred, label = self.train_graph()
             else:
