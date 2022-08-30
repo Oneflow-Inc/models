@@ -404,17 +404,6 @@ def train(args):
     dcn_module = make_dcn_module(args)
     dcn_module.to_global(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
 
-    sparse_loader_val = flow.nn.RawReader(
-            ["/RAID0/criteo1t_oneflow_raw/test/sparse_C39_int32.bin"],
-            (39,),
-            flow.int32,
-            args.test_batch_size,
-            random_shuffle=False,
-            random_seed=1234,
-            placement=flow.env.all_device_placement("cpu"),
-            sbp=flow.sbp.split(0)
-        )
-
     def load_model(dir):
         if rank == 0:
             print(f"Loading model from {dir}")
