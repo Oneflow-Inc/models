@@ -24,12 +24,12 @@ import torch
 from scipy.special import log_softmax
 from torch.utils.data import DataLoader
 
-from easynlp_.core.predictor import (Predictor, PyModelPredictor,
+from easynlp.core.predictor import (Predictor, PyModelPredictor,
                                     get_model_predictor)
-from easynlp_.fewshot_learning.fewshot_dataset import FewshotBaseDataset
-from easynlp_.modelzoo import AutoTokenizer
-from easynlp_.utils import io
-from easynlp_.utils.global_vars import parse_user_defined_parameters
+from easynlp.fewshot_learning.fewshot_dataset import FewshotBaseDataset
+from easynlp.modelzoo import AutoTokenizer
+from easynlp.utils import io
+from easynlp.utils.global_vars import parse_user_defined_parameters
 
 
 def _truncate_seq_pair(tokens_a, tokens_b, max_length):

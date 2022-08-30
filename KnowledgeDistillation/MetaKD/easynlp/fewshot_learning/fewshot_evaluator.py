@@ -19,11 +19,11 @@ import numpy as np
 import oneflow as torch
 from oneflow.utils.data import DataLoader
 
-from easynlp_.core.evaluator import Evaluator
-from easynlp_.fewshot_learning.fewshot_dataset import FewshotBaseDataset
-from easynlp_.utils import losses
-from easynlp_.utils.global_vars import parse_user_defined_parameters
-from easynlp_.utils.logger import logger
+from easynlp.core.evaluator import Evaluator
+from easynlp.fewshot_learning.fewshot_dataset import FewshotBaseDataset
+from easynlp.utils import losses
+from easynlp.utils.global_vars import parse_user_defined_parameters
+from easynlp.utils.logger import logger
 
 
 class PromptEvaluator(Evaluator):

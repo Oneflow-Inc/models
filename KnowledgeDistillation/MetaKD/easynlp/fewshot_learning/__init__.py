@@ -13,8 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .fewshot_application import CPTClassification, FewshotClassification
+# from .fewshot_application import CPTClassification, FewshotClassification
 from .fewshot_dataset import FewshotBaseDataset
 from .fewshot_evaluator import CPTEvaluator, PromptEvaluator
-from .fewshot_predictor import (CPTPredictor, FewshotPyModelPredictor,
-                                PromptPredictor)
+# from .fewshot_predictor import (CPTPredictor, FewshotPyModelPredictor,
+#                                 PromptPredictor)

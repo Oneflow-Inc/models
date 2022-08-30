@@ -20,11 +20,11 @@ import traceback
 import torch
 from torch import nn
 
-from easynlp_.appzoo.application import Application
-from easynlp_.modelzoo import AutoConfig, AutoModelForMaskedLM, AutoTokenizer
-from easynlp_.utils import io
-from easynlp_.utils.logger import logger
-from easynlp_.utils.losses import cross_entropy
+from easynlp.appzoo.application import Application
+from easynlp.modelzoo import AutoConfig, AutoModelForMaskedLM, AutoTokenizer
+from easynlp.utils import io
+from easynlp.utils.logger import logger
+from easynlp.utils.losses import cross_entropy
 
 
 class FewshotClassification(Application):
