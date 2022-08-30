@@ -403,38 +403,6 @@ def train(args):
 
     dcn_module = make_dcn_module(args)
     dcn_module.to_global(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
-    label_loader = flow.nn.RawReader(
-            ["/RAID0/criteo1t_oneflow_raw/train/label_float.bin"],
-            (1,),
-            flow.float32,
-            args.train_batch_size,
-            random_shuffle=True,
-            random_seed=1234,
-            placement=flow.env.all_device_placement("cpu"),
-            sbp=flow.sbp.split(0)
-        )
-
-    sparse_loader = flow.nn.RawReader(
-            ["/RAID0/criteo1t_oneflow_raw/train/sparse_C39_int32.bin"],
-            (39,),
-            flow.int32,
-            args.train_batch_size,
-            random_shuffle=True,
-            random_seed=1234,
-            placement=flow.env.all_device_placement("cpu"),
-            sbp=flow.sbp.split(0)
-        )
-
-    label_loader_val = flow.nn.RawReader(
-            ["/RAID0/criteo1t_oneflow_raw/test/label_float.bin"],
-            (1,),
-            flow.float32,
-            args.test_batch_size,
-            random_shuffle=False,
-            random_seed=1234,
-            placement=flow.env.all_device_placement("cpu"),
-            sbp=flow.sbp.split(0)
-        )
 
     sparse_loader_val = flow.nn.RawReader(
             ["/RAID0/criteo1t_oneflow_raw/test/sparse_C39_int32.bin"],
