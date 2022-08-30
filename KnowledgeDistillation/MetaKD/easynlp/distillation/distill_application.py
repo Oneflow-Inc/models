@@ -19,8 +19,8 @@ from ..utils import losses
 
 class DistillatoryBaseApplication(Application):
     """This is the application class for for supporting knowledge distillation."""
-    def compute_loss(self, forward_outputs, label_ids, teacher_logits,
-                     **kwargs):
+
+    def compute_loss(self, forward_outputs, label_ids, teacher_logits, **kwargs):
         """Computing the knowledge distillation loss based on teacher logits.
 
         Args:
@@ -34,13 +34,13 @@ class DistillatoryBaseApplication(Application):
         Returns: the dict of output tensors containing the loss
         """
 
-        kd_type = kwargs.pop('type')
-        logits = forward_outputs['logits']
-        if kd_type == 'vanilla_kd':
-            loss = losses.vanilla_loss(logits, teacher_logits, label_ids,
-                                       **kwargs)
+        kd_type = kwargs.pop("type")
+        logits = forward_outputs["logits"]
+        if kd_type == "vanilla_kd":
+            loss = losses.vanilla_loss(logits, teacher_logits, label_ids, **kwargs)
         else:
             raise NotImplementedError(
-                f'KD type {kd_type} is not avaliable yet, please use '
-                'supported KD methods.')
-        return {'loss': loss}
+                f"KD type {kd_type} is not avaliable yet, please use "
+                "supported KD methods."
+            )
+        return {"loss": loss}

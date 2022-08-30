@@ -31,6 +31,7 @@ from ...file_utils import (
 from ...tokenization_utils_base import TOKENIZER_CONFIG_FILE
 from ...utils import logging
 from ..bert.tokenization_bert import BertTokenizer
+
 # from ..dkplm.tokenization_dkplm import DkplmTokenizer
 # from ..megatron_bert.tokenization_megatron_bert import MegatronBertTokenizer
 # from ..gpt2.tokenization_gpt2 import GPT2Tokenizer
@@ -69,6 +70,7 @@ else:
 if is_tokenizers_available():
     from ...tokenization_utils_fast import PreTrainedTokenizerFast
     from ..bert.tokenization_bert_fast import BertTokenizerFast
+
     # from ..dkplm.tokenization_dkplm_fast import DkplmTokenizerFast
     # from ..megatron_bert.tokenization_modeling_bert_fast import MegatronBertTokenizerFast
     # from ..gpt2.tokenization_gpt2_fast import GPT2TokenizerFast
@@ -97,17 +99,17 @@ TOKENIZER_MAPPING = OrderedDict(
     [
         # (RobertaConfig, (RobertaTokenizer, RobertaTokenizerFast)),
         (BertConfig, (BertTokenizer, BertTokenizerFast)),
-    #     (DkplmConfig, (DkplmTokenizer, DkplmTokenizerFast)),
-    #     (MegatronBertConfig, (MegatronBertTokenizer, MegatronBertTokenizerFast)),
-    #     (GPT2Config, (GPT2Tokenizer, GPT2TokenizerFast)),
-    #     (TextCNNConfig, (TextCNNTokenizer, None)),
-    #     (ARTISTConfig, (BertTokenizer, BertTokenizerFast)),
-    #     (ARTISTI2TConfig, (BertTokenizer, BertTokenizerFast)),
-    #     (KBertConfig, (KBertTokenizer, KBertTokenizerFast)),
-    #     (T5Config, (T5Tokenizer, T5TokenizerFast)),
-    #     # (MT5Config, (MT5Tokenizer, MT5TokenizerFast)),
-    #     (PegasusConfig, (PegasusTokenizer, PegasusTokenizerFast)),
-    #     (BartConfig, (BartTokenizer, BartTokenizerFast))
+        #     (DkplmConfig, (DkplmTokenizer, DkplmTokenizerFast)),
+        #     (MegatronBertConfig, (MegatronBertTokenizer, MegatronBertTokenizerFast)),
+        #     (GPT2Config, (GPT2Tokenizer, GPT2TokenizerFast)),
+        #     (TextCNNConfig, (TextCNNTokenizer, None)),
+        #     (ARTISTConfig, (BertTokenizer, BertTokenizerFast)),
+        #     (ARTISTI2TConfig, (BertTokenizer, BertTokenizerFast)),
+        #     (KBertConfig, (KBertTokenizer, KBertTokenizerFast)),
+        #     (T5Config, (T5Tokenizer, T5TokenizerFast)),
+        #     # (MT5Config, (MT5Tokenizer, MT5TokenizerFast)),
+        #     (PegasusConfig, (PegasusTokenizer, PegasusTokenizerFast)),
+        #     (BartConfig, (BartTokenizer, BartTokenizerFast))
     ]
 )
 
@@ -197,7 +199,10 @@ def get_tokenizer_config(
         config_file = os.path.join(pretrained_model_name_or_path, TOKENIZER_CONFIG_FILE)
     else:
         config_file = hf_bucket_url(
-            pretrained_model_name_or_path, filename=TOKENIZER_CONFIG_FILE, revision=revision, mirror=None
+            pretrained_model_name_or_path,
+            filename=TOKENIZER_CONFIG_FILE,
+            revision=revision,
+            mirror=None,
         )
 
     try:
@@ -213,7 +218,9 @@ def get_tokenizer_config(
         )
 
     except EnvironmentError:
-        logger.info("Could not locate the tokenizer configuration file, will try to use the model config instead.")
+        logger.info(
+            "Could not locate the tokenizer configuration file, will try to use the model config instead."
+        )
         return {}
 
     with open(resolved_config_file, encoding="utf-8") as reader:
@@ -301,7 +308,9 @@ class AutoTokenizer:
         # If that did not work, let's try to use the config.
         if config_tokenizer_class is None:
             if not isinstance(config, PretrainedConfig):
-                config = AutoConfig.from_pretrained(pretrained_model_name_or_path, **kwargs)
+                config = AutoConfig.from_pretrained(
+                    pretrained_model_name_or_path, **kwargs
+                )
             config_tokenizer_class = config.tokenizer_class
 
         # If we have the tokenizer class from the tokenizer config or the model config we're good!
@@ -318,15 +327,21 @@ class AutoTokenizer:
                 raise ValueError(
                     f"Tokenizer class {tokenizer_class_candidate} does not exist or is not currently imported."
                 )
-            return tokenizer_class.from_pretrained(pretrained_model_name_or_path, *inputs, **kwargs)
+            return tokenizer_class.from_pretrained(
+                pretrained_model_name_or_path, *inputs, **kwargs
+            )
 
         if type(config) in TOKENIZER_MAPPING.keys():
             tokenizer_class_py, tokenizer_class_fast = TOKENIZER_MAPPING[type(config)]
             if tokenizer_class_fast and (use_fast or tokenizer_class_py is None):
-                return tokenizer_class_fast.from_pretrained(pretrained_model_name_or_path, *inputs, **kwargs)
+                return tokenizer_class_fast.from_pretrained(
+                    pretrained_model_name_or_path, *inputs, **kwargs
+                )
             else:
                 if tokenizer_class_py is not None:
-                    return tokenizer_class_py.from_pretrained(pretrained_model_name_or_path, *inputs, **kwargs)
+                    return tokenizer_class_py.from_pretrained(
+                        pretrained_model_name_or_path, *inputs, **kwargs
+                    )
                 else:
                     raise ValueError(
                         "This tokenizer cannot be instantiated. Please make sure you have `sentencepiece` installed "

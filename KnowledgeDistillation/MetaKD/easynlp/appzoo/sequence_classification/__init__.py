@@ -17,18 +17,18 @@
 # from ...modelzoo.file_utils import _BaseLazyModule
 
 # _import_structure = {
-#     "data": ['ClassificationDataset', 
-#             'DistillatoryClassificationDataset', 
+#     "data": ['ClassificationDataset',
+#             'DistillatoryClassificationDataset',
 #             'FewshotSequenceClassificationDataset'],
-#     "evaluator": ['SequenceClassificationEvaluator', 
+#     "evaluator": ['SequenceClassificationEvaluator',
 #                   'SequenceMultiLabelClassificationEvaluator'],
-#     "model": ['SequenceClassification', 
-#               'SequenceMultiLabelClassification', 
-#               'FewshotClassification', 
-#               'CPTClassification', 
+#     "model": ['SequenceClassification',
+#               'SequenceMultiLabelClassification',
+#               'FewshotClassification',
+#               'CPTClassification',
 #               'DistillatoryBaseApplication'],
 #     "predictor": ['SequenceClassificationPredictor',
-#                   'FewshotSequenceClassificationPredictor', 
+#                   'FewshotSequenceClassificationPredictor',
 #                   'CptFewshotSequenceClassificationPredictor'],
 # }
 

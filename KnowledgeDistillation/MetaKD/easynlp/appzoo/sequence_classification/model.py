@@ -18,35 +18,38 @@ import torch
 import torch.nn as nn
 
 from ...distillation.distill_application import DistillatoryBaseApplication
-from ...fewshot_learning.fewshot_application import FewshotClassification, CPTClassification
+from ...fewshot_learning.fewshot_application import (
+    FewshotClassification,
+    CPTClassification,
+)
 from ...modelzoo import AutoConfig
 from ...utils import losses
 from ..application import Application
 
 
 class SequenceClassification(Application):
-
     def __init__(self, pretrained_model_name_or_path=None, **kwargs):
         super().__init__()
 
-        if kwargs.get('from_config'):
+        if kwargs.get("from_config"):
             # for evaluation and prediction
-            self.config = kwargs.get('from_config')
+            self.config = kwargs.get("from_config")
             # self.backbone = AutoModel.from_config(self.config)
-        elif kwargs.get('user_defined_parameters') is not None and \
-            "model_parameters" in kwargs.get('user_defined_parameters'):
+        elif kwargs.get(
+            "user_defined_parameters"
+        ) is not None and "model_parameters" in kwargs.get("user_defined_parameters"):
             # for model random initialization
             self.config = AutoConfig.from_pretrained(pretrained_model_name_or_path)
-            user_defined_parameters = kwargs.get('user_defined_parameters')
+            user_defined_parameters = kwargs.get("user_defined_parameters")
             user_defined_parameters_dict = literal_eval(user_defined_parameters)
-            self.config.update(user_defined_parameters_dict['model_parameters'])
+            self.config.update(user_defined_parameters_dict["model_parameters"])
             # self.backbone = AutoModel.from_config(self.config)
         else:
             # for pretrained model, initialize from the pretrained model
             self.config = AutoConfig.from_pretrained(pretrained_model_name_or_path)
             # self.backbone = AutoModel.from_pretrained(pretrained_model_name_or_path)
-        if 'num_labels' in kwargs:
-            self.config.num_labels = kwargs['num_labels']
+        if "num_labels" in kwargs:
+            self.config.num_labels = kwargs["num_labels"]
         self.classifier = nn.Linear(self.config.hidden_size, self.config.num_labels)
         self.dropout = nn.Dropout(self.config.hidden_dropout_prob)
         self.init_weights()
@@ -62,19 +65,22 @@ class SequenceClassification(Application):
         pooler_output = self.dropout(pooler_output)
         logits = self.classifier(pooler_output)
         return {
-            'hidden': hidden_states,
-            'logits': logits,
-            'predictions': torch.argmax(logits, dim=-1),
-            'probabilities': torch.softmax(logits, dim=-1)
+            "hidden": hidden_states,
+            "logits": logits,
+            "predictions": torch.argmax(logits, dim=-1),
+            "probabilities": torch.softmax(logits, dim=-1),
         }
 
     def compute_loss(self, forward_outputs, label_ids, **kwargs):
-        logits = forward_outputs['logits']
-        return {'loss': losses.cross_entropy(logits, label_ids)}
+        logits = forward_outputs["logits"]
+        return {"loss": losses.cross_entropy(logits, label_ids)}
 
 
-class DistillatorySequenceClassification(DistillatoryBaseApplication, SequenceClassification):
+class DistillatorySequenceClassification(
+    DistillatoryBaseApplication, SequenceClassification
+):
     pass
+
 
 class SequenceMultiLabelClassification(SequenceClassification):
     """
@@ -89,8 +95,10 @@ class SequenceMultiLabelClassification(SequenceClassification):
         logits = forward_outputs["logits"]
         return {"loss": losses.multi_label_sigmoid_cross_entropy(logits, label_ids)}
 
+
 class FewshotSequenceClassification(FewshotClassification):
     pass
+
 
 class CptFewshotSequenceClassification(CPTClassification):
     pass

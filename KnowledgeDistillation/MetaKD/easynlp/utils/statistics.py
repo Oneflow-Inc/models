@@ -24,6 +24,7 @@ from .logger import logger
 
 class Statistics(object):
     """Accumulator for loss statistics."""
+
     def __init__(self, epoch_num, total_training_steps):
         self.epoch_num = epoch_num
         self.total_training_steps = total_training_steps
@@ -54,43 +55,55 @@ class Statistics(object):
            lr (float): current learning rate
         """
         logger.info(
-            'Epoch [{:2}/{:2}], step [{}/{}], lr {:.6f}, {:.2f} s'.format(
-                epoch, self.epoch_num, step, self.total_training_steps,
-                learning_rate, self.elapsed_time()))
+            "Epoch [{:2}/{:2}], step [{}/{}], lr {:.6f}, {:.2f} s".format(
+                epoch,
+                self.epoch_num,
+                step,
+                self.total_training_steps,
+                learning_rate,
+                self.elapsed_time(),
+            )
+        )
 
         for key, val in self.loss_dict.items():
-            if 'loss' in key:
-                logger.info('  {:10}: {:.4f} '.format(
-                    key,
-                    val.item() / self.n_tr_steps))
+            if "loss" in key:
+                logger.info(
+                    "  {:10}: {:.4f} ".format(key, val.item() / self.n_tr_steps)
+                )
 
         self.last_time = time.time()
 
-    def log_tensorboard(self,
-                        writer,
-                        learning_rate,
-                        global_step,
-                        current_loss=None,
-                        eval_scores=None,
-                        is_training=True,
-                        output_dir=None):
+    def log_tensorboard(
+        self,
+        writer,
+        learning_rate,
+        global_step,
+        current_loss=None,
+        eval_scores=None,
+        is_training=True,
+        output_dir=None,
+    ):
         """save statistics to tensorboard."""
         if is_training:
-            writer.add_scalar(tag='losses/loss',
-                              scalar_value=current_loss,
-                              global_step=global_step)
-            writer.add_scalar(tag='learning_rate/lr',
-                              scalar_value=learning_rate,
-                              global_step=global_step)
+            writer.add_scalar(
+                tag="losses/loss", scalar_value=current_loss, global_step=global_step
+            )
+            writer.add_scalar(
+                tag="learning_rate/lr",
+                scalar_value=learning_rate,
+                global_step=global_step,
+            )
         else:
             for metric_name, score in eval_scores:
-                writer.add_scalar(tag='eval/%s' % metric_name,
-                                  scalar_value=score,
-                                  global_step=global_step)
-            if output_dir and 'oss://' in output_dir:
+                writer.add_scalar(
+                    tag="eval/%s" % metric_name,
+                    scalar_value=score,
+                    global_step=global_step,
+                )
+            if output_dir and "oss://" in output_dir:
                 if not io.isdir(output_dir):
                     io.makedirs(output_dir)
-                for fname in io.listdir('./easynlp_tensorboard'):
-                    local_file = os.path.join('./easynlp_tensorboard/', fname)
+                for fname in io.listdir("./easynlp_tensorboard"):
+                    local_file = os.path.join("./easynlp_tensorboard/", fname)
                     oss_file = os.path.join(output_dir, fname)
                     io.upload(local_file, oss_file)

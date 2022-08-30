@@ -14,12 +14,22 @@
 
 from typing import TYPE_CHECKING
 
-from ...file_utils import _BaseLazyModule, is_flax_available, is_tf_available, is_torch_available
+from ...file_utils import (
+    _BaseLazyModule,
+    is_flax_available,
+    is_tf_available,
+    is_torch_available,
+)
 
 
 _import_structure = {
     "auto_factory": ["get_values"],
-    "configuration_auto": ["ALL_PRETRAINED_CONFIG_ARCHIVE_MAP", "CONFIG_MAPPING", "MODEL_NAMES_MAPPING", "AutoConfig"],
+    "configuration_auto": [
+        "ALL_PRETRAINED_CONFIG_ARCHIVE_MAP",
+        "CONFIG_MAPPING",
+        "MODEL_NAMES_MAPPING",
+        "AutoConfig",
+    ],
     "tokenization_auto": ["TOKENIZER_MAPPING", "AutoTokenizer"],
 }
 

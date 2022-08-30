@@ -37,11 +37,11 @@ def init_logger(log_file=None, local_rank=-1):
     logger.setLevel(logging.INFO)
 
     console_handler = logging.StreamHandler()
-    log_format = logging.Formatter('[%(asctime)s %(levelname)s] %(message)s')
+    log_format = logging.Formatter("[%(asctime)s %(levelname)s] %(message)s")
     console_handler.setFormatter(log_format)
     logger.handlers = [console_handler]
 
-    if log_file and log_file != '':
+    if log_file and log_file != "":
         file_handler = logging.FileHandler(log_file)
         file_handler.setFormatter(log_format)
         logger.addHandler(file_handler)

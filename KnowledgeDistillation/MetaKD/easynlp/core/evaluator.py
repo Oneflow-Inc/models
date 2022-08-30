@@ -18,13 +18,15 @@ from oneflow.utils.data import DataLoader
 
 class Evaluator(object):
     def __init__(self, valid_dataset, **kwargs):
-        eval_batch_size = kwargs.get('eval_batch_size', 32)
-        self.valid_loader = DataLoader(valid_dataset,
-                                       batch_size=eval_batch_size,
-                                       shuffle=False,
-                                       collate_fn=valid_dataset.batch_fn)
+        eval_batch_size = kwargs.get("eval_batch_size", 32)
+        self.valid_loader = DataLoader(
+            valid_dataset,
+            batch_size=eval_batch_size,
+            shuffle=False,
+            collate_fn=valid_dataset.batch_fn,
+        )
 
-        self.best_valid_score = float('-inf')
+        self.best_valid_score = float("-inf")
 
     def evaluate(self, model):
         raise NotImplementedError

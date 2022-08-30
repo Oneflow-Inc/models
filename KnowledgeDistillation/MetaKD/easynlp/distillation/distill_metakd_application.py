@@ -29,7 +29,7 @@ class DictToClass(object):
     def __init__(self, _obj):
         if _obj:
             self.__dict__.update(_obj)
-        
+
     def to_json_string(self):
         return json.dumps(self.__dict__, indent=2, sort_keys=True) + "\n"
 
@@ -56,37 +56,38 @@ class MetaTeacherForSequenceClassification(Application):
     >>> model = MetaTeacherForSequenceClassification.from_pretrained(path)
     ```
     """
+
     def __init__(self, pretrained_model_name_or_path=None, **kwargs):
         super().__init__()
-        if kwargs.get('from_config'):
+        if kwargs.get("from_config"):
             # for evaluation and prediction
-            self.config = kwargs.get('from_config')
+            self.config = kwargs.get("from_config")
             # self.backbone = AutoModel.from_config(self.config)
         else:
             # for pretrained model, load from the pretrained model
-            with open(pretrained_model_name_or_path + '/parameters.json', "r") as f:
+            with open(pretrained_model_name_or_path + "/parameters.json", "r") as f:
                 config = json.load(f)
                 self.config = DictToClass(config)
                 self.backbone = Bert(**config)
-                self.backbone.load_state_dict(torch.load(pretrained_model_name_or_path + '/weights'))
-        if 'num_labels' in kwargs:
-            self.config.num_labels = kwargs['num_labels']
-        if 'num_domains' in kwargs:
-            self.config.num_domains = kwargs['num_domains']
-        self.classifier = nn.Linear(self.config.hidden_size,
-                                    self.config.num_labels)
+                self.backbone.load_state_dict(
+                    torch.load(pretrained_model_name_or_path + "/weights")
+                )
+        if "num_labels" in kwargs:
+            self.config.num_labels = kwargs["num_labels"]
+        if "num_domains" in kwargs:
+            self.config.num_domains = kwargs["num_domains"]
+        self.classifier = nn.Linear(self.config.hidden_size, self.config.num_labels)
         self.dropout = nn.Dropout(self.config.hidden_dropout)
-        self.domain_embedding = nn.Embedding(self.config.num_domains,
-                                                self.config.hidden_size)
-        self.corrupt_dense = nn.Linear(self.config.hidden_size,
-                                        self.config.hidden_size)
-        self.domain_classifier = nn.Linear(self.config.hidden_size,
-                                            self.config.num_domains)
-        
-        self.config.fit_size = kwargs[
-            'fit_size'] if 'fit_size' in kwargs else 768
-        self.fit_dense = nn.Linear(self.config.hidden_size,
-                                    self.config.fit_size)
+        self.domain_embedding = nn.Embedding(
+            self.config.num_domains, self.config.hidden_size
+        )
+        self.corrupt_dense = nn.Linear(self.config.hidden_size, self.config.hidden_size)
+        self.domain_classifier = nn.Linear(
+            self.config.hidden_size, self.config.num_domains
+        )
+
+        self.config.fit_size = kwargs["fit_size"] if "fit_size" in kwargs else 768
+        self.fit_dense = nn.Linear(self.config.hidden_size, self.config.fit_size)
 
     def forward(self, inputs):
         r"""
@@ -94,49 +95,56 @@ class MetaTeacherForSequenceClassification(Application):
             domain_ids: the domain id of data. Shape: [, batchsize]
 
         """
-        backbone_output = self.backbone(inputs['input_ids'],
-                                        inputs['attention_mask'],
-                                        inputs['token_type_ids'],
-                                        output_hidden_states=True,
-                                        output_attentions=True)
+        backbone_output = self.backbone(
+            inputs["input_ids"],
+            inputs["attention_mask"],
+            inputs["token_type_ids"],
+            output_hidden_states=True,
+            output_attentions=True,
+        )
         temp = torch.relu(backbone_output.pooler_output)
         logits = self.classifier(temp)
-        domain_embedded = self.domain_embedding(inputs['domain_ids'])
-        content_tensor = torch.mean(backbone_output.last_hidden_state[:,1:, :],dim=1)
-        content_output = torch.tanh(self.corrupt_dense(domain_embedded + content_tensor))
+        domain_embedded = self.domain_embedding(inputs["domain_ids"])
+        content_tensor = torch.mean(backbone_output.last_hidden_state[:, 1:, :], dim=1)
+        content_output = torch.tanh(
+            self.corrupt_dense(domain_embedded + content_tensor)
+        )
         content_output = self.dropout(content_output)
         domain_logits = self.domain_classifier(content_output)
 
         return {
-            'logits': logits,
-            'domain_logits': domain_logits,
-            'attentions': backbone_output.attentions,
-            'hidden': backbone_output.hidden_states,
-            'predictions': torch.argmax(logits, dim=-1),
-            'probabilities': torch.softmax(logits, dim=-1)
+            "logits": logits,
+            "domain_logits": domain_logits,
+            "attentions": backbone_output.attentions,
+            "hidden": backbone_output.hidden_states,
+            "predictions": torch.argmax(logits, dim=-1),
+            "probabilities": torch.softmax(logits, dim=-1),
         }
 
-    def compute_loss(self,
-                     forward_outputs,
-                     label_ids,
-                     use_domain_loss=True,
-                     use_sample_weights=True,
-                     **kwargs):
-        logits = forward_outputs['logits']
-        per_instance_loss = cross_entropy(logits, label_ids, reduction='none')
+    def compute_loss(
+        self,
+        forward_outputs,
+        label_ids,
+        use_domain_loss=True,
+        use_sample_weights=True,
+        **kwargs
+    ):
+        logits = forward_outputs["logits"]
+        per_instance_loss = cross_entropy(logits, label_ids, reduction="none")
         if use_domain_loss:
-            shuffled_domain_ids = kwargs['domain_ids'][torch.randperm(
-                kwargs['domain_ids'].shape[0])]
-            domain_lossed = cross_entropy(forward_outputs['domain_logits'],
-                                          shuffled_domain_ids,
-                                          reduction='none')
-            per_instance_loss += kwargs['domain_loss_weight'] * domain_lossed
+            shuffled_domain_ids = kwargs["domain_ids"][
+                torch.randperm(kwargs["domain_ids"].shape[0])
+            ]
+            domain_lossed = cross_entropy(
+                forward_outputs["domain_logits"], shuffled_domain_ids, reduction="none"
+            )
+            per_instance_loss += kwargs["domain_loss_weight"] * domain_lossed
 
         if use_sample_weights:
-            loss = torch.mean(per_instance_loss * kwargs['sample_weights'])
+            loss = torch.mean(per_instance_loss * kwargs["sample_weights"])
         else:
             loss = torch.mean(per_instance_loss)
-        return {'loss': loss}
+        return {"loss": loss}
 
 
 class MetaStudentForSequenceClassification(Application):
@@ -153,61 +161,64 @@ class MetaStudentForSequenceClassification(Application):
     >>> model = MetaTeacherForSequenceClassification.from_pretrained(path)
     ```
     """
+
     def __init__(self, pretrained_model_name_or_path=None, **kwargs):
         super().__init__()
-        if kwargs.get('from_config'):
+        if kwargs.get("from_config"):
             # for evaluation and prediction
-            self.config = kwargs.get('from_config')
+            self.config = kwargs.get("from_config")
             # self.backbone = AutoModel.from_config(self.config)
         else:
             # for pretrained model, load from the pretrained model
-            with open(pretrained_model_name_or_path + '/parameters.json', "r") as f:
+            with open(pretrained_model_name_or_path + "/parameters.json", "r") as f:
                 config = json.load(f)
                 self.config = DictToClass(config)
                 self.backbone = Bert(**config)
-                self.backbone.load_state_dict(torch.load(pretrained_model_name_or_path + "/weights"))
-        if 'num_labels' in kwargs:
-            self.config.num_labels = kwargs['num_labels']
-        if 'num_domains' in kwargs:
-            self.config.num_domains = kwargs['num_domains']
+                self.backbone.load_state_dict(
+                    torch.load(pretrained_model_name_or_path + "/weights")
+                )
+        if "num_labels" in kwargs:
+            self.config.num_labels = kwargs["num_labels"]
+        if "num_domains" in kwargs:
+            self.config.num_domains = kwargs["num_domains"]
 
-        self.config.fit_size = kwargs[
-            'fit_size'] if 'fit_size' in kwargs else 768
+        self.config.fit_size = kwargs["fit_size"] if "fit_size" in kwargs else 768
         self.dropout = nn.Dropout(self.config.hidden_dropout)
-        self.classifier = nn.Linear(self.config.hidden_size,
-                                    self.config.num_labels)
-        self.domain_embedding = nn.Embedding(self.config.num_domains,
-                                                self.config.hidden_size)
-        self.corrupt_dense = nn.Linear(self.config.hidden_size,
-                                        self.config.hidden_size)
-        self.domain_classifier = nn.Linear(self.config.hidden_size,
-                                            self.config.num_domains)
-        self.fit_dense = nn.Linear(self.config.hidden_size,
-                                    self.config.fit_size)
+        self.classifier = nn.Linear(self.config.hidden_size, self.config.num_labels)
+        self.domain_embedding = nn.Embedding(
+            self.config.num_domains, self.config.hidden_size
+        )
+        self.corrupt_dense = nn.Linear(self.config.hidden_size, self.config.hidden_size)
+        self.domain_classifier = nn.Linear(
+            self.config.hidden_size, self.config.num_domains
+        )
+        self.fit_dense = nn.Linear(self.config.hidden_size, self.config.fit_size)
 
-    def forward(self, inputs, is_student=False, distill_stage='all'):
+    def forward(self, inputs, is_student=False, distill_stage="all"):
         """Pre-trained distillation when distill_stage is "first", return [attentions, sequence_output, domain_content_output].
 
         Downstream task distillation when distill_stage is "second", return [logits].
         This approach is to solve the problem that distributed training cannot find the tensor.
         """
 
-        if distill_stage not in ['first', 'second', 'all']:
-            raise RuntimeError(
-                'The distill_stage flag must be one of [first, second]')
-     
-        if distill_stage == 'first' or distill_stage == 'all':
-            backbone_output = self.backbone(inputs['input_ids'],
-                                            inputs['attention_mask'],
-                                            inputs['token_type_ids'],
-                                            output_hidden_states=True,
-                                            output_attentions=True)
-            domain_embedded = self.domain_embedding(
-                inputs['domain_ids']).squeeze()
+        if distill_stage not in ["first", "second", "all"]:
+            raise RuntimeError("The distill_stage flag must be one of [first, second]")
+
+        if distill_stage == "first" or distill_stage == "all":
+            backbone_output = self.backbone(
+                inputs["input_ids"],
+                inputs["attention_mask"],
+                inputs["token_type_ids"],
+                output_hidden_states=True,
+                output_attentions=True,
+            )
+            domain_embedded = self.domain_embedding(inputs["domain_ids"]).squeeze()
             content_tensor = torch.mean(
-                backbone_output.last_hidden_state[:, 1:, :], dim=1)
+                backbone_output.last_hidden_state[:, 1:, :], dim=1
+            )
             domain_content_output = self.fit_dense(
-                self.corrupt_dense(domain_embedded + content_tensor))
+                self.corrupt_dense(domain_embedded + content_tensor)
+            )
             if is_student:
                 sequence_output = [
                     self.fit_dense(hidden_state)
@@ -215,30 +226,31 @@ class MetaStudentForSequenceClassification(Application):
                 ]
             else:
                 sequence_output = backbone_output.hidden_states
-            if distill_stage == 'first':
+            if distill_stage == "first":
                 return {
-                    'attentions': backbone_output.attentions,
-                    'sequence_output': sequence_output,
-                    'domain_content_output': domain_content_output
+                    "attentions": backbone_output.attentions,
+                    "sequence_output": sequence_output,
+                    "domain_content_output": domain_content_output,
                 }
             else:
-                logits = self.classifier(
-                    torch.relu(backbone_output.pooler_output))
+                logits = self.classifier(torch.relu(backbone_output.pooler_output))
                 return {
-                    'logits': logits,
-                    'attentions': backbone_output.attentions,
-                    'sequence_output': sequence_output,
-                    'domain_content_output': domain_content_output
+                    "logits": logits,
+                    "attentions": backbone_output.attentions,
+                    "sequence_output": sequence_output,
+                    "domain_content_output": domain_content_output,
                 }
 
         else:
-            backbone_output = self.backbone(inputs['input_ids'],
-                                            inputs['attention_mask'],
-                                            inputs['token_type_ids'],
-                                            output_hidden_states=True,
-                                            output_attentions=True)
+            backbone_output = self.backbone(
+                inputs["input_ids"],
+                inputs["attention_mask"],
+                inputs["token_type_ids"],
+                output_hidden_states=True,
+                output_attentions=True,
+            )
             logits = self.classifier(torch.relu(backbone_output.pooler_output))
-            return {'logits': logits}
+            return {"logits": logits}
 
     def compute_loss(self, **kwargs):
         """When distill_stage is first:
@@ -247,37 +259,40 @@ class MetaStudentForSequenceClassification(Application):
         When distill_stage is second:
             The student model will use distillation loss to fit the logits of the teacher model.
         """
-        distill_stage = kwargs['distill_stage']
+        distill_stage = kwargs["distill_stage"]
 
-        local_rank = kwargs['local_rank']
+        local_rank = kwargs["local_rank"]
         # Prepare parameters
-        if distill_stage == 'first':
-            student_atts = kwargs['student_atts']
-            student_reps = kwargs['student_reps']
-            student_domain_rep = kwargs['student_domain_rep']
+        if distill_stage == "first":
+            student_atts = kwargs["student_atts"]
+            student_reps = kwargs["student_reps"]
+            student_domain_rep = kwargs["student_domain_rep"]
 
-            teacher_atts = kwargs['teacher_atts']
-            teacher_reps = kwargs['teacher_reps']
-            teacher_domain_rep = kwargs['teacher_domain_rep']
-            grt_sample_weights = kwargs['grt_sample_weights']
+            teacher_atts = kwargs["teacher_atts"]
+            teacher_reps = kwargs["teacher_reps"]
+            teacher_domain_rep = kwargs["teacher_domain_rep"]
+            grt_sample_weights = kwargs["grt_sample_weights"]
 
-            domain_loss_weight = kwargs['domain_loss_weight']
-            sample_weights = kwargs['sample_weights']
+            domain_loss_weight = kwargs["domain_loss_weight"]
+            sample_weights = kwargs["sample_weights"]
             final_sample_weights = (1 + sample_weights) * grt_sample_weights
 
         else:
-            teacher_logits = kwargs['teacher_logits']
-            student_logits = kwargs['student_logits']
-            T = kwargs['T']
+            teacher_logits = kwargs["teacher_logits"]
+            student_logits = kwargs["student_logits"]
+            T = kwargs["T"]
 
-        if distill_stage == 'first':
-            att_loss = 0.
-            rep_loss = 0.
-            domain_loss = 0.
+        if distill_stage == "first":
+            att_loss = 0.0
+            rep_loss = 0.0
+            domain_loss = 0.0
 
             teacher_layer_num = len(teacher_atts)
             student_layer_num = len(student_atts)
-            assert teacher_layer_num % student_layer_num == 0 and teacher_layer_num >= student_layer_num
+            assert (
+                teacher_layer_num % student_layer_num == 0
+                and teacher_layer_num >= student_layer_num
+            )
             layers_per_block = int(teacher_layer_num / student_layer_num)
             new_teacher_atts = [
                 teacher_atts[i * layers_per_block + layers_per_block - 1]
@@ -285,26 +300,27 @@ class MetaStudentForSequenceClassification(Application):
             ]
 
             # attention loss
-            for student_att, teacher_att in zip(student_atts,
-                                                new_teacher_atts):
+            for student_att, teacher_att in zip(student_atts, new_teacher_atts):
                 # Deleting small att
                 student_att = torch.where(
                     student_att <= -1e2,
-                    torch.zeros_like(student_att).to(local_rank), student_att)
+                    torch.zeros_like(student_att).to(local_rank),
+                    student_att,
+                )
                 teacher_att = torch.where(
                     teacher_att <= -1e2,
-                    torch.zeros_like(teacher_att).to(local_rank), teacher_att)
+                    torch.zeros_like(teacher_att).to(local_rank),
+                    teacher_att,
+                )
                 tmp_loss = mse_loss(student_att, teacher_att)
                 att_loss += tmp_loss
 
             # representions loss
             new_teacher_reps = [
-                teacher_reps[i * layers_per_block]
-                for i in range(student_layer_num + 1)
+                teacher_reps[i * layers_per_block] for i in range(student_layer_num + 1)
             ]
             new_student_reps = student_reps
-            for student_rep, teacher_rep in zip(new_student_reps,
-                                                new_teacher_reps):
+            for student_rep, teacher_rep in zip(new_student_reps, new_teacher_reps):
                 tmp_loss = mse_loss(student_rep, teacher_rep)
                 rep_loss += tmp_loss
 
@@ -312,22 +328,22 @@ class MetaStudentForSequenceClassification(Application):
             domain_loss += mse_loss(teacher_domain_rep, student_domain_rep)
 
             # final_loss
-            loss = rep_loss * final_sample_weights + \
-                   att_loss * final_sample_weights + \
-                   domain_loss_weight * domain_loss * final_sample_weights
+            loss = (
+                rep_loss * final_sample_weights
+                + att_loss * final_sample_weights
+                + domain_loss_weight * domain_loss * final_sample_weights
+            )
 
             loss = loss.mean()
             return {
-                'loss': loss,
-                'att_loss': att_loss,
-                'rep_loss': rep_loss,
-                'domain_loss': domain_loss
+                "loss": loss,
+                "att_loss": att_loss,
+                "rep_loss": rep_loss,
+                "domain_loss": domain_loss,
             }
 
         else:
-            cls_loss = 0.
-            cls_loss = soft_cross_entropy(student_logits / T,
-                                            teacher_logits / T)
+            cls_loss = 0.0
+            cls_loss = soft_cross_entropy(student_logits / T, teacher_logits / T)
             loss = cls_loss
-            return {'loss': loss}
-
+            return {"loss": loss}

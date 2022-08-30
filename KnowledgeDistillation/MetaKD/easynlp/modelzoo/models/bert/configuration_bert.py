@@ -21,6 +21,7 @@ from ...utils import logging
 
 logger = logging.get_logger(__name__)
 
+
 class BertConfig(PretrainedConfig):
     r"""
     This is the configuration class to store the configuration of a :class:`~transformers.BertModel` or a
