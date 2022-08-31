@@ -94,10 +94,8 @@ if __name__ == "__main__":
     day_23 = os.path.join(args.input_dir, "day_23")
     test_csv = os.path.join(args.output_dir, "test.csv")
     val_csv = os.path.join(args.output_dir, "val.csv")
-    if not os.path.isfile(test_csv):
-        os.system(f"head -n {num_test_examples} {day_23} > {test_csv}")
-    if not os.path.isfile(val_csv):
-        os.system(f"tail -n +{num_test_examples + 1} {day_23} > {val_csv}")
+    os.system(f"head -n {num_test_examples} {day_23} > {test_csv}")
+    os.system(f"tail -n +{num_test_examples + 1} {day_23} > {val_csv}")
 
     # start spark session
     conf = SparkConf()

@@ -86,6 +86,8 @@ python tools/criteo1t_parquet.py \
     --export_dataset_info
 ```
 
+Note: The `day_23` file will be splited to two `test.csv` and `val.csv` files in folder `output_dir`.
+
 ## Start training by Oneflow
 Following command will launch 8 oneflow dlrm training and evaluation processes on a node with 8 GPU devices, by specify `data_dir` for data input and `persistent_path` for OneEmbedding persistent store path.
 
