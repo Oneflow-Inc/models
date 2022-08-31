@@ -18,7 +18,12 @@ from ...file_utils import _BaseLazyModule, is_torch_available
 
 
 _import_structure = {
-    "configuration_auto": ["ALL_PRETRAINED_CONFIG_ARCHIVE_MAP", "CONFIG_MAPPING", "MODEL_NAMES_MAPPING", "AutoConfig"],
+    "configuration_auto": [
+        "ALL_PRETRAINED_CONFIG_ARCHIVE_MAP",
+        "CONFIG_MAPPING",
+        "MODEL_NAMES_MAPPING",
+        "AutoConfig",
+    ],
     "tokenization_auto": ["TOKENIZER_MAPPING", "AutoTokenizer"],
 }
 

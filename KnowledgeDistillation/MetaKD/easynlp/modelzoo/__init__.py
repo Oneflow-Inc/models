@@ -494,11 +494,13 @@ if TYPE_CHECKING:
         from .models.roberta import RobertaTokenizerFast
 
     if is_sentencepiece_available() and is_tokenizers_available():
-        from .convert_slow_tokenizer_ import SLOW_TO_FAST_CONVERTERS, convert_slow_tokenizer
+        from .convert_slow_tokenizer_ import (
+            SLOW_TO_FAST_CONVERTERS,
+            convert_slow_tokenizer,
+        )
     else:
         # from .utils.dummies_sentencepiece_and_tokenizers_objects import *
         from .utils.dummy_sentencepiece_and_tokenizers_objects_ import *
-
 
     if is_torch_available():
         # Benchmarks
@@ -526,7 +528,12 @@ if TYPE_CHECKING:
             TextDataset,
             TextDatasetForNextSentencePrediction,
         )
-        from .modeling_utils import Conv1D, PreTrainedModel, apply_chunking_to_forward, prune_layer
+        from .modeling_utils import (
+            Conv1D,
+            PreTrainedModel,
+            apply_chunking_to_forward,
+            prune_layer,
+        )
         from .models.bert import (
             BERT_PRETRAINED_MODEL_ARCHIVE_LIST,
             BertForMaskedLM,

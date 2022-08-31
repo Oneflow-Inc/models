@@ -21,11 +21,7 @@ from ...configuration_utils import PretrainedConfig
 from ..bert.configuration_bert import BertConfig
 
 
-CONFIG_MAPPING = OrderedDict(
-    [
-        ("bert", BertConfig),
-    ]
-)
+CONFIG_MAPPING = OrderedDict([("bert", BertConfig),])
 
 MODEL_NAMES_MAPPING = OrderedDict(
     [

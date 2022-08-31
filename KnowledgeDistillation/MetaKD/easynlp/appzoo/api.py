@@ -20,7 +20,10 @@ sys.path.append("./")
 sys.path.append("../")
 sys.path.append("../../")
 
-from easynlp.appzoo import SequenceClassificationEvaluator, SequenceMultiLabelClassificationEvaluator
+from easynlp.appzoo import (
+    SequenceClassificationEvaluator,
+    SequenceMultiLabelClassificationEvaluator,
+)
 
 from easynlp.core import Trainer, DistillatoryTrainer
 from easynlp.utils.logger import logger
@@ -28,28 +31,15 @@ from easynlp.utils.global_vars import parse_user_defined_parameters
 from easynlp.utils import initialize_easynlp, get_args
 
 
-Dataset_Mapping = {
-    
-}
+Dataset_Mapping = {}
 
-ModelMapping = {
-    
-}
+ModelMapping = {}
 
-Eval_Model_Mapping = {
-    
-}
+Eval_Model_Mapping = {}
 
-Evaluator_Mapping = {
-    'text_classify': {
-        'others': SequenceClassificationEvaluator
-    }
-    
-}
+Evaluator_Mapping = {"text_classify": {"others": SequenceClassificationEvaluator}}
 
-Predictor_Mapping = {
-    
-}
+Predictor_Mapping = {}
 
 
 def get_application_dataset(

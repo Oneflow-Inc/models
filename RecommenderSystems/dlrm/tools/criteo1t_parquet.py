@@ -36,18 +36,29 @@ def make_dlrm_parquet(
     dense_cols = [make_dense(Ii).alias(Ii) for i, Ii in enumerate(dense_names)]
 
     if mod_idx <= 0:
-        sparse_cols = [xxhash64(Ci, lit(i)).alias(Ci) for i, Ci in enumerate(sparse_names)]
+        sparse_cols = [
+            xxhash64(Ci, lit(i)).alias(Ci) for i, Ci in enumerate(sparse_names)
+        ]
     else:
         make_sparse = udf(
-            lambda s, i: mod_idx * (i + 1) if s is None else int(s, 16) % mod_idx + mod_idx * i,
+            lambda s, i: mod_idx * (i + 1)
+            if s is None
+            else int(s, 16) % mod_idx + mod_idx * i,
             LongType(),
         )
-        sparse_cols = [make_sparse(Ci, lit(i)).alias(Ci) for i, Ci in enumerate(sparse_names)]
+        sparse_cols = [
+            make_sparse(Ci, lit(i)).alias(Ci) for i, Ci in enumerate(sparse_names)
+        ]
 
     cols = [label_col] + dense_cols + sparse_cols
 
     start = time.time()
-    df = spark.read.options(delimiter="\t").csv(input_files).toDF(*column_names).select(cols)
+    df = (
+        spark.read.options(delimiter="\t")
+        .csv(input_files)
+        .toDF(*column_names)
+        .select(cols)
+    )
     if shuffle:
         df = df.orderBy(rand())
     if part_num:
@@ -71,7 +82,9 @@ if __name__ == "__main__":
     parser.add_argument("--spark_driver_memory_gb", type=int, default=360)
     parser.add_argument("--mod_idx", type=int, default=40000000)
     parser.add_argument(
-        "--export_dataset_info", action="store_true", help="export dataset infomation or not"
+        "--export_dataset_info",
+        action="store_true",
+        help="export dataset infomation or not",
     )
     args = parser.parse_args()
 
@@ -108,7 +121,12 @@ if __name__ == "__main__":
     train_files = [os.path.join(args.input_dir, f"day_{i}") for i in range(0, 23)]
     train_output_dir = os.path.join(args.output_dir, "train")
     train_count = make_dlrm_parquet(
-        spark, train_files, train_output_dir, part_num=1024, shuffle=True, mod_idx=args.mod_idx
+        spark,
+        train_files,
+        train_output_dir,
+        part_num=1024,
+        shuffle=True,
+        mod_idx=args.mod_idx,
     )
 
     if args.export_dataset_info:

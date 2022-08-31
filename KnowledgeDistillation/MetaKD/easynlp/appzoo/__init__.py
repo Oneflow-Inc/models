@@ -108,10 +108,18 @@ _import_structure = {
 }
 
 if TYPE_CHECKING:
-    from .sequence_classification.model import SequenceClassification, SequenceMultiLabelClassification, DistillatorySequenceClassification, FewshotSequenceClassification, CptFewshotSequenceClassification
+    from .sequence_classification.model import (
+        SequenceClassification,
+        SequenceMultiLabelClassification,
+        DistillatorySequenceClassification,
+        FewshotSequenceClassification,
+        CptFewshotSequenceClassification,
+    )
 
-    from .sequence_classification.evaluator import SequenceClassificationEvaluator, SequenceMultiLabelClassificationEvaluator
-
+    from .sequence_classification.evaluator import (
+        SequenceClassificationEvaluator,
+        SequenceMultiLabelClassificationEvaluator,
+    )
 
     from .dataset import BaseDataset, GeneralDataset
     from .dataset import load_dataset, list_datasets
