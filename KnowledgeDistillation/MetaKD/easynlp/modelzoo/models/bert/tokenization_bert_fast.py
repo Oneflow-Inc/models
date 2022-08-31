@@ -30,14 +30,14 @@ PRETRAINED_POSITIONAL_EMBEDDINGS_SIZES = {
     "hfl/chinese-roberta-wwm-ext": 512,
     "bert-small-uncased": 512,
     "bert-base-uncased": 512,
-    "bert-large-uncased": 512
+    "bert-large-uncased": 512,
 }
 
 PRETRAINED_INIT_CONFIGURATION = {
     "hfl/chinese-roberta-wwm-ext": {"do_lower_case": True},
     "bert-small-uncased": {"do_lower_case": True},
     "bert-base-uncased": {"do_lower_case": True},
-    "bert-large-uncased": {"do_lower_case": True}
+    "bert-large-uncased": {"do_lower_case": True},
 }
 
 
@@ -181,6 +181,8 @@ class BertTokenizerFast(PreTrainedTokenizerFast):
             return len(cls + token_ids_0 + sep) * [0]
         return len(cls + token_ids_0 + sep) * [0] + len(token_ids_1 + sep) * [1]
 
-    def save_vocabulary(self, save_directory: str, filename_prefix: Optional[str] = None) -> Tuple[str]:
+    def save_vocabulary(
+        self, save_directory: str, filename_prefix: Optional[str] = None
+    ) -> Tuple[str]:
         files = self._tokenizer.model.save(save_directory, name=filename_prefix)
         return tuple(files)

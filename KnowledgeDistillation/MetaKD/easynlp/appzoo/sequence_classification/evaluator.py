@@ -27,7 +27,6 @@ from ...core.evaluator import Evaluator
 
 
 class SequenceClassificationEvaluator(Evaluator):
-
     def __init__(self, valid_dataset, **kwargs):
         super().__init__(valid_dataset, **kwargs)
         self.metrics = ["accuracy", "f1"]
@@ -83,11 +82,18 @@ class SequenceClassificationEvaluator(Evaluator):
             total_samples += self.valid_loader.batch_size
             if (_step + 1) % 100 == 0:
                 logger.info(
-                    "Eval: %d/%d steps finished" %
-                    (_step + 1, len(self.valid_loader.dataset) // self.valid_loader.batch_size))
+                    "Eval: %d/%d steps finished"
+                    % (
+                        _step + 1,
+                        len(self.valid_loader.dataset) // self.valid_loader.batch_size,
+                    )
+                )
 
-        logger.info("Inference time = {:.2f}s, [{:.4f} ms / sample] ".format(
-            total_spent_time, total_spent_time * 1000 / total_samples))
+        logger.info(
+            "Inference time = {:.2f}s, [{:.4f} ms / sample] ".format(
+                total_spent_time, total_spent_time * 1000 / total_samples
+            )
+        )
 
         eval_loss = total_loss / total_steps
         logger.info("Eval loss: {}".format(eval_loss))
@@ -105,10 +111,14 @@ class SequenceClassificationEvaluator(Evaluator):
                     logger.info("F1: {}".format(f1))
                     eval_outputs.append(("f1", f1))
                 else:
-                    f1 = f1_score(y_trues, np.argmax(logits_list, axis=-1), average="macro")
+                    f1 = f1_score(
+                        y_trues, np.argmax(logits_list, axis=-1), average="macro"
+                    )
                     logger.info("Macro F1: {}".format(f1))
                     eval_outputs.append(("macro-f1", f1))
-                    f1 = f1_score(y_trues, np.argmax(logits_list, axis=-1), average="micro")
+                    f1 = f1_score(
+                        y_trues, np.argmax(logits_list, axis=-1), average="micro"
+                    )
                     logger.info("Micro F1: {}".format(f1))
                     eval_outputs.append(("micro-f1", f1))
             elif metric == "auc":
@@ -129,8 +139,13 @@ class SequenceClassificationEvaluator(Evaluator):
                 logger.info("Peasrson_and_spearmanr: {}".format(corr))
                 eval_outputs.append(("pearson_and_spearman", corr))
             elif metric == "classification_report":
-                logger.info("\n{}".format(
-                    classification_report(y_trues, np.argmax(logits_list, axis=-1), digits=4)))
+                logger.info(
+                    "\n{}".format(
+                        classification_report(
+                            y_trues, np.argmax(logits_list, axis=-1), digits=4
+                        )
+                    )
+                )
             elif "last_layer_mse" in self.metrics:
                 logger.info("Last layer MSE: {}".format(eval_loss))
                 eval_outputs.append(("last_layer_mse", -eval_loss))
@@ -186,18 +201,27 @@ class SequenceMultiLabelClassificationEvaluator(Evaluator):
             probs = nn.Sigmoid()(logits)
             predictions = (probs > 0.5).long()
             preds_list.extend(predictions.tolist())
-            tmp_loss = losses.multi_label_sigmoid_cross_entropy(logits, label_ids.double())
+            tmp_loss = losses.multi_label_sigmoid_cross_entropy(
+                logits, label_ids.double()
+            )
 
             total_loss += tmp_loss.mean().item()
             total_steps += 1
             total_samples += self.valid_loader.batch_size
             if (_step + 1) % 100 == 0:
                 logger.info(
-                    "Eval: %d/%d steps finished" %
-                    (_step + 1, len(self.valid_loader.dataset) // self.valid_loader.batch_size))
+                    "Eval: %d/%d steps finished"
+                    % (
+                        _step + 1,
+                        len(self.valid_loader.dataset) // self.valid_loader.batch_size,
+                    )
+                )
 
-        logger.info("Inference time = {:.2f}s, [{:.4f} ms / sample] ".format(
-            total_spent_time, total_spent_time * 1000 / total_samples))
+        logger.info(
+            "Inference time = {:.2f}s, [{:.4f} ms / sample] ".format(
+                total_spent_time, total_spent_time * 1000 / total_samples
+            )
+        )
 
         eval_loss = total_loss / total_steps
         logger.info("Eval loss: {}".format(eval_loss))
@@ -206,8 +230,12 @@ class SequenceMultiLabelClassificationEvaluator(Evaluator):
         eval_outputs = list()
         n_class = preds_list.shape[1]
         y_trues = np.array(y_trues)
-        precs = [precision_score(y_trues[:, i], preds_list[:, i]) for i in range(n_class)]
-        recalls = [recall_score(y_trues[:, i], preds_list[:, i]) for i in range(n_class)]
+        precs = [
+            precision_score(y_trues[:, i], preds_list[:, i]) for i in range(n_class)
+        ]
+        recalls = [
+            recall_score(y_trues[:, i], preds_list[:, i]) for i in range(n_class)
+        ]
 
         prec_ma = np.mean(precs)
         recall_ma = np.mean(recalls)

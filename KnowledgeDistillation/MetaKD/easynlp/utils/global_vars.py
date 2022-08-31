@@ -25,35 +25,32 @@ _GLOBAL_NUM_MICROBATCHES_CALCULATOR = None
 _GLOBAL_TENSORBOARD_WRITER = None
 _GLOBAL_TIMERS = None
 _GLOBAL_APP_PARAMETER_NAMES = {
-    'embedding_size': 'int',
-    'loss_type': 'str',
-    'margin': 'float',
-    'gamma': 'int',
-    'two_tower': 'bool',
-    'siamese': 'bool',
-    'multi_label': 'bool',
-
+    "embedding_size": "int",
+    "loss_type": "str",
+    "margin": "float",
+    "gamma": "int",
+    "two_tower": "bool",
+    "siamese": "bool",
+    "multi_label": "bool",
     # Knowledge Distillation
-    'enable_distillation': 'bool',
-    'type': 'str',
-    'logits_name': 'str',
-    'logits_saved_path': 'str',
-    'temperature': 'float',
-    'alpha': 'float',
-
+    "enable_distillation": "bool",
+    "type": "str",
+    "logits_name": "str",
+    "logits_saved_path": "str",
+    "temperature": "float",
+    "alpha": "float",
     # Data Augmentation
-    'expansion_rate': 'int',
-    'mask_proportion': 'float',
-    'remove_blanks': 'bool',
-    'append_original': 'bool',
-
+    "expansion_rate": "int",
+    "mask_proportion": "float",
+    "remove_blanks": "bool",
+    "append_original": "bool",
     # Fewshot Learning
-    'enable_fewshot': 'bool',
-    'type': 'str',
-    'label_desc': 'str',
-    'pattern': 'str'
+    "enable_fewshot": "bool",
+    "type": "str",
+    "label_desc": "str",
+    "pattern": "str",
 }
-_GLOBAL_MODEL_PARAMETER_NAMES = ['vocab_size', 'hidden_size']
+_GLOBAL_MODEL_PARAMETER_NAMES = ["vocab_size", "hidden_size"]
 
 
 class NumMicroBatchesCalculator(ABC):
@@ -73,17 +70,15 @@ class NumMicroBatchesCalculator(ABC):
 
 
 class ConstantNumMicroBatches(NumMicroBatchesCalculator):
-    def __init__(self, global_batch_size, micro_batch_size,
-                 data_parallel_size):
-        micro_batch_times_data_parallel = micro_batch_size * \
-                                          data_parallel_size
-        assert global_batch_size % micro_batch_times_data_parallel == 0, \
-            'global batch size ({}) is not divisible by micro batch size ({})' \
-            ' times data parallel size ({})'.format(global_batch_size,
-                                                    micro_batch_size,
-                                                    data_parallel_size)
-        self.num_micro_batches = global_batch_size // \
-                                 micro_batch_times_data_parallel
+    def __init__(self, global_batch_size, micro_batch_size, data_parallel_size):
+        micro_batch_times_data_parallel = micro_batch_size * data_parallel_size
+        assert global_batch_size % micro_batch_times_data_parallel == 0, (
+            "global batch size ({}) is not divisible by micro batch size ({})"
+            " times data parallel size ({})".format(
+                global_batch_size, micro_batch_size, data_parallel_size
+            )
+        )
+        self.num_micro_batches = global_batch_size // micro_batch_times_data_parallel
         assert self.num_micro_batches >= 1
         self.current_global_batch_size = global_batch_size
 
@@ -95,17 +90,21 @@ def build_num_microbatches_calculator(args):
 
     # Constant num micro-batches.
     num_microbatches_calculator = ConstantNumMicroBatches(
-        args.global_batch_size, args.micro_batch_size, args.data_parallel_size)
+        args.global_batch_size, args.micro_batch_size, args.data_parallel_size
+    )
     if args.rank == 0:
-        print('setting number of micro-batches to constant {}'.format(
-            num_microbatches_calculator.get()),
-              flush=True)
+        print(
+            "setting number of micro-batches to constant {}".format(
+                num_microbatches_calculator.get()
+            ),
+            flush=True,
+        )
     return num_microbatches_calculator
 
 
 def get_args():
     """Return arguments."""
-    _ensure_var_is_initialized(_GLOBAL_ARGS, 'args')
+    _ensure_var_is_initialized(_GLOBAL_ARGS, "args")
     return _GLOBAL_ARGS
 
 
@@ -118,8 +117,7 @@ def get_current_global_batch_size():
 
 
 def update_num_microbatches(consumed_samples, consistency_check=True):
-    _GLOBAL_NUM_MICROBATCHES_CALCULATOR.update(consumed_samples,
-                                               consistency_check)
+    _GLOBAL_NUM_MICROBATCHES_CALCULATOR.update(consumed_samples, consistency_check)
 
 
 def get_tensorboard_writer():
@@ -133,31 +131,35 @@ def get_tensorboard_writer():
 
 def get_timers():
     """Return timers."""
-    _ensure_var_is_initialized(_GLOBAL_TIMERS, 'timers')
+    _ensure_var_is_initialized(_GLOBAL_TIMERS, "timers")
     return _GLOBAL_TIMERS
 
 
-def set_global_variables(extra_args_provider=None,
-                         args_defaults={},
-                         ignore_unknown_args=False):
+def set_global_variables(
+    extra_args_provider=None, args_defaults={}, ignore_unknown_args=False
+):
     """Set args, tensorboard-writer, and timers."""
-    args = _parse_args(extra_args_provider=extra_args_provider,
-                       defaults=args_defaults,
-                       ignore_unknown_args=ignore_unknown_args)
+    args = _parse_args(
+        extra_args_provider=extra_args_provider,
+        defaults=args_defaults,
+        ignore_unknown_args=ignore_unknown_args,
+    )
     _set_tensorboard_writer(args)
     _set_timers()
 
 
-def set_variables_for_cli(extra_args_provider=None,
-                          defaults={},
-                          ignore_unknown_args=False):
+def set_variables_for_cli(
+    extra_args_provider=None, defaults={}, ignore_unknown_args=False
+):
     """Parse entire arguments."""
     global _GLOBAL_ARGS
-    _ensure_var_is_not_initialized(_GLOBAL_ARGS, 'args')
+    _ensure_var_is_not_initialized(_GLOBAL_ARGS, "args")
 
-    _GLOBAL_ARGS = parse_args_for_cli(extra_args_provider=extra_args_provider,
-                                      defaults=defaults,
-                                      ignore_unknown_args=ignore_unknown_args)
+    _GLOBAL_ARGS = parse_args_for_cli(
+        extra_args_provider=extra_args_provider,
+        defaults=defaults,
+        ignore_unknown_args=ignore_unknown_args,
+    )
 
     return _GLOBAL_ARGS
 
@@ -170,16 +172,16 @@ def parse_user_defined_parameters(user_defined_parameters):
     model_parameters = {}
     if user_defined_parameters is not None:
         for ele in user_defined_parameters.split():
-            key = ele.split('=')[0]
-            value = ele.split('=')[1]
+            key = ele.split("=")[0]
+            value = ele.split("=")[1]
             if key in _GLOBAL_APP_PARAMETER_NAMES:
                 value_type = _GLOBAL_APP_PARAMETER_NAMES[key]
-                if value_type == 'int':
+                if value_type == "int":
                     app_parameters[key] = int(value)
-                elif value_type == 'float':
+                elif value_type == "float":
                     app_parameters[key] = float(value)
-                elif value_type == 'bool':
-                    if value == 'True':
+                elif value_type == "bool":
+                    if value == "True":
                         app_parameters[key] = True
                     else:
                         app_parameters[key] = False
@@ -189,21 +191,21 @@ def parse_user_defined_parameters(user_defined_parameters):
                 model_parameters[key] = value
             else:
                 ret[key] = value
-    ret['app_parameters'] = app_parameters
+    ret["app_parameters"] = app_parameters
     if len(model_parameters) != 0:
-        ret['model_parameters'] = model_parameters
+        ret["model_parameters"] = model_parameters
     return ret
 
 
-def _parse_args(extra_args_provider=None,
-                defaults={},
-                ignore_unknown_args=False):
+def _parse_args(extra_args_provider=None, defaults={}, ignore_unknown_args=False):
     """Parse entire arguments."""
     global _GLOBAL_ARGS
-    _ensure_var_is_not_initialized(_GLOBAL_ARGS, 'args')
-    _GLOBAL_ARGS = parse_args(extra_args_provider=extra_args_provider,
-                              defaults=defaults,
-                              ignore_unknown_args=ignore_unknown_args)
+    _ensure_var_is_not_initialized(_GLOBAL_ARGS, "args")
+    _GLOBAL_ARGS = parse_args(
+        extra_args_provider=extra_args_provider,
+        defaults=defaults,
+        ignore_unknown_args=ignore_unknown_args,
+    )
 
     return _GLOBAL_ARGS
 
@@ -211,44 +213,49 @@ def _parse_args(extra_args_provider=None,
 def _set_tensorboard_writer(args):
     """Set tensorboard writer."""
     global _GLOBAL_TENSORBOARD_WRITER
-    _ensure_var_is_not_initialized(_GLOBAL_TENSORBOARD_WRITER,
-                                   'tensorboard writer')
+    _ensure_var_is_not_initialized(_GLOBAL_TENSORBOARD_WRITER, "tensorboard writer")
 
-    if hasattr(args, 'tensorboard_dir') and \
-       args.tensorboard_dir and args.rank == (args.world_size - 1):
+    if (
+        hasattr(args, "tensorboard_dir")
+        and args.tensorboard_dir
+        and args.rank == (args.world_size - 1)
+    ):
         try:
             from torch.utils.tensorboard import SummaryWriter
-            print('> setting tensorboard ...')
+
+            print("> setting tensorboard ...")
             _GLOBAL_TENSORBOARD_WRITER = SummaryWriter(
-                log_dir=args.tensorboard_dir,
-                max_queue=args.tensorboard_queue_size)
+                log_dir=args.tensorboard_dir, max_queue=args.tensorboard_queue_size
+            )
         except ModuleNotFoundError:
             print(
-                'WARNING: TensorBoard writing requested but is not '
-                'available (are you using PyTorch 1.1.0 or later?), '
-                'no TensorBoard logs will be written.',
-                flush=True)
+                "WARNING: TensorBoard writing requested but is not "
+                "available (are you using PyTorch 1.1.0 or later?), "
+                "no TensorBoard logs will be written.",
+                flush=True,
+            )
 
 
 def _set_timers():
     """Initialize timers."""
     global _GLOBAL_TIMERS
-    _ensure_var_is_not_initialized(_GLOBAL_TIMERS, 'timers')
+    _ensure_var_is_not_initialized(_GLOBAL_TIMERS, "timers")
     _GLOBAL_TIMERS = Timers()
 
 
 def _ensure_var_is_initialized(var, name):
     """Make sure the input variable is not None."""
-    assert var is not None, '{} is not initialized.'.format(name)
+    assert var is not None, "{} is not initialized.".format(name)
 
 
 def _ensure_var_is_not_initialized(var, name):
     """Make sure the input variable is not None."""
-    assert var is None, '{} is already initialized.'.format(name)
+    assert var is None, "{} is already initialized.".format(name)
 
 
 class _Timer:
     """Timer."""
+
     def __init__(self, name):
         self.name_ = name
         self.elapsed_ = 0.0
@@ -257,16 +264,16 @@ class _Timer:
 
     def start(self):
         """Start the timer."""
-        assert not self.started_, 'timer has already been started'
+        assert not self.started_, "timer has already been started"
         torch.cuda.synchronize()
         self.start_time = time.time()
         self.started_ = True
 
     def stop(self):
         """Stop the timer."""
-        assert self.started_, 'timer is not started'
+        assert self.started_, "timer is not started"
         torch.cuda.synchronize()
-        self.elapsed_ += (time.time() - self.start_time)
+        self.elapsed_ += time.time() - self.start_time
         self.started_ = False
 
     def reset(self):
@@ -293,6 +300,7 @@ class _Timer:
 
 class Timers:
     """Group of timers."""
+
     def __init__(self):
         self.timers = {}
 
@@ -309,19 +317,17 @@ class Timers:
         assert normalizer > 0.0
         for name in names:
             value = self.timers[name].elapsed(reset=reset) / normalizer
-            writer.add_scalar(name + '-time', value, iteration)
+            writer.add_scalar(name + "-time", value, iteration)
 
     def log(self, names, normalizer=1.0, reset=True):
         """Log a group of timers."""
         assert normalizer > 0.0
-        string = 'time (ms)'
+        string = "time (ms)"
         for name in names:
-            elapsed_time = self.timers[name].elapsed(
-                reset=reset) * 1000.0 / normalizer
-            string += ' | {}: {:.2f}'.format(name, elapsed_time)
+            elapsed_time = self.timers[name].elapsed(reset=reset) * 1000.0 / normalizer
+            string += " | {}: {:.2f}".format(name, elapsed_time)
         if torch.distributed.is_initialized():
-            if torch.distributed.get_rank() == (
-                    torch.distributed.get_world_size() - 1):
+            if torch.distributed.get_rank() == (torch.distributed.get_world_size() - 1):
                 print(string, flush=True)
         else:
             print(string, flush=True)

@@ -34,7 +34,7 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("dkplm", "DKPLM"),
         ("megatron-bert", "MEGATRON-BERT"),
         ("gpt2", "OpenAI GPT-2"),
-        ("cnn", 'TextCNN'),
+        ("cnn", "TextCNN"),
         ("artist", "ARTIST"),
         ("artist_i2t", "ARTISTI2T"),
         ("clip", "CLIP"),
@@ -42,20 +42,24 @@ MODEL_NAMES_MAPPING = OrderedDict(
         ("t5", "T5"),
         ("pegasus", "Pegasus"),
         ("bart", "BART"),
-        ("mt5", "mT5")
+        ("mt5", "mT5"),
     ]
 )
 
 
 def _get_class_name(model_class):
     if isinstance(model_class, (list, tuple)):
-        return " or ".join([f":class:`~transformers.{c.__name__}`" for c in model_class])
+        return " or ".join(
+            [f":class:`~transformers.{c.__name__}`" for c in model_class]
+        )
     return f":class:`~transformers.{model_class.__name__}`"
 
 
 def _list_model_options(indent, config_to_class=None, use_model_types=True):
     if config_to_class is None and not use_model_types:
-        raise ValueError("Using `use_model_types=False` requires a `config_to_class` dictionary.")
+        raise ValueError(
+            "Using `use_model_types=False` requires a `config_to_class` dictionary."
+        )
     if use_model_types:
         if config_to_class is None:
             model_type_to_name = {
@@ -73,9 +77,13 @@ def _list_model_options(indent, config_to_class=None, use_model_types=True):
             for model_type in sorted(model_type_to_name.keys())
         ]
     else:
-        config_to_name = {config.__name__: _get_class_name(clas) for config, clas in config_to_class.items()}
+        config_to_name = {
+            config.__name__: _get_class_name(clas)
+            for config, clas in config_to_class.items()
+        }
         config_to_model_name = {
-            config.__name__: MODEL_NAMES_MAPPING[model_type] for model_type, config in CONFIG_MAPPING.items()
+            config.__name__: MODEL_NAMES_MAPPING[model_type]
+            for model_type, config in CONFIG_MAPPING.items()
         }
         lines = [
             f"{indent}- :class:`~transformers.{config_name}` configuration class: {config_to_name[config_name]} ({config_to_model_name[config_name]} model)"
@@ -95,7 +103,9 @@ def replace_list_option_in_docstrings(config_to_class=None, use_model_types=True
             indent = re.search(r"^(\s*)List options\s*$", lines[i]).groups()[0]
             if use_model_types:
                 indent = f"{indent}    "
-            lines[i] = _list_model_options(indent, config_to_class=config_to_class, use_model_types=use_model_types)
+            lines[i] = _list_model_options(
+                indent, config_to_class=config_to_class, use_model_types=use_model_types
+            )
             docstrings = "\n".join(lines)
         else:
             raise ValueError(
@@ -183,7 +193,9 @@ class AutoConfig:
 
         """
         kwargs["_from_auto"] = True
-        config_dict, _ = PretrainedConfig.get_config_dict(pretrained_model_name_or_path, **kwargs)
+        config_dict, _ = PretrainedConfig.get_config_dict(
+            pretrained_model_name_or_path, **kwargs
+        )
         if "model_type" in config_dict:
             config_class = CONFIG_MAPPING[config_dict["model_type"]]
             return config_class.from_dict(config_dict, **kwargs)

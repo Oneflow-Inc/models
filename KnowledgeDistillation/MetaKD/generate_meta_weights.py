@@ -6,7 +6,7 @@ from tqdm import tqdm
 
 def read_embeddings(input_str):
     outcome = np.zeros(shape=embedding_size)
-    items = input_str.split(' ')
+    items = input_str.split(" ")
     for i in range(embedding_size):
         outcome[i] = float(items[i])
     return outcome
@@ -37,13 +37,13 @@ for domain in domains:
     domain_embeddings[domain] = list()
 
 print("Computing centroid embedding...")
-with open(dataset_file, 'r') as f:
+with open(dataset_file, "r") as f:
     lines = f.readlines()
     for i, line in enumerate(tqdm(lines)):
         if i == 0:
             continue
         line = line.strip()
-        items = line.split('\t')
+        items = line.split("\t")
         domain = items[-2]
         embeddings = read_embeddings(items[-1])
         domain_embeddings[domain].append(embeddings)
@@ -58,13 +58,13 @@ print("Computing weights....")
 output_data = list()
 fout = open(output_dataset_path, "w")
 fout.write("\t".join(["guid", "text_a", "text_b", "label", "domain", "weight"]) + "\n")
-with open(dataset_file, 'r') as f:
+with open(dataset_file, "r") as f:
     lines = f.readlines()
     for i, line in enumerate(tqdm(lines)):
         if i == 0:
             continue
         line = line.strip()
-        items = line.split('\t')
+        items = line.split("\t")
 
         domain = items[-2]
         embeddings = read_embeddings(items[-1])

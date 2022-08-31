@@ -106,7 +106,7 @@ _import_structure = {
         "is_wandb_available",
     ],
     "modelcard": ["ModelCard"],
-    # TODO remove tf2torch utils 
+    # TODO remove tf2torch utils
     "modeling_tf_pytorch_utils": [
         "convert_tf_weight_name_to_pt_weight_name",
         "load_pytorch_checkpoint_in_tf2_model",
@@ -140,7 +140,11 @@ _import_structure = {
     ],
     "models.cnn": ["TextCNNConfig", "TextCNNEncoder"],
     "models.gpt2": ["GPT2Config", "GPT2Tokenizer"],
-    "models.roberta": ["ROBERTA_PRETRAINED_CONFIG_ARCHIVE_MAP", "RobertaConfig", "RobertaTokenizer"],
+    "models.roberta": [
+        "ROBERTA_PRETRAINED_CONFIG_ARCHIVE_MAP",
+        "RobertaConfig",
+        "RobertaTokenizer",
+    ],
     "tokenization_utils": ["PreTrainedTokenizer"],
     "tokenization_utils_base": [
         "AddedToken",
@@ -159,7 +163,12 @@ _import_structure = {
         "TrainerControl",
         "TrainerState",
     ],
-    "trainer_utils": ["EvalPrediction", "IntervalStrategy", "SchedulerType", "set_seed"],
+    "trainer_utils": [
+        "EvalPrediction",
+        "IntervalStrategy",
+        "SchedulerType",
+        "set_seed",
+    ],
     "training_args": ["TrainingArguments"],
     "training_args_seq2seq": ["Seq2SeqTrainingArguments"],
     "training_args_tf": ["TFTrainingArguments"],
@@ -175,7 +184,10 @@ if is_tokenizers_available():
 
 
 if is_sentencepiece_available() and is_tokenizers_available():
-    _import_structure["convert_slow_tokenizer"] = ["SLOW_TO_FAST_CONVERTERS", "convert_slow_tokenizer"]
+    _import_structure["convert_slow_tokenizer"] = [
+        "SLOW_TO_FAST_CONVERTERS",
+        "convert_slow_tokenizer",
+    ]
 else:
     pass
     # from .utils import dummy_sentencepiece_and_tokenizers_objects_
@@ -235,7 +247,12 @@ if is_torch_available():
         "StoppingCriteriaList",
     ]
     _import_structure["generation_utils"] = ["top_k_top_p_filtering"]
-    _import_structure["modeling_utils"] = ["Conv1D", "PreTrainedModel", "apply_chunking_to_forward", "prune_layer"]
+    _import_structure["modeling_utils"] = [
+        "Conv1D",
+        "PreTrainedModel",
+        "apply_chunking_to_forward",
+        "prune_layer",
+    ]
 
     _import_structure["models.auto"].extend(
         [
@@ -288,12 +305,7 @@ if is_torch_available():
             "load_tf_weights_in_bert",
         ]
     )
-    _import_structure["models.cnn"].extend(
-        [
-            "TextCNNConfig",
-            "TextCNNEncoder"
-        ]
-    )
+    _import_structure["models.cnn"].extend(["TextCNNConfig", "TextCNNEncoder"])
 
     _import_structure["models.gpt2"].extend(
         [
@@ -306,7 +318,7 @@ if is_torch_available():
             # "load_tf_weights_in_gpt2",
         ]
     )
-    
+
     _import_structure["models.roberta"].extend(
         [
             "ROBERTA_PRETRAINED_MODEL_ARCHIVE_LIST",
@@ -320,7 +332,7 @@ if is_torch_available():
             "RobertaPreTrainedModel",
         ]
     )
-    
+
     _import_structure["optimization"] = [
         "Adafactor",
         "AdamW",
@@ -338,7 +350,9 @@ if is_torch_available():
 else:
     from .utils import dummy_pt_objects
 
-    _import_structure["utils.dummy_pt_objects"] = [name for name in dir(dummy_pt_objects) if not name.startswith("_")]
+    _import_structure["utils.dummy_pt_objects"] = [
+        name for name in dir(dummy_pt_objects) if not name.startswith("_")
+    ]
 
 # Direct imports for type-checking
 if TYPE_CHECKING:
@@ -427,6 +441,7 @@ if TYPE_CHECKING:
         # AutoFeatureExtractor,
         AutoTokenizer,
     )
+
     # from .models.bart import BartConfig, BartTokenizer
     from .models.bert import (
         # BERT_PRETRAINED_CONFIG_ARCHIVE_MAP,
@@ -435,10 +450,14 @@ if TYPE_CHECKING:
         BertTokenizer,
         WordpieceTokenizer,
     )
-    
+
     from .models.cnn import TextCNNEncoder, TextCNNConfig
     from .models.gpt2 import GPT2Config, GPT2Tokenizer
-    from .models.roberta import ROBERTA_PRETRAINED_CONFIG_ARCHIVE_MAP, RobertaConfig, RobertaTokenizer
+    from .models.roberta import (
+        ROBERTA_PRETRAINED_CONFIG_ARCHIVE_MAP,
+        RobertaConfig,
+        RobertaTokenizer,
+    )
 
     Tokenization
     from .tokenization_utils import PreTrainedTokenizer
@@ -464,6 +483,7 @@ if TYPE_CHECKING:
     from .trainer_utils import EvalPrediction, IntervalStrategy, SchedulerType, set_seed
     from .training_args import TrainingArguments
     from .training_args_seq2seq import Seq2SeqTrainingArguments
+
     # from .training_args_tf import TFTrainingArguments
     from .utils import logging
 

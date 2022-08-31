@@ -86,7 +86,7 @@ else:
     _torch_available = False
 
 if not _torch_available:
-    raise Exception ("Torch is not available.")
+    raise Exception("Torch is not available.")
 
 _datasets_available = importlib.util.find_spec("datasets") is not None
 try:
@@ -101,7 +101,8 @@ except importlib_metadata.PackageNotFoundError:
 
 
 _onnx_available = (
-    importlib.util.find_spec("keras2onnx") is not None and importlib.util.find_spec("onnxruntime") is not None
+    importlib.util.find_spec("keras2onnx") is not None
+    and importlib.util.find_spec("onnxruntime") is not None
 )
 try:
     _onxx_version = importlib_metadata.version("onnx")
@@ -117,11 +118,15 @@ try:
 except importlib_metadata.PackageNotFoundError:
     _scatter_available = False
 
-torch_cache_home = os.getenv("TORCH_HOME", os.path.join(os.getenv("XDG_CACHE_HOME", "~/.cache"), "torch"))
+torch_cache_home = os.getenv(
+    "TORCH_HOME", os.path.join(os.getenv("XDG_CACHE_HOME", "~/.cache"), "torch")
+)
 old_default_cache_path = os.path.join(torch_cache_home, "transformers")
 # New default cache, shared with the Datasets library
 hf_cache_home = os.path.expanduser(
-    os.getenv("HF_HOME", os.path.join(os.getenv("XDG_CACHE_HOME", "~/.cache"), "huggingface"))
+    os.getenv(
+        "HF_HOME", os.path.join(os.getenv("XDG_CACHE_HOME", "~/.cache"), "huggingface")
+    )
 )
 default_cache_path = os.path.join(hf_cache_home, "transformers")
 
@@ -142,8 +147,12 @@ if (
     )
     shutil.move(old_default_cache_path, default_cache_path)
 
-PYTORCH_PRETRAINED_BERT_CACHE = os.getenv("PYTORCH_PRETRAINED_BERT_CACHE", default_cache_path)
-PYTORCH_TRANSFORMERS_CACHE = os.getenv("PYTORCH_TRANSFORMERS_CACHE", PYTORCH_PRETRAINED_BERT_CACHE)
+PYTORCH_PRETRAINED_BERT_CACHE = os.getenv(
+    "PYTORCH_PRETRAINED_BERT_CACHE", default_cache_path
+)
+PYTORCH_TRANSFORMERS_CACHE = os.getenv(
+    "PYTORCH_TRANSFORMERS_CACHE", PYTORCH_PRETRAINED_BERT_CACHE
+)
 TRANSFORMERS_CACHE = os.getenv("TRANSFORMERS_CACHE", PYTORCH_TRANSFORMERS_CACHE)
 SESSION_ID = uuid4().hex
 DISABLE_TELEMETRY = os.getenv("DISABLE_TELEMETRY", False) in ENV_VARS_TRUE_VALUES
@@ -168,12 +177,18 @@ DUMMY_MASK = [[1, 1, 1, 1, 1], [1, 1, 1, 0, 0], [0, 0, 0, 1, 1]]
 S3_BUCKET_PREFIX = "https://s3.amazonaws.com/models.huggingface.co/bert"
 CLOUDFRONT_DISTRIB_PREFIX = "https://cdn.huggingface.co"
 
-_staging_mode = os.environ.get("HUGGINGFACE_CO_STAGING", "NO").upper() in ENV_VARS_TRUE_VALUES
-#_default_endpoint = "https://moon-staging.huggingface.co" if _staging_mode else "https://huggingface.co"
-_default_endpoint = "https://atp-modelzoo-sh.oss-cn-shanghai.aliyuncs.com/release/easynlp_modelzoo"
+_staging_mode = (
+    os.environ.get("HUGGINGFACE_CO_STAGING", "NO").upper() in ENV_VARS_TRUE_VALUES
+)
+# _default_endpoint = "https://moon-staging.huggingface.co" if _staging_mode else "https://huggingface.co"
+_default_endpoint = (
+    "https://atp-modelzoo-sh.oss-cn-shanghai.aliyuncs.com/release/easynlp_modelzoo"
+)
 
-HUGGINGFACE_CO_RESOLVE_ENDPOINT = os.environ.get("HUGGINGFACE_CO_RESOLVE_ENDPOINT", _default_endpoint)
-#HUGGINGFACE_CO_PREFIX = HUGGINGFACE_CO_RESOLVE_ENDPOINT + "/{model_id}/resolve/{revision}/{filename}"
+HUGGINGFACE_CO_RESOLVE_ENDPOINT = os.environ.get(
+    "HUGGINGFACE_CO_RESOLVE_ENDPOINT", _default_endpoint
+)
+# HUGGINGFACE_CO_PREFIX = HUGGINGFACE_CO_RESOLVE_ENDPOINT + "/{model_id}/resolve/{revision}/{filename}"
 HUGGINGFACE_CO_PREFIX = HUGGINGFACE_CO_RESOLVE_ENDPOINT + "/{model_id}/{filename}"
 
 PRESET_MIRROR_DICT = {
@@ -184,7 +199,11 @@ PRESET_MIRROR_DICT = {
 # This is the version of torch required to run torch.fx features.
 TORCH_FX_REQUIRED_VERSION = version.parse("1.8")
 
-_is_offline_mode = True if os.environ.get("TRANSFORMERS_OFFLINE", "0").upper() in ENV_VARS_TRUE_VALUES else False
+_is_offline_mode = (
+    True
+    if os.environ.get("TRANSFORMERS_OFFLINE", "0").upper() in ENV_VARS_TRUE_VALUES
+    else False
+)
 
 
 def is_offline_mode():
@@ -316,7 +335,9 @@ def is_sagemaker_dp_enabled():
     try:
         # Parse it and check the field "sagemaker_distributed_dataparallel_enabled".
         sagemaker_params = json.loads(sagemaker_params)
-        if not sagemaker_params.get("sagemaker_distributed_dataparallel_enabled", False):
+        if not sagemaker_params.get(
+            "sagemaker_distributed_dataparallel_enabled", False
+        ):
             return False
     except json.JSONDecodeError:
         return False
@@ -538,7 +559,9 @@ def requires_backends(obj, backends):
 
     name = obj.__name__ if hasattr(obj, "__name__") else obj.__class__.__name__
     if not all(BACKENDS_MAPPING[backend][0]() for backend in backends):
-        raise ImportError("".join([BACKENDS_MAPPING[backend][1].format(name) for backend in backends]))
+        raise ImportError(
+            "".join([BACKENDS_MAPPING[backend][1].format(name) for backend in backends])
+        )
 
 
 def add_start_docstrings(*docstr):
@@ -560,7 +583,12 @@ def add_start_docstrings_to_model_forward(*docstr):
         :class:`Module` instance afterwards instead of this since the former takes care of running the pre and post
         processing steps while the latter silently ignores them.
         """
-        fn.__doc__ = intro + note + "".join(docstr) + (fn.__doc__ if fn.__doc__ is not None else "")
+        fn.__doc__ = (
+            intro
+            + note
+            + "".join(docstr)
+            + (fn.__doc__ if fn.__doc__ is not None else "")
+        )
         return fn
 
     return docstring_decorator
@@ -641,7 +669,11 @@ def _prepare_output_docstrings(output_type, config_class):
 
     # Add the return introduction
     full_output_type = f"{output_type.__module__}.{output_type.__name__}"
-    intro = TF_RETURN_INTRODUCTION if output_type.__name__.startswith("TF") else PT_RETURN_INTRODUCTION
+    intro = (
+        TF_RETURN_INTRODUCTION
+        if output_type.__name__.startswith("TF")
+        else PT_RETURN_INTRODUCTION
+    )
     intro = intro.format(full_output_type=full_output_type, config_class=config_class)
     return intro + docstrings
 
@@ -722,7 +754,13 @@ FLAX_SAMPLE_DOCSTRINGS = {
 
 
 def add_code_sample_docstrings(
-    *docstr, tokenizer_class=None, checkpoint=None, output_type=None, config_class=None, mask=None, model_cls=None
+    *docstr,
+    tokenizer_class=None,
+    checkpoint=None,
+    output_type=None,
+    config_class=None,
+    mask=None,
+    model_cls=None,
 ):
     def docstring_decorator(fn):
         # model_class defaults to function's class if not specified otherwise
@@ -735,7 +773,11 @@ def add_code_sample_docstrings(
         else:
             sample_docstrings = PT_SAMPLE_DOCSTRINGS
 
-        doc_kwargs = dict(model_class=model_class, tokenizer_class=tokenizer_class, checkpoint=checkpoint)
+        doc_kwargs = dict(
+            model_class=model_class,
+            tokenizer_class=tokenizer_class,
+            checkpoint=checkpoint,
+        )
 
         if "SequenceClassification" in model_class:
             code_sample = sample_docstrings["SequenceClassification"]
@@ -745,7 +787,10 @@ def add_code_sample_docstrings(
             code_sample = sample_docstrings["TokenClassification"]
         elif "MultipleChoice" in model_class:
             code_sample = sample_docstrings["MultipleChoice"]
-        elif "MaskedLM" in model_class or model_class in ["FlaubertWithLMHeadModel", "XLMWithLMHeadModel"]:
+        elif "MaskedLM" in model_class or model_class in [
+            "FlaubertWithLMHeadModel",
+            "XLMWithLMHeadModel",
+        ]:
             doc_kwargs["mask"] = "[MASK]" if mask is None else mask
             code_sample = sample_docstrings["MaskedLM"]
         elif "LMHead" in model_class or "CausalLM" in model_class:
@@ -755,7 +800,11 @@ def add_code_sample_docstrings(
         else:
             raise ValueError(f"Docstring can't be built for model {model_class}")
 
-        output_doc = _prepare_output_docstrings(output_type, config_class) if output_type is not None else ""
+        output_doc = (
+            _prepare_output_docstrings(output_type, config_class)
+            if output_type is not None
+            else ""
+        )
         built_doc = code_sample.format(**doc_kwargs)
         fn.__doc__ = (fn.__doc__ or "") + "".join(docstr) + output_doc + built_doc
         return fn
@@ -773,7 +822,7 @@ def replace_return_docstrings(output_type=None, config_class=None):
         if i < len(lines):
             lines[i] = _prepare_output_docstrings(output_type, config_class)
             docstrings = "\n".join(lines)
-        
+
         fn.__doc__ = docstrings
         return fn
 
@@ -786,7 +835,11 @@ def is_remote_url(url_or_filename):
 
 
 def hf_bucket_url(
-    model_id: str, filename: str, subfolder: Optional[str] = None, revision: Optional[str] = None, mirror=None
+    model_id: str,
+    filename: str,
+    subfolder: Optional[str] = None,
+    revision: Optional[str] = None,
+    mirror=None,
 ) -> str:
     """
     Resolve a model identifier, a file name, and an optional revision id, to a huggingface.co-hosted url, redirecting
@@ -817,7 +870,9 @@ def hf_bucket_url(
 
     if revision is None:
         revision = "main"
-    return HUGGINGFACE_CO_PREFIX.format(model_id=model_id, revision=revision, filename=filename)
+    return HUGGINGFACE_CO_PREFIX.format(
+        model_id=model_id, revision=revision, filename=filename
+    )
 
 
 def url_to_filename(url: str, etag: Optional[str] = None) -> str:
@@ -965,7 +1020,9 @@ def cached_path(
         raise EnvironmentError(f"file {url_or_filename} not found")
     else:
         # Something unknown
-        raise ValueError(f"unable to parse {url_or_filename} as a URL or as a local path")
+        raise ValueError(
+            f"unable to parse {url_or_filename} as a URL or as a local path"
+        )
 
     if extract_compressed_file:
         if not is_zipfile(output_path) and not tarfile.is_tarfile(output_path):
@@ -977,7 +1034,11 @@ def cached_path(
         output_extract_dir_name = output_file.replace(".", "-") + "-extracted"
         output_path_extracted = os.path.join(output_dir, output_extract_dir_name)
 
-        if os.path.isdir(output_path_extracted) and os.listdir(output_path_extracted) and not force_extract:
+        if (
+            os.path.isdir(output_path_extracted)
+            and os.listdir(output_path_extracted)
+            and not force_extract
+        ):
             return output_path_extracted
 
         # Prevent parallel extractions
@@ -994,7 +1055,9 @@ def cached_path(
                 tar_file.extractall(output_path_extracted)
                 tar_file.close()
             else:
-                raise EnvironmentError(f"Archive format of {output_path} could not be identified")
+                raise EnvironmentError(
+                    f"Archive format of {output_path} could not be identified"
+                )
 
         return output_path_extracted
 
@@ -1011,8 +1074,16 @@ def define_sagemaker_information():
         dlc_tag = None
 
     sagemaker_params = json.loads(os.getenv("SM_FRAMEWORK_PARAMS", "{}"))
-    runs_distributed_training = True if "sagemaker_distributed_dataparallel_enabled" in sagemaker_params else False
-    account_id = os.getenv("TRAINING_JOB_ARN").split(":")[4] if "TRAINING_JOB_ARN" in os.environ else None
+    runs_distributed_training = (
+        True
+        if "sagemaker_distributed_dataparallel_enabled" in sagemaker_params
+        else False
+    )
+    account_id = (
+        os.getenv("TRAINING_JOB_ARN").split(":")[4]
+        if "TRAINING_JOB_ARN" in os.environ
+        else None
+    )
 
     sagemaker_object = {
         "sm_framework": os.getenv("SM_FRAMEWORK_MODULE", None),
@@ -1039,7 +1110,9 @@ def http_user_agent(user_agent: Union[Dict, str, None] = None) -> str:
     if DISABLE_TELEMETRY:
         return ua + "; telemetry/off"
     if is_training_run_on_sagemaker():
-        ua += "; " + "; ".join(f"{k}/{v}" for k, v in define_sagemaker_information().items())
+        ua += "; " + "; ".join(
+            f"{k}/{v}" for k, v in define_sagemaker_information().items()
+        )
     # CI will set this value to True
     if os.environ.get("TRANSFORMERS_IS_CI", "").upper() in ENV_VARS_TRUE_VALUES:
         ua += "; is_ci/true"
@@ -1050,7 +1123,13 @@ def http_user_agent(user_agent: Union[Dict, str, None] = None) -> str:
     return ua
 
 
-def http_get(url: str, temp_file: BinaryIO, proxies=None, resume_size=0, headers: Optional[Dict[str, str]] = None):
+def http_get(
+    url: str,
+    temp_file: BinaryIO,
+    proxies=None,
+    resume_size=0,
+    headers: Optional[Dict[str, str]] = None,
+):
     """
     Download remote file. Do not gobble up errors.
     """
@@ -1110,20 +1189,28 @@ def get_from_cache(
     elif use_auth_token:
         token = HfFolder.get_token()
         if token is None:
-            raise EnvironmentError("You specified use_auth_token=True, but a huggingface token was not found.")
+            raise EnvironmentError(
+                "You specified use_auth_token=True, but a huggingface token was not found."
+            )
         headers["authorization"] = f"Bearer {token}"
 
     url_to_download = url
     etag = None
     if not local_files_only:
         try:
-            r = requests.head(url, headers=headers, allow_redirects=False, proxies=proxies, timeout=etag_timeout)
+            r = requests.head(
+                url,
+                headers=headers,
+                allow_redirects=False,
+                proxies=proxies,
+                timeout=etag_timeout,
+            )
             r.raise_for_status()
             etag = r.headers.get("X-Linked-Etag") or r.headers.get("ETag")
             # We favor a custom header indicating the etag of the linked resource, and
             # we fallback to the regular etag header.
             # If we don't have any of those, raise an error.
-            #TODO：这个写法也为临时写法，之后需要查看
+            # TODO：这个写法也为临时写法，之后需要查看
             etag = "not none"
             if etag is None:
                 raise OSError(
@@ -1156,7 +1243,9 @@ def get_from_cache(
         else:
             matching_files = [
                 file
-                for file in fnmatch.filter(os.listdir(cache_dir), filename.split(".")[0] + ".*")
+                for file in fnmatch.filter(
+                    os.listdir(cache_dir), filename.split(".")[0] + ".*"
+                )
                 if not file.endswith(".json") and not file.endswith(".lock")
             ]
             if len(matching_files) > 0:
@@ -1204,15 +1293,25 @@ def get_from_cache(
             else:
                 resume_size = 0
         else:
-            temp_file_manager = partial(tempfile.NamedTemporaryFile, mode="wb", dir=cache_dir, delete=False)
+            temp_file_manager = partial(
+                tempfile.NamedTemporaryFile, mode="wb", dir=cache_dir, delete=False
+            )
             resume_size = 0
 
         # Download to temporary file, then copy to cache dir once finished.
         # Otherwise you get corrupt cache entries if the download gets interrupted.
         with temp_file_manager() as temp_file:
-            logger.info(f"{url} not found in cache or force_download set to True, downloading to {temp_file.name}")
+            logger.info(
+                f"{url} not found in cache or force_download set to True, downloading to {temp_file.name}"
+            )
 
-            http_get(url_to_download, temp_file, proxies=proxies, resume_size=resume_size, headers=headers)
+            http_get(
+                url_to_download,
+                temp_file,
+                proxies=proxies,
+                resume_size=resume_size,
+                headers=headers,
+            )
 
         logger.info(f"storing {url} in cache at {cache_path}")
         os.replace(temp_file.name, cache_path)
@@ -1381,7 +1480,9 @@ class ModelOutput(OrderedDict):
         ), f"{self.__class__.__name__} should not have more than one required field."
 
         first_field = getattr(self, class_fields[0].name)
-        other_fields_are_none = all(getattr(self, field.name) is None for field in class_fields[1:])
+        other_fields_are_none = all(
+            getattr(self, field.name) is None for field in class_fields[1:]
+        )
 
         if other_fields_are_none and not is_tensor(first_field):
             try:
@@ -1412,16 +1513,24 @@ class ModelOutput(OrderedDict):
                     self[field.name] = v
 
     def __delitem__(self, *args, **kwargs):
-        raise Exception(f"You cannot use ``__delitem__`` on a {self.__class__.__name__} instance.")
+        raise Exception(
+            f"You cannot use ``__delitem__`` on a {self.__class__.__name__} instance."
+        )
 
     def setdefault(self, *args, **kwargs):
-        raise Exception(f"You cannot use ``setdefault`` on a {self.__class__.__name__} instance.")
+        raise Exception(
+            f"You cannot use ``setdefault`` on a {self.__class__.__name__} instance."
+        )
 
     def pop(self, *args, **kwargs):
-        raise Exception(f"You cannot use ``pop`` on a {self.__class__.__name__} instance.")
+        raise Exception(
+            f"You cannot use ``pop`` on a {self.__class__.__name__} instance."
+        )
 
     def update(self, *args, **kwargs):
-        raise Exception(f"You cannot use ``update`` on a {self.__class__.__name__} instance.")
+        raise Exception(
+            f"You cannot use ``update`` on a {self.__class__.__name__} instance."
+        )
 
     def __getitem__(self, k):
         if isinstance(k, str):
@@ -1499,7 +1608,9 @@ class _BaseLazyModule(ModuleType):
             for value in values:
                 self._class_to_module[value] = key
         # Needed for autocompletion in an IDE
-        self.__all__ = list(import_structure.keys()) + sum(import_structure.values(), [])
+        self.__all__ = list(import_structure.keys()) + sum(
+            import_structure.values(), []
+        )
 
     # Needed for autocompletion in an IDE
     def __dir__(self):
@@ -1524,7 +1635,13 @@ class _BaseLazyModule(ModuleType):
 def copy_func(f):
     """Returns a copy of a function f."""
     # Based on http://stackoverflow.com/a/6528148/190597 (Glenn Maynard)
-    g = types.FunctionType(f.__code__, f.__globals__, name=f.__name__, argdefs=f.__defaults__, closure=f.__closure__)
+    g = types.FunctionType(
+        f.__code__,
+        f.__globals__,
+        name=f.__name__,
+        argdefs=f.__defaults__,
+        closure=f.__closure__,
+    )
     g = functools.update_wrapper(g, f)
     g.__kwdefaults__ = f.__kwdefaults__
     return g
@@ -1610,7 +1727,10 @@ class PushToHubMixin:
                     use_auth_token = True
                 repo_name = Path(repo_path_or_name).name
                 repo_url = self._get_repo_url_from_name(
-                    repo_name, organization=organization, private=private, use_auth_token=use_auth_token
+                    repo_name,
+                    organization=organization,
+                    private=private,
+                    use_auth_token=use_auth_token,
                 )
             repo_path_or_name = tempfile.mkdtemp()
 
@@ -1673,9 +1793,9 @@ class PushToHubMixin:
         use_auth_token: Optional[Union[bool, str]] = None,
     ):
         repo = None
-        raise Exception('creat/get repo not supported yet.')
+        raise Exception("creat/get repo not supported yet.")
         return repo
 
     @classmethod
     def _push_to_hub(cls, repo, commit_message):
-        raise Exception('_push_to_hub not supported yet.')
+        raise Exception("_push_to_hub not supported yet.")

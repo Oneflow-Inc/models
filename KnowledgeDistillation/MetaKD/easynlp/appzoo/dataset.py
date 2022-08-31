@@ -35,17 +35,18 @@ from ..utils import EASYNLP_LOCAL_DATAHUB, EASYNLP_REMOTE_ROOT
 
 
 class BaseDataset(Dataset):
-
-    def __init__(self,
-                 data_file: str,
-                 skip_first_line=False,
-                 selected_columns="",
-                 reader_buffer_size=256,
-                 input_schema=None,
-                 is_training=True,
-                 output_format="line",
-                 *args,
-                 **kwargs):
+    def __init__(
+        self,
+        data_file: str,
+        skip_first_line=False,
+        selected_columns="",
+        reader_buffer_size=256,
+        input_schema=None,
+        is_training=True,
+        output_format="line",
+        *args,
+        **kwargs,
+    ):
         self.data_source = self.identify_data_source(data_file)
         self.input_schema = input_schema
         self.output_format = output_format
@@ -67,6 +68,7 @@ class BaseDataset(Dataset):
 
     def get_odps_reader(self, data_file, is_training, reader_buffer_size, kwargs=None):
         import common_io
+
         slice_id = 0
         slice_count = 1
         if dist.is_initialized():
@@ -75,15 +77,17 @@ class BaseDataset(Dataset):
         if not is_training:
             slice_id = 0
             slice_count = 1
-        self.table_reader = common_io.table.TableReader(data_file,
-                                                        selected_cols=selected_columns,
-                                                        slice_id=slice_id,
-                                                        slice_count=slice_count,
-                                                        capacity=reader_buffer_size)
+        self.table_reader = common_io.table.TableReader(
+            data_file,
+            selected_cols=selected_columns,
+            slice_id=slice_id,
+            slice_count=slice_count,
+            capacity=reader_buffer_size,
+        )
 
         self.table_row_count = self.table_reader.get_row_count()
         self.start_position = self.table_row_count * slice_id
-        prefetch_all = kwargs.get('prefetch_all', False)
+        prefetch_all = kwargs.get("prefetch_all", False)
         if prefetch_all:
             self.data_rows = []
             for i in range(self.table_row_count):
@@ -96,8 +100,11 @@ class BaseDataset(Dataset):
         self.slice_id = slice_id
         self.input_schema = self.get_odps_input_schema()
 
-    def get_odps_reader2(self, table_path, is_training, reader_buffer_size, kwargs=None):
+    def get_odps_reader2(
+        self, table_path, is_training, reader_buffer_size, kwargs=None
+    ):
         import common_io
+
         slice_id = 0
         slice_count = 1
         if dist.is_initialized():
@@ -108,27 +115,29 @@ class BaseDataset(Dataset):
             slice_count = 1
 
         self.table_path = table_path
-        self.table_reader = common_io.table.TableReader(table_path,
-                                             slice_id=slice_id,
-                                             slice_count=slice_count,
-                                             num_threads=0)
+        self.table_reader = common_io.table.TableReader(
+            table_path, slice_id=slice_id, slice_count=slice_count, num_threads=0
+        )
         self.table_row_count = self.table_reader.get_row_count()
         self.start_position = self.table_row_count * slice_id
-        self.end_pos = self.table_reader.end_pos        
+        self.end_pos = self.table_reader.end_pos
 
-        prefetch_all = kwargs.get('prefetch_all', False)
+        prefetch_all = kwargs.get("prefetch_all", False)
         if prefetch_all:
             self.data_rows = []
             for i in range(self.table_row_count):
                 row = self.table_reader.read(1)
                 row = "\t".join([t.decode("utf-8") for t in row[0]])
                 self.data_rows.append(row)
-        
+
         self.slice_id = slice_id
         self.input_schema = self.get_odps_input_schema()
         # super(TableDataset, self).__init__()
-        print("table total_row_count:{}, start_pos:{}, end_pos:{}".format(
-            self.table_row_count, self.start_position, self.end_pos))
+        print(
+            "table total_row_count:{}, start_pos:{}, end_pos:{}".format(
+                self.table_row_count, self.start_position, self.end_pos
+            )
+        )
 
         self.table_reader.close()
         self.table_reader = None
@@ -148,10 +157,12 @@ class BaseDataset(Dataset):
             start = worker_id * (size + 1) + baseline
             end = start + (size + 1)
         else:
-            start = split_point * (size + 1) + (worker_id - split_point) * size + baseline
+            start = (
+                split_point * (size + 1) + (worker_id - split_point) * size + baseline
+            )
             end = start + size
         return start, end
-    
+
     def __del__(self):
         if self.data_source == "odps":
             if self.table_reader is not None:
@@ -161,41 +172,57 @@ class BaseDataset(Dataset):
         # row = self.prepare_row(item)
 
         if self.data_source in ["local", "oss"]:
-            row = self.data_rows[item].strip('\n')
+            row = self.data_rows[item].strip("\n")
         elif self.data_source == "odps":
-            if self.table_reader is None:            
+            if self.table_reader is None:
                 worker_info = torch.utils.data.get_worker_info()
-                table_start, table_end = self._get_slice_range(self.table_row_count, worker_info, self.start_position)
-                table_path = "{}?start={}&end={}".format(self.table_path, table_start, table_end)
+                table_start, table_end = self._get_slice_range(
+                    self.table_row_count, worker_info, self.start_position
+                )
+                table_path = "{}?start={}&end={}".format(
+                    self.table_path, table_start, table_end
+                )
                 print("table_path:%s" % table_path)
 
                 import common_io
-                self.table_reader = common_io.table.TableReader(table_path, num_threads=1, capacity=1024)
+
+                self.table_reader = common_io.table.TableReader(
+                    table_path, num_threads=1, capacity=1024
+                )
 
             try:
-                row = self.table_reader.read(num_records=1, allow_smaller_final_batch=True)
+                row = self.table_reader.read(
+                    num_records=1, allow_smaller_final_batch=True
+                )
                 self.cnt += 1
             except Exception:
                 worker_info = torch.utils.data.get_worker_info()
-                table_start, table_end = self._get_slice_range(self.table_row_count, worker_info, self.start_position)
+                table_start, table_end = self._get_slice_range(
+                    self.table_row_count, worker_info, self.start_position
+                )
 
                 print(
                     "[Pid %d] Enter the end of the table, %d sample processed, seek start position %d"
-                    % (self.slice_id, self.cnt, table_start))
+                    % (self.slice_id, self.cnt, table_start)
+                )
                 self.table_reader.seek(table_start)
-                row = self.table_reader.read(num_records=1, allow_smaller_final_batch=True)
+                row = self.table_reader.read(
+                    num_records=1, allow_smaller_final_batch=True
+                )
                 self.cnt = 1
                 print("[Pid %d] Read success" % self.slice_id)
 
-            row = "\t".join([t.decode("utf-8") if isinstance(t, bytes) else str(t) for t in row[0]])
+            row = "\t".join(
+                [t.decode("utf-8") if isinstance(t, bytes) else str(t) for t in row[0]]
+            )
         else:
             raise NotImplementedError
 
-        if self.output_format == 'dict' and self.input_schema:
+        if self.output_format == "dict" and self.input_schema:
             row = parse_row_by_schema(row, self.input_schema)
         try:
             return self.convert_single_row_to_example(row)
-        except :
+        except:
             logger.info("Failed row: {}".format(row))
             raise RuntimeError
 
@@ -209,7 +236,7 @@ class BaseDataset(Dataset):
 
     def prepare_row(self, item: int) -> str:
         if self.data_source in ["local", "oss"]:
-            row = self.data_rows[item].strip('\n')
+            row = self.data_rows[item].strip("\n")
         elif self.data_source == "odps":
             # TODO: Add a buffer to support random shuffle
             try:
@@ -218,7 +245,8 @@ class BaseDataset(Dataset):
             except Exception:
                 print(
                     "[Pid %d] Enter the end of the table, %d sample processed, seek start position %d"
-                    % (self.slice_id, self.cnt, self.start_position))
+                    % (self.slice_id, self.cnt, self.start_position)
+                )
                 self.table_reader.seek(self.start_position)
                 row = self.table_reader.read(1)
                 self.cnt = 1
@@ -276,17 +304,18 @@ class BaseDataset(Dataset):
         schemas = self.table_reader.get_schema()
         colname2schema = dict()
         for col_name, odps_type, _ in schemas:
-            if odps_type == u"string":
+            if odps_type == "string":
                 colname2schema[str(col_name)] = "str"
-            elif odps_type == u"double":
+            elif odps_type == "double":
                 colname2schema[str(col_name)] = "float"
-            elif odps_type == u"bigint":
+            elif odps_type == "bigint":
                 colname2schema[str(col_name)] = "int"
             else:
                 colname2schema[str(col_name)] = "str"
 
         col_with_schemas = [
-            "{}:{}:1".format(col_name, colname2schema[col_name]) for col_name, _, _ in schemas
+            "{}:{}:1".format(col_name, colname2schema[col_name])
+            for col_name, _, _ in schemas
         ]
 
         rst_schema = ",".join(col_with_schemas)
@@ -309,33 +338,47 @@ class GeneralDataset(BaseDataset):
         max_seq_length: max sequence length of each input instance.
         
     """
-    def __init__(self, data_file, pretrained_model_name_or_path:str, max_seq_length:int):    
+
+    def __init__(
+        self, data_file, pretrained_model_name_or_path: str, max_seq_length: int
+    ):
         self.tokenizer = AutoTokenizer.from_pretrained(pretrained_model_name_or_path)
         self.max_seq_length = max_seq_length
-        self.first_sequence = self.second_sequence = self.label_name = self.num_label = self.label_enumerate_value \
-            = self.label_mapping = self.data_rows = None
+        self.first_sequence = (
+            self.second_sequence
+        ) = (
+            self.label_name
+        ) = (
+            self.num_label
+        ) = self.label_enumerate_value = self.label_mapping = self.data_rows = None
         # Required by BaseDataset
         self.data_source = "local"
-        assert isinstance(data_file, datasets.arrow_dataset.Dataset), \
-            "The inputs data format must be datasets.arrow_dataset.Dataset from load_dataset()."
+        assert isinstance(
+            data_file, datasets.arrow_dataset.Dataset
+        ), "The inputs data format must be datasets.arrow_dataset.Dataset from load_dataset()."
         dataset_info = getattr(data_file, "info", None)
         data_features = dataset_info.features
         self.column_names = list(data_file.features.keys())
         self.data_rows = [data_file[i] for i in range(data_file.num_rows)]
-        
+
         if "ner_tags" in self.column_names:
             self.first_sequence = self.column_names[1]
             self.label_name = "ner_tags"
-            if hasattr(data_features[self.label_name], 'num_classes'):
+            if hasattr(data_features[self.label_name], "num_classes"):
                 self.num_label = data_features[self.label_name].num_classes
                 self._label_enumerate_values = data_features[self.label_name].names
-            elif hasattr(data_features[self.label_name], 'feature') and \
-                hasattr(data_features[self.label_name].feature, 'num_classes'):
+            elif hasattr(data_features[self.label_name], "feature") and hasattr(
+                data_features[self.label_name].feature, "num_classes"
+            ):
                 self.num_label = data_features[self.label_name].feature.num_classes
-                self._label_enumerate_values = data_features[self.label_name].feature.names
+                self._label_enumerate_values = data_features[
+                    self.label_name
+                ].feature.names
             else:
-                raise RuntimeError("Can't auto inference the label, \
-                            please check your 'ner_tags' in your dataset")
+                raise RuntimeError(
+                    "Can't auto inference the label, \
+                            please check your 'ner_tags' in your dataset"
+                )
         else:
             self.first_sequence = self.column_names[0]
             if self.column_names[1] != "label":
@@ -343,18 +386,20 @@ class GeneralDataset(BaseDataset):
             self.label_name = "label"
             self.num_label = data_features[self.label_name].num_classes
             self._label_enumerate_values = data_features[self.label_name].names
-        self.label_map = {label: i for i, label in enumerate(self.label_enumerate_values)}
+        self.label_map = {
+            label: i for i, label in enumerate(self.label_enumerate_values)
+        }
 
     def __len__(self):
         return len(self.data_rows)
-    
+
     def __getitem__(self, item):
         row = self.data_rows[item]
         return self.convert_single_row_to_example(row)
 
     def __del__(self):
         pass
-            
+
     @property
     def label_enumerate_values(self):
         """
@@ -368,15 +413,17 @@ class GeneralDataset(BaseDataset):
         text_b = row[self.second_sequence] if self.second_sequence else None
         label = row[self.label_name] if self.label_name else None
 
-        encoding = self.tokenizer(text_a,
-                                  text_b,
-                                  padding='max_length',
-                                  truncation=True,
-                                  max_length=self.max_seq_length)
+        encoding = self.tokenizer(
+            text_a,
+            text_b,
+            padding="max_length",
+            truncation=True,
+            max_length=self.max_seq_length,
+        )
         if label in self.label_map.values():
-            encoding['label_ids'] = label
+            encoding["label_ids"] = label
         else:
-            encoding['label_ids'] = self.label_map[label]
+            encoding["label_ids"] = self.label_map[label]
         return encoding
 
     def batch_fn(self, features):
@@ -384,6 +431,7 @@ class GeneralDataset(BaseDataset):
             Divide examples into batches.
         """
         return {k: torch.tensor([dic[k] for dic in features]) for k in features[0]}
+
 
 def load_dataset(path, name=None, data_files=None):
     # Local Data
@@ -394,11 +442,13 @@ def load_dataset(path, name=None, data_files=None):
     datahub_base_dir = EASYNLP_LOCAL_DATAHUB
     if not io.isdir(datahub_base_dir):
         io.makedirs(datahub_base_dir)
-    assert io.isdir(datahub_base_dir), "%s is not a existing directory" % datahub_base_dir
+    assert io.isdir(datahub_base_dir), (
+        "%s is not a existing directory" % datahub_base_dir
+    )
 
     data_script_dir = os.path.join(datahub_base_dir, path)
     if not io.isdir(data_script_dir):
-            io.makedirs(data_script_dir)
+        io.makedirs(data_script_dir)
     if not io.exists(os.path.join(data_script_dir, f"{path}.py")):
         # Loading Huggingface Datasets list
         hug_datasets_list = hf_list_datasets()
@@ -416,13 +466,16 @@ def load_dataset(path, name=None, data_files=None):
     data = hf_load_dataset(data_script_dir, name)
     return data
 
+
 def list_datasets():
     remote_base = EASYNLP_REMOTE_ROOT
     datahub_base_dir = EASYNLP_LOCAL_DATAHUB
     remote_url = os.path.join(remote_base, "easynlp_script", "datasets_list.txt")
     try:
         # os.system("wget " + remote_url + " -P " + get_dir_name(datahub_base_dir))
-        urllib.request.urlretrieve(remote_url, os.path.join(datahub_base_dir, "datasets_list.txt"))
+        urllib.request.urlretrieve(
+            remote_url, os.path.join(datahub_base_dir, "datasets_list.txt")
+        )
     except:
         raise RuntimeError
     local_file = os.path.join(datahub_base_dir, "datasets_list.txt")
@@ -431,4 +484,3 @@ def list_datasets():
         file_stream = f.readlines()
     datasets_list = [data_name.strip() for data_name in file_stream]
     return datasets_list + hf_list_datasets()
-    

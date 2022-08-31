@@ -11,7 +11,7 @@ from bert_utils import (
     prune_linear_layer,
     apply_chunking_to_forward,
     position_scores,  # replace einsum
-    BaseModelOutputWithPoolingAndCrossAttentions
+    BaseModelOutputWithPoolingAndCrossAttentions,
 )
 
 ACT2FN = {
@@ -334,9 +334,7 @@ class BertAttention(nn.Module):
         self.output.dense = prune_linear_layer(self.output.dense, index, dim=1)
 
         # Update hyper params and store pruned heads
-        self.self.num_attention_heads = self.self.num_attention_heads - len(
-            heads
-        )
+        self.self.num_attention_heads = self.self.num_attention_heads - len(heads)
         self.self.all_head_size = (
             self.self.attention_head_size * self.self.num_attention_heads
         )
@@ -648,19 +646,19 @@ class BertPooler(nn.Module):
 class Bert(nn.Module):
     def __init__(
         self,
-        vocab_size=30522, #
-        type_vocab_size=2, #
-        max_position_embeddings=512, #
-        hidden_size=768, #
-        intermediate_size=3072, #
+        vocab_size=30522,  #
+        type_vocab_size=2,  #
+        max_position_embeddings=512,  #
+        hidden_size=768,  #
+        intermediate_size=3072,  #
         chunk_size_feed_forward=0,
-        num_layers=12, #
-        nheads=12, #
-        activation="gelu", #
+        num_layers=12,  #
+        nheads=12,  #
+        activation="gelu",  #
         pad_token_id=1,
         layer_norm_eps=1e-12,
-        attn_dropout=0.1, #
-        hidden_dropout=0.1, #
+        attn_dropout=0.1,  #
+        hidden_dropout=0.1,  #
         position_embedding_type="absolute",
         is_decoder=False,
         add_pooling_layer=True,
@@ -913,4 +911,3 @@ class Bert(nn.Module):
             attentions=encoder_outputs[3],
             cross_attentions=encoder_outputs[4],
         )
-

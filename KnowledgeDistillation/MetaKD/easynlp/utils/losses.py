@@ -28,13 +28,15 @@ def mse_loss(inputs, targets, **kwargs):
     return torch.nn.functional.mse_loss(inputs, targets, **kwargs)
 
 
-def cross_entropy(input,
-                  target,
-                  weight=None,
-                  size_average=None,
-                  ignore_index=-100,
-                  reduce=None,
-                  reduction='mean'):
+def cross_entropy(
+    input,
+    target,
+    weight=None,
+    size_average=None,
+    ignore_index=-100,
+    reduce=None,
+    reduction="mean",
+):
     """Cross Entropy loss.
 
     Args:
@@ -50,12 +52,8 @@ def cross_entropy(input,
 
     return F.cross_entropy(input, target, weight, ignore_index, reduction)
 
-def vanilla_loss(s_logits,
-                 t_logits,
-                 labels,
-                 alpha=0.2,
-                 temperature=1,
-                 **kwargs):
+
+def vanilla_loss(s_logits, t_logits, labels, alpha=0.2, temperature=1, **kwargs):
     """Vanilla KD loss.
 
     Args:
@@ -65,22 +63,30 @@ def vanilla_loss(s_logits,
         temperature: temperature
     """
     T = temperature
-    kd_loss = F.kl_div(F.log_softmax(s_logits / T, dim=1),
-                       F.softmax(t_logits / T, dim=1),
-                       reduction='batchmean') * T * T
+    kd_loss = (
+        F.kl_div(
+            F.log_softmax(s_logits / T, dim=1),
+            F.softmax(t_logits / T, dim=1),
+            reduction="batchmean",
+        )
+        * T
+        * T
+    )
     # nll_loss = F.cross_entropy(s_logits, labels, reduction='mean')
     nll_loss = cross_entropy(s_logits, labels)
 
     return alpha * kd_loss + (1 - alpha) * nll_loss
 
 
-def multi_label_sigmoid_cross_entropy(input,
-                                      target,
-                                      weight=None,
-                                      size_average=None,
-                                      ignore_index=-100,
-                                      reduce=None,
-                                      reduction='mean'):
+def multi_label_sigmoid_cross_entropy(
+    input,
+    target,
+    weight=None,
+    size_average=None,
+    ignore_index=-100,
+    reduce=None,
+    reduction="mean",
+):
     """MultiLabel Sigmoid Cross Entropy loss.
 
     Args:
@@ -95,13 +101,15 @@ def multi_label_sigmoid_cross_entropy(input,
     return loss(input, target)
 
 
-def soft_input_cross_entropy(input,
-                             target,
-                             weight=None,
-                             size_average=None,
-                             ignore_index=-100,
-                             reduce=None,
-                             reduction='mean'):
+def soft_input_cross_entropy(
+    input,
+    target,
+    weight=None,
+    size_average=None,
+    ignore_index=-100,
+    reduce=None,
+    reduction="mean",
+):
     """Soft Input Cross Entropy loss.
 
     Args:
@@ -113,8 +121,9 @@ def soft_input_cross_entropy(input,
         reduction: default 'mean' reduction
     """
     input = torch.log(input)
-    return F.nll_loss(input, target, weight, size_average, ignore_index,
-                      reduce, reduction)
+    return F.nll_loss(
+        input, target, weight, size_average, ignore_index, reduce, reduction
+    )
 
 
 def matching_embedding_hinge_loss(emb1, emb2, margin=0.3):
@@ -139,8 +148,6 @@ def soft_cross_entropy(input, targets):
 
 
 def cosine_embedding_loss(input1, input2, target, **kwargs):
-    return torch.nn.functional.cosine_embedding_loss(input1,
-                                                     input2,
-                                                     target,
-                                                     reduction='mean',
-                                                     **kwargs)
+    return torch.nn.functional.cosine_embedding_loss(
+        input1, input2, target, reduction="mean", **kwargs
+    )
