@@ -64,11 +64,7 @@ else:
 logger = logging.get_logger(__name__)
 
 
-TOKENIZER_MAPPING = OrderedDict(
-    [
-        (BertConfig, (BertTokenizer, BertTokenizerFast)),
-    ]
-)
+TOKENIZER_MAPPING = OrderedDict([(BertConfig, (BertTokenizer, BertTokenizerFast)),])
 
 # For tokenizers which are not directly mapped from a config
 NO_CONFIG_TOKENIZER = [
