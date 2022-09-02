@@ -1,0 +1,9 @@
+filelock
+tensorboardx
+datasets
+numpy==1.21.2
+pandas==1.3.2
+scikit_learn
+scipy==1.7.1
+tqdm==4.62.1
+transformers==4.21.2
