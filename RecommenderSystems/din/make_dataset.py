@@ -6,7 +6,7 @@ import random
 from pyspark.sql import SparkSession
 from pyspark.conf import SparkConf
 from pyspark.sql.functions import rand, udf, lit, xxhash64
-from pyspark.sql.types import StructField, StructType, FloatType, LongType, ArrayType
+from pyspark.sql.types import StructField, StructType, FloatType, IntegerType, LongType, ArrayType
 
 def to_df(file_path):
   with open(file_path, 'r') as fin:
@@ -126,10 +126,10 @@ if __name__ == "__main__":
     spark = SparkSession.builder.config(conf=conf).master("local[*]").getOrCreate()
 
     schema = StructType([       
-        StructField('item_hist', ArrayType(LongType()), True),
-        StructField('target', LongType(), True),
+        StructField('item_hist', ArrayType(IntegerType()), True),
+        StructField('target', IntegerType(), True),
         StructField('label', FloatType(), True),
-        StructField('seq_len', LongType(), True),
+        StructField('seq_len', IntegerType(), True),
     ])
 
 
