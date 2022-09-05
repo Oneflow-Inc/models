@@ -29,10 +29,10 @@ def make_dlrm_parquet(
     dense_names = [f"I{i}" for i in range(1, 14)]
     column_names = ["label"] + dense_names + sparse_names
 
-    make_label = udf(lambda s: int(s), FloatType())
+    make_label = udf(lambda s: float(s), FloatType())
     label_col = make_label("label").alias("label")
 
-    make_dense = udf(lambda s: int(1) if s is None else int(s) + 1, FloatType())
+    make_dense = udf(lambda s: float(1) if s is None else float(s) + 1, FloatType())
     dense_cols = [make_dense(Ii).alias(Ii) for i, Ii in enumerate(dense_names)]
 
     if mod_idx <= 0:
