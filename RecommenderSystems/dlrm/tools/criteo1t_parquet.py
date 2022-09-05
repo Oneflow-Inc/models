@@ -81,6 +81,7 @@ if __name__ == "__main__":
     parser.add_argument("--spark_tmp_dir", type=str, default=None)
     parser.add_argument("--spark_driver_memory_gb", type=int, default=360)
     parser.add_argument("--mod_idx", type=int, default=40000000)
+    parser.add_argument("--num_test_examples", type=int, default=89137319)
     parser.add_argument(
         "--export_dataset_info",
         action="store_true",
@@ -90,7 +91,7 @@ if __name__ == "__main__":
 
     # split day_23() to test.csv and val.csv
     # total 178274637, test 89137319, val 89137318
-    num_test_examples = 89137319
+    num_test_examples = args.num_test_examples
     day_23 = os.path.join(args.input_dir, "day_23")
     test_csv = os.path.join(args.output_dir, "test.csv")
     val_csv = os.path.join(args.output_dir, "val.csv")
