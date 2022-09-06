@@ -87,6 +87,7 @@ python tools/criteo1t_parquet.py \
 ```
 
 Note 1: The `day_23` file will be splited to two `test.csv` and `val.csv` files in folder `output_dir`.
+
 Note 2: number of examples
 - train: 4195197692
 - test: 89137319
