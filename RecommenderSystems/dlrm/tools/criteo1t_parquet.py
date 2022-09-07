@@ -29,10 +29,10 @@ def make_dlrm_parquet(
     dense_names = [f"I{i}" for i in range(1, 14)]
     column_names = ["label"] + dense_names + sparse_names
 
-    make_label = udf(lambda s: int(s), FloatType())
+    make_label = udf(lambda s: float(s), FloatType())
     label_col = make_label("label").alias("label")
 
-    make_dense = udf(lambda s: int(1) if s is None else int(s) + 1, FloatType())
+    make_dense = udf(lambda s: float(1) if s is None else float(s) + 1, FloatType())
     dense_cols = [make_dense(Ii).alias(Ii) for i, Ii in enumerate(dense_names)]
 
     if mod_idx <= 0:
@@ -81,6 +81,7 @@ if __name__ == "__main__":
     parser.add_argument("--spark_tmp_dir", type=str, default=None)
     parser.add_argument("--spark_driver_memory_gb", type=int, default=360)
     parser.add_argument("--mod_idx", type=int, default=40000000)
+    parser.add_argument("--num_test_examples", type=int, default=89137319)
     parser.add_argument(
         "--export_dataset_info",
         action="store_true",
@@ -90,14 +91,12 @@ if __name__ == "__main__":
 
     # split day_23() to test.csv and val.csv
     # total 178274637, test 89137319, val 89137318
-    num_test_examples = 89137319
+    num_test_examples = args.num_test_examples
     day_23 = os.path.join(args.input_dir, "day_23")
     test_csv = os.path.join(args.output_dir, "test.csv")
     val_csv = os.path.join(args.output_dir, "val.csv")
-    if not os.path.isfile(test_csv):
-        os.system(f"head -n {num_test_examples} {day_23} > {test_csv}")
-    if not os.path.isfile(val_csv):
-        os.system(f"tail -n +{num_test_examples + 1} {day_23} > {val_csv}")
+    os.system(f"head -n {num_test_examples} {day_23} > {test_csv}")
+    os.system(f"tail -n +{num_test_examples + 1} {day_23} > {val_csv}")
 
     # start spark session
     conf = SparkConf()
