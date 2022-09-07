@@ -214,6 +214,7 @@ class DINModule(nn.Module):
     ):
         super(DINModule, self).__init__()
 
+        self.max_len = max_len
         self.cate_list = cate_list
         self.arange = flow.arange(max_len).to_global(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
 
@@ -232,7 +233,7 @@ class DINModule(nn.Module):
             size_factor=size_factor,
         )
         self.table_ids = flow.tensor(
-            [0] + [1] + [0] * max_len + [1] * max_len, dtype=flow.int64
+            [0] + [1] + [0] * max_len + [1] * max_len, dtype=flow.int32
         ).to_global(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
 
         self.attention_layer_input_dim = self.embedding_size * 8
@@ -264,17 +265,23 @@ class DINModule(nn.Module):
     def forward(self, inputs) -> flow.Tensor:
         target_item, hist_item_seq, seq_len = inputs # (b, 1) (b, s) (b, )
         b, s = hist_item_seq.shape
+        assert s == self.max_len
         e = self.embedding_size
 
-        target_cat = self.cate_list[target_item] + 63001# (b, 1)
-        target_cat = target_cat.to_global(sbp=flow.sbp.split(0))
-        hist_cat_seq = self.cate_list[hist_item_seq] + 63001# (b, s)
-        hist_cat_seq = hist_cat_seq.to_global(sbp=flow.sbp.split(0))
+        #target_cat = self.cate_list[target_item] + self.num_items # (b, 1)
+        #target_cat = target_cat.to_global(sbp=flow.sbp.split(0))
+        #hist_cat_seq = self.cate_list[hist_item_seq] + self.num_items # (b, s)
+        #hist_cat_seq = hist_cat_seq.to_global(sbp=flow.sbp.split(0))
+        #target_cat = self.cate_list.index_select(0, target_item)
+        #hist_cat_seq = self.cate_list.index_select(0, hist_item_seq)
+        target_cat = flow.index_select(self.cate_list, 0, target_item)
+        hist_cat_seq = flow.index_select(self.cate_list, 0, hist_item_seq)
+
 
         ids = flow.cat(
             [target_item, target_cat, hist_item_seq, hist_cat_seq], dim=1
         )  # (b, 1+1+s+s)
-        table_ids = self.table_ids.unsqueeze(0).expand(b, -1).to_global(sbp=flow.sbp.split(0))
+        table_ids = flow.broadcast_like(self.table_ids, ids) # (b, 1+1+s+s)
         embeddings = self.embedding(ids, table_ids)  # (b, 1+1+s+s, e+1)
 
         target_item_emb = embeddings[:, 0, :e]
@@ -310,11 +317,11 @@ class DINModule(nn.Module):
         weight = self.attention_softmax(atten_fc3) #(b, 1, s)
         output = flow.matmul(weight, hist_seq_concat) #(b, 1, e)
         output = flow.squeeze(output) #(b, e)
-        #output = self.bn1(output)
+        output = self.bn1(output)
 
         concat = self.first_con_layer(output)
         embedding_concat = flow.concat([concat, target_concat, concat * target_concat], dim=1)
-        #embedding_concat = self.bn2(embedding_concat)
+        embedding_concat = self.bn2(embedding_concat)
         embedding_concat = self.second_con_layer(embedding_concat)
         logit = embedding_concat + item_b.unsqueeze(1)
         # return logit.sigmoid()
@@ -391,9 +398,9 @@ def make_lr_scheduler(args, optimizer):
     return multistep_lr
 
 
-def prefetch_eval_batches(data_dir, batch_size, num_batches, max_len):
+def prefetch_eval_batches(data_dir, batch_size, num_batches):
     cached_eval_batches = []
-    with make_dataloader(data_dir, batch_size, shuffle=False, max_len=max_len) as loader:
+    with make_dataloader(data_dir, batch_size, shuffle=False) as loader:
         for _ in range(num_batches):
             batch_data = batch_to_global(*next(loader))
             cached_eval_batches.append(batch_data)
@@ -470,14 +477,13 @@ def train(args):
         f"{args.data_dir}/test",
         args.batch_size,
         math.ceil(args.num_test_samples / args.batch_size),
-        max_len=args.max_len,
     )
     auc = eval(cached_eval_batches, eval_graph, cur_step=0, epoch=0)
     #if args.save_model_after_each_eval:
     #    save_model(f"step_0_val_auc_{auc:0.5f}")
     batches_per_epoch = math.ceil(args.num_train_samples / args.batch_size)
     din_module.train()
-    with make_dataloader(f"{args.data_dir}/train", args.batch_size, max_len=args.max_len) as loader:
+    with make_dataloader(f"{args.data_dir}/train", args.batch_size) as loader:
         epoch, step, last_step, last_time, losses = 0, 0, 0, time.time(), []
         for step in range(1, args.train_batches + 1):
             labels, features = batch_to_global(*next(loader))
@@ -509,18 +515,15 @@ def train(args):
 
 
 def batch_to_global(y, hist_i, i, sl):
-    label = flow.Tensor(y).to_global(
-        placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0)
-    ) 
-    target_item = flow.tensor(i, dtype=flow.int32).to_global(
-        placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0)
-    ) 
-    hist_item_seq = flow.tensor(hist_i, dtype=flow.int32).to_global(
-        placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0)
-    ) 
-    seq_len = flow.tensor(sl, dtype=flow.int32).to_global(
-        placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0)
-    ) 
+    def np_to_global(arr, dtype=flow.int32):
+        return flow.tensor(arr, dtype=dtype).to_global(
+            placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0)
+        ) 
+
+    label = np_to_global(y, dtype=flow.float32) # (b,)
+    target_item = np_to_global(i) # (b,)
+    hist_item_seq = np_to_global(hist_i) # (b, s)
+    seq_len = np_to_global(sl)  # (b,)
     return label.view(-1, 1), [target_item.view(-1, 1), hist_item_seq, seq_len] 
 
 

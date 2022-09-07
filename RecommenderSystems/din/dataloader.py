@@ -25,7 +25,6 @@ class DINDataReader(object):
         shard_seed=2019,
         shard_count=1,
         cur_shard=0,
-        max_len=32,
     ):
         self.batch_size = batch_size
         self.num_epochs = num_epochs
@@ -39,7 +38,6 @@ class DINDataReader(object):
         self.num_fields = len(fields)
 
         self.parquet_file_url_list = parquet_file_url_list
-        self.max_len = max_len
 
     def __enter__(self):
         self.reader = make_batch_reader(
@@ -59,7 +57,6 @@ class DINDataReader(object):
         self.reader.join()
 
     def get_batches(self, reader, batch_size=None):
-        max_len = self.max_len
         if batch_size is None:
             batch_size = self.batch_size
         tail = None
@@ -97,7 +94,7 @@ class DINDataReader(object):
                 #tail = [rglist[i][pos:] for i in range(self.C_end)]
 
 
-def make_dataloader(data_path, batch_size, shuffle=False, max_len=32):
+def make_dataloader(data_path, batch_size, shuffle=False):
     """Make a Criteo Parquet DataLoader.
     :return: a context manager when exit the returned context manager, the reader will be closed.
     """
@@ -114,13 +111,12 @@ def make_dataloader(data_path, batch_size, shuffle=False, max_len=32):
         shard_seed=2019,
         shard_count=world_size,
         cur_shard=flow.env.get_rank(),
-        max_len=max_len,
     )
 
 
 if __name__ == "__main__":
     data_dir = "/data/xiexuan/git-repos/models/RecommenderSystems/din/amazon_elec_parquet"
-    with make_dataloader(f"{data_dir}/train", 32, max_len=64) as loader:
+    with make_dataloader(f"{data_dir}/train", 32) as loader:
         for item_seq, target, label in loader:
             break
             #print(item_seq, target, label)
