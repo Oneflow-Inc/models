@@ -46,7 +46,7 @@ def get_args(print_args=True):
     parser.add_argument("--max_len", type=int, default=512, help="max sequence length")
     parser.add_argument("--embedding_size", type=int, default=64, help="embedding vector size")
     parser.add_argument(
-        "--attention_layer_hidden_dim",
+        "--attention_hidden_units",
         type=int_list,
         default="80,40",
         help="attention layer hidden units number",
@@ -198,20 +198,40 @@ class DNN(nn.Module):
 
 
 class DINAttention(nn.Module):
-    def __init__(self):
+    def __init__(self, feature_size, hidden_units, max_len):
         super(DINAttention, self).__init__()
-        pass
+        self.dnn = DNN(
+            in_features=4 * feature_size,
+            hidden_units=hidden_units,
+            out_features=1,
+            skip_final_activation=True,
+        )
+        self.softmax = nn.Softmax(dim = 2)
+        self.arange = flow.arange(max_len).to_global(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
+        self.scale = feature_size ** 0.5
 
-    def forward(self, keys, queries):
-        pass
+    def forward(self, keys, queries, seq_len):
+        concat = flow.cat([queries, keys, queries - keys, keys * queries], dim=2)
+        concat = self.dnn(concat) #(b, s, 1)
+        key_masks = self.arange[None, :] < seq_len[:, None] # (b, s)
+        key_masks = key_masks.unsqueeze(-1) # (b, s, 1)
+        paddings = flow.ones_like(concat) * (-2 ** 32 + 1)
+
+        atten_fc3 = flow.where(key_masks, concat, paddings)
+        atten_fc3 = flow.transpose(atten_fc3, perm=[0, 2, 1]) #(b, 1, s)
+        atten_fc3 /= self.scale #(b, 1, s) 
+
+        weight = self.softmax(atten_fc3) #(b, 1, s)
+        output = flow.matmul(weight, keys) #(b, 1, e)
+        return flow.squeeze(output) #(b, e)
 
 
 class DINModule(nn.Module):
     def __init__(
         self,
         embedding_size=64,
-        attention_layer_hidden_dim=[80, 40],
-        second_con_layer_hidden_dim=[80, 40],
+        attention_hidden_units=[80, 40],
+        dnn_hidden_units=[80, 40],
         persistent_path=None,
         table_size_array=None,
         one_embedding_store_type="cached_host_mem",
@@ -224,7 +244,6 @@ class DINModule(nn.Module):
 
         self.max_len = max_len
         self.cate_list = cate_list
-        self.arange = flow.arange(max_len).to_global(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
 
         self.embedding_size = embedding_size
         self.num_items = table_size_array[0]
@@ -242,29 +261,16 @@ class DINModule(nn.Module):
             [0] + [1] + [0] * max_len + [1] * max_len, dtype=flow.int32
         ).to_global(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
 
-        self.attention_layer = DNN(
-            in_features=8 * self.embedding_size,
-            hidden_units=attention_layer_hidden_dim,
-            out_features=1,
-            skip_final_activation=True,
-        )
-        self.attention_softmax = flow.nn.Softmax(dim = 2)
-
-        self.firInDim = 2 * self.embedding_size
-        self.firOutDim = 2 * self.embedding_size
-        self.bn1 = flow.nn.BatchNorm1d(self.firInDim)
-        self.dnn1 = DNN(
-            in_features=self.firInDim,
-            hidden_units=[],
-            out_features=self.firOutDim,
-            skip_final_activation=True,
-        )
+        feature_size = 2 * embedding_size
+        self.din_attention = DINAttention(feature_size, attention_hidden_units, max_len) 
+        self.bn1 = nn.BatchNorm1d(feature_size)
+        self.dense = nn.Linear(feature_size, feature_size, bias=True)
         
-        input_dim = 6 * self.embedding_size
-        self.bn2 = flow.nn.BatchNorm1d(input_dim)
-        self.dnn2 = DNN(
+        input_dim = 6 * embedding_size
+        self.bn2 = nn.BatchNorm1d(input_dim)
+        self.dnn = DNN(
             in_features=input_dim,
-            hidden_units=second_con_layer_hidden_dim,
+            hidden_units=dnn_hidden_units,
             out_features=1,
             skip_final_activation=True,
         )
@@ -294,35 +300,15 @@ class DINModule(nn.Module):
 
         hist_seq_concat = flow.cat([hist_item_emb, hist_cat_emb], dim=2)
         target_seq_concat = flow.cat([target_item_seq_emb, target_cat_seq_emb], dim=2)
-        target_concat = flow.cat([target_item_emb, target_cat_emb], dim=1)
-        concat = flow.cat(
-            [
-                target_seq_concat,
-                hist_seq_concat,
-                target_seq_concat - hist_seq_concat,
-                hist_seq_concat * target_seq_concat,
-            ],
-            dim=2,
-        )
 
-        concat = self.attention_layer(concat) #(b, s, 1)
-        key_masks = self.arange[None, :] < seq_len[:, None] # (b, s)
-        key_masks = key_masks.unsqueeze(-1) # (b, s, 1)
-        paddings = flow.ones_like(concat) * (-2 ** 32 + 1)
-
-        atten_fc3 = flow.where(key_masks, concat, paddings)
-        atten_fc3 = flow.transpose(atten_fc3, perm=[0, 2, 1]) #(b, 1, s)
-        atten_fc3 /= self.firInDim ** 0.5 #(b, 1, s) 
-
-        weight = self.attention_softmax(atten_fc3) #(b, 1, s)
-        output = flow.matmul(weight, hist_seq_concat) #(b, 1, e)
-        output = flow.squeeze(output) #(b, e)
-
+        output = self.din_attention(hist_seq_concat, target_seq_concat, seq_len)
+        
         output = self.bn1(output)
-        concat = self.dnn1(output)
+        concat = self.dense(output)
+        target_concat = flow.cat([target_item_emb, target_cat_emb], dim=1)
         embedding_concat = flow.cat([concat, target_concat, concat * target_concat], dim=1)
         embedding_concat = self.bn2(embedding_concat)
-        embedding_concat = self.dnn2(embedding_concat)
+        embedding_concat = self.dnn(embedding_concat)
         logit = embedding_concat + item_b.unsqueeze(1)
         # return logit.sigmoid()
         return logit 
@@ -331,7 +317,7 @@ class DINModule(nn.Module):
 def make_din_module(args, cate_list):
     model = DINModule(
         embedding_size=args.embedding_size,
-        attention_layer_hidden_dim=args.attention_layer_hidden_dim,
+        attention_hidden_units=args.attention_hidden_units,
         persistent_path=args.persistent_path,
         table_size_array=args.table_size_array,
         one_embedding_store_type=args.store_type,
@@ -343,7 +329,7 @@ def make_din_module(args, cate_list):
     return model
 
 
-class DINValGraph(flow.nn.Graph):
+class DINValGraph(nn.Graph):
     def __init__(self, din_module, amp=False):
         super(DINValGraph, self).__init__()
         self.module = din_module
@@ -358,7 +344,7 @@ class DINValGraph(flow.nn.Graph):
         # return predicts
 
 
-class DINTrainGraph(flow.nn.Graph):
+class DINTrainGraph(nn.Graph):
     def __init__(
         self, din_module, loss, optimizer, grad_scaler=None, amp=False, lr_scheduler=None,
     ):
@@ -453,7 +439,7 @@ def train(args):
         exit()
 
     lr_scheduler = make_lr_scheduler(args, opt)
-    loss = flow.nn.BCEWithLogitsLoss(reduction="mean").to("cuda")
+    loss = nn.BCEWithLogitsLoss(reduction="mean").to("cuda")
 
     if args.loss_scale_policy == "static":
         grad_scaler = flow.amp.StaticGradScaler(1024)
