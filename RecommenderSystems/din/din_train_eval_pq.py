@@ -122,7 +122,6 @@ class OneEmbedding(nn.Module):
         assert table_size_array is not None
         vocab_size = sum(table_size_array)
 
-        # todo: last column should be initialized to 0
         b = [math.sqrt(6 / (table_size + embedding_vec_size[0])) for table_size in table_size_array]
         embd_initializer = [flow.one_embedding.make_uniform_initializer(-a, a) for a in b]
         embd_columns = [flow.one_embedding.make_column_options(e) for e in embd_initializer]
@@ -198,6 +197,15 @@ class DNN(nn.Module):
         return self.linear_layers(x)
 
 
+class DINAttention(nn.Module):
+    def __init__(self):
+        super(DINAttention, self).__init__()
+        pass
+
+    def forward(self, keys, queries):
+        pass
+
+
 class DINModule(nn.Module):
     def __init__(
         self,
@@ -221,8 +229,6 @@ class DINModule(nn.Module):
         self.embedding_size = embedding_size
         self.num_items = table_size_array[0]
 
-        self.firInDim = 2 * self.embedding_size
-        self.firOutDim = 2 * self.embedding_size
         self.embedding = OneEmbedding(
             table_name="oneembedding",
             embedding_vec_size=[embedding_size, 1],
@@ -236,27 +242,28 @@ class DINModule(nn.Module):
             [0] + [1] + [0] * max_len + [1] * max_len, dtype=flow.int32
         ).to_global(flow.env.all_device_placement("cuda"), flow.sbp.broadcast)
 
-        self.attention_layer_input_dim = self.embedding_size * 8
         self.attention_layer = DNN(
-            in_features=self.attention_layer_input_dim,
+            in_features=8 * self.embedding_size,
             hidden_units=attention_layer_hidden_dim,
             out_features=1,
             skip_final_activation=True,
         )
         self.attention_softmax = flow.nn.Softmax(dim = 2)
 
-        self.bn1 = flow.nn.BatchNorm1d(2 * self.embedding_size)
-        self.first_con_layer = DNN(
+        self.firInDim = 2 * self.embedding_size
+        self.firOutDim = 2 * self.embedding_size
+        self.bn1 = flow.nn.BatchNorm1d(self.firInDim)
+        self.dnn1 = DNN(
             in_features=self.firInDim,
             hidden_units=[],
             out_features=self.firOutDim,
             skip_final_activation=True,
         )
         
-        self.bn2 = flow.nn.BatchNorm1d(6 * self.embedding_size)
-        self.second_con_layer_input_dim = 6 * self.embedding_size
-        self.second_con_layer = DNN(
-            in_features=self.second_con_layer_input_dim,
+        input_dim = 6 * self.embedding_size
+        self.bn2 = flow.nn.BatchNorm1d(input_dim)
+        self.dnn2 = DNN(
+            in_features=input_dim,
             hidden_units=second_con_layer_hidden_dim,
             out_features=1,
             skip_final_activation=True,
@@ -268,15 +275,8 @@ class DINModule(nn.Module):
         assert s == self.max_len
         e = self.embedding_size
 
-        #target_cat = self.cate_list[target_item] + self.num_items # (b, 1)
-        #target_cat = target_cat.to_global(sbp=flow.sbp.split(0))
-        #hist_cat_seq = self.cate_list[hist_item_seq] + self.num_items # (b, s)
-        #hist_cat_seq = hist_cat_seq.to_global(sbp=flow.sbp.split(0))
-        #target_cat = self.cate_list.index_select(0, target_item)
-        #hist_cat_seq = self.cate_list.index_select(0, hist_item_seq)
-        target_cat = flow.index_select(self.cate_list, 0, target_item)
-        hist_cat_seq = flow.index_select(self.cate_list, 0, hist_item_seq)
-
+        target_cat = self.cate_list[target_item] + self.num_items # (b, 1)
+        hist_cat_seq = self.cate_list[hist_item_seq] + self.num_items # (b, s)
 
         ids = flow.cat(
             [target_item, target_cat, hist_item_seq, hist_cat_seq], dim=1
@@ -284,18 +284,18 @@ class DINModule(nn.Module):
         table_ids = flow.broadcast_like(self.table_ids, ids) # (b, 1+1+s+s)
         embeddings = self.embedding(ids, table_ids)  # (b, 1+1+s+s, e+1)
 
-        target_item_emb = embeddings[:, 0, :e]
-        target_cat_emb = embeddings[:, 1, :e]
-        hist_item_emb = embeddings[:, 2 : (2 + s), :e]
-        hist_cat_emb = embeddings[:, (2 + s) : (2 + s + s), :e]
-        item_b = embeddings[:, 0, -1]
-        target_item_seq_emb = target_item_emb.unsqueeze(1).expand(-1, s, -1)
-        target_cat_seq_emb = target_cat_emb.unsqueeze(1).expand(-1, s, -1)
+        target_item_emb = embeddings[:, 0, :e] # (b, e)
+        target_cat_emb = embeddings[:, 1, :e] # (b, e)
+        hist_item_emb = embeddings[:, 2 : (2 + s), :e] # (b, s, e)
+        hist_cat_emb = embeddings[:, (2 + s) : (2 + s + s), :e] #(b, s, e)
+        item_b = embeddings[:, 0, -1] #(b, )
+        target_item_seq_emb = target_item_emb.unsqueeze(1).expand(-1, s, -1) # (b, s, e)
+        target_cat_seq_emb = target_cat_emb.unsqueeze(1).expand(-1, s, -1) # (b, s, e)
 
-        hist_seq_concat = flow.concat([hist_item_emb, hist_cat_emb], dim=2)
-        target_seq_concat = flow.concat([target_item_seq_emb, target_cat_seq_emb], dim=2)
-        target_concat = flow.concat([target_item_emb, target_cat_emb], dim=1)
-        concat = flow.concat(
+        hist_seq_concat = flow.cat([hist_item_emb, hist_cat_emb], dim=2)
+        target_seq_concat = flow.cat([target_item_seq_emb, target_cat_seq_emb], dim=2)
+        target_concat = flow.cat([target_item_emb, target_cat_emb], dim=1)
+        concat = flow.cat(
             [
                 target_seq_concat,
                 hist_seq_concat,
@@ -310,19 +310,19 @@ class DINModule(nn.Module):
         key_masks = key_masks.unsqueeze(-1) # (b, s, 1)
         paddings = flow.ones_like(concat) * (-2 ** 32 + 1)
 
-        atten_fc3 = flow.where(key_masks, concat, paddings) # paddle use + but not where
+        atten_fc3 = flow.where(key_masks, concat, paddings)
         atten_fc3 = flow.transpose(atten_fc3, perm=[0, 2, 1]) #(b, 1, s)
-        atten_fc3 /= self.firInDim ** 0.5 #(b, 1, s) #error
+        atten_fc3 /= self.firInDim ** 0.5 #(b, 1, s) 
 
         weight = self.attention_softmax(atten_fc3) #(b, 1, s)
         output = flow.matmul(weight, hist_seq_concat) #(b, 1, e)
         output = flow.squeeze(output) #(b, e)
-        output = self.bn1(output)
 
-        concat = self.first_con_layer(output)
-        embedding_concat = flow.concat([concat, target_concat, concat * target_concat], dim=1)
+        output = self.bn1(output)
+        concat = self.dnn1(output)
+        embedding_concat = flow.cat([concat, target_concat, concat * target_concat], dim=1)
         embedding_concat = self.bn2(embedding_concat)
-        embedding_concat = self.second_con_layer(embedding_concat)
+        embedding_concat = self.dnn2(embedding_concat)
         logit = embedding_concat + item_b.unsqueeze(1)
         # return logit.sigmoid()
         return logit 
@@ -425,8 +425,6 @@ def train(args):
         if os.path.exists(dir):
             state_dict = flow.load(dir, global_src_rank=0)
             din_module.load_state_dict(state_dict, strict=True)
-            # din_module.load_state_dict(state_dict, strict=True)
-            print("din_module.load_state_dict(state_dict, strict=True)")
         else:
             if rank == 0:
                 print(f"Loading model from {dir} failed: invalid path")
@@ -446,7 +444,6 @@ def train(args):
     if args.save_initial_model:
         save_model("initial_checkpoint")
 
-    # TODO: clip gradient norm
     if args.optim == "SGD":
         opt = flow.optim.SGD(din_module.parameters(), lr=args.learning_rate)
     elif args.optim == "Adam":
@@ -457,7 +454,6 @@ def train(args):
 
     lr_scheduler = make_lr_scheduler(args, opt)
     loss = flow.nn.BCEWithLogitsLoss(reduction="mean").to("cuda")
-    # loss = flow.nn.BCELoss(reduction="mean").to("cuda")
 
     if args.loss_scale_policy == "static":
         grad_scaler = flow.amp.StaticGradScaler(1024)
@@ -466,12 +462,10 @@ def train(args):
             init_scale=1073741824, growth_factor=2.0, backoff_factor=0.5, growth_interval=2000,
         )
 
-
     eval_graph = DINValGraph(din_module, args.amp)
     train_graph = DINTrainGraph(
         din_module, loss, opt, grad_scaler, args.amp, lr_scheduler=lr_scheduler 
     )
-
 
     cached_eval_batches = prefetch_eval_batches(
         f"{args.data_dir}/test",
