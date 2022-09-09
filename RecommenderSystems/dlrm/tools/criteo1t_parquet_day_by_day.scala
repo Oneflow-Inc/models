@@ -15,7 +15,7 @@ def getParquetFiles(root_dir: String): List[String] = {
 }
 
 
-def makeDlrmDataset(srcDir: String, dstDir:String, tmpDir:String, modIdx:Long = 40000000L, num_day_parts: Int = 256) = {
+def makeDlrmDataset(srcDir: String, dstDir:String, tmpDir:String, modIdx:Int = 40000000, num_day_parts: Int = 256) = {
     val categorical_names = (1 to 26).map{id=>s"C$id"}
     val dense_names = (1 to 13).map{id=>s"I$id"}
     val integer_names = Seq("label") ++ dense_names
@@ -32,7 +32,7 @@ def makeDlrmDataset(srcDir: String, dstDir:String, tmpDir:String, modIdx:Long = 
     val dense_cols = 1.to(13).map{i=>make_dense(col(s"I$i")).as(s"I${i}")}
 
     var sparse_cols = if (modIdx > 0){
-        def make_sparse = udf((str:String, i:Long, mod:Long) => (if (str == null) (i+1) * mod else Math.floorMod(Integer.parseUnsignedInt(str, 16).toLong, mod)) +  i * mod)
+        def make_sparse = udf((str:String, i:Int, mod:Int) => (if (str == null) (i+1) * mod else Math.floorMod(Integer.parseUnsignedInt(str, 16).toInt, mod)) +  i * mod)
         1.to(26).map{i=>make_sparse(col(s"C$i"), lit(i-1), lit(modIdx)).as(s"C${i}")}
     } else {
         1.to(26).map{i=>xxhash64(lit(i), col(s"C$i")).as(s"C${i}")}

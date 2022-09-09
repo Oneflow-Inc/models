@@ -93,6 +93,19 @@ Note 2: number of examples
 - test: 89137319
 - val: 89137318
 
+### Make dataset in spark shell
+In Spark Shell, load `criteo1t_parquet_day_by_day.scala` and make DLRM parquet dataset.
+```
+scala> :load /path/to/models/RecommenderSystems/dlrm/tools/criteo1t_parquet_day_by_day.scala
+scala> makeDlrmDataset("/path/to/criteo1t/day0-day23", "/path/to/dlrm_parquet", "/path/to/tmp_spark")
+```
+
+In `/path/to/dlrm_parquet`, move all `parquet` files in folder `shuffled_day_parts` to `train` folder.
+```bash
+$ mkdir train
+$ mv ./shuffled_day_parts/day_part_*/*.parquet train/.
+```
+
 ## Start training by Oneflow
 Following command will launch 8 oneflow dlrm training and evaluation processes on a node with 8 GPU devices, by specify `data_dir` for data input and `persistent_path` for OneEmbedding persistent store path.
 
