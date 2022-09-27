@@ -34,7 +34,7 @@ if [ ! -d "$CHECKPOINT_SAVE_PATH" ]; then
     mkdir $CHECKPOINT_SAVE_PATH
 fi
 
-OFRECORD_PATH=/home/panlichen/dataset/ImageNet/ofrecord
+OFRECORD_PATH=/ssd/dataset/ImageNet/ofrecord
 
 OFRECORD_PART_NUM=256
 LEARNING_RATE=0.768
