@@ -237,7 +237,7 @@ class Trainer(object):
         self.is_train = True
 
         for i in range(self.batches_per_epoch):
-            if i == 100:
+            if i == 5:
                 cmd = "nvidia-smi --query-gpu=timestamp,name,driver_version,utilization.gpu,utilization.memory,memory.total,memory.free,memory.used --format=csv"
                 os.system(cmd)
             if self.graph:
