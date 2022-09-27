@@ -2,9 +2,6 @@
 
 2022北交大深度学习暑期争霸赛-高级赛道
 
-# Dataset download address
-
-https://www.datafountain.cn/competitions/569/datasets
 
 # Code running environment
 `
@@ -35,6 +32,10 @@ Model train file
 
 # Run
 ## Download dataset description
+
+### Dataset download address
+
+https://www.datafountain.cn/competitions/569/datasets
 
 Download the dataset, all three files need to be downloaded by themselves：**training_dataset**、**test_dataset**、**submit_example**
 
