@@ -94,7 +94,7 @@ Note 2: number of examples
 - val: 89137318
 
 ### Make dataset in spark shell
-In [Preparing dataset](# Preparing dataset) we introduce pyspark to make dataset for DLRM, the whole process consumes a lot of host memory(>300G) and disk space. In this chapter, we introdce another method, in this method training data is shuffled day by day instead of globally. In this way, host memory is limited to 64G or less. The generated dataset is also qulified, test AUC is 0.8030 around.
+In [Preparing dataset](#Preparing dataset) we introduce pyspark to make dataset for DLRM, the whole process consumes a lot of host memory(>300G) and disk space. In this chapter, we introdce another method, in this method training data is shuffled day by day instead of globally. In this way, host memory is limited to 64G or less. The generated dataset is also qulified, test AUC is 0.8030 around.
 In Spark Shell, load `criteo1t_parquet_day_by_day.scala` and make DLRM parquet dataset.
 ```
 scala> :load /path/to/models/RecommenderSystems/dlrm/tools/criteo1t_parquet_day_by_day.scala
