@@ -25,6 +25,18 @@ def makeDlrmDataset(srcDir: String, dstDir:String, tmpDir:String, modIdx:Int = 4
     val test_csv = s"${tmpDir}/test.csv"
     val val_csv = s"${tmpDir}/val.csv"
 
+    val day_23_lines = scala.io.Source.fromFile(day_23).getLines
+
+    new PrintWriter(test_csv) {
+      day_23_lines.slice(0, 89137319).foreach{println}
+      close
+    }
+
+    new PrintWriter(val_csv) {
+      day_23_lines.foreach(println)
+      close
+    }
+
     val make_label = udf((str:String) => str.toFloat)
     val label_cols = Seq(make_label($"label").as("label"))
 
