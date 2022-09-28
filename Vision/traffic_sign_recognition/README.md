@@ -5,7 +5,7 @@
 
 # Code running environment
 `
-pip install requirements.txt
+pip install -r requirements.txt
 `
 # Code Brief
 
@@ -43,26 +43,26 @@ After the download is complete, select the decompression method to decompress to
 
 ## Run Prepare.py
 
-`
+```python
 python3 Prepare.py
-`
+```
 
 ## Run Train.py
-`
+```python
 python3 Train.py
-`
+```
 ## Run Predict.py
 
 Before running the code, you need to modify the model weight path by yourself, and then you can
 
-`
+```python
 python3 Predict.py
-`
+```
 
 ## Run Model_fusion.py
 
 When you have at least four model weight files, you can perform model fusion, add the four model weight file paths to the Model_fusion.py, and then you can
 
-`
+```python
 python3 Model_fusion.py
-`
+```
