@@ -1,8 +1,11 @@
-from DenseNet import DenseNet161_pre
-import flowvision.transforms as ft
-import cv2
 import json
+
+import cv2
 import oneflow as of
+import flowvision.transforms as ft
+
+from DenseNet import DenseNet161_pre
+
 
 pth_path = ''
 model = DenseNet161_pre(num_classes=10, pretrained=False)
