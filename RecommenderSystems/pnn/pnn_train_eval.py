@@ -633,7 +633,7 @@ def train(args):
 def np_to_global(np):
     t = flow.from_numpy(np)
     return t.to_global(
-        placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0)
+        placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0), check_meta=False
     )
 
 
