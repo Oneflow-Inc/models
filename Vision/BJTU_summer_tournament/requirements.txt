@@ -1,0 +1,4 @@
+flowvision==0.2.0
+numpy==1.21.2
+oneflow==0.8.0+cu112
+opencv_python_headless==4.5.3.56
