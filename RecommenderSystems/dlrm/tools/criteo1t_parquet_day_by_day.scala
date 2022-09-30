@@ -1,6 +1,7 @@
 import java.io.File
 import scala.util.Random
 import org.apache.spark.sql.functions.udf
+import java.io.PrintWriter
 
 
 def getParquetFiles(root_dir: String): List[String] = {
