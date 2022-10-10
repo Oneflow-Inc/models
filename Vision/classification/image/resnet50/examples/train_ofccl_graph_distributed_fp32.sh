@@ -1,6 +1,12 @@
 # set -aux
 clear
 
+export ONEFLOW_ENABLE_OFCCL=1
+export ONEFLOW_OFCCL_SKIP_NEGO=0
+
+export NCCL_PROTO=Simple
+export NCCL_ALGO=Ring
+
 if [ -z $DEVICE_NUM_PER_NODE ];then
     DEVICE_NUM_PER_NODE=2
 fi
@@ -8,7 +14,7 @@ MASTER_ADDR=127.0.0.1
 NUM_NODES=1
 NODE_RANK=0
 
-export GLOG_vmodule=nn_graph*=1,plan_util*=1,of_collective_actor*=1,of_collective_boxing_kernels*=1
+export GLOG_vmodule=nn_graph*=1,plan_util*=1,of_collective_actor*=1,of_collective_boxing_kernels*=1,collective_backend_ofccl*=1
 # export GLOG_v=1
 export GLOG_logtostderr=1
 
@@ -27,14 +33,26 @@ echo NCCL_LAUNCH_MODE=$NCCL_LAUNCH_MODE
 # export NCCL_DEBUG=INFO
 export ONEFLOW_DEBUG_MODE=1
 export ONEFLOW_PROFILER_KERNEL_PROFILE_KERNEL_FORWARD_RANGE=1
-export ONEFLOW_ENABLE_OFCCL=1
 
 CHECKPOINT_SAVE_PATH="./graph_distributed_fp32_checkpoints"
 if [ ! -d "$CHECKPOINT_SAVE_PATH" ]; then
     mkdir $CHECKPOINT_SAVE_PATH
 fi
 
-OFRECORD_PATH=/data/home/panlichen/ImageNet/ofrecord
+if [ $HOST == "oneflow-15" ]; then
+    export OFRECORD_PATH=/home/panlichen/dataset/ImageNet/ofrecord
+elif [ $HOST == "oneflow-16" ]; then
+    export OFRECORD_PATH=/dataset/ImageNet/ofrecord
+elif [ $HOST == "oneflow-25" ]; then
+    export OFRECORD_PATH=/data/dataset/ImageNet/ofrecord
+elif [ $HOST == "oneflow-26" ]; then
+    export OFRECORD_PATH=/data/home/panlichen/ImageNet/ofrecord
+elif [ $HOST == "oneflow-28" ]; then
+    export OFRECORD_PATH=/ssd/dataset/ImageNet/ofrecord
+else
+    echo "NO LEGAL HOST, exit."
+    exit 1
+fi
 
 OFRECORD_PART_NUM=256
 LEARNING_RATE=0.768

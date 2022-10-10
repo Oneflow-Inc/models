@@ -1,6 +1,12 @@
 # set -aux
 clear
 
+export ONEFLOW_ENABLE_OFCCL=1
+export ONEFLOW_OFCCL_SKIP_NEGO=0
+
+export NCCL_PROTO=Simple
+export NCCL_ALGO=Ring
+
 if [ -z $DEVICE_NUM_PER_NODE ];then
     DEVICE_NUM_PER_NODE=2
 fi
@@ -8,7 +14,7 @@ MASTER_ADDR=127.0.0.1
 NUM_NODES=1
 NODE_RANK=0
 
-export GLOG_vmodule=nn_graph*=1,plan_util*=1,of_collective_actor*=1,of_collective_boxing_kernels*=1
+export GLOG_vmodule=nn_graph*=1,plan_util*=1,of_collective_actor*=1,of_collective_boxing_kernels*=1,collective_backend_ofccl*=1,multi_client_session_context*=1,session_global_objects_scope*=1,env_global_objects_scope*=1
 # export GLOG_v=1
 export GLOG_logtostderr=1
 
@@ -27,7 +33,6 @@ echo NCCL_LAUNCH_MODE=$NCCL_LAUNCH_MODE
 # export NCCL_DEBUG=INFO
 export ONEFLOW_DEBUG_MODE=1
 export ONEFLOW_PROFILER_KERNEL_PROFILE_KERNEL_FORWARD_RANGE=1
-export ONEFLOW_ENABLE_OFCCL=1
 
 if [ $ONEFLOW_ENABLE_OFCCL == "1" ]; then
     NSYS_FILE="ofccl_resnet"

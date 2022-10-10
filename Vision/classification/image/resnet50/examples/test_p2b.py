@@ -10,6 +10,7 @@ class GraphModel(flow.nn.Graph):
 
 rank = flow.env.get_rank()
 t = flow.ones(4, 4) * (rank + 1)
+# t = flow.ones(1) * (rank + 1)
 t = t.to_global(placement=flow.env.all_device_placement("cuda"), sbp=flow.sbp.partial_sum())
 print(t)
 print(t.to_local())
