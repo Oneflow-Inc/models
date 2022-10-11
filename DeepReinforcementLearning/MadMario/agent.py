@@ -21,10 +21,10 @@ class Mario:
 
         self.curr_step = 0
         self.burnin = 1e5  # min. experiences before training
-        self.learn_every = 3   # no. of experiences between updates to Q_online
-        self.sync_every = 1e4   # no. of experiences between Q_target & Q_online sync
+        self.learn_every = 3  # no. of experiences between updates to Q_online
+        self.sync_every = 1e4  # no. of experiences between Q_target & Q_online sync
 
-        self.save_every = 5e5   # no. of experiences between saving Mario Net
+        self.save_every = 5e5  # no. of experiences between saving Mario Net
         self.save_dir = save_dir
 
         self.use_cuda = flow.cuda.is_available()
@@ -32,13 +32,12 @@ class Mario:
         # Mario's DNN to predict the most optimal action - we implement this in the Learn section
         self.net = MarioNet(self.state_dim, self.action_dim).float()
         if self.use_cuda:
-            self.net = self.net.to(device='cuda')
+            self.net = self.net.to(device="cuda")
         if checkpoint:
             self.load(checkpoint)
 
         self.optimizer = flow.optim.Adam(self.net.parameters(), lr=0.00025)
         self.loss_fn = flow.nn.SmoothL1Loss()
-
 
     def act(self, state):
         """
@@ -55,9 +54,13 @@ class Mario:
 
         # EXPLOIT
         else:
-            state = flow.FloatTensor(state).cuda() if self.use_cuda else flow.FloatTensor(state)
+            state = (
+                flow.FloatTensor(state).cuda()
+                if self.use_cuda
+                else flow.FloatTensor(state)
+            )
             state = state.unsqueeze(0)
-            action_values = self.net(state, model='online')
+            action_values = self.net(state, model="online")
             action_idx = flow.argmax(action_values, dim=1).item()
 
         # decrease exploration_rate
@@ -79,14 +82,29 @@ class Mario:
         reward (float),
         done(bool))
         """
-        state = flow.FloatTensor(state).cuda() if self.use_cuda else flow.FloatTensor(state)
-        next_state = flow.FloatTensor(next_state).cuda() if self.use_cuda else flow.FloatTensor(next_state)
-        action = flow.LongTensor([action]).cuda() if self.use_cuda else flow.LongTensor([action])
-        reward = flow.DoubleTensor([reward]).cuda() if self.use_cuda else flow.DoubleTensor([reward])
-        done = flow.BoolTensor([done]).cuda() if self.use_cuda else flow.BoolTensor([done])
+        state = (
+            flow.FloatTensor(state).cuda() if self.use_cuda else flow.FloatTensor(state)
+        )
+        next_state = (
+            flow.FloatTensor(next_state).cuda()
+            if self.use_cuda
+            else flow.FloatTensor(next_state)
+        )
+        action = (
+            flow.LongTensor([action]).cuda()
+            if self.use_cuda
+            else flow.LongTensor([action])
+        )
+        reward = (
+            flow.DoubleTensor([reward]).cuda()
+            if self.use_cuda
+            else flow.DoubleTensor([reward])
+        )
+        done = (
+            flow.BoolTensor([done]).cuda() if self.use_cuda else flow.BoolTensor([done])
+        )
 
-        self.memory.append( (state, next_state, action, reward, done,) )
-
+        self.memory.append((state, next_state, action, reward, done,))
 
     def recall(self):
         """
@@ -96,31 +114,30 @@ class Mario:
         state, next_state, action, reward, done = map(flow.stack, zip(*batch))
         return state, next_state, action.squeeze(), reward.squeeze(), done.squeeze()
 
-
     def td_estimate(self, state, action):
-        current_Q = self.net(state, model='online')[np.arange(0, self.batch_size), action] # Q_online(s,a)
+        current_Q = self.net(state, model="online")[
+            np.arange(0, self.batch_size), action
+        ]  # Q_online(s,a)
         return current_Q
-
 
     @flow.no_grad()
     def td_target(self, reward, next_state, done):
-        next_state_Q = self.net(next_state, model='online')
+        next_state_Q = self.net(next_state, model="online")
         best_action = flow.argmax(next_state_Q, dim=1)
-        next_Q = self.net(next_state, model='target')[np.arange(0, self.batch_size), best_action]
+        next_Q = self.net(next_state, model="target")[
+            np.arange(0, self.batch_size), best_action
+        ]
         return (reward + (1 - done.float()) * self.gamma * next_Q).float()
 
-
-    def update_Q_online(self, td_estimate, td_target) :
+    def update_Q_online(self, td_estimate, td_target):
         loss = self.loss_fn(td_estimate, td_target)
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
         return loss.item()
 
-
     def sync_Q_target(self):
         self.net.target.load_state_dict(self.net.online.state_dict())
-
 
     def learn(self):
         if self.curr_step % self.sync_every == 0:
@@ -149,26 +166,23 @@ class Mario:
 
         return (td_est.mean().item(), loss)
 
-
     def save(self):
-        save_path = self.save_dir / f"mario_net_{int(self.curr_step // self.save_every)}.chkpt"
+        save_path = (
+            self.save_dir / f"mario_net_{int(self.curr_step // self.save_every)}.chkpt"
+        )
         flow.save(
-            dict(
-                model=self.net.state_dict(),
-                exploration_rate=self.exploration_rate
-            ),
-            save_path
+            dict(model=self.net.state_dict(), exploration_rate=self.exploration_rate),
+            save_path,
         )
         print(f"MarioNet saved to {save_path} at step {self.curr_step}")
-
 
     def load(self, load_path):
         if not load_path.exists():
             raise ValueError(f"{load_path} does not exist")
 
-        ckp = flow.load(load_path, map_location=('cuda' if self.use_cuda else 'cpu'))
-        exploration_rate = ckp.get('exploration_rate')
-        state_dict = ckp.get('model')
+        ckp = flow.load(load_path, map_location=("cuda" if self.use_cuda else "cpu"))
+        exploration_rate = ckp.get("exploration_rate")
+        state_dict = ckp.get("model")
 
         print(f"Loading model at {load_path} with exploration rate {exploration_rate}")
         self.net.load_state_dict(state_dict)

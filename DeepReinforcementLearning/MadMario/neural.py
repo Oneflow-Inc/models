@@ -1,10 +1,12 @@
 from oneflow import nn
 import copy
 
+
 class MarioNet(nn.Module):
-    '''mini cnn structure
+    """mini cnn structure
     input -> (conv2d + relu) x 3 -> flatten -> (dense + relu) x 2 -> output
-    '''
+    """
+
     def __init__(self, input_dim, output_dim):
         super().__init__()
         c, h, w = input_dim
@@ -24,7 +26,7 @@ class MarioNet(nn.Module):
             nn.Flatten(),
             nn.Linear(3136, 512),
             nn.ReLU(),
-            nn.Linear(512, output_dim)
+            nn.Linear(512, output_dim),
         )
 
         self.target = copy.deepcopy(self.online)
@@ -34,7 +36,7 @@ class MarioNet(nn.Module):
             p.requires_grad = False
 
     def forward(self, input, model):
-        if model == 'online':
+        if model == "online":
             return self.online(input)
-        elif model == 'target':
+        elif model == "target":
             return self.target(input)

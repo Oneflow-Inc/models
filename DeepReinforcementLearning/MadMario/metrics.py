@@ -2,7 +2,8 @@ import numpy as np
 import time, datetime
 import matplotlib.pyplot as plt
 
-class MetricLogger():
+
+class MetricLogger:
     def __init__(self, save_dir):
         self.save_log = save_dir / "log"
         with open(self.save_log, "w") as f:
@@ -33,7 +34,6 @@ class MetricLogger():
 
         # Timing
         self.record_time = time.time()
-
 
     def log_step(self, reward, loss, q):
         self.curr_ep_reward += reward
@@ -74,7 +74,6 @@ class MetricLogger():
         self.moving_avg_ep_lengths.append(mean_ep_length)
         self.moving_avg_ep_avg_losses.append(mean_ep_loss)
         self.moving_avg_ep_avg_qs.append(mean_ep_q)
-
 
         last_record_time = self.record_time
         self.record_time = time.time()

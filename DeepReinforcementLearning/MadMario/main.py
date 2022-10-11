@@ -1,5 +1,6 @@
 import os
-os.environ['KMP_DUPLICATE_LIB_OK']='True'
+
+os.environ["KMP_DUPLICATE_LIB_OK"] = "True"
 
 import random, datetime
 from pathlib import Path
@@ -14,31 +15,32 @@ from agent import Mario
 from wrappers import ResizeObservation, SkipFrame
 
 # Initialize Super Mario environment
-env = gym_super_mario_bros.make('SuperMarioBros-1-1-v0')
+env = gym_super_mario_bros.make("SuperMarioBros-1-1-v0")
 
 # Limit the action-space to
 #   0. walk right
 #   1. jump right
-env = JoypadSpace(
-    env,
-    [['right'],
-    ['right', 'A']]
-)
+env = JoypadSpace(env, [["right"], ["right", "A"]])
 
 # Apply Wrappers to environment
 env = SkipFrame(env, skip=4)
 env = GrayScaleObservation(env, keep_dim=False)
 env = ResizeObservation(env, shape=84)
-env = TransformObservation(env, f=lambda x: x / 255.)
+env = TransformObservation(env, f=lambda x: x / 255.0)
 env = FrameStack(env, num_stack=4)
 
 env.reset()
 
-save_dir = Path('checkpoints') / datetime.datetime.now().strftime('%Y-%m-%dT%H-%M-%S')
+save_dir = Path("checkpoints") / datetime.datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
 save_dir.mkdir(parents=True)
 
-checkpoint = None # Path('checkpoints/2020-10-21T18-25-27/mario.chkpt')
-mario = Mario(state_dim=(4, 84, 84), action_dim=env.action_space.n, save_dir=save_dir, checkpoint=checkpoint)
+checkpoint = None  # Path('checkpoints/2020-10-21T18-25-27/mario.chkpt')
+mario = Mario(
+    state_dim=(4, 84, 84),
+    action_dim=env.action_space.n,
+    save_dir=save_dir,
+    checkpoint=checkpoint,
+)
 
 logger = MetricLogger(save_dir)
 
@@ -74,14 +76,10 @@ for e in range(episodes):
         state = next_state
 
         # 10. Check if end of game
-        if done or info['flag_get']:
+        if done or info["flag_get"]:
             break
 
     logger.log_episode()
 
     if e % 20 == 0:
-        logger.record(
-            episode=e,
-            epsilon=mario.exploration_rate,
-            step=mario.curr_step
-        )
+        logger.record(episode=e, epsilon=mario.exploration_rate, step=mario.curr_step)
