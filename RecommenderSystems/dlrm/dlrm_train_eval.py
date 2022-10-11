@@ -378,7 +378,9 @@ class DLRMModule(nn.Module):
             embedding_vec_size == bottom_mlp[-1]
         ), "Embedding vector size must equle to bottom MLP output size"
         self.num_dense_fields = (
-            ((num_dense_fields + 8 - 1) // 8 * 8) if dense_input_padding else num_dense_fields
+            ((num_dense_fields + 8 - 1) // 8 * 8)
+            if dense_input_padding
+            else num_dense_fields
         )
         self.pad = (
             [0, self.num_dense_fields - num_dense_fields]
