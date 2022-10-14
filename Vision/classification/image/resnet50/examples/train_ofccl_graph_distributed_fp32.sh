@@ -109,3 +109,4 @@ $cmd \
         --graph \
         --fuse-bn-relu \
         --fuse-bn-add-relu \
+        > /home/panlichen/work/oneflow/log/1014.log
