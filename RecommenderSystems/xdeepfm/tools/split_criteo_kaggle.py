@@ -10,7 +10,7 @@ def split_train_val_test(input_dir, output_dir):
     num_dense_fields = 13
     num_sparse_fields = 26
 
-    fields = ["Label"]
+    fields = ["label"]
     fields += [f"I{i+1}" for i in range(num_dense_fields)]
     fields += [f"C{i+1}" for i in range(num_sparse_fields)]
 
@@ -23,7 +23,7 @@ def split_train_val_test(input_dir, output_dir):
         dtype=object,
     )
     X = ddf.values
-    y = ddf["Label"].map(lambda x: float(x)).values
+    y = ddf["label"].map(lambda x: float(x)).values
     print(f"{len(X)} samples in total")
 
     folds = StratifiedKFold(n_splits=10, shuffle=True, random_state=RANDOM_SEED)
