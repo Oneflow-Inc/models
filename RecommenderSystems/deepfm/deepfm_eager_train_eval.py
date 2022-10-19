@@ -534,6 +534,9 @@ def train(args):
     # TODO: clip gradient norm
     opt = flow.optim.Adam(deepfm_module.parameters(), lr=args.learning_rate)
     lr_scheduler = make_lr_scheduler(args, opt)
+    opt = flow.one_embedding.Optimizer(
+        opt, embeddings=[deepfm_module.embedding_layer.one_embedding]
+    )
     loss_fn = flow.nn.BCEWithLogitsLoss(reduction="mean").to("cuda")
 
     if args.loss_scale_policy == "static":
