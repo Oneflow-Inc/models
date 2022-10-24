@@ -7,6 +7,8 @@ export ONEFLOW_OFCCL_SKIP_NEGO=0
 export NCCL_PROTO=Simple
 export NCCL_ALGO=Ring
 
+# export CUDA_VISIBLE_DEVICES=4,5
+
 if [ -z $DEVICE_NUM_PER_NODE ];then
     DEVICE_NUM_PER_NODE=2
 fi
@@ -33,6 +35,9 @@ echo NCCL_LAUNCH_MODE=$NCCL_LAUNCH_MODE
 # export NCCL_DEBUG=INFO
 export ONEFLOW_DEBUG_MODE=1
 export ONEFLOW_PROFILER_KERNEL_PROFILE_KERNEL_FORWARD_RANGE=1
+
+# export NCCL_MAX_NCHANNELS=1
+# export NCCL_NTHREADS=64
 
 CHECKPOINT_SAVE_PATH="./graph_distributed_fp32_checkpoints"
 if [ ! -d "$CHECKPOINT_SAVE_PATH" ]; then
@@ -62,6 +67,8 @@ EPOCH=50
 # VAL_BATCH_SIZE=50
 TRAIN_BATCH_SIZE=20
 VAL_BATCH_SIZE=20
+# TRAIN_BATCH_SIZE=50
+# VAL_BATCH_SIZE=50
 
 # SRC_DIR=/path/to/models/resnet50
 SRC_DIR=$(realpath $(dirname $0)/..)
@@ -109,4 +116,4 @@ $cmd \
         --graph \
         --fuse-bn-relu \
         --fuse-bn-add-relu \
-        > /home/panlichen/work/oneflow/log/1014.log
+        > /home/panlichen/work/oneflow/log/1014.log # 2>&1
