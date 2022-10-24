@@ -222,15 +222,17 @@ class Trainer(object):
 
     def train(self):
         self.logger.metric("time").reset()
-        for _ in range(self.num_epochs):
+        # for _ in range(self.num_epochs):
+        for _ in range(1):
             self.train_one_epoch()
             if self.cur_batch == self.total_batches:
                 break
-
-            if not self.skip_eval:
-                acc = self.eval()
-            else:
-                acc = 0
+                
+            # if not self.skip_eval:
+            #     acc = self.eval()
+            # else:
+            #     acc = 0
+            acc = 0
 
             save_dir = f"epoch_{self.cur_epoch}_val_acc_{acc}"
             self.save(save_dir)
@@ -242,6 +244,7 @@ class Trainer(object):
         self.is_train = True
 
         for _ in range(self.batches_per_epoch):
+        # for _ in range(5):
             if self.graph:
                 loss, pred, label = self.train_graph()
             else:
