@@ -109,7 +109,7 @@ class SelfAttention(nn.Module):
         out = flow.matmul(attn_weights, v)
         out = out.permute(0, 2, 1, 3)
         new_out_shape = tuple(out.size()[:-2]) + (self.heads * self.head_dim,)
-        out = out.view(*new_out_shape)
+        out = out.reshape(*new_out_shape)
         out = self.out(out)
 
         return out
