@@ -42,7 +42,7 @@ class DropPath(nn.Module):
 def window_partition(x, window_size):
     B, H, W, C = x.shape
     x = x.view(B, H // window_size, window_size, W // window_size, window_size, C)
-    windows = x.permute(0, 1, 3, 2, 4, 5).view(-1, window_size, window_size, C)
+    windows = x.permute(0, 1, 3, 2, 4, 5).reshape(-1, window_size, window_size, C)
     return windows
 
 
@@ -51,7 +51,7 @@ def window_reverse(windows, window_size, H, W):
     x = windows.view(
         B, H // window_size, W // window_size, window_size, window_size, -1
     )
-    x = x.permute(0, 1, 3, 2, 4, 5).view(B, H, W, -1)
+    x = x.permute(0, 1, 3, 2, 4, 5).reshape(B, H, W, -1)
     return x
 
 
