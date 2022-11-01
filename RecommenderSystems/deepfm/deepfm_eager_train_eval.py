@@ -57,12 +57,6 @@ def get_args(print_args=True):
         action="store_true",
         help="save model after each eval or not",
     )
-    parser.add_argument(
-        "--one_embedding_key_type",
-        type=str,
-        default="int64",
-        help="OneEmbedding key type: int32, int64",
-    )
 
     parser.add_argument(
         "--embedding_vec_size", type=int, default=16, help="embedding vector size"
@@ -197,7 +191,7 @@ class DeepFMDataReader(object):
         self.shard_count = shard_count
         self.cur_shard = cur_shard
 
-        fields = ["label"]
+        fields = ["Label"]
         fields += [f"I{i+1}" for i in range(num_dense_fields)]
         fields += [f"C{i+1}" for i in range(num_sparse_fields)]
         self.fields = fields
@@ -290,7 +284,6 @@ class OneEmbedding(nn.Module):
         store_type,
         cache_memory_budget_mb,
         size_factor,
-        key_type,
     ):
         assert table_size_array is not None
         vocab_size = sum(table_size_array)
@@ -339,7 +332,7 @@ class OneEmbedding(nn.Module):
             name=table_name,
             embedding_dim=embedding_vec_size,
             dtype=flow.float,
-            key_type=getattr(flow, key_type),
+            key_type=flow.int64,
             tables=tables,
             store_options=store_options,
         )
@@ -407,7 +400,6 @@ class DeepFMModule(nn.Module):
         persistent_path=None,
         table_size_array=None,
         one_embedding_store_type="cached_host_mem",
-        one_embedding_key_type="int64",
         cache_memory_budget_mb=8192,
         dropout=0.2,
     ):
@@ -423,7 +415,6 @@ class DeepFMModule(nn.Module):
             store_type=one_embedding_store_type,
             cache_memory_budget_mb=cache_memory_budget_mb,
             size_factor=3,
-            key_type=one_embedding_key_type
         )
 
         self.dnn_layer = DNN(
@@ -459,51 +450,10 @@ def make_deepfm_module(args):
         persistent_path=args.persistent_path,
         table_size_array=args.table_size_array,
         one_embedding_store_type=args.store_type,
-        one_embedding_key_type=args.one_embedding_key_type,
         cache_memory_budget_mb=args.cache_memory_budget_mb,
         dropout=args.net_dropout,
     )
     return model
-
-
-class DeepFMValGraph(flow.nn.Graph):
-    def __init__(self, deepfm_module, amp=False):
-        super(DeepFMValGraph, self).__init__()
-        self.module = deepfm_module
-        if amp:
-            self.config.enable_amp(True)
-
-    def build(self, features):
-        predicts = self.module(features.to("cuda"))
-        return predicts.sigmoid()
-
-
-class DeepFMTrainGraph(flow.nn.Graph):
-    def __init__(
-        self,
-        deepfm_module,
-        loss,
-        optimizer,
-        grad_scaler=None,
-        amp=False,
-        lr_scheduler=None,
-    ):
-        super(DeepFMTrainGraph, self).__init__()
-        self.module = deepfm_module
-        self.loss = loss
-        self.add_optimizer(optimizer, lr_sch=lr_scheduler)
-        self.config.allow_fuse_model_update_ops(True)
-        self.config.allow_fuse_add_to_output(True)
-        self.config.allow_fuse_cast_scale(True)
-        if amp:
-            self.config.enable_amp(True)
-            self.set_grad_scaler(grad_scaler)
-
-    def build(self, labels, features):
-        logits = self.module(features.to("cuda"))
-        loss = self.loss(logits, labels.to("cuda"))
-        loss.backward()
-        return loss.to("cpu")
 
 
 def make_lr_scheduler(args, optimizer):
@@ -584,7 +534,10 @@ def train(args):
     # TODO: clip gradient norm
     opt = flow.optim.Adam(deepfm_module.parameters(), lr=args.learning_rate)
     lr_scheduler = make_lr_scheduler(args, opt)
-    loss = flow.nn.BCEWithLogitsLoss(reduction="mean").to("cuda")
+    opt = flow.one_embedding.Optimizer(
+        opt, embeddings=[deepfm_module.embedding_layer.one_embedding]
+    )
+    loss_fn = flow.nn.BCEWithLogitsLoss(reduction="mean").to("cuda")
 
     if args.loss_scale_policy == "static":
         grad_scaler = flow.amp.StaticGradScaler(1024)
@@ -595,11 +548,6 @@ def train(args):
             backoff_factor=0.5,
             growth_interval=2000,
         )
-
-    eval_graph = DeepFMValGraph(deepfm_module, args.amp)
-    train_graph = DeepFMTrainGraph(
-        deepfm_module, loss, opt, grad_scaler, args.amp, lr_scheduler=lr_scheduler
-    )
 
     batches_per_epoch = math.ceil(args.num_train_samples / args.batch_size)
 
@@ -620,7 +568,13 @@ def train(args):
         step, last_step, last_time = -1, 0, time.time()
         for step in range(1, args.train_batches + 1):
             labels, features = batch_to_global(*next(loader))
-            loss = train_graph(labels, features)
+            logits = deepfm_module(features.to("cuda"))
+            loss = loss_fn(logits, labels.to("cuda"))
+            loss = flow.mean(loss)
+            loss.backward()
+            opt.step()
+            opt.zero_grad()
+            lr_scheduler.step()
             if step % args.loss_print_interval == 0:
                 loss = loss.numpy()
                 if rank == 0:
@@ -637,7 +591,7 @@ def train(args):
                 epoch += 1
                 auc, logloss = eval(
                     args,
-                    eval_graph,
+                    deepfm_module,
                     tag="val",
                     cur_step=step,
                     epoch=epoch,
@@ -672,13 +626,13 @@ def train(args):
         load_model(f"{args.model_save_dir}/best_checkpoint")
     if rank == 0:
         print("================ Test Evaluation ================")
-    eval(args, eval_graph, tag="test", cur_step=step, epoch=epoch)
+    eval(args, deepfm_module, tag="test", cur_step=step, epoch=epoch)
 
 
 def np_to_global(np):
     t = flow.from_numpy(np)
     return t.to_global(
-        placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0), check_meta=False
+        placement=flow.env.all_device_placement("cpu"), sbp=flow.sbp.split(0)
     )
 
 
@@ -699,13 +653,13 @@ def prefetch_eval_batches(data_dir, batch_size, num_batches):
     return cached_eval_batches
 
 
-def eval(args, eval_graph, tag="val", cur_step=0, epoch=0, cached_eval_batches=None):
+def eval(args, deepfm_module, tag="val", cur_step=0, epoch=0, cached_eval_batches=None):
     if tag == "val":
         batches_per_epoch = math.ceil(args.num_val_samples / args.batch_size)
     else:
         batches_per_epoch = math.ceil(args.num_test_samples / args.batch_size)
 
-    eval_graph.module.eval()
+    deepfm_module.eval()
     labels, preds = [], []
     eval_start_time = time.time()
 
@@ -716,13 +670,17 @@ def eval(args, eval_graph, tag="val", cur_step=0, epoch=0, cached_eval_batches=N
             eval_start_time = time.time()
             for i in range(batches_per_epoch):
                 label, features = batch_to_global(*next(loader), is_train=False)
-                pred = eval_graph(features)
+                with flow.no_grad():
+                    logits = deepfm_module(features.to("cuda"))
+                    pred = logits.sigmoid()
                 labels.append(label)
                 preds.append(pred.to_local())
     else:
         for i in range(batches_per_epoch):
             label, features = cached_eval_batches[i]
-            pred = eval_graph(features)
+            with flow.no_grad():
+                logits = deepfm_module(features.to("cuda"))
+                pred = logits.sigmoid()
             labels.append(label)
             preds.append(pred.to_local())
 
