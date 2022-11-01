@@ -6,7 +6,7 @@ def makeDeepfmDataset(srcDir: String, dstDir:String) = {
     val val_csv = s"${srcDir}/valid.csv"
 
     val make_label = udf((str:String) => str.toFloat)
-    val label_cols = Seq(make_label($"Label").as("Label"))
+    val label_cols = Seq(make_label($"label").as("label"))
 
     val dense_cols = 1.to(13).map{i=>xxhash64(lit(i), col(s"I$i")).as(s"I${i}")}
 

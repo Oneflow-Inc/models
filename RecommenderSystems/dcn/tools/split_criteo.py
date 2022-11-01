@@ -6,7 +6,7 @@ import argparse
 
 
 RANDOM_SEED = 2018
-cols = ["Label"]
+cols = ["label"]
 for i in range(1, 14):
     cols.append("I" + str(i))
 for i in range(1, 27):
@@ -24,7 +24,7 @@ def split_criteo(args):
         dtype=object,
     )
     X = ddf.values
-    y = ddf["Label"].map(lambda x: float(x)).values
+    y = ddf["label"].map(lambda x: float(x)).values
     print(str(len(X)) + " lines in total")
 
     folds = StratifiedKFold(n_splits=10, shuffle=True, random_state=RANDOM_SEED).split(

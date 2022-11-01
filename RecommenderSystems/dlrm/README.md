@@ -106,6 +106,7 @@ In `/path/to/dlrm_parquet`, move all `parquet` files in folder `shuffled_day_par
 $ mkdir train
 $ mv ./shuffled_day_parts/day_part_*/*.parquet train/.
 ```
+Note: in `criteo1t_parquet_day_by_day.scala`, date type of categorical columns C1-C26 is `int32`.
 
 ## Start training by Oneflow
 Following command will launch 8 oneflow dlrm training and evaluation processes on a node with 8 GPU devices, by specify `data_dir` for data input and `persistent_path` for OneEmbedding persistent store path.

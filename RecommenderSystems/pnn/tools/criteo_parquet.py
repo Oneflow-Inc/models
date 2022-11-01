@@ -27,10 +27,10 @@ def make_pnn_parquet(
 ):
     sparse_names = [f"C{i}" for i in range(1, 27)]
     dense_names = [f"I{i}" for i in range(1, 14)]
-    column_names = ["Label"] + dense_names + sparse_names
+    column_names = ["label"] + dense_names + sparse_names
 
     make_label = udf(lambda s: int(s), IntegerType())
-    label_col = make_label("Label").alias("Label")
+    label_col = make_label("label").alias("label")
 
     if mod_idx <= 0:
         dense_cols = [
