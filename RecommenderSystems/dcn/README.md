@@ -161,6 +161,21 @@ You could modified it in [train.sh](https://github.com/Oneflow-Inc/models/blob/c
 bash train.sh
 `
 
+## Run OneFlow DeepFM benchmark
+Note: DCN benchmark uses the same dataset as DeepFM. Please follow the dataset preparing instruction in DeepFM [README](../deepfm#run-oneflow-deepfm-benchmark).
+1. train OneFlow DeepFM benchmark in AMP mode
+```
+./train_dcn_benchmark.sh /path/to/data_dir 
+```
+note: `train_dcn_benchmark.sh` takes 3 arguments:
+- $1 is data_dir pointing to criteo1t_oneflow_raw dataset
+- $2 is number of GPUs, default is `8`
+- $3 is to enable oneflow raw reader direct io or not, default is `0`, set `1` to enable direct io  
 
+2. or train OneFlow DeepFM benchmark in FP32 mode
+
+```
+./train_dcn_benchmark_fp32.sh /path/to/data_dir
+```
 
 

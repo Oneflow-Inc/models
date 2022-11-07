@@ -166,3 +166,45 @@ According to [the DeepFM paper](https://arxiv.org/abs/1703.04247), we treat both
      ```
 
 2.   train a DeepFM model by `bash train_deepfm.sh`.
+
+## Run OneFlow DeepFM benchmark
+1. make criteo1t raw format dataset with 39 catigorical fields(sparse feature dtype = int32, dense features are treated as catigorical also)
+  - split day_23 to test.csv and val.csv, in criteo terabyte dataset directory where extracted day_0 to day_23 files located 
+```
+head -n 89137319 day_23 > test.csv
+tail -n +89137320 day_23 > val.csv
+```
+  - launch spark shell in "RecommenderSystems/deepfm/tools" directory:  
+```
+export SPARK_LOCAL_DIRS=/path/to/tmp_spark
+spark-shell \
+    --master "local[*]" \
+    --conf spark.driver.maxResultSize=0 \
+    --driver-memory 360G
+```
+  - load scala file in spark-shell, and execute `makeCriteo1tC39Int32` 
+```
+:load criteo1t_parquet_C39.scala
+makeCriteo1tC39Int32("/path/to/criteo1t_raw", "/path/to/criteo1t_parquet_C39")
+```
+  - convert parquet dataset to oneflow raw format
+```
+python parquet_to_raw_C39.py \
+  --input_dir=/path/to/criteo1t_parquet_C39 \
+  --output_dir=/path/to/criteo1t_oneflow_raw_C39
+```
+
+2. train OneFlow DeepFM benchmark in AMP mode
+```
+./train_deepfm_benchmark.sh /path/to/data_dir 
+```
+note: `train_deepfm_benchmark.sh` takes 3 arguments:
+- $1 is data_dir pointing to criteo1t_oneflow_raw dataset
+- $2 is number of GPUs, default is `8`
+- $3 is to enable oneflow raw reader direct io or not, default is `0`, set `1` to enable direct io  
+
+3. or train OneFlow DeepFM benchmark in FP32 mode
+
+```
+./train_deepfm_benchmark_fp32.sh /path/to/data_dir
+```
