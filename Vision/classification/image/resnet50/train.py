@@ -222,8 +222,8 @@ class Trainer(object):
 
     def train(self):
         self.logger.metric("time").reset()
-        for _ in range(self.num_epochs):
-        # for _ in range(1):
+        # for _ in range(self.num_epochs):
+        for _ in range(1):
             self.train_one_epoch()
             if self.cur_batch == self.total_batches:
                 break
