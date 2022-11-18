@@ -5,27 +5,29 @@ export ONEFLOW_ENABLE_OFCCL=1
 export ONEFLOW_OFCCL_SKIP_NEGO=1
 export ONEFLOW_OFCCL_DUMMY_KERNEL=0
 
+export GLOG_logtostderr=1
+
 # export RUN_TYPE=GDB
 
 export NCCL_PROTO=Simple
 export NCCL_ALGO=Ring
-# export NCCL_MAX_NCHANNELS=1
+#export NCCL_MAX_NCHANNELS=2
+#export NCCL_MIN_NCHANNELS=2
 # export NCCL_NTHREADS=64
 
-export CUDA_VISIBLE_DEVICES=6,7
 
 export ONEFLOW_ACTOR_ENABLE_LIGHT_ACTOR=0 # 禁用lightweight actor
 
 if [ -z $DEVICE_NUM_PER_NODE ];then
-    DEVICE_NUM_PER_NODE=2
+    DEVICE_NUM_PER_NODE=8
 fi
+# export CUDA_VISIBLE_DEVICES=4,5
 MASTER_ADDR=127.0.0.1
 NUM_NODES=1
 NODE_RANK=0
 
 export GLOG_vmodule=nn_graph*=1,plan_util*=1,of_collective_actor*=1,of_collective_boxing_kernels*=1,collective_backend_ofccl*=1,hierarchical_sub_task_graph_builder_impl=1
 # export GLOG_v=1
-export GLOG_logtostderr=1
 
 echo ONEFLOW_ENABLE_OFCCL=$ONEFLOW_ENABLE_OFCCL
 echo ONEFLOW_OFCCL_SKIP_NEGO=$ONEFLOW_OFCCL_SKIP_NEGO
@@ -131,4 +133,4 @@ $cmd \
         --graph \
         --fuse-bn-relu \
         --fuse-bn-add-relu \
-        > /home/panlichen/work/oneflow/log/1014.log 2>&1
+        # > /home/panlichen/work/oneflow/log/oneflow.log 2>&1
