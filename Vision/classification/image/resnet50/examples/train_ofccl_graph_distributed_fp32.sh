@@ -18,10 +18,15 @@ export NCCL_ALGO=Ring
 
 export ONEFLOW_ACTOR_ENABLE_LIGHT_ACTOR=0 # 禁用lightweight actor
 
+# if [ -z $DEVICE_NUM_PER_NODE ];then
+#     DEVICE_NUM_PER_NODE=4
+# fi
+# export CUDA_VISIBLE_DEVICES=0,1,4,5
+
 if [ -z $DEVICE_NUM_PER_NODE ];then
     DEVICE_NUM_PER_NODE=8
 fi
-# export CUDA_VISIBLE_DEVICES=4,5
+
 MASTER_ADDR=127.0.0.1
 NUM_NODES=1
 NODE_RANK=0
