@@ -11,8 +11,8 @@ export GLOG_logtostderr=1
 
 export NCCL_PROTO=Simple
 export NCCL_ALGO=Ring
-#export NCCL_MAX_NCHANNELS=2
-#export NCCL_MIN_NCHANNELS=2
+# export NCCL_MAX_NCHANNELS=2
+# export NCCL_MIN_NCHANNELS=2
 # export NCCL_NTHREADS=64
 
 
