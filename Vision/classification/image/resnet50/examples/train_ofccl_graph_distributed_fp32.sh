@@ -30,15 +30,16 @@ if [ -z $DEVICE_NUM_PER_NODE ];then
     DEVICE_NUM_PER_NODE=8
 fi
 
-export GLOG_vmodule=nn_graph*=1,plan_util*=1,of_collective_actor*=1,of_collective_boxing_kernels*=1,collective_backend_ofccl*=1,hierarchical_sub_task_graph_builder_impl=1
+export GLOG_vmodule=plan_util*=1,of_collective_actor*=1,of_collective_boxing_kernels*=1,collective_backend_ofccl*=1,hierarchical_sub_task_graph_builder_impl=1
+# nn_graph*=1,
 # export GLOG_v=1
 
 export SHOW_ALL_PREPARED_COLL=1
 export TRAVERSE_TIMES=10
-export TOLERANT_FAIL_CHECK_SQ_CNT=500
+export TOLERANT_FAIL_CHECK_SQ_CNT=5000
 export CNT_BEFORE_QUIT=5
 export TOLERANT_UNPROGRESSED_CNT=50000
-export BASE_CTX_SWITCH_THRESHOLD=100
+export BASE_CTX_SWITCH_THRESHOLD=80
 
 echo TRAVERSE_TIMES=$TRAVERSE_TIMES
 echo TOLERANT_FAIL_CHECK_SQ_CNT=$TOLERANT_FAIL_CHECK_SQ_CNT
