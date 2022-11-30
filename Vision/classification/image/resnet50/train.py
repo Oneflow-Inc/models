@@ -1,6 +1,6 @@
 import os
 import sys
-
+# line 250
 sys.path.append(
     os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
 )
@@ -243,8 +243,10 @@ class Trainer(object):
         self.model.train()
         self.is_train = True
 
-        for _ in range(self.batches_per_epoch):
-        # for _ in range(5):
+        # print(self.batches_per_epoch) # 8卡时候打印8007
+
+        # for _ in range(self.batches_per_epoch):
+        for _ in range(int(self.batches_per_epoch / 8)):
             if self.graph:
                 loss, pred, label = self.train_graph()
             else:
