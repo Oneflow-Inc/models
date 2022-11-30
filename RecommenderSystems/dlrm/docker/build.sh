@@ -1,3 +1,3 @@
 docker build \
   --rm \
-  -t oneflow-dlrm-pip:0.1 -f Dockerfile .
+  -t oneflow-dlrm:0.1 -f Dockerfile .
