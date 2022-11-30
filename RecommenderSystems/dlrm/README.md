@@ -5,11 +5,19 @@
 ## Directory description
 ```
 .
-|-- tools
-  |-- criteo1t_parquet.py    # Read Criteo1T data and export it as parquet data format
-|-- dlrm_train_eval.py       # OneFlow DLRM training and evaluation scripts with OneEmbedding module
-|-- requirements.txt         # python package configuration file
-└── README.md                # Documentation
+├── tools
+│   ├── criteo1t_parquet.py            # make criteo terabyte dataset for OneFlow DLRM by python
+│   ├── criteo1t_parquet.scala         # make criteo terabyte dataset for OneFlow DLRM by spark
+│   ├── criteo1t_parquet_int32.scala   # make criteo terabyte dataset for OneFlow DLRM by spark, int32 for sparse features
+│   ├── launch_spark.sh                # launch spark
+│   ├── parquet_to_raw.py              # convert dataset from parquet to raw format
+│   └── split_day_23.sh                # split day_23 to test and validation set
+├── dlrm_train_eval.py                 # OneFlow DLRM training and evaluation scripts with OneEmbedding module
+├── dlrm_benchmark_a100.py             # OneFlow DLRM benchmark training and evaluation scripts
+├── train_dlrm_benchmark.sh            # OneFlow DLRM benchmark AMP training command
+├── train_dlrm_benchmark_fp32.sh       # OneFlow DLRM benchmark FP32 training command
+├── requirements.txt                   # python package configuration file
+└── README.md                          # Documentation
 ```
 
 ## Arguments description
@@ -123,3 +131,46 @@ python3 -m oneflow.distributed.launch \
       --data_dir /path/to/dlrm_parquet \
       --persistent_path /path/to/persistent
 ```
+
+## Run OneFlow DLRM benchmark
+1. make dlrm raw format dataset (sparse feature dtype = int32)
+  - split day_23 to test.csv and val.csv, in criteo terabyte dataset directory where extracted day_0 to day_23 files located 
+```
+head -n 89137319 day_23 > test.csv
+tail -n +89137320 day_23 > val.csv
+```
+  - launch spark shell in "RecommenderSystems/dlrm/tools" directory:  
+```
+export SPARK_LOCAL_DIRS=/path/to/tmp_spark
+spark-shell \
+    --master "local[*]" \
+    --conf spark.driver.maxResultSize=0 \
+    --driver-memory 360G
+```
+  - load scala file in spark-shell, and execute `makeDlrmDatasetInt32` 
+```
+:load criteo1t_parquet_int32.scala
+makeDlrmDatasetInt32("/path/to/criteo1t_raw", "/path/to/dlrm_parquet_int32")
+```
+  - convert parquet dataset to oneflow raw format
+```
+python parquet_to_raw.py \
+  --input_dir=/path/to/dlrm_parquet_int32 \
+  --output_dir=/path/to/criteo1t_oneflow_raw
+```
+
+2. train OneFlow DLRM benchmark in AMP mode
+```
+./train_dlrm_benchmark.sh /path/to/data_dir 
+```
+note: `train_dlrm_benchmark.sh` takes 3 arguments:
+- $1 is data_dir pointing to criteo1t_oneflow_raw dataset
+- $2 is number of GPUs, default is `8`
+- $3 is to enable oneflow raw reader direct io or not, default is `0`, set `1` to enable direct io  
+
+3. or train OneFlow DLRM benchmark in FP32 mode
+
+```
+./train_dlrm_benchmark_fp32.sh /path/to/data_dir
+```
+

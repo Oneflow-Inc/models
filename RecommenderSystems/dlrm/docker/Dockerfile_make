@@ -1,0 +1,14 @@
+FROM nvcr.io/nvidia/pytorch:22.10-py3
+RUN python3 -m pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
+RUN apt update &&  DEBIAN_FRONTEND=noninteractive apt install -y libopenblas-dev nasm g++ gcc python3-pip cmake autoconf libtool libjemalloc2 google-perftools
+ENV NO_CACHE 9
+RUN git clone https://github.com/Oneflow-Inc/oneflow /oneflow && cd /oneflow && git checkout bbe0b16
+RUN python3 -m pip install -r /oneflow/dev-requirements.txt psutil petastorm
+RUN mkdir /oneflow/build
+RUN cd /oneflow/build 
+RUN cd /oneflow/build && cmake -DCMAKE_CUDA_ARCHITECTURES="80-real" -DCUDA_STATIC=OFF -DWITH_MLIR=YES -DWITH_MLIR_CUDA_CODEGEN=YES .. -C ../cmake/caches/cn/cuda.cmake
+RUN cd /oneflow/build && make -j48
+ENV PYTHONPATH /oneflow/python
+RUN git clone --branch dlrm_benchmark_test --depth 1  https://github.com/Oneflow-Inc/models.git /models
+RUN cd /models/RecommenderSystems/dlrm
+ENV LD_PRELOAD /usr/lib/x86_64-linux-gnu/libjemalloc.so.2
