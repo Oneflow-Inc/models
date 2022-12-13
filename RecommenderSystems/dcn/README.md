@@ -90,7 +90,7 @@ python3 -m pip install -r requirements.txt
 The Criteo dataset is from [2014-kaggle-display-advertising-challenge-dataset](https://www.kaggle.com/competitions/criteo-display-ad-challenge/overview), considered the original download link is invalid, click [here](https://www.kaggle.com/datasets/mrkmakr/criteo-dataset) to donwload if you would.
 
 Each sample contains:
-- Label - Target variable that indicates if an ad was clicked (1) or not (0).
+- label - Target variable that indicates if an ad was clicked (1) or not (0).
 - I1-I13 - A total of 13 columns of integer features (mostly count features).
 - C1-C26 - A total of 26 columns of categorical features. The values of these features have been hashed onto 32 bits for anonymization purposes.
 

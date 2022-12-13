@@ -57,6 +57,12 @@ def get_args(print_args=True):
         action="store_true",
         help="save model after each eval or not",
     )
+    parser.add_argument(
+        "--one_embedding_key_type",
+        type=str,
+        default="int64",
+        help="OneEmbedding key type: int32, int64",
+    )
 
     parser.add_argument(
         "--embedding_vec_size", type=int, default=16, help="embedding vector size"
@@ -191,7 +197,7 @@ class DeepFMDataReader(object):
         self.shard_count = shard_count
         self.cur_shard = cur_shard
 
-        fields = ["Label"]
+        fields = ["label"]
         fields += [f"I{i+1}" for i in range(num_dense_fields)]
         fields += [f"C{i+1}" for i in range(num_sparse_fields)]
         self.fields = fields
@@ -284,6 +290,7 @@ class OneEmbedding(nn.Module):
         store_type,
         cache_memory_budget_mb,
         size_factor,
+        key_type,
     ):
         assert table_size_array is not None
         vocab_size = sum(table_size_array)
@@ -332,7 +339,7 @@ class OneEmbedding(nn.Module):
             name=table_name,
             embedding_dim=embedding_vec_size,
             dtype=flow.float,
-            key_type=flow.int64,
+            key_type=getattr(flow, key_type),
             tables=tables,
             store_options=store_options,
         )
@@ -400,6 +407,7 @@ class DeepFMModule(nn.Module):
         persistent_path=None,
         table_size_array=None,
         one_embedding_store_type="cached_host_mem",
+        one_embedding_key_type="int64",
         cache_memory_budget_mb=8192,
         dropout=0.2,
     ):
@@ -415,6 +423,7 @@ class DeepFMModule(nn.Module):
             store_type=one_embedding_store_type,
             cache_memory_budget_mb=cache_memory_budget_mb,
             size_factor=3,
+            key_type=one_embedding_key_type
         )
 
         self.dnn_layer = DNN(
@@ -450,6 +459,7 @@ def make_deepfm_module(args):
         persistent_path=args.persistent_path,
         table_size_array=args.table_size_array,
         one_embedding_store_type=args.store_type,
+        one_embedding_key_type=args.one_embedding_key_type,
         cache_memory_budget_mb=args.cache_memory_budget_mb,
         dropout=args.net_dropout,
     )
