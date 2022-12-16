@@ -42,7 +42,9 @@ class Trainer(object):
         self.init_logger()
 
         flow.boxing.nccl.set_fusion_threshold_mbytes(self.nccl_fusion_threshold_mb)
-        flow.boxing.nccl.set_fusion_max_ops_num(self.nccl_fusion_max_ops)
+        # flow.boxing.nccl.set_fusion_max_ops_num(self.nccl_fusion_max_ops)
+        flow.boxing.nccl.set_fusion_max_ops_num(1)
+
         if self.use_fp16 and self.num_nodes * self.num_devices_per_node > 1:
             flow.boxing.nccl.enable_use_buffer_to_fuse_all_reduce(False)
 
