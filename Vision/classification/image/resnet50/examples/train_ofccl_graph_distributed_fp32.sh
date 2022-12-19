@@ -124,14 +124,19 @@ mkdir ./log
 if [ -z $RUN_TYPE ];then
     RUN_TYPE="PURE"
     # RUN_TYPE="GDB"
+    # RUN_TYPE="NSYS"
 fi
 
 if [ "$RUN_TYPE" == "PURE" ];then
     cmd="python3 -m oneflow.distributed.launch"
+    export RESNET_ITER_FACTOR=8
 elif [ "$RUN_TYPE" == "GDB" ];then
     cmd="gdb -ex r --args python3 -m oneflow.distributed.launch"
+    export RESNET_ITER_FACTOR=8
 elif [ "$RUN_TYPE" == "NSYS" ];then
-    cmd="nsys profile -f true --trace=cuda,cudnn,cublas,osrt,nvtx -o nsys/$NSYS_FILE python3 -m oneflow.distributed.launch"
+    # cmd="nsys profile -f true --trace=cuda,cudnn,cublas,osrt,nvtx -o /home/panlichen/work/oneflow/log/nsys/$NSYS_FILE python3 -m oneflow.distributed.launch"
+    cmd="nsys profile -f true -o /home/panlichen/work/oneflow/log/nsys/$NSYS_FILE python3 -m oneflow.distributed.launch"
+    export RESNET_ITER_FACTOR=40
 fi
 
 unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY
