@@ -208,7 +208,8 @@ class Trainer(object):
             lr = self.optimizer.param_groups[0]["lr"]
 
         do_print = (
-            self.cur_iter % self.print_interval == 0
+            # self.cur_iter % self.print_interval == 0
+            self.cur_iter % 10 == 0
             or self.cur_iter == self.batches_per_epoch
         )
         self.meter(
@@ -247,8 +248,9 @@ class Trainer(object):
 
         # print(self.batches_per_epoch) # 8卡时候打印8007
 
-        # for _ in range(self.batches_per_epoch):
-        for _ in range(int(self.batches_per_epoch / 8)):
+        import os
+        iter_factor = int(os.environ.get('RESNET_ITER_FACTOR'))
+        for _ in range(int(self.batches_per_epoch / iter_factor)):
             if self.graph:
                 loss, pred, label = self.train_graph()
             else:
