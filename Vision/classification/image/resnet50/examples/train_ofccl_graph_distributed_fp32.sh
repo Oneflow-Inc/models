@@ -113,9 +113,9 @@ VAL_BATCH_SIZE=20
 SRC_DIR=$(realpath $(dirname $0)/..)
 
 if [ $ONEFLOW_ENABLE_OFCCL == "1" ]; then
-    NSYS_FILE="ofccl_resnet"
+    NSYS_FILE="ofccl_resnet"_${HOST}_${DEVICE_NUM_PER_NODE}
 else
-    NSYS_FILE="nccl_resnet"
+    NSYS_FILE="nccl_resnet"_${HOST}_${DEVICE_NUM_PER_NODE}
 fi
 
 rm -rf ./log
@@ -129,14 +129,14 @@ fi
 
 if [ "$RUN_TYPE" == "PURE" ];then
     cmd="python3 -m oneflow.distributed.launch"
-    export RESNET_ITER_FACTOR=8
+    export RESNET_ITER_FACTOR=40
 elif [ "$RUN_TYPE" == "GDB" ];then
     cmd="gdb -ex r --args python3 -m oneflow.distributed.launch"
-    export RESNET_ITER_FACTOR=8
+    export RESNET_ITER_FACTOR=40
 elif [ "$RUN_TYPE" == "NSYS" ];then
     # cmd="nsys profile -f true --trace=cuda,cudnn,cublas,osrt,nvtx -o /home/panlichen/work/oneflow/log/nsys/$NSYS_FILE python3 -m oneflow.distributed.launch"
     cmd="nsys profile -f true -o /home/panlichen/work/oneflow/log/nsys/$NSYS_FILE python3 -m oneflow.distributed.launch"
-    export RESNET_ITER_FACTOR=40
+    export RESNET_ITER_FACTOR=400
 fi
 
 unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY
