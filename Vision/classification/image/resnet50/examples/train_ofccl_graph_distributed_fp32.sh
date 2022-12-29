@@ -94,9 +94,9 @@ elif [ $HOST == "oneflow-16" ]; then
 elif [ $HOST == "oneflow-25" ]; then
     export OFRECORD_PATH=/data/dataset/ImageNet/ofrecord
 elif [ $HOST == "oneflow-26" ]; then
-    export OFRECORD_PATH=/ssd/dataset/ImageNet
+    export OFRECORD_PATH=/ssd/dataset/ImageNet/ofrecord
 elif [ $HOST == "oneflow-27" ]; then
-    export OFRECORD_PATH=/ssd/dataset/ImageNet
+    export OFRECORD_PATH=/ssd/dataset/ImageNet/ofrecord
 elif [ $HOST == "oneflow-28" ]; then
     export OFRECORD_PATH=/ssd/dataset/ImageNet/ofrecord
 else
