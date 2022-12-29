@@ -4,14 +4,8 @@ clear
 MASTER_ADDR=127.0.0.1
 NUM_NODES=1
 NODE_RANK=0
-
-export ONEFLOW_ENABLE_OFCCL=1
-export ONEFLOW_OFCCL_SKIP_NEGO=1
-export ONEFLOW_OFCCL_DUMMY_KERNEL=0
-
 export GLOG_logtostderr=1
-
-# export RUN_TYPE=GDB
+export ONEFLOW_ACTOR_ENABLE_LIGHT_ACTOR=0 # 禁用lightweight actor
 
 export NCCL_PROTO=Simple
 export NCCL_ALGO=Ring
@@ -19,12 +13,22 @@ export NCCL_ALGO=Ring
 # export NCCL_MIN_NCHANNELS=1
 # export NCCL_NTHREADS=64
 
-export ONEFLOW_ACTOR_ENABLE_LIGHT_ACTOR=0 # 禁用lightweight actor
+export ONEFLOW_ENABLE_OFCCL=1
+export ONEFLOW_OFCCL_SKIP_NEGO=1
+export ONEFLOW_OFCCL_DUMMY_KERNEL=0
 
-# DEVICE_NUM_PER_NODE=4
-# export CUDA_VISIBLE_DEVICES=0,1,4,5
+export DEVICE_NUM_PER_NODE=8
+if [ $DEVICE_NUM_PER_NODE = 4 ]; then
+    export CUDA_VISIBLE_DEVICES=0,1,4,5
+fi
 
-DEVICE_NUM_PER_NODE=8
+if [ -z $RUN_TYPE ];then
+    RUN_TYPE="PURE"
+    # RUN_TYPE="GDB"
+    # RUN_TYPE="NSYS"
+fi
+
+export PRINT_INTERVAL=2
 
 export GLOG_vmodule=plan_util*=1,of_collective_actor*=1,of_collective_boxing_kernels*=1,collective_backend_ofccl*=1,hierarchical_sub_task_graph_builder_impl=1
 # nn_graph*=1,
@@ -115,19 +119,13 @@ VAL_BATCH_SIZE=20
 SRC_DIR=$(realpath $(dirname $0)/..)
 
 if [ $ONEFLOW_ENABLE_OFCCL == "1" ]; then
-    NSYS_FILE="ofccl_resnet"_${HOST}_${DEVICE_NUM_PER_NODE}
+    NSYS_FILE="ofccl_resnet"_${HOST}_${DEVICE_NUM_PER_NODE}_card
 else
-    NSYS_FILE="nccl_resnet"_${HOST}_${DEVICE_NUM_PER_NODE}
+    NSYS_FILE="nccl_resnet"_${HOST}_${DEVICE_NUM_PER_NODE}_card
 fi
 
 rm -rf ./log
 mkdir ./log
-
-if [ -z $RUN_TYPE ];then
-    RUN_TYPE="PURE"
-    # RUN_TYPE="GDB"
-    # RUN_TYPE="NSYS"
-fi
 
 if [ "$RUN_TYPE" == "PURE" ];then
     cmd="python3 -m oneflow.distributed.launch"
@@ -136,6 +134,9 @@ elif [ "$RUN_TYPE" == "GDB" ];then
     cmd="gdb -ex r --args python3 -m oneflow.distributed.launch"
     export RESNET_ITER_FACTOR=40
 elif [ "$RUN_TYPE" == "NSYS" ];then
+    if [ ! -d "/home/panlichen/work/oneflow/log/nsys" ];then
+        mkdir -p /home/panlichen/work/oneflow/log/nsys
+    fi
     # cmd="nsys profile -f true --trace=cuda,cudnn,cublas,osrt,nvtx -o /home/panlichen/work/oneflow/log/nsys/$NSYS_FILE python3 -m oneflow.distributed.launch"
     cmd="nsys profile -f true -o /home/panlichen/work/oneflow/log/nsys/$NSYS_FILE python3 -m oneflow.distributed.launch"
     export RESNET_ITER_FACTOR=400
