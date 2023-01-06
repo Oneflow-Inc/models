@@ -93,7 +93,7 @@ if [ ! -d "$CHECKPOINT_SAVE_PATH" ]; then
 fi
 
 if [ $HOST == "oneflow-15" ]; then
-    export OFRECORD_PATH=/home/panlichen/dataset/ImageNet/ofrecord
+    export OFRECORD_PATH=/minio/sdd/dataset/imagenette/ofrecord
 elif [ $HOST == "oneflow-16" ]; then
     export OFRECORD_PATH=/dataset/ImageNet/ofrecord
 elif [ $HOST == "oneflow-25" ]; then
@@ -165,4 +165,4 @@ $cmd \
         --graph \
         --fuse-bn-relu \
         --fuse-bn-add-relu \
-        > /home/panlichen/work/oneflow/log/oneflow.log 2>&1
+        # > /home/panlichen/work/oneflow/log/oneflow.log 2>&1
