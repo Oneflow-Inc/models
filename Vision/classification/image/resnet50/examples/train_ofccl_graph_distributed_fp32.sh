@@ -15,9 +15,9 @@ export NCCL_ALGO=Ring
 
 export ONEFLOW_ENABLE_OFCCL=1
 export ONEFLOW_OFCCL_SKIP_NEGO=1
-export ONEFLOW_OFCCL_DUMMY_KERNEL=0
+export ONEFLOW_OFCCL_ORDERED_ISSUE_AR=1
 
-export DEVICE_NUM_PER_NODE=8
+export DEVICE_NUM_PER_NODE=2
 if [ $DEVICE_NUM_PER_NODE = 4 ]; then
     export CUDA_VISIBLE_DEVICES=0,1,4,5
 fi
@@ -28,9 +28,15 @@ if [ -z $RUN_TYPE ];then
     # RUN_TYPE="NSYS"
 fi
 
+if [ $ONEFLOW_ENABLE_OFCCL == "1" ]; then
+    NSYS_FILE="ofccl_resnet"_${HOST}_${DEVICE_NUM_PER_NODE}_card_reverse_ordered_issue
+else
+    NSYS_FILE="nccl_resnet"_${HOST}_${DEVICE_NUM_PER_NODE}_card
+fi
+
 export PRINT_INTERVAL=2
 
-export GLOG_vmodule=plan_util*=1,of_collective_actor*=1,of_collective_boxing_kernels*=1,collective_backend_ofccl*=1,hierarchical_sub_task_graph_builder_impl=1
+export GLOG_vmodule=plan_util*=1,of_collective_actor*=1,of_collective_boxing_kernels*=1,collective_backend_ofccl*=1,hierarchical_sub_task_graph_builder_impl*=1,of_request_store*=1
 # nn_graph*=1,
 # export GLOG_v=1
 
@@ -59,7 +65,6 @@ fi
 
 echo ONEFLOW_ENABLE_OFCCL=$ONEFLOW_ENABLE_OFCCL
 echo ONEFLOW_OFCCL_SKIP_NEGO=$ONEFLOW_OFCCL_SKIP_NEGO
-echo ONEFLOW_OFCCL_DUMMY_KERNEL=$ONEFLOW_OFCCL_DUMMY_KERNEL
 echo NCCL_PROTO=$NCCL_PROTO
 echo NCCL_ALGO=$NCCL_ALGO
 echo NCCL_MAX_NCHANNELS=$NCCL_MAX_NCHANNELS
@@ -118,12 +123,6 @@ VAL_BATCH_SIZE=20
 # SRC_DIR=/path/to/models/resnet50
 SRC_DIR=$(realpath $(dirname $0)/..)
 
-if [ $ONEFLOW_ENABLE_OFCCL == "1" ]; then
-    NSYS_FILE="ofccl_resnet"_${HOST}_${DEVICE_NUM_PER_NODE}_card
-else
-    NSYS_FILE="nccl_resnet"_${HOST}_${DEVICE_NUM_PER_NODE}_card
-fi
-
 rm -rf ./log
 mkdir ./log
 
@@ -166,4 +165,4 @@ $cmd \
         --graph \
         --fuse-bn-relu \
         --fuse-bn-add-relu \
-        # > /home/panlichen/work/oneflow/log/oneflow.log 2>&1
+        > /home/panlichen/work/oneflow/log/oneflow.log 2>&1
