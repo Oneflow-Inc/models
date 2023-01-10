@@ -15,13 +15,15 @@ export NCCL_ALGO=Ring
 
 export ONEFLOW_ENABLE_OFCCL=1
 export ONEFLOW_OFCCL_SKIP_NEGO=0
-export ONEFLOW_OFCCL_ORDERED_ISSUE_AR=1
 export ONEFLOW_DEBUG_MODE=1
 export ONEFLOW_PROFILER_KERNEL_PROFILE_KERNEL_FORWARD_RANGE=1
 
-export DEVICE_NUM_PER_NODE=4
+export DEVICE_NUM_PER_NODE=2
 if [ $DEVICE_NUM_PER_NODE = 4 ]; then
     export CUDA_VISIBLE_DEVICES=0,1,4,5
+fi
+if [ $DEVICE_NUM_PER_NODE = 2 ]; then
+    export CUDA_VISIBLE_DEVICES=4,5
 fi
 
 if [ -z $RUN_TYPE ];then
@@ -38,7 +40,7 @@ fi
 
 export PRINT_INTERVAL=2
 
-export GLOG_vmodule=plan_util*=1,of_collective_actor*=1,of_collective_boxing_kernels*=1,collective_backend_ofccl*=1,hierarchical_sub_task_graph_builder_impl*=1,of_request_store*=1
+export GLOG_vmodule=plan_util*=1,of_collective_actor*=1,of_collective_boxing_kernels*=1,collective_backend_ofccl*=1,hierarchical_sub_task_graph_builder_impl*=1,of_request_store*=1,request_store*=1,runtime*=1,scheduler*=1,collective_manager*=1
 # nn_graph*=1,
 # export GLOG_v=1
 
@@ -49,6 +51,7 @@ export TOLERANT_UNPROGRESSED_CNT=10000
 export BASE_CTX_SWITCH_THRESHOLD=80
 export BOUNS_SWITCH_4_PROCESSED_COLL=0
 export DEV_TRY_ROUND=10
+export DEBUG_FILE="/home/panlichen/work/oneflow/log/oneflow_cpu_rank_"
 
 # export ENABLE_VQ=1
 # export TOLERANT_FAIL_CHECK_SQ_CNT=5000
@@ -59,6 +62,7 @@ echo TOLERANT_UNPROGRESSED_CNT=$TOLERANT_UNPROGRESSED_CNT
 echo BASE_CTX_SWITCH_THRESHOLD=$BASE_CTX_SWITCH_THRESHOLD
 echo BOUNS_SWITCH_4_PROCESSED_COLL=$BOUNS_SWITCH_4_PROCESSED_COLL
 echo DEV_TRY_ROUND=$DEV_TRY_ROUND
+echo DEBUG_FILE=$DEBUG_FILE
 
 if [ ! -z $BINARY ];then
     echo TOLERANT_FAIL_CHECK_SQ_CNT=$TOLERANT_FAIL_CHECK_SQ_CNT
@@ -85,9 +89,6 @@ echo PYTHONUNBUFFERED=$PYTHONUNBUFFERED
 export NCCL_LAUNCH_MODE=PARALLEL
 echo NCCL_LAUNCH_MODE=$NCCL_LAUNCH_MODE
 # export NCCL_DEBUG=INFO
-
-# export NCCL_MAX_NCHANNELS=1
-# export NCCL_NTHREADS=64
 
 CHECKPOINT_SAVE_PATH="./graph_distributed_fp32_checkpoints"
 if [ ! -d "$CHECKPOINT_SAVE_PATH" ]; then
@@ -126,7 +127,10 @@ VAL_BATCH_SIZE=20
 SRC_DIR=$(realpath $(dirname $0)/..)
 
 rm -rf ./log
-mkdir ./log
+mkdir -p ./log
+
+rm -rf /home/panlichen/work/oneflow/log
+mkdir -p /home/panlichen/work/oneflow/log
 
 if [ "$RUN_TYPE" == "PURE" ];then
     cmd="python3 -m oneflow.distributed.launch"
@@ -167,4 +171,4 @@ $cmd \
         --graph \
         --fuse-bn-relu \
         --fuse-bn-add-relu \
-        # > /home/panlichen/work/oneflow/log/oneflow.log 2>&1
+        > /home/panlichen/work/oneflow/log/oneflow.log 2>&1
