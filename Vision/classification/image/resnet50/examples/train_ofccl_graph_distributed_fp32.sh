@@ -47,10 +47,11 @@ export GLOG_vmodule=plan_util*=1,of_collective_actor*=1,of_collective_boxing_ker
 export SHOW_ALL_PREPARED_COLL=0
 
 export TRAVERSE_TIMES=10
-export TOLERANT_UNPROGRESSED_CNT=10000
+export TOLERANT_UNPROGRESSED_CNT=100
 export BASE_CTX_SWITCH_THRESHOLD=80
 export BOUNS_SWITCH_4_PROCESSED_COLL=0
 export DEV_TRY_ROUND=10
+export CHECK_REMAINING_SQE_INTERVAL=10000
 export DEBUG_FILE="/home/panlichen/work/oneflow/log/oneflow_cpu_rank_"
 
 # export ENABLE_VQ=1
@@ -63,6 +64,7 @@ echo TOLERANT_UNPROGRESSED_CNT=$TOLERANT_UNPROGRESSED_CNT
 echo BASE_CTX_SWITCH_THRESHOLD=$BASE_CTX_SWITCH_THRESHOLD
 echo BOUNS_SWITCH_4_PROCESSED_COLL=$BOUNS_SWITCH_4_PROCESSED_COLL
 echo DEV_TRY_ROUND=$DEV_TRY_ROUND
+echo CHECK_REMAINING_SQE_INTERVAL=$CHECK_REMAINING_SQE_INTERVAL
 echo DEBUG_FILE=$DEBUG_FILE
 
 if [ ! -z $BINARY ];then
@@ -172,4 +174,4 @@ $cmd \
         --graph \
         --fuse-bn-relu \
         --fuse-bn-add-relu \
-        > /home/panlichen/work/oneflow/log/oneflow.log 2>&1
+        # > /home/panlichen/work/oneflow/log/oneflow.log 2>&1
