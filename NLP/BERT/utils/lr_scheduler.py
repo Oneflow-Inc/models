@@ -1,6 +1,6 @@
 import math
 import oneflow as flow
-from oneflow.nn.optimizer.lr_scheduler import LrScheduler
+from oneflow.optim.lr_scheduler import _LRScheduler as LrScheduler
 
 
 class PolynomialLR(LrScheduler):
@@ -50,19 +50,18 @@ class PolynomialLR(LrScheduler):
         self.cycle = cycle
         super().__init__(optimizer, last_step, verbose)
 
-    def get_lr(self):
+    def get_lr(self, base_lr, step):
         decay_batch = self.max_decay_steps
-        cur_batch = self.last_step
+        cur_batch = step
         if self.cycle:
+            if cur_batch == 0:
+                cur_batch = 1
             decay_batch = decay_batch * math.ceil(cur_batch / decay_batch)
         else:
             cur_batch = min(cur_batch, decay_batch)
-        return [
-            (base_lr - self.end_learning_rate)
-            * ((1 - cur_batch / decay_batch) ** (self.power))
-            + self.end_learning_rate
-            for base_lr in self.base_lrs
-        ]
+
+        factor = (1 - cur_batch / decay_batch) ** (self.power)
+        return (base_lr - self.end_learning_rate) * factor + self.end_learning_rate
 
     def _generate_conf_for_graph(self, opt_confs):
         # CosineDecayLR is the same as CosineDecayConf in nn.Graph
