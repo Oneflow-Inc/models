@@ -44,7 +44,7 @@ export GLOG_vmodule=plan_util*=1,of_collective_actor*=1,of_collective_boxing_ker
 # nn_graph*=1,
 # export GLOG_v=1
 
-export SHOW_ALL_PREPARED_COLL=0
+export SHOW_ALL_PREPARED_COLL=1
 
 export TRAVERSE_TIMES=10
 export TOLERANT_UNPROGRESSED_CNT=100
