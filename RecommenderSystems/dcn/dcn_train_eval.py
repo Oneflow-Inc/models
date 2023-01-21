@@ -44,6 +44,8 @@ def get_args(print_args=True):
     parser.add_argument(
         "--save_model_after_each_eval", action="store_true", help="save model after each eval.",
     )
+
+    parser.add_argument("--disable_fusedmlp", action="store_true", help="disable fused MLP or not")
     parser.add_argument("--embedding_vec_size", type=int, default=16)
     parser.add_argument("--batch_norm", type=bool, default=False)
     parser.add_argument("--dnn_hidden_units", type=int_list, default="1000,1000,1000,1000,1000")
@@ -300,19 +302,38 @@ class CrossNet(nn.Module):
 
 class DNN(nn.Module):
     def __init__(
-        self, input_dim, hidden_units=[], dropout_rates=0, batch_norm=False, use_bias=True,
+        self,
+        input_dim,
+        hidden_units=[],
+        dropout_rates=0,
+        use_fusedmlp=True,
+        batch_norm=False,
+        use_bias=True,
     ):
         super(DNN, self).__init__()
         dense_layers = []
-        hidden_units = [input_dim] + hidden_units
-        for idx in range(len(hidden_units) - 1):
-            dense_layers.append(nn.Linear(hidden_units[idx], hidden_units[idx + 1], bias=use_bias))
-            dense_layers.append(nn.ReLU())
-            if batch_norm:
-                dense_layers.append(nn.BatchNorm1d(hidden_units[idx + 1]))
-            if dropout_rates > 0:
-                dense_layers.append(nn.Dropout(p=dropout_rates))
-        self.dnn = nn.Sequential(*dense_layers)  # * used to unpack list
+        if use_fusedmlp and not batch_norm:
+            hidden_dropout_rates_list = [dropout_rates] * (len(hidden_units) - 1)
+            self.dnn = nn.FusedMLP(
+                input_dim,
+                hidden_units[:-1],
+                hidden_units[-1],
+                hidden_dropout_rates_list,
+                dropout_rates,
+                False,
+            )
+        else:
+            hidden_units = [input_dim] + hidden_units
+            for idx in range(len(hidden_units) - 1):
+                dense_layers.append(
+                    nn.Linear(hidden_units[idx], hidden_units[idx + 1], bias=use_bias)
+                )
+                dense_layers.append(nn.ReLU())
+                if batch_norm:
+                    dense_layers.append(nn.BatchNorm1d(hidden_units[idx + 1]))
+                if dropout_rates > 0:
+                    dense_layers.append(nn.Dropout(p=dropout_rates))
+            self.dnn = nn.Sequential(*dense_layers)  # * used to unpack list
 
     def forward(self, inputs):
         return self.dnn(inputs)
@@ -328,6 +349,7 @@ class DCNModule(nn.Module):
         cache_memory_budget_mb,
         size_factor,
         dnn_hidden_units=[128, 128],
+        use_fusedmlp=True,
         crossing_layers=3,
         net_dropout=0.2,
         batch_norm=False,
@@ -351,6 +373,7 @@ class DCNModule(nn.Module):
                 input_dim=input_dim,
                 hidden_units=dnn_hidden_units,
                 dropout_rates=net_dropout,
+                use_fusedmlp=use_fusedmlp,
                 batch_norm=batch_norm,
                 use_bias=True,
             )
@@ -378,7 +401,7 @@ class DCNModule(nn.Module):
         else:
             final_out = cross_out
         y_pred = self.fc(final_out)
-        return y_pred.sigmoid()
+        return y_pred
 
     def reset_parameters(self):
         def reset_param(m):
@@ -398,6 +421,7 @@ def make_dcn_module(args):
         one_embedding_store_type=args.store_type,
         cache_memory_budget_mb=args.cache_memory_budget_mb,
         dnn_hidden_units=args.dnn_hidden_units,
+        use_fusedmlp=not args.disable_fusedmlp,
         crossing_layers=args.crossing_layers,
         net_dropout=args.net_dropout,
         batch_norm=args.batch_norm,
@@ -415,7 +439,7 @@ class DCNValGraph(flow.nn.Graph):
 
     def build(self, features):
         predicts = self.module(features.to("cuda"))
-        return predicts
+        return predicts.sigmoid()
 
 
 class DCNTrainGraph(flow.nn.Graph):
@@ -436,19 +460,35 @@ class DCNTrainGraph(flow.nn.Graph):
     def build(self, labels, features):
 
         logits = self.module(features.to("cuda")).squeeze()
-        loss = self.loss(logits, labels.squeeze().to("cuda"))
-        reduce_loss = flow.mean(loss)
-        reduce_loss.backward()
+        # loss = self.loss(logits, labels.squeeze().to("cuda"))
+        # reduce_loss = flow.mean(loss)
 
+        reduce_loss = self.loss(logits, labels.squeeze().to("cuda"))
+        reduce_loss.backward()
         return reduce_loss.to("cpu")
 
 
+# def make_lr_scheduler(args, optimizer):
+#     batches_per_epoch = math.ceil(args.num_train_samples / args.train_batch_size)
+#     multistep_lr = flow.optim.lr_scheduler.MultiStepLR(
+#         optimizer, milestones=[3 * batches_per_epoch], gamma=args.lr_factor
+#     )
+#     return multistep_lr
+
 def make_lr_scheduler(args, optimizer):
-    batches_per_epoch = math.ceil(args.num_train_samples / args.train_batch_size)
-    multistep_lr = flow.optim.lr_scheduler.MultiStepLR(
-        optimizer, milestones=[3 * batches_per_epoch], gamma=args.lr_factor
+    warmup_lr = flow.optim.lr_scheduler.LinearLR(
+        optimizer, start_factor=0, total_iters=2750,
     )
-    return multistep_lr
+    poly_decay_lr = flow.optim.lr_scheduler.PolynomialLR(
+        optimizer, decay_batch=40000, end_learning_rate=1e-6, power=2.0, cycle=False,
+    )
+    sequential_lr = flow.optim.lr_scheduler.SequentialLR(
+        optimizer=optimizer,
+        schedulers=[warmup_lr, poly_decay_lr],
+        milestones=[40000],
+        interval_rescaling=True,
+    )
+    return sequential_lr
 
 
 def train(args):
@@ -510,7 +550,8 @@ def train(args):
 
     opt = flow.optim.Adam(dcn_module.parameters(), lr=args.learning_rate)
     lr_scheduler = None
-    loss_func = flow.nn.BCELoss(reduction="none").to("cuda")
+    # loss_func = flow.nn.BCELoss(reduction="none").to("cuda")
+    loss_func = flow.nn.BCEWithLogitsLoss(reduction="mean").to("cuda")
 
     if args.loss_scale_policy == "static":
         grad_scaler = flow.amp.StaticGradScaler(1024)
@@ -554,7 +595,7 @@ def train(args):
                         + f"Latency {(latency * 1000):0.3f} ms, Throughput {throughput:0.1f}, {strtime}"
                     )
 
-            if step % batches_per_epoch == 0:
+            if step % 10000 == 0:
                 epoch += 1
                 val_auc, val_logloss = eval(
                     args,
@@ -562,29 +603,29 @@ def train(args):
                     tag="val",
                     cur_step=step,
                     epoch=epoch,
-                    cached_eval_batches=cached_valid_batches,
+                    cached_eval_batches=None,
                 )
-                if args.save_model_after_each_eval:
-                    save_model(f"step_{step}_val_auc_{val_auc:0.5f}")
+                # if args.save_model_after_each_eval:
+                #     save_model(f"step_{step}_val_auc_{val_auc:0.5f}")
 
-                monitor_value = get_metrics(logs={"auc": val_auc, "logloss": val_logloss})
+                # monitor_value = get_metrics(logs={"auc": val_auc, "logloss": val_logloss})
 
-                stop_training, best_metric, stopping_steps, save_best = early_stop(
-                    epoch,
-                    monitor_value,
-                    best_metric=best_metric,
-                    stopping_steps=stopping_steps,
-                    patience=args.patience,
-                    min_delta=args.min_delta,
-                )
+                # stop_training, best_metric, stopping_steps, save_best = early_stop(
+                #     epoch,
+                #     monitor_value,
+                #     best_metric=best_metric,
+                #     stopping_steps=stopping_steps,
+                #     patience=args.patience,
+                #     min_delta=args.min_delta,
+                # )
 
-                if args.save_best_model and save_best:
-                    if rank == 0:
-                        print(f"Save best model: monitor(max): {best_metric:.6f}")
-                    save_model("best_checkpoint")
+                # if args.save_best_model and save_best:
+                #     if rank == 0:
+                #         print(f"Save best model: monitor(max): {best_metric:.6f}")
+                #     save_model("best_checkpoint")
 
-                if not args.disable_early_stop and stop_training:
-                    break
+                # if not args.disable_early_stop and stop_training:
+                #     break
 
                 dcn_module.train()
                 last_time = time.time()
