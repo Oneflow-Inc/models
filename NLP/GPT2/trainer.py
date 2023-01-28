@@ -119,7 +119,7 @@ class Trainer:
                 "step": step,
                 "avg_loss": losses.avg,
                 "loss": losses.val,
-                "lr": self.lr_scheduler.get_lr()[0],
+                "lr": self.lr_scheduler.get_last_lr()[0],
             }
             data_iter.set_postfix(logging)
 

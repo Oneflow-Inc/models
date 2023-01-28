@@ -124,7 +124,7 @@ class GPT2Attention(nn.Module):
         bsz, seq_len = tensor.size()[:-2]
         # new_shape = tensor.size()[:-2] + (num_heads * attn_head_size,)
         new_shape = (bsz, seq_len, num_heads * attn_head_size)
-        return tensor.view(*new_shape)
+        return tensor.reshape(*new_shape)
 
     def forward(self, hidden_states, layer_past=None, use_cache=False):
         hidden_states = self.c_attn(hidden_states)
@@ -356,8 +356,8 @@ class GPT2LMHeadModel(nn.Module):
 
             # Flatten the tokens
             loss_fct = nn.CrossEntropyLoss()
-            shift_logits = shift_logits.view(-1, shift_logits.size(-1))
-            shift_labels = shift_labels.view(-1)
+            shift_logits = shift_logits.reshape(-1, shift_logits.size(-1))
+            shift_labels = shift_labels.reshape(-1)
             loss = loss_fct(shift_logits, shift_labels)
 
         output = (lm_logits,) + transformer_outputs[1:]
