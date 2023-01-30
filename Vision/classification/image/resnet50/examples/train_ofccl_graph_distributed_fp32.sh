@@ -38,7 +38,7 @@ else
     NSYS_FILE="nccl_resnet"_${HOST}_${DEVICE_NUM_PER_NODE}_card
 fi
 
-export PRINT_INTERVAL=2
+export PRINT_INTERVAL=1
 
 export GLOG_vmodule=plan_util*=1,of_collective_actor*=1,of_collective_boxing_kernels*=1,collective_backend_ofccl*=1,hierarchical_sub_task_graph_builder_impl*=1,of_request_store*=1,request_store*=1,runtime*=1,scheduler*=1,collective_manager*=1
 # nn_graph*=1,
@@ -137,7 +137,7 @@ mkdir -p /home/panlichen/work/oneflow/log
 
 if [ "$RUN_TYPE" == "PURE" ];then
     cmd="python3 -m oneflow.distributed.launch"
-    export RESNET_ITER_FACTOR=40
+    export RESNET_ITER_FACTOR=400
 elif [ "$RUN_TYPE" == "GDB" ];then
     cmd="gdb -ex r --args python3 -m oneflow.distributed.launch"
     export RESNET_ITER_FACTOR=40
@@ -174,4 +174,4 @@ $cmd \
         --graph \
         --fuse-bn-relu \
         --fuse-bn-add-relu \
-        # > /home/panlichen/work/oneflow/log/oneflow.log 2>&1
+        > /home/panlichen/work/oneflow/log/oneflow.log 2>&1
