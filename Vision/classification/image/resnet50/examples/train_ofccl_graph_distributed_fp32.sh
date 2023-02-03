@@ -140,7 +140,7 @@ if [ "$RUN_TYPE" == "PURE" ];then
     export RESNET_ITER_FACTOR=400
 elif [ "$RUN_TYPE" == "GDB" ];then
     cmd="gdb -ex r --args python3 -m oneflow.distributed.launch"
-    export RESNET_ITER_FACTOR=40
+    export RESNET_ITER_FACTOR=400
 elif [ "$RUN_TYPE" == "NSYS" ];then
     if [ ! -d "/home/panlichen/work/oneflow/log/nsys" ];then
         mkdir -p /home/panlichen/work/oneflow/log/nsys
