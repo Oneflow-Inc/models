@@ -19,12 +19,6 @@ export ONEFLOW_DEBUG_MODE=1
 export ONEFLOW_PROFILER_KERNEL_PROFILE_KERNEL_FORWARD_RANGE=1
 
 export DEVICE_NUM_PER_NODE=$1
-if [ $DEVICE_NUM_PER_NODE = 4 ]; then
-    export CUDA_VISIBLE_DEVICES=0,1,4,5
-fi
-if [ $DEVICE_NUM_PER_NODE = 2 ]; then
-    export CUDA_VISIBLE_DEVICES=4,5
-fi
 
 if [ -z $RUN_TYPE ];then
     RUN_TYPE="PURE"
@@ -44,15 +38,30 @@ export GLOG_vmodule=plan_util*=1,of_collective_actor*=1,of_collective_boxing_ker
 # nn_graph*=1,
 # export GLOG_v=1
 
-export SHOW_ALL_PREPARED_COLL=1
+export SHOW_ALL_PREPARED_COLL=0
 
 export TRAVERSE_TIMES=10
-export TOLERANT_UNPROGRESSED_CNT=100
-export BASE_CTX_SWITCH_THRESHOLD=80
-export BOUNS_SWITCH_4_PROCESSED_COLL=0
 export DEV_TRY_ROUND=10
 export CHECK_REMAINING_SQE_INTERVAL=10000
 export DEBUG_FILE="/home/panlichen/work/oneflow/log/oneflow_cpu_rank_"
+
+if [ $DEVICE_NUM_PER_NODE = 2 ]; then
+    export CUDA_VISIBLE_DEVICES=4,5
+
+    export BASE_CTX_SWITCH_THRESHOLD=100
+    export TOLERANT_UNPROGRESSED_CNT=2000
+    export NUM_TRY_TASKQ_HEAD=40
+elif [ $DEVICE_NUM_PER_NODE = 4 ]; then
+    export CUDA_VISIBLE_DEVICES=0,1,4,5
+
+    export BASE_CTX_SWITCH_THRESHOLD=80
+    export TOLERANT_UNPROGRESSED_CNT=10000
+    export NUM_TRY_TASKQ_HEAD=50
+elif [  $DEVICE_NUM_PER_NODE = 8 ]; then
+    export BASE_CTX_SWITCH_THRESHOLD=100
+    export TOLERANT_UNPROGRESSED_CNT=11000
+    export NUM_TRY_TASKQ_HEAD=50
+fi
 
 # export ENABLE_VQ=1
 # export TOLERANT_FAIL_CHECK_SQ_CNT=5000
@@ -62,7 +71,7 @@ echo DEVICE_NUM_PER_NODE=$DEVICE_NUM_PER_NODE
 echo TRAVERSE_TIMES=$TRAVERSE_TIMES
 echo TOLERANT_UNPROGRESSED_CNT=$TOLERANT_UNPROGRESSED_CNT
 echo BASE_CTX_SWITCH_THRESHOLD=$BASE_CTX_SWITCH_THRESHOLD
-echo BOUNS_SWITCH_4_PROCESSED_COLL=$BOUNS_SWITCH_4_PROCESSED_COLL
+echo NUM_TRY_TASKQ_HEAD=$NUM_TRY_TASKQ_HEAD
 echo DEV_TRY_ROUND=$DEV_TRY_ROUND
 echo CHECK_REMAINING_SQE_INTERVAL=$CHECK_REMAINING_SQE_INTERVAL
 echo DEBUG_FILE=$DEBUG_FILE
@@ -137,7 +146,7 @@ mkdir -p /home/panlichen/work/oneflow/log
 
 if [ "$RUN_TYPE" == "PURE" ];then
     cmd="python3 -m oneflow.distributed.launch"
-    export RESNET_ITER_FACTOR=400
+    export RESNET_ITER_FACTOR=40
 elif [ "$RUN_TYPE" == "GDB" ];then
     cmd="gdb -ex r --args python3 -m oneflow.distributed.launch"
     export RESNET_ITER_FACTOR=400
