@@ -26,7 +26,7 @@ if [ -z $RUN_TYPE ];then
     # RUN_TYPE="NSYS"
 fi
 
-if [ $ONEFLOW_ENABLE_OFCCL == "1" ]; then
+if [ "$ONEFLOW_ENABLE_OFCCL" == "1" ]; then
     NSYS_FILE="ofccl_resnet"_${HOST}_${DEVICE_NUM_PER_NODE}_card_reverse_ordered_issue
 else
     NSYS_FILE="nccl_resnet"_${HOST}_${DEVICE_NUM_PER_NODE}_card
