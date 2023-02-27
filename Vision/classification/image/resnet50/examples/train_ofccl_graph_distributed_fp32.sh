@@ -61,10 +61,10 @@ elif [ $DEVICE_NUM_PER_NODE = 4 ]; then
     export TOLERANT_UNPROGRESSED_CNT=10000
     export NUM_TRY_TASKQ_HEAD=50
 elif [  $DEVICE_NUM_PER_NODE = 8 ]; then
-    export RECV_SUCCESS_FACTOR=5
-    export RECV_SUCCESS_THRESHOLD=10000
-    export BASE_CTX_SWITCH_THRESHOLD=100
-    export TOLERANT_UNPROGRESSED_CNT=11000
+    export RECV_SUCCESS_FACTOR=10
+    export RECV_SUCCESS_THRESHOLD=10000000
+    export BASE_CTX_SWITCH_THRESHOLD=90000
+    export TOLERANT_UNPROGRESSED_CNT=60000
     export NUM_TRY_TASKQ_HEAD=50
 fi
 
@@ -136,7 +136,7 @@ MOM=0.875
 EPOCH=50
 # TRAIN_BATCH_SIZE=96
 # VAL_BATCH_SIZE=50
-TRAIN_BATCH_SIZE=20
+TRAIN_BATCH_SIZE=48
 VAL_BATCH_SIZE=20
 # TRAIN_BATCH_SIZE=50
 # VAL_BATCH_SIZE=50
@@ -153,9 +153,11 @@ mkdir -p /home/panlichen/work/oneflow/log
 if [ "$RUN_TYPE" == "PURE" ];then
     cmd="python3 -m oneflow.distributed.launch"
     export RESNET_ITER_FACTOR=40
+    export NUM_ITERS=200
 elif [ "$RUN_TYPE" == "GDB" ];then
     cmd="gdb -ex r --args python3 -m oneflow.distributed.launch"
     export RESNET_ITER_FACTOR=400
+    export NUM_ITERS=20
 elif [ "$RUN_TYPE" == "NSYS" ];then
     if [ ! -d "/home/panlichen/work/oneflow/log/nsys" ];then
         mkdir -p /home/panlichen/work/oneflow/log/nsys
@@ -163,6 +165,7 @@ elif [ "$RUN_TYPE" == "NSYS" ];then
     # cmd="nsys profile -f true --trace=cuda,cudnn,cublas,osrt,nvtx -o /home/panlichen/work/oneflow/log/nsys/$NSYS_FILE python3 -m oneflow.distributed.launch"
     cmd="nsys profile -f true -o /home/panlichen/work/oneflow/log/nsys/$NSYS_FILE python3 -m oneflow.distributed.launch"
     export RESNET_ITER_FACTOR=400
+    export NUM_ITERS=20
 fi
 
 unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY

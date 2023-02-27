@@ -246,13 +246,16 @@ class Trainer(object):
         self.model.train()
         self.is_train = True
 
-        # print(self.batches_per_epoch) # 8卡时候打印8007
+        # print(self.batches_per_epoch) # 8卡时候打印8007，那是因为那时候的batchsize是20
 
         iter_factor = int(os.environ.get('RESNET_ITER_FACTOR'))
         ncard = int(os.environ.get('DEVICE_NUM_PER_NODE'))
         iter_factor *= (8/ncard)
 
-        for _ in range(int(self.batches_per_epoch / iter_factor)):
+        num_iters = int(os.environ.get('NUM_ITERS'))
+
+        # for _ in range(int(self.batches_per_epoch / iter_factor)):
+        for _ in range(num_iters):
             if self.graph:
                 loss, pred, label = self.train_graph()
             else:
