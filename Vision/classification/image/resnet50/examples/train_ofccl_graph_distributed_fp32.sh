@@ -32,7 +32,7 @@ else
     NSYS_FILE="nccl_resnet"_${HOST}_${DEVICE_NUM_PER_NODE}_card
 fi
 
-export PRINT_INTERVAL=1
+export PRINT_INTERVAL=50
 
 export GLOG_vmodule=plan_util*=1,of_collective_actor*=1,of_collective_boxing_kernels*=1,collective_backend_ofccl*=1,hierarchical_sub_task_graph_builder_impl*=1,of_request_store*=1,request_store*=1,runtime*=1,scheduler*=1,collective_manager*=1
 # nn_graph*=1,
