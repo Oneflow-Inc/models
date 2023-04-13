@@ -165,4 +165,4 @@ $cmd \
         --graph \
         --fuse-bn-relu \
         --fuse-bn-add-relu \
-        > /home/panlichen/work/oneflow/log/oneflow.log 2>&1
+        # > /home/panlichen/work/oneflow/log/oneflow.log 2>&1
