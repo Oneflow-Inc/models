@@ -29,6 +29,7 @@ wheels/
 MANIFEST
 output/
 log/
+nsys/
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -149,3 +150,4 @@ result
 imagenette2/
 nanodataset/
 data-test/
+*checkpoints/

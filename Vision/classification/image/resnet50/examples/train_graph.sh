@@ -8,7 +8,8 @@ if [ ! -d "$CHECKPOINT_SAVE_PATH" ]; then
     mkdir $CHECKPOINT_SAVE_PATH
 fi
 
-OFRECORD_PATH="./mini-imagenet/ofrecord"
+# OFRECORD_PATH="./mini-imagenet/ofrecord"
+OFRECORD_PATH=/dataset/ImageNet/ofrecord
 
 if [ ! -d "$OFRECORD_PATH" ]; then
     wget https://oneflow-public.oss-cn-beijing.aliyuncs.com/online_document/dataset/imagenet/mini-imagenet.zip
@@ -19,8 +20,10 @@ OFRECORD_PART_NUM=1
 LEARNING_RATE=0.256
 MOM=0.875
 EPOCH=90
-TRAIN_BATCH_SIZE=50
-VAL_BATCH_SIZE=50
+# TRAIN_BATCH_SIZE=50
+# VAL_BATCH_SIZE=50
+TRAIN_BATCH_SIZE=20
+VAL_BATCH_SIZE=20
 
 # SRC_DIR=/path/to/models/resnet50
 SRC_DIR=$(realpath $(dirname $0)/..)

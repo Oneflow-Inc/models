@@ -1,6 +1,6 @@
 import os
 import sys
-
+# line 250
 sys.path.append(
     os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
 )
@@ -42,7 +42,9 @@ class Trainer(object):
         self.init_logger()
 
         flow.boxing.nccl.set_fusion_threshold_mbytes(self.nccl_fusion_threshold_mb)
-        flow.boxing.nccl.set_fusion_max_ops_num(self.nccl_fusion_max_ops)
+        # flow.boxing.nccl.set_fusion_max_ops_num(self.nccl_fusion_max_ops)
+        flow.boxing.nccl.set_fusion_max_ops_num(1)
+
         if self.use_fp16 and self.num_nodes * self.num_devices_per_node > 1:
             flow.boxing.nccl.enable_use_buffer_to_fuse_all_reduce(False)
 
@@ -205,6 +207,7 @@ class Trainer(object):
         if self.meter_lr:
             lr = self.optimizer.param_groups[0]["lr"]
 
+        self.print_interval = int(os.environ.get('PRINT_INTERVAL'))
         do_print = (
             self.cur_iter % self.print_interval == 0
             or self.cur_iter == self.batches_per_epoch
@@ -222,15 +225,17 @@ class Trainer(object):
 
     def train(self):
         self.logger.metric("time").reset()
-        for _ in range(self.num_epochs):
+        # for _ in range(self.num_epochs):
+        for _ in range(1):
             self.train_one_epoch()
             if self.cur_batch == self.total_batches:
                 break
-
-            if not self.skip_eval:
-                acc = self.eval()
-            else:
-                acc = 0
+                
+            # if not self.skip_eval:
+            #     acc = self.eval()
+            # else:
+            #     acc = 0
+            acc = 0
 
             save_dir = f"epoch_{self.cur_epoch}_val_acc_{acc}"
             self.save(save_dir)
@@ -241,7 +246,16 @@ class Trainer(object):
         self.model.train()
         self.is_train = True
 
-        for _ in range(self.batches_per_epoch):
+        # print(self.batches_per_epoch) # 8卡时候打印8007，那是因为那时候的batchsize是20
+
+        iter_factor = int(os.environ.get('RESNET_ITER_FACTOR'))
+        ncard = int(os.environ.get('DEVICE_NUM_PER_NODE'))
+        iter_factor *= (8/ncard)
+
+        num_iters = int(os.environ.get('NUM_ITERS'))
+
+        # for _ in range(int(self.batches_per_epoch / iter_factor)):
+        for _ in range(num_iters):
             if self.graph:
                 loss, pred, label = self.train_graph()
             else:
