@@ -14,6 +14,7 @@ export NCCL_PROTO=Simple
 export NCCL_ALGO=Ring
 # export NCCL_MAX_NCHANNELS=1
 # export NCCL_MIN_NCHANNELS=1
+# export NCCL_NTHREADS=64
 
 export ONEFLOW_ENABLE_OFCCL=1
 export ONEFLOW_OFCCL_SKIP_NEGO=0
@@ -36,9 +37,9 @@ fi
 
 export PRINT_INTERVAL=1
 
-export GLOG_vmodule=plan_util*=1,of_collective_actor*=1,of_collective_boxing_kernels*=1,collective_backend_ofccl*=1,hierarchical_sub_task_graph_builder_impl*=1,of_request_store*=1,request_store*=1,runtime*=1,scheduler*=1,collective_manager*=1
+# export GLOG_vmodule=plan_util*=1,of_collective_actor*=1,of_collective_boxing_kernels*=1,collective_backend_ofccl*=1,hierarchical_sub_task_graph_builder_impl*=1,of_request_store*=1,request_store*=1,runtime*=1,scheduler*=1,collective_manager*=1
 # nn_graph*=1,
-# export GLOG_v=1
+export GLOG_v=1
 
 # export SHOW_ALL_PREPARED_COLL=1
 
@@ -47,26 +48,26 @@ export CHECK_REMAINING_SQE_INTERVAL=10000
 export DEBUG_FILE="/home/panlichen/work/oneflow/log/oneflow_cpu_rank_"
 
 if [ $DEVICE_NUM_PER_NODE = 2 ]; then
-    export CUDA_VISIBLE_DEVICES=4,5
+    export CUDA_VISIBLE_DEVICES=0,1
 
-    export RECV_SUCCESS_FACTOR=5
-    export RECV_SUCCESS_THRESHOLD=10000
-    export BASE_CTX_SWITCH_THRESHOLD=100
-    export TOLERANT_UNPROGRESSED_CNT=2000
-    export NUM_TRY_TASKQ_HEAD=40
-elif [ $DEVICE_NUM_PER_NODE = 4 ]; then
-    export CUDA_VISIBLE_DEVICES=0,1,4,5
-
-    export RECV_SUCCESS_FACTOR=20
-    export RECV_SUCCESS_THRESHOLD=100000000
-    export BASE_CTX_SWITCH_THRESHOLD=110000
-    export TOLERANT_UNPROGRESSED_CNT=80000
-    export NUM_TRY_TASKQ_HEAD=50
-elif [  $DEVICE_NUM_PER_NODE = 8 ]; then
     export RECV_SUCCESS_FACTOR=15
     export RECV_SUCCESS_THRESHOLD=10000000
     export BASE_CTX_SWITCH_THRESHOLD=100000
     export TOLERANT_UNPROGRESSED_CNT=80000
+    export NUM_TRY_TASKQ_HEAD=40
+elif [ $DEVICE_NUM_PER_NODE = 4 ]; then
+    export CUDA_VISIBLE_DEVICES=0,1,2,3
+
+    export RECV_SUCCESS_FACTOR=2
+    export RECV_SUCCESS_THRESHOLD=100000
+    export BASE_CTX_SWITCH_THRESHOLD=40000
+    export TOLERANT_UNPROGRESSED_CNT=40000
+    export NUM_TRY_TASKQ_HEAD=50
+elif [  $DEVICE_NUM_PER_NODE = 8 ]; then
+    export RECV_SUCCESS_FACTOR=20
+    export RECV_SUCCESS_THRESHOLD=10000000
+    export BASE_CTX_SWITCH_THRESHOLD=120000
+    export TOLERANT_UNPROGRESSED_CNT=60000
     export NUM_TRY_TASKQ_HEAD=50
 fi
 
@@ -91,8 +92,8 @@ fi
 
 echo ONEFLOW_ENABLE_OFCCL=$ONEFLOW_ENABLE_OFCCL
 echo ONEFLOW_OFCCL_SKIP_NEGO=$ONEFLOW_OFCCL_SKIP_NEGO
-echo ONEFLOW_ENABLE_OFCCL=$ONEFLOW_DEBUG_MODE
-echo ONEFLOW_OFCCL_SKIP_NEGO=$ONEFLOW_PROFILER_KERNEL_PROFILE_KERNEL_FORWARD_RANGE
+echo ONEFLOW_DEBUG_MODE=$ONEFLOW_DEBUG_MODE
+echo ONEFLOW_PROFILER_KERNEL_PROFILE_KERNEL_FORWARD_RANGE=$ONEFLOW_PROFILER_KERNEL_PROFILE_KERNEL_FORWARD_RANGE
 echo NCCL_PROTO=$NCCL_PROTO
 echo NCCL_ALGO=$NCCL_ALGO
 echo NCCL_MAX_NCHANNELS=$NCCL_MAX_NCHANNELS
@@ -115,25 +116,7 @@ if [ ! -d "$CHECKPOINT_SAVE_PATH" ]; then
     mkdir $CHECKPOINT_SAVE_PATH
 fi
 
-echo $HOST
-if [[ $HOST == "oneflow-15" ]]; then
-    export OFRECORD_PATH=/minio/sdd/dataset/imagenette/ofrecord
-elif [[ $HOST == "oneflow-16" ]]; then
-    export OFRECORD_PATH=/dataset/ImageNet/ofrecord
-elif [[ $HOST == "oneflow-25" ]]; then
-    export OFRECORD_PATH=/data/dataset/ImageNet/ofrecord
-elif [[ $HOST == "oneflow-26" ]]; then
-    export OFRECORD_PATH=/ssd/dataset/ImageNet/ofrecord
-elif [[ $HOST == "oneflow-27" ]]; then
-    export OFRECORD_PATH=/ssd/dataset/ImageNet/ofrecord
-elif [[ $HOST == "oneflow-28" ]]; then
-    export OFRECORD_PATH=/ssd/dataset/ImageNet/ofrecord
-elif [[ $HOST == "hngpu21" ]]; then
-    export OFRECORD_PATH=/data/ImageNet/ofrecord
-else
-    echo "NO LEGAL HOST, exit."
-    exit 1
-fi
+export OFRECORD_PATH=/data/ImageNet/ofrecord
 
 OFRECORD_PART_NUM=256
 LEARNING_RATE=0.768
@@ -197,4 +180,4 @@ $cmd \
         --graph \
         --fuse-bn-relu \
         --fuse-bn-add-relu \
-        # > /home/panlichen/work/oneflow/log/oneflow.log 2>&1
+        > /home/panlichen/work/oneflow/log/oneflow.log 2>&1
