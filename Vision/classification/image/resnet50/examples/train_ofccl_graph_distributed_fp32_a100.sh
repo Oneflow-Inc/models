@@ -63,6 +63,14 @@ elif [ $DEVICE_NUM_PER_NODE = 4 ]; then
     export BASE_CTX_SWITCH_THRESHOLD=40000
     export TOLERANT_UNPROGRESSED_CNT=40000
     export NUM_TRY_TASKQ_HEAD=50
+    # 不开nego的话，应该把threshold调小一点
+    if [ "$ONEFLOW_OFCCL_SKIP_NEGO" == "1" ]; then
+        export RECV_SUCCESS_FACTOR=5
+        export RECV_SUCCESS_THRESHOLD=1200
+        export BASE_CTX_SWITCH_THRESHOLD=80
+        export TOLERANT_UNPROGRESSED_CNT=80000
+        export NUM_TRY_TASKQ_HEAD=5
+    fi
 elif [  $DEVICE_NUM_PER_NODE = 8 ]; then
     export RECV_SUCCESS_FACTOR=20
     export RECV_SUCCESS_THRESHOLD=10000000
