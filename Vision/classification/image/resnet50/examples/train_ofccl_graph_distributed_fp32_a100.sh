@@ -72,11 +72,11 @@ elif [ $DEVICE_NUM_PER_NODE = 4 ]; then
         export NUM_TRY_TASKQ_HEAD=5
     fi
 elif [  $DEVICE_NUM_PER_NODE = 8 ]; then
-    export RECV_SUCCESS_FACTOR=20
-    export RECV_SUCCESS_THRESHOLD=10000000
-    export BASE_CTX_SWITCH_THRESHOLD=120000
+    export RECV_SUCCESS_FACTOR=150
+    export RECV_SUCCESS_THRESHOLD=100000000
+    export BASE_CTX_SWITCH_THRESHOLD=300000
     export TOLERANT_UNPROGRESSED_CNT=60000
-    export NUM_TRY_TASKQ_HEAD=50
+    export NUM_TRY_TASKQ_HEAD=200
 fi
 
 # export ENABLE_VQ=1
@@ -132,7 +132,7 @@ MOM=0.875
 EPOCH=50
 # TRAIN_BATCH_SIZE=96
 # VAL_BATCH_SIZE=50
-TRAIN_BATCH_SIZE=96
+TRAIN_BATCH_SIZE=288
 VAL_BATCH_SIZE=20
 # TRAIN_BATCH_SIZE=50
 # VAL_BATCH_SIZE=50
@@ -189,3 +189,7 @@ $cmd \
         --fuse-bn-relu \
         --fuse-bn-add-relu \
         > /home/panlichen/work/oneflow/log/oneflow.log 2>&1
+
+if [[ $ONEFLOW_ENABLE_OFCCL = 1 ]]; then
+    cp /home/panlichen/work/oneflow/log/oneflow.log resnet_${CARDNAME}_BASE_${BASE_CTX_SWITCH_THRESHOLD}_FACTOR_${RECV_SUCCESS_FACTOR}_UP_${RECV_SUCCESS_THRESHOLD}_TRYHEAD_${NUM_TRY_TASKQ_HEAD}.log
+fi

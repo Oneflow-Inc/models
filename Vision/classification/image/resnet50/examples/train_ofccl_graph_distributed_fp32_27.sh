@@ -201,3 +201,7 @@ $cmd \
         --fuse-bn-relu \
         --fuse-bn-add-relu \
         > /home/panlichen/work/oneflow/log/oneflow.log 2>&1
+        
+if [[ $ONEFLOW_ENABLE_OFCCL = 1 ]]; then
+    cp /home/panlichen/work/oneflow/log/oneflow.log resnet_${HOST}_BASE_${BASE_CTX_SWITCH_THRESHOLD}_FACTOR_${RECV_SUCCESS_FACTOR}_UP_${RECV_SUCCESS_THRESHOLD}_TRYHEAD_${NUM_TRY_TASKQ_HEAD}.log
+fi
