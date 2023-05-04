@@ -30,9 +30,9 @@ if [ -z $RUN_TYPE ];then
 fi
 
 if [ "$ONEFLOW_ENABLE_OFCCL" == "1" ]; then
-    NSYS_FILE="ofccl_resnet"_${HOST}_${DEVICE_NUM_PER_NODE}_card_reverse_ordered_issue
+    NSYS_FILE="ofccl_resnet"_${CARDNAME}_${DEVICE_NUM_PER_NODE}_card
 else
-    NSYS_FILE="nccl_resnet"_${HOST}_${DEVICE_NUM_PER_NODE}_card
+    NSYS_FILE="nccl_resnet"_${CARDNAME}_${DEVICE_NUM_PER_NODE}_card
 fi
 
 export PRINT_INTERVAL=1
@@ -161,7 +161,7 @@ elif [[ "$RUN_TYPE" == "NSYS" ]];then
     # cmd="nsys profile -f true --trace=cuda,cudnn,cublas,osrt,nvtx -o /home/panlichen/work/oneflow/log/nsys/$NSYS_FILE python3 -m oneflow.distributed.launch"
     cmd="nsys profile -f true -o /home/panlichen/work/oneflow/log/nsys/$NSYS_FILE python3 -m oneflow.distributed.launch"
     export RESNET_ITER_FACTOR=400
-    export NUM_ITERS=20
+    export NUM_ITERS=10
 fi
 
 unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY
