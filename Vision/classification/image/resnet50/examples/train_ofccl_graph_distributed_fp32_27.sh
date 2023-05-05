@@ -9,9 +9,11 @@ export ONEFLOW_ACTOR_ENABLE_LIGHT_ACTOR=0 # 禁用lightweight actor
 
 export NCCL_PROTO=Simple
 export NCCL_ALGO=Ring
-# export NCCL_MAX_NCHANNELS=1
-# export NCCL_MIN_NCHANNELS=1
-# export NCCL_NTHREADS=64
+export NCCL_MAX_NCHANNELS=1
+export NCCL_MIN_NCHANNELS=1
+export NCCL_NTHREADS=64
+
+export LD_LIBRARY_PATH=/home/panlichen/work2/ofccl/build/lib
 
 export ONEFLOW_ENABLE_OFCCL=1
 export ONEFLOW_OFCCL_SKIP_NEGO=0
@@ -38,7 +40,7 @@ export GLOG_vmodule=plan_util*=1,of_collective_actor*=1,of_collective_boxing_ker
 # nn_graph*=1,
 # export GLOG_v=1
 
-# export SHOW_ALL_PREPARED_COLL=1
+export SHOW_ALL_PREPARED_COLL=1
 
 export DEV_TRY_ROUND=10
 export CHECK_REMAINING_SQE_INTERVAL=10000
@@ -144,7 +146,7 @@ MOM=0.875
 EPOCH=50
 # TRAIN_BATCH_SIZE=96
 # VAL_BATCH_SIZE=50
-TRAIN_BATCH_SIZE=96
+TRAIN_BATCH_SIZE=5
 VAL_BATCH_SIZE=20
 # TRAIN_BATCH_SIZE=50
 # VAL_BATCH_SIZE=50
