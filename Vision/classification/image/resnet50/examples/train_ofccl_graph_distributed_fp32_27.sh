@@ -9,9 +9,9 @@ export ONEFLOW_ACTOR_ENABLE_LIGHT_ACTOR=0 # 禁用lightweight actor
 
 export NCCL_PROTO=Simple
 export NCCL_ALGO=Ring
-export NCCL_MAX_NCHANNELS=1
-export NCCL_MIN_NCHANNELS=1
-export NCCL_NTHREADS=64
+# export NCCL_MAX_NCHANNELS=1
+# export NCCL_MIN_NCHANNELS=1
+# export NCCL_NTHREADS=64
 
 export LD_LIBRARY_PATH=/home/panlichen/work2/ofccl/build/lib
 
@@ -146,7 +146,7 @@ MOM=0.875
 EPOCH=50
 # TRAIN_BATCH_SIZE=96
 # VAL_BATCH_SIZE=50
-TRAIN_BATCH_SIZE=5
+TRAIN_BATCH_SIZE=96
 VAL_BATCH_SIZE=20
 # TRAIN_BATCH_SIZE=50
 # VAL_BATCH_SIZE=50
@@ -202,7 +202,7 @@ $cmd \
         --graph \
         --fuse-bn-relu \
         --fuse-bn-add-relu \
-        > /home/panlichen/work/oneflow/log/oneflow.log 2>&1
+        > /home/panlichen/work/oneflow/log/oneflow.log #2>&1
         
 if [[ $ONEFLOW_ENABLE_OFCCL = 1 ]]; then
     cp /home/panlichen/work/oneflow/log/oneflow.log resnet_${HOST}_BASE_${BASE_CTX_SWITCH_THRESHOLD}_FACTOR_${RECV_SUCCESS_FACTOR}_UP_${RECV_SUCCESS_THRESHOLD}_TRYHEAD_${NUM_TRY_TASKQ_HEAD}.log
