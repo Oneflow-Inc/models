@@ -1,0 +1,1 @@
+CUDA_VISIBLE_DEVICES=0 python3 train.py --config configs/funit_animals.yaml --batch_size 8 --test_batch_size 8
