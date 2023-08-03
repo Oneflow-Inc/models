@@ -126,7 +126,7 @@ mnist
 
 # pix2pix
 of_pix2pix
-data
+pix2pix/data
 ofrecord/
 checkpoints/
 of_losses.txt
@@ -141,7 +141,14 @@ ofrecord
 SRGAN/data*
 SRGAN_netG_epoch_4_99
 vgg_imagenet_pretrain_model
+
 result
+
+
+# yolov3
+yolov3/*_ckpt
+coco
+yolov3/runs
 
 # quantization
 ._data

@@ -1,17 +1,17 @@
 cmake_minimum_required(VERSION 3.0)
 project(models_ops)
 execute_process (
-    COMMAND bash -c "python3 -c 'import oneflow; print(oneflow.framework.sysconfig.get_include(), end=\"\")'"
+    COMMAND bash -c "python3 -c 'from oneflow.framework.sysconfig import get_include; print(get_include(), end=\"\")'"
     OUTPUT_VARIABLE ONEFLOW_INCLUDE_PATH
 )
 
 execute_process (
-    COMMAND bash -c "python3 -c 'import oneflow; print(\" \".join(oneflow.framework.sysconfig.get_compile_flags()), end=\"\")'"
+    COMMAND bash -c "python3 -c 'from oneflow.framework.sysconfig import get_compile_flags; print(\" \".join(get_compile_flags()), end=\"\")'"
     OUTPUT_VARIABLE ONEFLOW_COMPILE_FLAGS
 )
 
 execute_process (
-    COMMAND bash -c "python3 -c 'import oneflow; print(oneflow.framework.sysconfig.get_lib(), end=\"\")'"
+    COMMAND bash -c "python3 -c 'from oneflow.framework.sysconfig import get_lib; print(get_lib(), end=\"\")'"
     OUTPUT_VARIABLE ONEFLOW_LIB_PATH
 )
 
@@ -21,7 +21,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 set(CUDA_HOST_COMPILER g++)
 set(CUDA_SEPARABLE_COMPILATION ON)
 set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} -O3 -Xcompiler -Wextra --disable-warnings -DWITH_CUDA)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${ONEFLOW_COMPILE_FLAGS} -O3 -g -std=c++11 -Wall -Wno-sign-compare -Wno-unused-function -fPIC")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${ONEFLOW_COMPILE_FLAGS} -O3 -g -std=c++14 -Wall -Wno-sign-compare -Wno-unused-function -fPIC")
 set(CUDA_VERBOSE_BUILD OFF)
 
 file(GLOB_RECURSE SRC "*.cpp")

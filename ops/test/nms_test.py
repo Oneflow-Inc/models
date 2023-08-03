@@ -5,7 +5,7 @@ from collections import OrderedDict
 import numpy as np
 
 import oneflow as flow
-from oneflow.test.modules.test_util import GenArgList
+from ops.test.test_util import GenArgList
 from ops import nms, lib_path
 
 p = ctypes.CDLL(lib_path())

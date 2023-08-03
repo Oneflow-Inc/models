@@ -18,6 +18,5 @@ REGISTER_USER_OP("nms")
       return Maybe<void>::Ok();
     })
     .SetGetSbpFn(user_op::GetSbpFnUtil::DefaultBroadcastToBroadcast);
-;
 
 }  // namespace oneflow
