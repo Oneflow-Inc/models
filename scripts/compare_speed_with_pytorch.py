@@ -1,5 +1,6 @@
 import numpy as np
 
+import json
 import time
 import tempfile
 import os
@@ -66,6 +67,7 @@ def test(
     ddp=False,
     ddp_broadcast_buffers=False,
     show_memory=True,
+    ci_mode=False,
 ):
     framework_name = "OneFlow" if test_oneflow else "PyTorch"
     if test_oneflow:
@@ -139,9 +141,9 @@ def test(
     x = torch.tensor(
         np.ones(input_shape).astype(np.float32), requires_grad=not test_oneflow
     ).to("cuda")
+    time_list = []
     for i in range(warmup_times + times):
-        if i == warmup_times:
-            start = time.time()
+        start = time.time()
         y = run_model(m, x)
         if not disable_backward:
             y = y.sum()
@@ -149,27 +151,34 @@ def test(
             optimizer.zero_grad()
             optimizer.step()
         sync(y)
-    end = time.time()
-    total_time_ms = (end - start) * 1000
-    time_per_run_ms = total_time_ms / times
-    if no_verbose:
-        print_rank_0(f"{framework_name}: {time_per_run_ms:.1f}ms")
-    else:
-        print_rank_0(
-            f"{framework_name} {module_name} time: {time_per_run_ms:.1f}ms (= {total_time_ms:.1f}ms / {times}, input_shape={input_shape}{', backward is disabled' if disable_backward else ''}{', ddp' if ddp else ''}{', ddp_broadcast_buffers is disabled' if not ddp_broadcast_buffers else ''}{f', world size={flow.env.get_world_size()}' if flow.env.get_world_size() != 1 else ''})"
-        )
-    if show_memory:
-        global gpu_memory_used_by_oneflow
-        if test_oneflow:
-            gpu_memory_used_by_oneflow = gpu_memory_used()
-
-            print_rank_0(
-                f"{framework_name} GPU used (rank 0): {gpu_memory_used_by_oneflow} MiB"
-            )
+        end = time.time()
+        if i >= warmup_times:
+            time_list.append(end - start)
+    total_time_ms = sum(time_list) * 1000
+    time_per_run_ms = total_time_ms / len(time_list)
+    if not ci_mode:
+        if no_verbose:
+            print_rank_0(f"{framework_name}: {time_per_run_ms:.1f}ms")
         else:
             print_rank_0(
-                f"{framework_name} GPU used (rank 0, estimated): {gpu_memory_used() - gpu_memory_used_by_oneflow} MiB"
+                f"{framework_name} {module_name} time: {time_per_run_ms:.1f}ms (= {total_time_ms:.1f}ms / {times}, input_shape={input_shape}{', backward is disabled' if disable_backward else ''}{', ddp' if ddp else ''}{', ddp_broadcast_buffers is disabled' if not ddp_broadcast_buffers else ''}{f', world size={flow.env.get_world_size()}' if flow.env.get_world_size() != 1 else ''})"
             )
+        if show_memory:
+            global gpu_memory_used_by_oneflow
+            if test_oneflow:
+                gpu_memory_used_by_oneflow = gpu_memory_used()
+
+                print_rank_0(
+                    f"{framework_name} GPU used (rank 0): {gpu_memory_used_by_oneflow} MiB"
+                )
+            else:
+                print_rank_0(
+                    f"{framework_name} GPU used (rank 0, estimated): {gpu_memory_used() - gpu_memory_used_by_oneflow} MiB"
+                )
+    else:
+        batch_size = input_shape[0]
+        print_rank_0(json.dumps({'throughputs': list(map(lambda t: batch_size / t, time_list))}))
+
     if ddp and not test_oneflow:
         import torch.distributed as dist
 
@@ -191,6 +200,7 @@ if __name__ == "__main__":
     parser.add_argument("--only-oneflow", action="store_true")
     parser.add_argument("--only-pytorch", action="store_true")
     parser.add_argument("--no-show-memory", action="store_true")
+    parser.add_argument("--ci-mode", action="store_true")
 
     args = parser.parse_args()
     input_shape = list(map(int, args.input_shape.split("x")))
@@ -210,6 +220,7 @@ if __name__ == "__main__":
             ddp=args.ddp,
             ddp_broadcast_buffers=not args.ddp_no_broadcast_buffers,
             show_memory=not args.no_show_memory,
+            ci_mode=args.ci_mode,
         )
 
     if not args.only_oneflow:
@@ -224,6 +235,7 @@ if __name__ == "__main__":
             ddp=args.ddp,
             ddp_broadcast_buffers=not args.ddp_no_broadcast_buffers,
             show_memory=not args.no_show_memory,
+            ci_mode=args.ci_mode,
         )
 
     if not args.only_pytorch and not args.only_oneflow:
