@@ -26,6 +26,8 @@ VAL_BATCH_SIZE=50
 SRC_DIR=$(realpath $(dirname $0)/..)
 
 python3 $SRC_DIR/train.py \
+    --device npu \
+    --label-smoothing 0 \
     --ofrecord-path $OFRECORD_PATH \
     --ofrecord-part-num $OFRECORD_PART_NUM \
     --num-devices-per-node 1 \
