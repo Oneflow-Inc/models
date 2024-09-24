@@ -31,8 +31,9 @@ def make_data_loader(args, mode, is_global=False, synthetic=False):
             placement=placement,
             sbp=sbp,
             channel_last=args.channel_last,
+            device=args.device,
         )
-        return data_loader.to("cuda")
+        return data_loader.to(args.device)
 
     ofrecord_data_loader = OFRecordDataLoader(
         ofrecord_dir=args.ofrecord_path,
@@ -45,6 +46,8 @@ def make_data_loader(args, mode, is_global=False, synthetic=False):
         placement=placement,
         sbp=sbp,
         use_gpu_decode=args.use_gpu_decode,
+        device="cpu",
+        #device=args.device,
     )
     return ofrecord_data_loader
 
@@ -62,6 +65,7 @@ class OFRecordDataLoader(flow.nn.Module):
         placement=None,
         sbp=None,
         use_gpu_decode=False,
+        device="cuda",
     ):
         super().__init__()
 
@@ -71,6 +75,7 @@ class OFRecordDataLoader(flow.nn.Module):
         self.total_batch_size = total_batch_size
         self.dataset_size = dataset_size
         self.mode = mode
+        self.device = device
 
         random_shuffle = True if mode == "train" else False
         shuffle_after_epoch = True if mode == "train" else False
@@ -159,11 +164,12 @@ class OFRecordDataLoader(flow.nn.Module):
             else:
                 image_raw_bytes = self.image_decoder(record)
                 image = self.resize(image_raw_bytes)[0]
-                image = image.to("cuda")
 
             label = self.label_decoder(record)
             flip_code = self.flip()
-            flip_code = flip_code.to("cuda")
+            if self.use_gpu_decode:
+                # todo NPU: image will down grade to cpu
+                flip_code = flip_code.to(self.device)
             image = self.crop_mirror_norm(image, flip_code)
         else:
             record = self.ofrecord_reader()
@@ -184,6 +190,7 @@ class SyntheticDataLoader(flow.nn.Module):
         placement=None,
         sbp=None,
         channel_last=False,
+        device="cuda",
     ):
         super().__init__()
 
@@ -220,10 +227,10 @@ class SyntheticDataLoader(flow.nn.Module):
             )
         else:
             self.image = flow.randint(
-                0, high=256, size=self.image_shape, dtype=flow.float32, device="cuda"
+                0, high=256, size=self.image_shape, dtype=flow.float32, device=device,
             )
             self.label = flow.randint(
-                0, high=self.num_classes, size=self.label_shape, device="cuda",
+                0, high=self.num_classes, size=self.label_shape, device=device,
             ).to(dtype=flow.int32)
 
     def forward(self):

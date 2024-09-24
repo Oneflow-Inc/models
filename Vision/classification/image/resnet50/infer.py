@@ -55,7 +55,7 @@ def main(args):
     print("***** Model Init *****")
     model = resnet50()
     model.load_state_dict(flow.load(args.model_path))
-    model = model.to("cuda")
+    model = model.to(args.device)
     model.eval()
     end_t = time.perf_counter()
     print(f"***** Model Init Finish, time escapled {end_t - start_t:.6f} s *****")
@@ -65,7 +65,7 @@ def main(args):
 
     start_t = end_t
     image = load_image(args.image_path)
-    image = flow.Tensor(image, device=flow.device("cuda"))
+    image = flow.Tensor(image, device=flow.device(args.device))
     if args.graph:
         pred = model_graph(image)
     else:

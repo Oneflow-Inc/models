@@ -26,6 +26,7 @@ def parse_args(ignore_unknown_args=False):
     parser = argparse.ArgumentParser(
         description="OneFlow ResNet50 Arguments", allow_abbrev=False
     )
+    parser.add_argument("--device", type=str, default="cuda", help="device: cpu, cuda...")
     parser.add_argument(
         "--save",
         type=str,

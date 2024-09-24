@@ -83,5 +83,30 @@ class LabelSmoothLoss(flow.nn.Module):
         # log_prob = input.softmax(dim=-1).log()
         # onehot_label = flow.F.cast(onehot_label, log_prob.dtype)
         # loss = flow.mul(log_prob * -1, onehot_label).sum(dim=-1).mean()
-        loss = flow._C.softmax_cross_entropy(input, onehot_label.to(dtype=input.dtype))
+        #loss = flow._C.softmax_cross_entropy(input, onehot_label.to(dtype=input.dtype))
+        loss = flow._C.cross_entropy(input, onehot_label.to(dtype=input.dtype), reduction='none')
         return loss.mean()
+
+class oldLabelSmoothLoss(flow.nn.Module):
+    """NLL Loss with label smoothing
+    """
+
+    #def __init__(self, smoothing=0.1):
+        #super(LabelSmoothingCrossEntropy, self).__init__()
+    def __init__(self, num_classes=-1, smooth_rate=0.0):
+        super().__init__()
+        assert smooth_rate < 1.0
+        self.smoothing = smooth_rate
+        self.confidence = 1.0 - smooth_rate
+
+    def forward(self, x: flow.Tensor, target: flow.Tensor) -> flow.Tensor:
+        # TODO: register F.log_softmax() function and switch flow.log(flow.softmax()) to F.log_softmax()
+        logprobs = flow.log_softmax(x, dim=-1)
+        # TODO: fix gather bug when dim < 0
+        # FIXME: only support cls task now
+        nll_loss = -logprobs.gather(dim=1, index=target.unsqueeze(1))
+        nll_loss = nll_loss.squeeze(1)
+        smooth_loss = -logprobs.mean(dim=-1)
+        loss = self.confidence * nll_loss + self.smoothing * smooth_loss
+        return loss.mean()
+
