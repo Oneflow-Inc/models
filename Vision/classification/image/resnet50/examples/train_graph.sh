@@ -38,6 +38,5 @@ python3 $SRC_DIR/train.py \
     --save $CHECKPOINT_SAVE_PATH \
     --samples-per-epoch 50 \
     --val-samples-per-epoch 50 \
-    --use-gpu-decode \
     --scale-grad \
     --graph \

@@ -37,8 +37,8 @@ class TrainGraph(flow.nn.Graph):
         elif args.scale_grad:
             self.set_grad_scaler(make_static_grad_scaler())
 
-        self.config.allow_fuse_add_to_output(True)
-        self.config.allow_fuse_model_update_ops(True)
+        self.config.allow_fuse_add_to_output(args.fuse_add_to_output)
+        self.config.allow_fuse_model_update_ops(args.fuse_model_update_ops)
 
         # Disable cudnn_conv_heuristic_search_algo will open dry-run.
         # Dry-run is better with single device, but has no effect with multiple device.
@@ -51,11 +51,12 @@ class TrainGraph(flow.nn.Graph):
         self.cross_entropy = cross_entropy
         self.data_loader = data_loader
         self.add_optimizer(optimizer, lr_sch=lr_scheduler)
+        self.device = args.device
 
     def build(self):
         image, label = self.data_loader()
-        image = image.to("cuda")
-        label = label.to("cuda")
+        image = image.to(self.device)
+        label = label.to(self.device)
         logits = self.model(image)
         loss = self.cross_entropy(logits, label)
         if self.return_pred_and_label:
@@ -75,15 +76,16 @@ class EvalGraph(flow.nn.Graph):
         if args.use_fp16:
             self.config.enable_amp(True)
 
-        self.config.allow_fuse_add_to_output(True)
+        self.config.allow_fuse_add_to_output(args.fuse_add_to_output)
 
         self.data_loader = data_loader
         self.model = model
+        self.device = args.device
 
     def build(self):
         image, label = self.data_loader()
-        image = image.to("cuda")
-        label = label.to("cuda")
+        image = image.to(self.device)
+        label = label.to(self.device)
         logits = self.model(image)
         pred = logits.softmax()
         return pred, label

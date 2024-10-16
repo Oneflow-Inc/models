@@ -62,8 +62,6 @@ bash examples/train_graph_distributed_fp16.sh
 									Train resnet50 with graph mode.
 --use-fp16						 	
 									Whether to enable amp training.
---use-gpu-decode                    
-									Use gpu to decode the data packed in ofrecord, only supported in graph mode. 
 --scale-grad					 	
 									Whether to scale gradient when training in fp32 with graph mode. 
 --skip-eval						 	

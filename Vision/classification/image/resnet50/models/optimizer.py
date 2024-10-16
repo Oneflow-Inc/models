@@ -83,5 +83,6 @@ class LabelSmoothLoss(flow.nn.Module):
         # log_prob = input.softmax(dim=-1).log()
         # onehot_label = flow.F.cast(onehot_label, log_prob.dtype)
         # loss = flow.mul(log_prob * -1, onehot_label).sum(dim=-1).mean()
-        loss = flow._C.softmax_cross_entropy(input, onehot_label.to(dtype=input.dtype))
+        #loss = flow._C.softmax_cross_entropy(input, onehot_label.to(dtype=input.dtype))
+        loss = flow._C.cross_entropy(input, onehot_label.to(dtype=input.dtype), reduction='none')
         return loss.mean()

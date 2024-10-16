@@ -31,8 +31,9 @@ def make_data_loader(args, mode, is_global=False, synthetic=False):
             placement=placement,
             sbp=sbp,
             channel_last=args.channel_last,
+            device=args.device,
         )
-        return data_loader.to("cuda")
+        return data_loader.to(args.device)
 
     ofrecord_data_loader = OFRecordDataLoader(
         ofrecord_dir=args.ofrecord_path,
@@ -44,7 +45,7 @@ def make_data_loader(args, mode, is_global=False, synthetic=False):
         channel_last=args.channel_last,
         placement=placement,
         sbp=sbp,
-        use_gpu_decode=args.use_gpu_decode,
+        device=args.data_loading_device,
     )
     return ofrecord_data_loader
 
@@ -61,7 +62,7 @@ class OFRecordDataLoader(flow.nn.Module):
         channel_last=False,
         placement=None,
         sbp=None,
-        use_gpu_decode=False,
+        device="cuda",
     ):
         super().__init__()
 
@@ -71,6 +72,7 @@ class OFRecordDataLoader(flow.nn.Module):
         self.total_batch_size = total_batch_size
         self.dataset_size = dataset_size
         self.mode = mode
+        self.device = device
 
         random_shuffle = True if mode == "train" else False
         shuffle_after_epoch = True if mode == "train" else False
@@ -101,9 +103,8 @@ class OFRecordDataLoader(flow.nn.Module):
         rgb_mean = [123.68, 116.779, 103.939]
         rgb_std = [58.393, 57.12, 57.375]
 
-        self.use_gpu_decode = use_gpu_decode
         if self.mode == "train":
-            if self.use_gpu_decode:
+            if self.device == "cuda":
                 self.bytesdecoder_img = flow.nn.OFRecordBytesDecoder("encoded")
                 self.image_decoder = flow.nn.OFRecordImageGpuDecoderRandomCropResize(
                     target_width=image_width,
@@ -153,17 +154,17 @@ class OFRecordDataLoader(flow.nn.Module):
     def forward(self):
         if self.mode == "train":
             record = self.ofrecord_reader()
-            if self.use_gpu_decode:
+            if self.device == "cuda":
                 encoded = self.bytesdecoder_img(record)
                 image = self.image_decoder(encoded)
             else:
                 image_raw_bytes = self.image_decoder(record)
                 image = self.resize(image_raw_bytes)[0]
-                image = image.to("cuda")
 
             label = self.label_decoder(record)
             flip_code = self.flip()
-            flip_code = flip_code.to("cuda")
+            if self.device == "cuda":
+                flip_code = flip_code.to(self.device)
             image = self.crop_mirror_norm(image, flip_code)
         else:
             record = self.ofrecord_reader()
@@ -184,6 +185,7 @@ class SyntheticDataLoader(flow.nn.Module):
         placement=None,
         sbp=None,
         channel_last=False,
+        device="cuda",
     ):
         super().__init__()
 
@@ -220,10 +222,10 @@ class SyntheticDataLoader(flow.nn.Module):
             )
         else:
             self.image = flow.randint(
-                0, high=256, size=self.image_shape, dtype=flow.float32, device="cuda"
+                0, high=256, size=self.image_shape, dtype=flow.float32, device=device,
             )
             self.label = flow.randint(
-                0, high=self.num_classes, size=self.label_shape, device="cuda",
+                0, high=self.num_classes, size=self.label_shape, device=device,
             ).to(dtype=flow.int32)
 
     def forward(self):

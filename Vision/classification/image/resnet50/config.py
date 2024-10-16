@@ -26,6 +26,14 @@ def parse_args(ignore_unknown_args=False):
     parser = argparse.ArgumentParser(
         description="OneFlow ResNet50 Arguments", allow_abbrev=False
     )
+    parser.add_argument("--device", type=str, default="cuda", help="device: cpu, cuda...")
+    parser.add_argument(
+        "--data-loading-device",
+        type=str,
+        default="cuda",
+        choices=["cpu", "cuda"],
+        help="Specify the device for data loading: 'cpu' or 'cuda' (default: 'cuda')."
+    )
     parser.add_argument(
         "--save",
         type=str,
@@ -61,12 +69,6 @@ def parse_args(ignore_unknown_args=False):
         help="ofrecord data part number",
     )
     parser.add_argument(
-        "--use-gpu-decode",
-        action="store_true",
-        dest="use_gpu_decode",
-        help="Use gpu decode.",
-    )
-    parser.add_argument(
         "--synthetic-data",
         action="store_true",
         dest="synthetic_data",
@@ -85,6 +87,22 @@ def parse_args(ignore_unknown_args=False):
         action="store_true",
         dest="fuse_bn_add_relu",
         help="Whether to use use fuse batch_normalization, add and relu.",
+    )
+    parser.add_argument(
+        "--disable-fuse-add-to-output",
+        action="store_false",
+        dest="fuse_add_to_output",
+        help="Disable fusion of the add operation into the output (enabled by default). \n"
+        "For more details, see `graph_config.py` in the OneFlow repository: \n"
+        "https://github.com/Oneflow-Inc/oneflow",
+    )
+    parser.add_argument(
+        "--disable-fuse-model-update-ops",
+        action="store_false",
+        dest="fuse_model_update_ops",
+        help="Disable fusion of the model update operations (enabled by default). \n"
+        "For more details, see `graph_config.py` in the OneFlow repository: \n"
+        "https://github.com/Oneflow-Inc/oneflow",
     )
 
     # training hyper-parameters
