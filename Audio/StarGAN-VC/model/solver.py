@@ -127,7 +127,7 @@ class Solver(object):
             # Fetch real images and labels.
             try:
                 x_real, speaker_idx_org, label_org = next(data_iter)
-            except:
+            except StopIteration:
                 data_iter = iter(self.data_loader)
                 x_real, speaker_idx_org, label_org = next(data_iter)
 
